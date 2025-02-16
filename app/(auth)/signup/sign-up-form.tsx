@@ -13,6 +13,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { GoogleSignInButton } from "@/components/google-sign-in-button"
 import { Separator } from "@/components/ui/separator"
 import { signUpSchema, getAuthErrorMessage, AUTH_MESSAGES } from "@/lib/validations/auth"
+import { PasswordStrengthMeter } from "@/components/password-strength-meter"
 import type { z } from "zod"
 
 type FormData = z.infer<typeof signUpSchema>
@@ -81,7 +82,7 @@ export function SignUpForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <GoogleSignInButton type="signup" />
 
       <div className="relative">
@@ -96,7 +97,7 @@ export function SignUpForm() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
           <FormField
             control={form.control}
             name="email"
@@ -133,10 +134,9 @@ export function SignUpForm() {
                 </FormControl>
                 <FormMessage />
                 {form.getValues("password") && !form.formState.errors.password && (
-                  <p className="text-xs text-muted-foreground">
-                    Password must contain at least 8 characters, one uppercase letter,
-                    one lowercase letter, one number, and one special character.
-                  </p>
+                  <div className="mt-2">
+                    <PasswordStrengthMeter password={form.getValues("password")} />
+                  </div>
                 )}
               </FormItem>
             )}
