@@ -1,0 +1,148 @@
+'use client'
+
+import Link from "next/link"
+import { Facebook, Twitter, Instagram, Github } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+export function Footer() {
+  return (
+    <footer className="w-full bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 border-t">
+      <div className="w-[90%] mx-auto py-12">
+        {/* CTA Section */}
+        <div className="mb-16">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-center md:text-left">
+              <h2 className="text-2xl font-bold mb-2">Ready to get started?</h2>
+              <p className="text-muted-foreground">Join thousands of satisfied users today.</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button variant="ghost" size="lg" asChild>
+                <Link href="/signin">Sign In</Link>
+              </Button>
+              <Button 
+                size="lg"
+                asChild
+                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+              >
+                <Link href="/signup">Get Started Free</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Footer Content */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          {/* Brand Section */}
+          <div className="space-y-4 col-span-2 md:col-span-1">
+            <Link href="/" className="flex items-center space-x-2">
+              <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-foreground">
+                Tenzzen
+              </span>
+            </Link>
+            <p className="text-sm text-muted-foreground">
+              Empowering your digital journey with innovative solutions and seamless experiences.
+            </p>
+            <div className="flex space-x-4">
+              <Link href="#" className="text-muted-foreground hover:text-primary">
+                <Facebook className="h-5 w-5" />
+              </Link>
+              <Link href="#" className="text-muted-foreground hover:text-primary">
+                <Twitter className="h-5 w-5" />
+              </Link>
+              <Link href="#" className="text-muted-foreground hover:text-primary">
+                <Instagram className="h-5 w-5" />
+              </Link>
+              <Link href="#" className="text-muted-foreground hover:text-primary">
+                <Github className="h-5 w-5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Product Links */}
+          <div className="space-y-4">
+            <h3 className="font-semibold">Product</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link href="/features" className="text-sm text-muted-foreground hover:text-foreground">
+                  Features
+                </Link>
+              </li>
+              <li>
+                <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground">
+                  Pricing
+                </Link>
+              </li>
+              <li>
+                <Link href="/explore" className="text-sm text-muted-foreground hover:text-foreground">
+                  Explore
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Company Links */}
+          <div className="space-y-4">
+            <h3 className="font-semibold">Company</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground">
+                  About Us
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog" className="text-sm text-muted-foreground hover:text-foreground">
+                  Blog
+                </Link>
+              </li>
+              <li>
+                <Link href="/careers" className="text-sm text-muted-foreground hover:text-foreground">
+                  Careers
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Support Links */}
+          <div className="space-y-4">
+            <h3 className="font-semibold">Support</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+                  Contact
+                </Link>
+              </li>
+              <li>
+                <Link href="/docs" className="text-sm text-muted-foreground hover:text-foreground">
+                  Documentation
+                </Link>
+              </li>
+              <li>
+                <Link href="/help" className="text-sm text-muted-foreground hover:text-foreground">
+                  Help Center
+                </Link>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Bottom Section */}
+        <div className="mt-16 pt-8 border-t">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+            <p>© 2025 Tenzzen. All rights reserved.</p>
+            <div className="flex gap-6">
+              <Link href="/privacy" className="hover:text-foreground">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="hover:text-foreground">
+                Terms of Service
+              </Link>
+              <Link href="/cookies" className="hover:text-foreground">
+                Cookie Policy
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
+}

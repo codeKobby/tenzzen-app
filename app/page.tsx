@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Check, YoutubeIcon, BookOpen, Brain, Target, Clock, Users } from "lucide-react";
+import { Footer } from "@/components/footer";
+import { ArrowRight, Check, YoutubeIcon, BookOpen, Brain, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -112,7 +113,7 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--primary-rgb),0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--primary-rgb),0.05)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
         </div>
 
-        <div className="w-[95%] mx-auto max-w-7xl relative">
+        <div className="w-[90%] mx-auto max-w-7xl relative">
           <div className="grid gap-8 lg:grid-cols-2 lg:gap-12 items-center py-24">
             {/* Content */}
             <div className="relative space-y-8">
@@ -150,7 +151,7 @@ export default function HomePage() {
               </div>
 
               {/* Benefits Pills */}
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 justify-center">
                 {benefits.slice(0, 3).map((benefit) => (
                   <div
                     key={benefit.title}
@@ -198,7 +199,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="w-[95%] mx-auto max-w-7xl py-24">
+      <section className="w-[85%] mx-auto max-w-6xl py-24">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <h2 className="text-3xl font-bold mb-4">How It Works</h2>
           <p className="text-muted-foreground">
@@ -229,7 +230,7 @@ export default function HomePage() {
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0" />
         </div>
 
-        <div className="w-[95%] mx-auto max-w-7xl relative">
+        <div className="w-[92%] mx-auto max-w-7xl relative">
           <div className="text-center space-y-4 mb-24">
             <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 mb-4">
               <div className="size-2 rounded-full bg-primary animate-pulse" />
@@ -243,43 +244,16 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="space-y-48">
-            {features.map((feature, index) => (
+          <div className="flex flex-col gap-48">
+            {features.map((feature) => (
               <div
                 key={feature.title}
-                className={`
-                  relative grid lg:grid-cols-2 gap-16 items-center
-                  ${index % 2 === 1 ? '[direction:rtl]' : ''}
-                `}
+                className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start"
               >
-                {/* Screenshot */}
-                <div className="relative group [direction:ltr]">
-                  <div className="absolute -inset-4 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent rounded-3xl blur-2xl opacity-50 group-hover:opacity-75 transition-all duration-500" />
-                  <div className="relative bg-gradient-to-br from-card to-card/50 rounded-2xl p-1.5 shadow-2xl">
-                    <div className="absolute inset-[1px] rounded-2xl bg-gradient-to-br from-primary/20 via-background to-background" />
-                    <div className="relative aspect-[4/3] rounded-xl overflow-hidden backdrop-blur-sm transform group-hover:scale-[1.02] transition-transform duration-500">
-                      <PlaceholderImage title={feature.preview} />
-                    </div>
-
-                    {/* Floating Badge */}
-                    <div className="absolute -bottom-6 right-10 bg-card shadow-xl rounded-xl p-4 border transform group-hover:translate-y-1 transition-transform duration-500">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-full bg-primary/10">
-                          <feature.icon className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="text-sm">
-                          <div className="font-medium">AI-Powered</div>
-                          <div className="text-muted-foreground">Feature</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className={`space-y-8 [direction:ltr] ${index % 2 === 1 ? 'lg:text-right' : ''}`}>
+                {/* Description */}
+                <div className="w-full lg:w-[40%] space-y-8">
                   <div>
-                    <div className={`inline-flex items-center gap-4 mb-6 ${index % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}>
+                    <div className="inline-flex items-center gap-4 mb-6">
                       <div className="relative group/icon">
                         <div className="absolute -inset-2 bg-gradient-to-br from-primary/20 to-primary/0 rounded-xl blur-lg opacity-0 group-hover/icon:opacity-100 transition-opacity" />
                         <div className="relative p-3 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-sm transform hover:scale-110 transition-all duration-300">
@@ -295,17 +269,39 @@ export default function HomePage() {
                     </p>
                   </div>
 
-                  <div className={`flex gap-4 ${index % 2 === 1 ? 'lg:justify-end' : ''}`}>
-                    <Button
-                      variant="outline"
-                      className="group/btn relative overflow-hidden border-primary/20 hover:border-primary/50"
-                    >
-                      <span className="relative z-10 flex items-center">
-                        Learn more
-                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-                      </span>
-                      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-                    </Button>
+                  <Button
+                    variant="outline"
+                    className="group/btn relative overflow-hidden border-primary/20 hover:border-primary/50"
+                  >
+                    <span className="relative z-10 flex items-center">
+                      Learn more
+                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                    </span>
+                    <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                  </Button>
+                </div>
+
+                {/* Screenshot */}
+                <div className="relative group w-full lg:w-[60%]">
+                  <div className="absolute -inset-4 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent rounded-3xl blur-2xl opacity-50 group-hover:opacity-75 transition-all duration-500" />
+                  <div className="relative bg-gradient-to-br from-card to-card/50 rounded-2xl p-2 shadow-2xl">
+                    <div className="absolute inset-[1px] rounded-2xl bg-gradient-to-br from-primary/20 via-background to-background" />
+                    <div className="relative aspect-[16/9] rounded-xl overflow-hidden backdrop-blur-sm transform group-hover:scale-[1.02] transition-transform duration-500">
+                      <PlaceholderImage title={feature.preview} />
+                    </div>
+                  </div>
+
+                  {/* Floating Badge */}
+                  <div className="absolute -bottom-6 right-10 bg-card shadow-xl rounded-xl p-4 border transform group-hover:translate-y-1 transition-transform duration-500">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-full bg-primary/10">
+                        <feature.icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="text-sm">
+                        <div className="font-medium">AI-Powered</div>
+                        <div className="text-muted-foreground">Feature</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -314,147 +310,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section className="w-[95%] mx-auto max-w-7xl py-24">
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
-          <div className="lg:sticky lg:top-24">
-            <h2 className="text-3xl font-bold mb-4">Supercharge Your Learning</h2>
-            <p className="text-muted-foreground mb-8 text-lg">
-              Experience a new way of learning with our comprehensive suite of features designed to maximize your educational journey.
-            </p>
-            <div className="relative aspect-video rounded-xl overflow-hidden border bg-card shadow-xl">
-              <PlaceholderImage title="Learning Benefits Overview" />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-4">
-            {benefits.map((benefit) => (
-              <div key={benefit.title} className="w-full sm:w-[calc(50%-0.5rem)]">
-                <Card className="h-full border-primary/10 transition-colors hover:border-primary/30">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <Check className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium mb-2">{benefit.title}</h3>
-                        <p className="text-sm text-muted-foreground">{benefit.description}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="relative py-24 overflow-hidden">
-        {/* Background patterns */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-gradient-to-br from-muted/80 via-background to-background" />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--primary-rgb),0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--primary-rgb),0.05)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,transparent,black,transparent)]" />
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0" />
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0" />
-        </div>
-
-        <div className="container relative">
-          <div className="text-center space-y-4 mb-16">
-            <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 mb-4">
-              <div className="size-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-sm font-medium">Real User Stories</span>
-            </div>
-            <h2 className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground via-foreground to-foreground/70">
-              What Our Users Say
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Join thousands of satisfied learners who have transformed their educational journey
-            </p>
-          </div>
-
-          <div className="relative max-w-5xl mx-auto px-4 sm:px-8 md:px-12">
-            {/* Background blur effect */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-primary/20 rounded-full blur-3xl" />
-            
-            <Carousel
-              options={{
-                align: "center",
-                loop: true,
-              }}
-            >
-              <CarouselContent className="-ml-2 md:-ml-4">
-                {testimonials.map((testimonial) => (
-                  <CarouselItem key={testimonial.author} className="pl-2 md:pl-4 sm:basis-[calc(100%-2rem)] md:basis-[calc(100%-4rem)] py-8">
-                    <div className="relative">
-                      {/* Card glow effect */}
-                      <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 via-primary/10 to-transparent rounded-2xl blur-lg opacity-75" />
-                      <Card className="relative overflow-hidden">
-                        <CardContent className="p-8">
-                          {/* Icon with gradient background */}
-                          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                            <div className="relative">
-                              <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-primary/10 blur-xl" />
-                              <div className="relative p-3 rounded-full bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-sm">
-                                <Users className="h-6 w-6 text-primary" />
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="relative mt-6">
-                            <p className="italic mb-6 text-lg sm:text-xl text-center leading-relaxed">
-                              &ldquo;{testimonial.quote}&rdquo;
-                            </p>
-                            <div className="text-center space-y-1">
-                              <div className="font-semibold text-base sm:text-lg">{testimonial.author}</div>
-                              <div className="text-sm text-muted-foreground">{testimonial.role}</div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <div className="hidden sm:block">
-                <CarouselPrevious className="-left-12 sm:-left-16" />
-                <CarouselNext className="-right-12 sm:-right-16" />
-              </div>
-            </Carousel>
-
-            {/* Mobile indicators */}
-            <div className="mt-8 flex justify-center gap-2 sm:hidden">
-              {testimonials.map((_, index) => (
-                <div
-                  key={index}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    index === 0 ? "w-6 bg-primary" : "w-1.5 bg-primary/20"
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="container py-24">
-        <Card className="bg-primary text-primary-foreground">
-          <CardContent className="p-12 flex flex-col items-center text-center">
-            <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Learning?</h2>
-            <p className="text-primary-foreground/80 mb-8 max-w-2xl">
-              Join thousands of learners who are already using our platform to create structured courses from their favorite educational videos. Start your learning journey today.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" variant="secondary" asChild>
-                <Link href="/signup">Get Started Free</Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="/explore">Explore Courses</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
+      {/* Footer Section */}
+      <Footer />
     </div>
   );
 }
