@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tenzzen - AI-Powered Course Generation Platform
+
+Transform YouTube videos into structured learning experiences with AI.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ and pnpm
+- Supabase account
+- Google OAuth credentials (for Google sign-in)
+
+### Setup
+
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Create a `.env` file in the root directory with your Supabase credentials:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Configure Supabase Authentication:
+   - Go to your Supabase project dashboard
+   - Navigate to Authentication > Providers
+   - Enable Email/Password provider
+   - Enable Google provider and add your OAuth credentials
+   - Add your app's URL to the redirect URLs (e.g., `http://localhost:3000/auth/callback`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Start the development server:
+```bash
+pnpm dev
+```
 
-## Learn More
+Visit `http://localhost:3000` to see the application.
 
-To learn more about Next.js, take a look at the following resources:
+### Authentication Features
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Email/Password authentication
+- Google OAuth sign-in
+- Password strength validation
+- Protected routes
+- Authentication state management
+- Loading states
+- Form validation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Theme Support
 
-## Deploy on Vercel
+- Light/Dark mode support
+- System theme detection
+- Theme persistence
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+tenzzen/
+├── app/
+│   ├── (app)/          # Protected routes
+│   ├── (auth)/         # Authentication routes
+│   └── layout.tsx      # Root layout
+├── components/         # Reusable components
+├── lib/               # Utilities and providers
+│   ├── supabase/      # Supabase client and auth
+│   └── utils.ts       # Helper functions
+└── public/            # Static assets
+```
+
+## Development
+
+### Key Features
+
+- Course generation from YouTube videos
+- Progress tracking
+- Interactive learning paths
+- Responsive design
+- Mobile-first approach
+
+### Built With
+
+- Next.js 13+ (App Router)
+- React
+- TypeScript
+- Tailwind CSS
+- Supabase
+- shadcn/ui

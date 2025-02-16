@@ -1,101 +1,460 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Check, YoutubeIcon, BookOpen, Brain, Target, Clock, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { PlaceholderImage } from "@/components/ui/placeholder-image";
 
-export default function Home() {
+const features = [
+  {
+    icon: YoutubeIcon,
+    title: "AI-Powered Course Generation",
+    description: "Our advanced AI technology analyzes video content, extracts key concepts, and creates comprehensive course structures. Perfect for educational content, tutorials, and lectures.",
+    preview: "Course Generation Interface"
+  },
+  {
+    icon: BookOpen,
+    title: "Interactive Learning Path",
+    description: "Customized learning journeys with adaptive quizzes, detailed notes, and smart progress tracking. Our system adjusts to your learning style and pace.",
+    preview: "Learning Path View"
+  },
+  {
+    icon: Brain,
+    title: "Smart Content Organization",
+    description: "Advanced algorithms automatically structure content into logical chapters, create detailed summaries, and highlight key concepts for better retention.",
+    preview: "Content Organization System"
+  },
+  {
+    icon: Target,
+    title: "Learn at Your Pace",
+    description: "Flexible learning schedule with bookmarking, progress tracking, and personalized recommendations. Study when and how it works best for you.",
+    preview: "Progress Dashboard"
+  },
+];
+
+const benefits = [
+  {
+    title: "Structured learning paths",
+    description: "Carefully organized content progression ensuring optimal knowledge retention"
+  },
+  {
+    title: "Interactive quizzes",
+    description: "AI-generated assessments to test understanding and reinforce learning"
+  },
+  {
+    title: "AI-generated notes",
+    description: "Comprehensive summaries and key points extracted from video content"
+  },
+  {
+    title: "Progress tracking",
+    description: "Detailed analytics and insights into your learning journey"
+  },
+  {
+    title: "Custom study plans",
+    description: "Personalized schedules based on your goals and availability"
+  },
+  {
+    title: "Resource recommendations",
+    description: "Curated additional materials to enhance your understanding"
+  },
+];
+
+const steps = [
+  {
+    number: "01",
+    title: "Paste YouTube URL",
+    description: "Simply copy and paste the URL of any educational YouTube video you want to learn from."
+  },
+  {
+    number: "02",
+    title: "AI Analysis",
+    description: "Our advanced AI analyzes the content, extracts key concepts, and structures the material."
+  },
+  {
+    number: "03",
+    title: "Course Generation",
+    description: "Get an instantly organized course with chapters, quizzes, and study materials."
+  },
+  {
+    number: "04",
+    title: "Start Learning",
+    description: "Begin your structured learning journey with progress tracking and assessments."
+  },
+];
+
+const testimonials = [
+  {
+    quote: "Tenzzen transformed how I learn from YouTube. The AI-generated course structure is incredibly helpful.",
+    author: "Sarah Chen",
+    role: "Computer Science Student"
+  },
+  {
+    quote: "This platform has revolutionized my teaching methodology. My students love the interactive elements.",
+    author: "Dr. Michael Roberts",
+    role: "University Professor"
+  },
+  {
+    quote: "The smart content organization saves me hours of note-taking and helps me retain information better.",
+    author: "James Wilson",
+    role: "Self-taught Developer"
+  },
+];
+
+export default function HomePage() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="pb-24">
+      {/* Hero Section */}
+      <section className="relative min-h-[90vh] overflow-hidden">
+        {/* Background patterns */}
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-primary/5" />
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_500px_at_50%_200px,rgba(var(--primary-rgb),0.1),transparent)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--primary-rgb),0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--primary-rgb),0.05)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="w-[95%] mx-auto max-w-7xl relative">
+          <div className="grid gap-8 lg:grid-cols-2 lg:gap-12 items-center py-24">
+            {/* Content */}
+            <div className="relative space-y-8">
+              <div className="space-y-6">
+                <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight [text-wrap:balance]">
+                  Transform Videos into
+                  <span className="relative">
+                    <span className="absolute -z-10 inset-0 bg-gradient-to-r from-primary/30 to-primary/0 blur-2xl" />
+                    <span className="relative text-primary"> Engaging Courses</span>
+                  </span>
+                  <span className="block text-2xl sm:text-3xl lg:text-4xl mt-4 text-muted-foreground font-normal">
+                    With the Power of AI
+                  </span>
+                </h1>
+                <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl">
+                  Turn any YouTube video into an interactive learning experience with AI-generated quizzes, notes, and personalized study plans.
+                </p>
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button size="lg" className="group text-lg h-14" asChild>
+                  <Link href="/explore" className="relative overflow-hidden">
+                    <span className="relative z-10 flex items-center">
+                      Generate Course
+                      <YoutubeIcon className="ml-2 h-5 w-5 transition-transform group-hover:scale-110" />
+                    </span>
+                    <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary to-primary/80 opacity-100" />
+                    <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary to-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="text-lg h-14" asChild>
+                  <Link href="/signup">Start Learning Free</Link>
+                </Button>
+              </div>
+
+              {/* Benefits Pills */}
+              <div className="flex flex-wrap gap-3">
+                {benefits.slice(0, 3).map((benefit) => (
+                  <div
+                    key={benefit.title}
+                    className="bg-muted/50 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2 border border-primary/10 shadow-sm"
+                  >
+                    <Check className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">{benefit.title}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Demo Preview */}
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-r from-primary/30 via-primary/5 to-background rounded-2xl blur-2xl opacity-50" />
+              <div className="relative aspect-[5/3] rounded-xl overflow-hidden border shadow-2xl">
+                <PlaceholderImage title="Platform Demo" />
+              </div>
+              {/* Floating badges */}
+              <div className="absolute -bottom-8 -left-8 bg-card rounded-lg shadow-lg p-4 border">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Brain className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="text-sm">
+                    <div className="font-medium">AI-Powered</div>
+                    <div className="text-muted-foreground">Smart Learning</div>
+                  </div>
+                </div>
+              </div>
+              <div className="absolute -top-8 -right-8 bg-card rounded-lg shadow-lg p-4 border">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Target className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="text-sm">
+                    <div className="font-medium">Personalized</div>
+                    <div className="text-muted-foreground">Study Plans</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="w-[95%] mx-auto max-w-7xl py-24">
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <h2 className="text-3xl font-bold mb-4">How It Works</h2>
+          <p className="text-muted-foreground">
+            Transform any educational video into a structured course in four simple steps
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {steps.map((step) => (
+            <Card key={step.number} className="relative overflow-hidden transition-colors hover:border-primary/50">
+              <CardHeader>
+                <div className="text-4xl font-bold text-primary/20 mb-4">{step.number}</div>
+                <CardTitle>{step.title}</CardTitle>
+                <CardDescription>{step.description}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="relative py-32 overflow-hidden">
+        {/* Background patterns */}
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute inset-0 bg-gradient-to-br from-muted/80 via-background to-background" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--primary-rgb),0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--primary-rgb),0.05)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,transparent,black,transparent)]" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0" />
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0" />
+        </div>
+
+        <div className="w-[95%] mx-auto max-w-7xl relative">
+          <div className="text-center space-y-4 mb-24">
+            <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 mb-4">
+              <div className="size-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-sm font-medium">Powered by Advanced AI</span>
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground via-foreground to-foreground/70">
+              Transform Your Learning Experience
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Experience the future of online learning with our powerful AI-driven features
+            </p>
+          </div>
+
+          <div className="space-y-48">
+            {features.map((feature, index) => (
+              <div
+                key={feature.title}
+                className={`
+                  relative grid lg:grid-cols-2 gap-16 items-center
+                  ${index % 2 === 1 ? '[direction:rtl]' : ''}
+                `}
+              >
+                {/* Screenshot */}
+                <div className="relative group [direction:ltr]">
+                  <div className="absolute -inset-4 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent rounded-3xl blur-2xl opacity-50 group-hover:opacity-75 transition-all duration-500" />
+                  <div className="relative bg-gradient-to-br from-card to-card/50 rounded-2xl p-1.5 shadow-2xl">
+                    <div className="absolute inset-[1px] rounded-2xl bg-gradient-to-br from-primary/20 via-background to-background" />
+                    <div className="relative aspect-[4/3] rounded-xl overflow-hidden backdrop-blur-sm transform group-hover:scale-[1.02] transition-transform duration-500">
+                      <PlaceholderImage title={feature.preview} />
+                    </div>
+
+                    {/* Floating Badge */}
+                    <div className="absolute -bottom-6 right-10 bg-card shadow-xl rounded-xl p-4 border transform group-hover:translate-y-1 transition-transform duration-500">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-primary/10">
+                          <feature.icon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="text-sm">
+                          <div className="font-medium">AI-Powered</div>
+                          <div className="text-muted-foreground">Feature</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className={`space-y-8 [direction:ltr] ${index % 2 === 1 ? 'lg:text-right' : ''}`}>
+                  <div>
+                    <div className={`inline-flex items-center gap-4 mb-6 ${index % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}>
+                      <div className="relative group/icon">
+                        <div className="absolute -inset-2 bg-gradient-to-br from-primary/20 to-primary/0 rounded-xl blur-lg opacity-0 group-hover/icon:opacity-100 transition-opacity" />
+                        <div className="relative p-3 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-sm transform hover:scale-110 transition-all duration-300">
+                          <feature.icon className="h-8 w-8 text-primary" />
+                        </div>
+                      </div>
+                      <h3 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
+                        {feature.title}
+                      </h3>
+                    </div>
+                    <p className="text-muted-foreground text-lg leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </div>
+
+                  <div className={`flex gap-4 ${index % 2 === 1 ? 'lg:justify-end' : ''}`}>
+                    <Button
+                      variant="outline"
+                      className="group/btn relative overflow-hidden border-primary/20 hover:border-primary/50"
+                    >
+                      <span className="relative z-10 flex items-center">
+                        Learn more
+                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                      </span>
+                      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="w-[95%] mx-auto max-w-7xl py-24">
+        <div className="grid lg:grid-cols-2 gap-12 items-start">
+          <div className="lg:sticky lg:top-24">
+            <h2 className="text-3xl font-bold mb-4">Supercharge Your Learning</h2>
+            <p className="text-muted-foreground mb-8 text-lg">
+              Experience a new way of learning with our comprehensive suite of features designed to maximize your educational journey.
+            </p>
+            <div className="relative aspect-video rounded-xl overflow-hidden border bg-card shadow-xl">
+              <PlaceholderImage title="Learning Benefits Overview" />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            {benefits.map((benefit) => (
+              <div key={benefit.title} className="w-full sm:w-[calc(50%-0.5rem)]">
+                <Card className="h-full border-primary/10 transition-colors hover:border-primary/30">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Check className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium mb-2">{benefit.title}</h3>
+                        <p className="text-sm text-muted-foreground">{benefit.description}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="relative py-24 overflow-hidden">
+        {/* Background patterns */}
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute inset-0 bg-gradient-to-br from-muted/80 via-background to-background" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--primary-rgb),0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--primary-rgb),0.05)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,transparent,black,transparent)]" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0" />
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0" />
+        </div>
+
+        <div className="container relative">
+          <div className="text-center space-y-4 mb-16">
+            <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 mb-4">
+              <div className="size-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-sm font-medium">Real User Stories</span>
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground via-foreground to-foreground/70">
+              What Our Users Say
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Join thousands of satisfied learners who have transformed their educational journey
+            </p>
+          </div>
+
+          <div className="relative max-w-5xl mx-auto px-4 sm:px-8 md:px-12">
+            {/* Background blur effect */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-primary/20 rounded-full blur-3xl" />
+            
+            <Carousel
+              options={{
+                align: "center",
+                loop: true,
+              }}
+            >
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {testimonials.map((testimonial) => (
+                  <CarouselItem key={testimonial.author} className="pl-2 md:pl-4 sm:basis-[calc(100%-2rem)] md:basis-[calc(100%-4rem)] py-8">
+                    <div className="relative">
+                      {/* Card glow effect */}
+                      <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 via-primary/10 to-transparent rounded-2xl blur-lg opacity-75" />
+                      <Card className="relative overflow-hidden">
+                        <CardContent className="p-8">
+                          {/* Icon with gradient background */}
+                          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                            <div className="relative">
+                              <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-primary/10 blur-xl" />
+                              <div className="relative p-3 rounded-full bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-sm">
+                                <Users className="h-6 w-6 text-primary" />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="relative mt-6">
+                            <p className="italic mb-6 text-lg sm:text-xl text-center leading-relaxed">
+                              &ldquo;{testimonial.quote}&rdquo;
+                            </p>
+                            <div className="text-center space-y-1">
+                              <div className="font-semibold text-base sm:text-lg">{testimonial.author}</div>
+                              <div className="text-sm text-muted-foreground">{testimonial.role}</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <div className="hidden sm:block">
+                <CarouselPrevious className="-left-12 sm:-left-16" />
+                <CarouselNext className="-right-12 sm:-right-16" />
+              </div>
+            </Carousel>
+
+            {/* Mobile indicators */}
+            <div className="mt-8 flex justify-center gap-2 sm:hidden">
+              {testimonials.map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    index === 0 ? "w-6 bg-primary" : "w-1.5 bg-primary/20"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="container py-24">
+        <Card className="bg-primary text-primary-foreground">
+          <CardContent className="p-12 flex flex-col items-center text-center">
+            <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Learning?</h2>
+            <p className="text-primary-foreground/80 mb-8 max-w-2xl">
+              Join thousands of learners who are already using our platform to create structured courses from their favorite educational videos. Start your learning journey today.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button size="lg" variant="secondary" asChild>
+                <Link href="/signup">Get Started Free</Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/explore">Explore Courses</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
