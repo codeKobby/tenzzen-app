@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator"
 import { signUpSchema, getAuthErrorMessage, AUTH_MESSAGES } from "@/lib/validations/auth"
 import { PasswordStrengthMeter } from "@/components/password-strength-meter"
 import type { z } from "zod"
+import { useState } from "react"
 
 type FormData = z.infer<typeof signUpSchema>
 
@@ -34,6 +35,8 @@ export function SignUpForm() {
     },
     mode: "onChange" // Enable real-time validation
   })
+
+  const [isFocused, setIsFocused] = useState(false)
 
   const onSubmit = async (values: FormData) => {
     try {
@@ -130,14 +133,14 @@ export function SignUpForm() {
                     type="password"
                     autoComplete="new-password"
                     {...field}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
                   />
                 </FormControl>
                 <FormMessage />
-                {form.getValues("password") && !form.formState.errors.password && (
-                  <div className="mt-2">
-                    <PasswordStrengthMeter password={form.getValues("password")} />
-                  </div>
-                )}
+                <div className="mt-2">
+                  <PasswordStrengthMeter password={form.getValues("password")} isFocused={isFocused} />
+                </div>
               </FormItem>
             )}
           />
