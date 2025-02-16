@@ -11,13 +11,11 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 
-type ExcludedPath = '/signin' | '/signup'
-const EXCLUDED_PATHS: ExcludedPath[] = ['/signin', '/signup']
-
 export function Header() {
   const pathname = usePathname()
 
-  if (EXCLUDED_PATHS.includes(pathname as ExcludedPath)) {
+  // Only show header on homepage
+  if (pathname !== '/') {
     return null
   }
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { PlaceholderImage } from "@/components/ui/placeholder-image";
+import { CourseGenerateButton } from "@/components/course-generate-button";
 
 const features = [
   {
@@ -83,24 +84,6 @@ const steps = [
   },
 ];
 
-const testimonials = [
-  {
-    quote: "Tenzzen transformed how I learn from YouTube. The AI-generated course structure is incredibly helpful.",
-    author: "Sarah Chen",
-    role: "Computer Science Student"
-  },
-  {
-    quote: "This platform has revolutionized my teaching methodology. My students love the interactive elements.",
-    author: "Dr. Michael Roberts",
-    role: "University Professor"
-  },
-  {
-    quote: "The smart content organization saves me hours of note-taking and helps me retain information better.",
-    author: "James Wilson",
-    role: "Self-taught Developer"
-  },
-];
-
 export default function HomePage() {
   return (
     <div className="pb-24">
@@ -135,16 +118,7 @@ export default function HomePage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="group text-lg h-14" asChild>
-                  <Link href="/explore" className="relative overflow-hidden">
-                    <span className="relative z-10 flex items-center">
-                      Generate Course
-                      <YoutubeIcon className="ml-2 h-5 w-5 transition-transform group-hover:scale-110" />
-                    </span>
-                    <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary to-primary/80 opacity-100" />
-                    <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary to-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </Link>
-                </Button>
+                <CourseGenerateButton />
                 <Button size="lg" variant="outline" className="text-lg h-14" asChild>
                   <Link href="/signup">Start Learning Free</Link>
                 </Button>

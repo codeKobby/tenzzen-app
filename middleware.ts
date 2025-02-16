@@ -1,15 +1,19 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Define routes that don't require authentication
+const PUBLIC_ROUTES = ['/signin', '/signup', '/reset-password', '/']
+
+// Define routes that require authentication
+const AUTH_ROUTES = ['/dashboard', '/settings', '/profile', '/explore']
+
 export async function middleware(request: NextRequest) {
-  // Create a response to modify the cookies
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
-  // Create a Supabase client
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -36,29 +40,38 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Check if we're trying to access auth pages
-  const isAuthPage = request.nextUrl.pathname.startsWith('/signin') ||
-    request.nextUrl.pathname.startsWith('/signup')
-
-  // Get the user's session
   const { data: { session } } = await supabase.auth.getSession()
-  
-  // If trying to access auth pages while already authenticated
-  if (isAuthPage && session) {
+  const path = request.nextUrl.pathname
+
+  // Allow public routes without redirection
+  if (PUBLIC_ROUTES.includes(path)) {
+    return response
+  }
+
+  // Redirect unauthenticated users to signin for protected routes
+  if (!session && AUTH_ROUTES.some(route => path.startsWith(route))) {
+    const redirectUrl = new URL('/signin', request.url)
+    redirectUrl.searchParams.set('callbackUrl', path)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Redirect authenticated users to dashboard if they try to access auth pages
+  if (session && ['/signin', '/signup'].includes(path)) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
-  
-  // If trying to access protected pages while not authenticated
-  if (!isAuthPage && !session) {
-    return NextResponse.redirect(new URL('/signin', request.url))
-  }
-  
+
   return response
 }
 
 export const config = {
   matcher: [
-    // Match all paths except static files, api routes, assets, and auth callback
-    '/((?!api|_next/static|_next/image|favicon.ico|auth/callback).*)',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
