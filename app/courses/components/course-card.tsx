@@ -1,3 +1,5 @@
+"use client"
+
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
@@ -18,7 +20,7 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
       className={cn("overflow-hidden transition-all hover:border-primary/50 cursor-pointer", className)}
       onClick={onClick}
     >
-      <div className="aspect-video relative">
+      <div className="relative aspect-video">
         <Image
           src={course.thumbnail || "/placeholders/course-thumbnail.jpg"}
           alt={course.title}
@@ -35,7 +37,7 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
             {course.duration}
           </div>
         </div>
-        <h3 className="mt-2 text-lg font-semibold tracking-tight line-clamp-2">
+        <h3 className="line-clamp-2 mt-2 text-lg font-semibold tracking-tight">
           {course.title}
         </h3>
         <p className="text-sm text-muted-foreground line-clamp-2">
@@ -43,7 +45,7 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
         </p>
       </CardHeader>
       <CardContent className="grid gap-2.5">
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Progress</span>
             <span>{course.progress}%</span>
@@ -56,7 +58,7 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="justify-between border-t pt-4">
+      <CardFooter className="justify-between border-t pt-2">
         <div className="flex items-center text-sm text-muted-foreground">
           <UserCircle className="mr-1 h-4 w-4" />
           {course.instructor}
