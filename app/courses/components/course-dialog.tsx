@@ -35,24 +35,25 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px]">
-        <DialogHeader>
-          <div className="aspect-video relative rounded-lg overflow-hidden mb-4">
-            <Image
-              src={course.thumbnail || "/placeholders/course-thumbnail.jpg"}
-              alt={course.title}
-              fill
-              className="object-cover"
-              priority
-              sizes="(max-width: 700px) 100vw, 700px"
-            />
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-              <Button variant="secondary" size="lg" className="gap-2">
-                <PlayCircle className="h-5 w-5" />
-                Resume Course
-              </Button>
-            </div>
+      <DialogContent className="sm:max-w-[500px] p-0">
+        <div className="relative h-[200px] sm:h-[300px] w-full shrink-0 overflow-hidden rounded-t-lg">
+          <Image
+            src={course.thumbnail || "/placeholders/course-thumbnail.jpg"}
+            alt={course.title}
+            fill
+            className="object-cover"
+            priority
+            sizes="(max-width: 500px) 100vw, 500px"
+          />
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+            <Button variant="secondary" size="lg" className="gap-2">
+              <PlayCircle className="h-5 w-5" />
+              Resume Course
+            </Button>
           </div>
+        </div>
+
+        <div className="p-6 space-y-4 overflow-y-auto max-h-[calc(100vh-200px)]">
           <div className="flex items-center gap-2 mb-2">
             <Badge variant="secondary">{course.category}</Badge>
             <Badge variant="outline" className="ml-auto">
@@ -60,13 +61,11 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
               {course.duration}
             </Badge>
           </div>
-          <DialogTitle className="text-2xl">{course.title}</DialogTitle>
-          <DialogDescription className="text-base">
+          <DialogTitle className="text-2xl mb-2">{course.title}</DialogTitle>
+          <DialogDescription className="text-base mb-4">
             {course.description}
           </DialogDescription>
-        </DialogHeader>
 
-        <div className="grid gap-4 py-4">
           {/* Course Stats */}
           <div className="grid grid-cols-3 gap-4">
             <Card>
@@ -76,7 +75,7 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{course.totalLessons}</div>
+                <div className="text-2xl font-bold">{course.totalLessons ?? 0}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   <BookOpen className="inline h-3 w-3 mr-1" />
                   Structured Learning
@@ -90,7 +89,7 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{course.completedLessons}</div>
+                <div className="text-2xl font-bold">{course.completedLessons ?? 0}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   <Target className="inline h-3 w-3 mr-1" />
                   Lessons Completed
@@ -122,7 +121,7 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
               </div>
               <Progress value={course.progress} className="h-2" />
               <p className="text-xs text-muted-foreground text-center">
-                {course.completedLessons} of {course.totalLessons} lessons completed
+                {course.completedLessons ?? 0} of {course.totalLessons ?? 0} lessons completed
               </p>
             </div>
 
@@ -142,7 +141,7 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2 mt-4 sm:gap-0 sm:mt-0 border-t pt-4">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
