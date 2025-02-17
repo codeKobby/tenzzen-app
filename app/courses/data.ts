@@ -1,0 +1,87 @@
+import { Course } from "./types"
+
+export const sampleCourses: Course[] = [
+  {
+    id: "1",
+    title: "Advanced JavaScript: From Fundamentals to Full Stack Development",
+    description: "Master modern JavaScript with practical projects and real-world applications",
+    duration: "24h 30m",
+    progress: 65,
+    rating: 4.8,
+    instructor: "Sarah Wilson",
+    category: "Programming",
+    totalLessons: 48,
+    completedLessons: 31,
+    lastAccessed: "2 days ago",
+    thumbnail: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&auto=format&fit=crop&q=60"
+  },
+  {
+    id: "2",
+    title: "UI/UX Design: Creating User-Centered Experiences",
+    description: "Learn to design beautiful and functional user interfaces",
+    duration: "18h 15m",
+    progress: 25,
+    rating: 4.5,
+    instructor: "Michael Chen",
+    category: "Design",
+    totalLessons: 36,
+    completedLessons: 9,
+    lastAccessed: "1 week ago",
+    thumbnail: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&auto=format&fit=crop&q=60"
+  },
+  {
+    id: "3",
+    title: "Machine Learning and AI Fundamentals",
+    description: "Understanding the basics of ML and AI with Python",
+    duration: "32h 45m",
+    progress: 0,
+    rating: 4.9,
+    instructor: "Dr. Emily Rodriguez",
+    category: "Programming",
+    totalLessons: 56,
+    completedLessons: 0,
+    thumbnail: "https://images.unsplash.com/photo-1527430253228-e93688616381?w=800&auto=format&fit=crop&q=60"
+  },
+  {
+    id: "4",
+    title: "Digital Marketing Mastery",
+    description: "Comprehensive guide to modern digital marketing strategies",
+    duration: "16h 20m",
+    progress: 100,
+    rating: 4.7,
+    instructor: "Jessica Taylor",
+    category: "Business",
+    totalLessons: 32,
+    completedLessons: 32,
+    lastAccessed: "1 month ago",
+    thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=60"
+  },
+  {
+    id: "5",
+    title: "Mobile App Development with React Native",
+    description: "Build cross-platform mobile apps with React Native",
+    duration: "28h 45m",
+    progress: 45,
+    rating: 4.6,
+    instructor: "Alex Johnson",
+    category: "Programming",
+    totalLessons: 52,
+    completedLessons: 23,
+    lastAccessed: "3 days ago",
+    thumbnail: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800&auto=format&fit=crop&q=60"
+  },
+  {
+    id: "6",
+    title: "Data Visualization and Analytics",
+    description: "Learn to create impactful data visualizations",
+    duration: "20h 15m",
+    progress: 15,
+    rating: 4.8,
+    instructor: "David Kim",
+    category: "Design",
+    totalLessons: 40,
+    completedLessons: 6,
+    lastAccessed: "5 days ago",
+    thumbnail: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=60"
+  }
+]
