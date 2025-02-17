@@ -128,7 +128,7 @@ export default function ProjectsPage() {
       <CardContent className="pt-4 pb-0">
         <div className="flex flex-wrap gap-2">
           {project.category !== "all" && <Badge variant="secondary">{project.category}</Badge>}
-          {project.difficulty !== "all" && <Badge variant="secondary">{project.difficulty}</Badge>}
+          <Badge variant="secondary">{project.difficulty}</Badge>
           <Badge variant="outline">{project.language}</Badge>
         </div>
       </CardContent>

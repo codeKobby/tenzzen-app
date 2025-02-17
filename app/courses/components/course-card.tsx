@@ -3,7 +3,7 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Clock, UserCircle } from "lucide-react"
+import { Clock, UserCircle, Users, Star, PlayCircle } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Course } from "../types"
@@ -57,6 +57,22 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
             {course.completedLessons} of {course.totalLessons} lessons completed
           </div>
         )}
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center">
+              <Users className="mr-1 h-4 w-4" />
+              {course.enrolledCount.toLocaleString()}
+            </div>
+            <div className="flex items-center">
+              <Star className="mr-1 h-4 w-4 text-yellow-500" />
+              {course.rating}
+            </div>
+          </div>
+          <div className="flex items-center">
+            <PlayCircle className="mr-1 h-4 w-4" />
+            {course.videoSource}
+          </div>
+        </div>
       </CardContent>
       <CardFooter className="justify-between border-t pt-2">
         <div className="flex items-center text-sm text-muted-foreground">

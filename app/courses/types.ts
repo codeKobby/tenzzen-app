@@ -11,6 +11,8 @@ export interface Course {
   lastAccessed?: string
   totalLessons?: number
   completedLessons?: number
+  enrolledCount: number
+  videoSource: string
 }
 
 export type CourseFilter = "all" | "in-progress" | "completed" | "not-started"

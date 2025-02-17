@@ -1,28 +1,9 @@
 "use client"
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import {
-  Clock,
-  BookOpen,
-  Target,
-  Trophy,
-  PlayCircle,
-  Calendar,
-  GraduationCap
-} from "lucide-react"
-import Image from "next/image"
+import { Star, Users, Clock, PlayCircle, BookOpen } from "lucide-react"
 import { Course } from "../types"
-import { cn } from "@/lib/utils"
 
 interface CourseDialogProps {
   course: Course | null
@@ -35,92 +16,92 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-0 sm:max-w-[600px]">
-        <div className="relative w-full overflow-hidden rounded-t-lg pt-[56.25%]">
-          <Image
-            src={course.thumbnail || "/placeholders/course-thumbnail.jpg"}
-            alt={course.title}
-            fill
-            className="absolute inset-0 object-cover"
-            priority
-            sizes="(max-width: 600px) 100vw, 600px"
-          />
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-            <Button variant="secondary" size="lg" className="gap-2">
-              <PlayCircle className="h-5 w-5" />
-              Resume Course
-            </Button>
+      <DialogContent className="max-w-lg mx-auto h-auto max-h-[85vh] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent p-0 gap-0 bg-background shadow-lg border border-border">
+        {/* Course Image */}
+        <div className="relative aspect-video w-full">
+          <div className="absolute inset-0 flex items-center justify-center bg-card">
+            <BookOpen className="w-16 h-16 text-foreground opacity-20" />
+          </div>
+          <button 
+            className="absolute inset-0 flex items-center justify-center bg-transparent hover:bg-background transition-all group"
+            aria-label="Play course preview"
+          >
+            <PlayCircle className="w-16 h-16 text-foreground opacity-0 group-hover:opacity-100 transition-all" />
+          </button>
+          <div className="absolute top-4 left-4 px-3 py-1.5 bg-background/90 backdrop-blur-sm rounded-full">
+            <span className="text-sm font-medium text-foreground">{course.videoSource}</span>
           </div>
         </div>
 
-        <div className="p-6 space-y-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge variant="secondary">{course.category}</Badge>
-            <Badge variant="outline" className="ml-auto">
-              <Clock className="mr-1 h-3 w-3" />
-              {course.duration}
-            </Badge>
-          </div>
-
-          <DialogTitle className="text-2xl mb-2">{course.title}</DialogTitle>
-          <DialogDescription className="text-base mb-4">
-            {course.description}
-          </DialogDescription>
+        <div className="p-6 space-y-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl sm:text-2xl leading-tight">
+              {course.title}
+            </DialogTitle>
+            <p className="text-base sm:text-lg text-foreground opacity-80 mt-2">
+              {course.description}
+            </p>
+          </DialogHeader>
 
           {/* Course Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border p-4">
-              <div className="text-2xl font-bold">{course.totalLessons ?? 0}</div>
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <BookOpen className="h-3 w-3" />
-                Total Lessons
-              </div>
+          <div className="flex flex-wrap gap-6 text-foreground">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              <span className="text-sm sm:text-base">
+                {course.enrolledCount.toLocaleString()} enrolled
+              </span>
             </div>
-
-            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border p-4">
-              <div className="text-2xl font-bold">{course.progress}%</div>
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <Target className="h-3 w-3" />
-                Course Progress
-              </div>
+            <div className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-primary" />
+              <span className="text-sm sm:text-base">{course.rating} rating</span>
             </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" />
+              <span className="text-sm sm:text-base">{course.duration}</span>
+            </div>
+          </div>
 
-            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border p-4 sm:col-span-1">
-              <div className="text-2xl font-bold">{course.rating}</div>
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <Trophy className="h-3 w-3" />
-                Course Rating
-              </div>
+          {/* Course Progress */}
+          <div className="space-y-4 text-foreground">
+            <h3 className="text-lg sm:text-xl font-semibold">Course Progress</h3>
+            <div className="text-sm sm:text-base opacity-80">
+              {course.completedLessons} of {course.totalLessons} lessons completed
+            </div>
+            <div className="w-full h-2 bg-border rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${course.progress}%` }}
+              />
             </div>
           </div>
 
           {/* Course Info */}
-          <div className="grid gap-2 rounded-lg border p-4">
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Last accessed:</span>
-              <span>{course.lastAccessed || "Not started"}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <GraduationCap className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Instructor:</span>
-              <span>{course.instructor}</span>
+          <div className="space-y-4 text-foreground">
+            <h3 className="text-lg sm:text-xl font-semibold">Course Information</h3>
+            <div className="grid sm:grid-cols-2 gap-4 text-sm sm:text-base">
+              <div>
+                <span className="block font-medium">Instructor</span>
+                <span className="opacity-80">{course.instructor}</span>
+              </div>
+              <div>
+                <span className="block font-medium">Category</span>
+                <span className="opacity-80">{course.category}</span>
+              </div>
+              {course.lastAccessed && (
+                <div>
+                  <span className="block font-medium">Last Accessed</span>
+                  <span className="opacity-80">{course.lastAccessed}</span>
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        <DialogFooter className="gap-2 mt-4 sm:gap-0 sm:mt-0 border-t pt-4">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            Close
-          </Button>
-          <Button className="gap-2">
-            <PlayCircle className="h-4 w-4" />
-            Continue Learning
-          </Button>
-        </DialogFooter>
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
+            <Button className="flex-1">Continue Learning</Button>
+            <Button variant="outline" className="flex-1">View Course Details</Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   )

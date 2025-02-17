@@ -13,7 +13,9 @@ export const sampleCourses: Course[] = [
     totalLessons: 48,
     completedLessons: 31,
     lastAccessed: "2 days ago",
-    thumbnail: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&auto=format&fit=crop&q=60"
+    thumbnail: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&auto=format&fit=crop&q=60",
+    enrolledCount: 12453,
+    videoSource: "Frontend Masters"
   },
   {
     id: "2",
@@ -27,7 +29,9 @@ export const sampleCourses: Course[] = [
     totalLessons: 36,
     completedLessons: 9,
     lastAccessed: "1 week ago",
-    thumbnail: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&auto=format&fit=crop&q=60"
+    thumbnail: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&auto=format&fit=crop&q=60",
+    enrolledCount: 8756,
+    videoSource: "Udemy"
   },
   {
     id: "3",
@@ -40,7 +44,9 @@ export const sampleCourses: Course[] = [
     category: "Programming",
     totalLessons: 56,
     completedLessons: 0,
-    thumbnail: "https://images.unsplash.com/photo-1527430253228-e93688616381?w=800&auto=format&fit=crop&q=60"
+    thumbnail: "https://images.unsplash.com/photo-1527430253228-e93688616381?w=800&auto=format&fit=crop&q=60",
+    enrolledCount: 15789,
+    videoSource: "Coursera"
   },
   {
     id: "4",
@@ -54,7 +60,9 @@ export const sampleCourses: Course[] = [
     totalLessons: 32,
     completedLessons: 32,
     lastAccessed: "1 month ago",
-    thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=60"
+    thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=60",
+    enrolledCount: 6234,
+    videoSource: "LinkedIn Learning"
   },
   {
     id: "5",
@@ -68,7 +76,9 @@ export const sampleCourses: Course[] = [
     totalLessons: 52,
     completedLessons: 23,
     lastAccessed: "3 days ago",
-    thumbnail: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800&auto=format&fit=crop&q=60"
+    thumbnail: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800&auto=format&fit=crop&q=60",
+    enrolledCount: 9872,
+    videoSource: "egghead.io"
   },
   {
     id: "6",
@@ -82,6 +92,8 @@ export const sampleCourses: Course[] = [
     totalLessons: 40,
     completedLessons: 6,
     lastAccessed: "5 days ago",
-    thumbnail: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=60"
+    thumbnail: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=60",
+    enrolledCount: 7345,
+    videoSource: "DataCamp"
   }
 ]
