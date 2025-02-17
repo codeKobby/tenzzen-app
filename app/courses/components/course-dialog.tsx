@@ -16,13 +16,25 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg mx-auto h-auto max-h-[85vh] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent p-0 gap-0 bg-background shadow-lg border border-border">
+      <DialogContent
+        className="
+          w-full max-w-[90%] sm:max-w-lg 
+          mx-auto 
+          h-[90vh] sm:h-auto sm:max-h-[85vh] 
+          overflow-y-auto 
+          p-0 gap-0 
+          bg-background 
+          shadow-lg 
+          border border-border 
+          rounded-lg
+        "
+      >
         {/* Course Image */}
         <div className="relative aspect-video w-full">
           <div className="absolute inset-0 flex items-center justify-center bg-card">
             <BookOpen className="w-16 h-16 text-foreground opacity-20" />
           </div>
-          <button 
+          <button
             className="absolute inset-0 flex items-center justify-center bg-transparent hover:bg-background transition-all group"
             aria-label="Play course preview"
           >
@@ -68,7 +80,7 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
               {course.completedLessons} of {course.totalLessons} lessons completed
             </div>
             <div className="w-full h-2 bg-border rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-primary transition-all duration-300"
                 style={{ width: `${course.progress}%` }}
               />
@@ -97,7 +109,7 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
+          <div className="flex flex-row gap-3 pt-4 border-t border-border">
             <Button className="flex-1">Continue Learning</Button>
             <Button variant="outline" className="flex-1">View Course Details</Button>
           </div>
