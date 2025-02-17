@@ -37,7 +37,6 @@ export function UpdatePasswordForm() {
     try {
       const { error } = await supabase.auth.updateUser({
         password: values.password,
-        token_hash: token_hash,
         type: type as any,
       })
 

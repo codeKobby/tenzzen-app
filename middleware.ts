@@ -1,12 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Define routes that don't require authentication
-const PUBLIC_ROUTES = ['/signin', '/signup', '/reset-password', '/']
-
-// Define routes that require authentication
-const AUTH_ROUTES = ['/dashboard', '/settings', '/profile', '/explore']
-
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -41,23 +35,20 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { session } } = await supabase.auth.getSession()
-  const path = request.nextUrl.pathname
 
-  // Allow public routes without redirection
-  if (PUBLIC_ROUTES.includes(path)) {
-    return response
-  }
-
-  // Redirect unauthenticated users to signin for protected routes
-  if (!session && AUTH_ROUTES.some(route => path.startsWith(route))) {
-    const redirectUrl = new URL('/signin', request.url)
-    redirectUrl.searchParams.set('callbackUrl', path)
+  // If there's no session and the user is trying to access protected routes
+  if (!session && request.nextUrl.pathname.startsWith('/dashboard')) {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/auth/signin'
+    redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Redirect authenticated users to dashboard if they try to access auth pages
-  if (session && ['/signin', '/signup'].includes(path)) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  // If there's a session and the user is trying to access auth routes
+  if (session && request.nextUrl.pathname.startsWith('/auth')) {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/dashboard'
+    return NextResponse.redirect(redirectUrl)
   }
 
   return response
@@ -65,13 +56,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Protect dashboard routes
+    '/dashboard/:path*',
+    // Protect auth routes from authenticated users
+    '/auth/:path*',
   ],
 }
