@@ -16,10 +16,10 @@ export function Footer() {
               <p className="text-muted-foreground">Join thousands of satisfied users today.</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button variant="ghost" size="lg" asChild>
+              <Button variant="outline" size="lg" asChild>
                 <Link href="/signin">Sign In</Link>
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 asChild
                 className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all"

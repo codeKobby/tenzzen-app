@@ -17,7 +17,7 @@ const features = [
   },
   {
     icon: BookOpen,
-    title: "Interactive Learning Path",   
+    title: "Interactive Learning Path",
     description: "Customized learning journeys with adaptive quizzes, detailed notes, and smart progress tracking. Our system adjusts to your learning style and pace.",
     preview: "Learning Path View"
   },
@@ -87,10 +87,10 @@ const steps = [
 
 export default function HomePage() {
   return (
-    <div className="pb-24">
+    <div className="pb-26">
       <Header />
       {/* Hero Section */}
-      <section className="relative min-h-screen overflow-hidden pt-20 pb-32">
+      <section className="relative min-h-screen overflow-hidden pt-28 pb-32">
         {/* Background patterns */}
         <div className="absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-primary/10" />
@@ -231,12 +231,12 @@ export default function HomePage() {
             {features.map((feature) => (
               <div
                 key={feature.title}
-                className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start"
+                className={`flex flex-col ${features.indexOf(feature) % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} gap-8 lg:gap-16 items-start`}
               >
                 {/* Description */}
-                <div className="w-full lg:w-[40%] space-y-8">
+                <div className={`w-full lg:w-[40%] space-y-8 ${features.indexOf(feature) % 2 === 0 ? '' : 'lg:text-right'}`}>
                   <div>
-                    <div className="inline-flex items-center gap-4 mb-6">
+                    <div className={`inline-flex items-center gap-4 mb-6 ${features.indexOf(feature) % 2 === 0 ? '' : 'lg:flex-row-reverse lg:justify-end'}`}>
                       <div className="relative group/icon">
                         <div className="absolute -inset-2 bg-gradient-to-br from-primary/20 to-primary/0 rounded-xl blur-lg opacity-0 group-hover/icon:opacity-100 transition-opacity" />
                         <div className="relative p-3 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-sm transform hover:scale-110 transition-all duration-300">
@@ -254,7 +254,9 @@ export default function HomePage() {
 
                   <Button
                     variant="outline"
-                    className="group/btn relative overflow-hidden border-primary/20 hover:border-primary/50"
+                    className={`group/btn relative overflow-hidden border-primary/20 hover:border-primary/50 ${
+                      features.indexOf(feature) % 2 === 0 ? '' : 'lg:ml-auto'
+                    }`}
                   >
                     <span className="relative z-10 flex items-center">
                       Learn more
@@ -275,7 +277,7 @@ export default function HomePage() {
                   </div>
 
                   {/* Floating Badge */}
-                  <div className="absolute -bottom-6 right-10 bg-card shadow-xl rounded-xl p-4 border transform group-hover:translate-y-1 transition-transform duration-500">
+                  <div className={`absolute -bottom-6 ${features.indexOf(feature) % 2 === 0 ? 'right-10' : 'left-10'} bg-card shadow-xl rounded-xl p-4 border transform group-hover:translate-y-1 transition-transform duration-500`}>
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-full bg-primary/10">
                         <feature.icon className="h-5 w-5 text-primary" />
