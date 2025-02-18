@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Footer } from "@/components/footer";
+import { Header } from "@/components/header";
 import { ArrowRight, Check, YoutubeIcon, BookOpen, Brain, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,7 @@ const features = [
   },
   {
     icon: BookOpen,
-    title: "Interactive Learning Path",
+    title: "Interactive Learning Path",   
     description: "Customized learning journeys with adaptive quizzes, detailed notes, and smart progress tracking. Our system adjusts to your learning style and pace.",
     preview: "Learning Path View"
   },
@@ -87,37 +88,45 @@ const steps = [
 export default function HomePage() {
   return (
     <div className="pb-24">
+      <Header />
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] overflow-hidden">
+      <section className="relative min-h-screen overflow-hidden pt-20 pb-32">
         {/* Background patterns */}
         <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-primary/5" />
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_500px_at_50%_200px,rgba(var(--primary-rgb),0.1),transparent)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--primary-rgb),0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--primary-rgb),0.05)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-primary/10" />
+          <div className="absolute top-0 left-0 right-0 h-[800px] bg-[radial-gradient(circle_800px_at_50%_-100px,rgba(var(--primary-rgb),0.15),transparent)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--primary-rgb),0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--primary-rgb),0.07)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_100%_100%_at_50%_0%,black_20%,transparent_70%)]" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
         </div>
 
-        <div className="w-[90%] mx-auto max-w-7xl relative">
-          <div className="grid gap-8 lg:grid-cols-2 lg:gap-12 items-center py-24">
+        <div className="container relative mx-auto">
+          <div className="flex flex-col gap-16 items-center">
             {/* Content */}
-            <div className="relative space-y-8">
-              <div className="space-y-6">
-                <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight [text-wrap:balance]">
-                  Transform Videos into
-                  <span className="relative">
-                    <span className="absolute -z-10 inset-0 bg-gradient-to-r from-primary/30 to-primary/0 blur-2xl" />
-                    <span className="relative text-primary"> Engaging Courses</span>
-                  </span>
-                  <span className="block text-2xl sm:text-3xl lg:text-4xl mt-4 text-muted-foreground font-normal">
-                    With the Power of AI
-                  </span>
-                </h1>
-                <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl">
+            <div className="relative space-y-10 text-center max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-1000 fill-mode-both">
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 border border-primary/20 shadow-sm">
+                    <div className="size-2 rounded-full bg-primary animate-pulse" />
+                    <span className="text-sm font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-foreground">AI-Powered Learning Platform</span>
+                  </div>
+                  <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight [text-wrap:balance]">
+                    Transform Videos into
+                    <span className="relative whitespace-nowrap">
+                      <span className="absolute -z-10 inset-0 bg-gradient-to-r from-primary/30 to-primary/0 blur-2xl" />
+                      <span className="relative text-primary"> Engaging Courses</span>
+                    </span>
+                    <span className="block text-2xl sm:text-3xl lg:text-4xl mt-6 text-muted-foreground font-normal">
+                      With the Power of AI
+                    </span>
+                  </h1>
+                </div>
+                <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
                   Turn any YouTube video into an interactive learning experience with AI-generated quizzes, notes, and personalized study plans.
                 </p>
               </div>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <CourseGenerateButton />
                 <Button size="lg" variant="outline" className="text-lg h-14" asChild>
                   <Link href="/signup">Start Learning Free</Link>
@@ -125,7 +134,7 @@ export default function HomePage() {
               </div>
 
               {/* Benefits Pills */}
-              <div className="flex flex-wrap gap-3 justify-center">
+              <div className="flex flex-wrap gap-3 justify-center max-w-2xl mx-auto">
                 {benefits.slice(0, 3).map((benefit) => (
                   <div
                     key={benefit.title}
@@ -139,13 +148,13 @@ export default function HomePage() {
             </div>
 
             {/* Demo Preview */}
-            <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/30 via-primary/5 to-background rounded-2xl blur-2xl opacity-50" />
-              <div className="relative aspect-[5/3] rounded-xl overflow-hidden border shadow-2xl">
+            <div className="relative max-w-5xl w-full animate-in fade-in zoom-in-50 duration-1000 fill-mode-both">
+              <div className="absolute -inset-4 bg-gradient-to-r from-primary/30 via-primary/5 to-background rounded-2xl blur-2xl opacity-50 transition-opacity duration-500 hover:opacity-75" />
+              <div className="relative aspect-[16/9] rounded-xl overflow-hidden border shadow-2xl transition-transform duration-500 hover:scale-[1.02]">
                 <PlaceholderImage title="Platform Demo" />
               </div>
               {/* Floating badges */}
-              <div className="absolute -bottom-8 -left-8 bg-card rounded-lg shadow-lg p-4 border">
+              <div className="absolute -bottom-8 -left-8 bg-card/80 backdrop-blur-sm rounded-lg shadow-lg p-4 border animate-in fade-in slide-in-from-left-4 duration-1000 fill-mode-both delay-300">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-primary/10">
                     <Brain className="h-5 w-5 text-primary" />
@@ -156,7 +165,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <div className="absolute -top-8 -right-8 bg-card rounded-lg shadow-lg p-4 border">
+              <div className="absolute -top-8 -right-8 bg-card/80 backdrop-blur-sm rounded-lg shadow-lg p-4 border animate-in fade-in slide-in-from-right-4 duration-1000 fill-mode-both delay-300">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-primary/10">
                     <Target className="h-5 w-5 text-primary" />
