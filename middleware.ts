@@ -60,5 +60,8 @@ export const config = {
     '/dashboard/:path*',
     // Protect auth routes from authenticated users
     '/auth/:path*',
+    // Handle email verification
+    '/auth/callback',
+    '/verify-email',
   ],
 }

@@ -44,36 +44,42 @@ export function SignUpForm() {
         email: values.email,
         password: values.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?type=email_verification`,
+          data: {
+            email: values.email,
+            email_confirm_redirect_url: `${window.location.origin}/auth/signin?message=email-verified`
+          }
         }
       })
 
       if (error) {
-        // Handle specific error cases
-        if (error.message === "User already registered") {
-          form.setError("email", {
-            type: "manual",
-            message: "An account with this email already exists"
-          })
-        } else {
-          form.setError("root", {
-            type: "manual",
-            message: getAuthErrorMessage(error)
-          })
-        }
-
+        const errorMessage = getAuthErrorMessage(error)
+        form.setError("root", {
+          type: "manual",
+          message: errorMessage
+        })
         toast({
           title: "Sign Up Error",
-          description: getAuthErrorMessage(error),
+          description: errorMessage,
           variant: "destructive",
         })
         return
       }
 
-      // Handle email confirmation requirement
-      if (data?.user && !data.user.email_confirmed_at) {
-        toast(AUTH_MESSAGES.SIGN_UP_SUCCESS)
-        router.push("/verify-email")
+      // Handle successful signup with email verification
+      if (data?.user) {
+        if (!data.user.email_confirmed_at) {
+          // Email verification required
+          toast(AUTH_MESSAGES.SIGN_UP_SUCCESS)
+          router.push(`/verify-email?email=${encodeURIComponent(values.email)}`)
+        } else {
+          // Email already verified (rare case)
+          toast({
+            title: "Success",
+            description: "Account created successfully. You can now sign in.",
+          })
+          router.push("/auth/signin")
+        }
       }
     } catch (error) {
       toast({

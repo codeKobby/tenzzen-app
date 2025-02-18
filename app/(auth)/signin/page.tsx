@@ -1,10 +1,35 @@
+"use client"
+
 import { SignInForm } from "./sign-in-form"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import Image from "next/image"
+import { useSearchParams } from "next/navigation"
+import { useEffect } from "react"
+import { toast } from "@/components/ui/use-toast"
+import { AUTH_MESSAGES } from "@/lib/validations/auth"
 
 export default function SignInPage() {
+  const searchParams = useSearchParams()
+  
+  useEffect(() => {
+    // Handle verification status
+    const message = searchParams.get("message")
+    const error = searchParams.get("error")
+    
+    if (message === "email-verified") {
+      toast(AUTH_MESSAGES.EMAIL_VERIFIED)
+    } else if (error === "verification-failed") {
+      toast({
+        title: "Verification Failed",
+        description: "Unable to verify your email. Please try again or request a new verification link.",
+        variant: "destructive"
+      })
+    }
+  }, [searchParams])
+
   return (
     <div className="w-full max-w-sm px-3">
       <Card className="border-0 shadow-lg">
