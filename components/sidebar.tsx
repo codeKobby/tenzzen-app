@@ -181,6 +181,13 @@ export function Sidebar({ children, className }: SidebarProps) {
     </div>
   )
 
+  const getAvatarImage = (user: User | null): string | undefined => {
+    if (user && 'image' in user && typeof user.image === 'string') {
+      return user.image;
+    }
+    return undefined;
+  }
+
   const UserProfile = () => (
     <div className="flex flex-col justify-end border-t">
       <div className="px-3 py-2">
@@ -189,7 +196,9 @@ export function Sidebar({ children, className }: SidebarProps) {
           !isOpen && "lg:justify-center"
         )}>
           <Avatar className="h-7 w-7 shrink-0">
-            <AvatarImage src={user?.image} />
+            {getAvatarImage(user) && (
+              <AvatarImage src={getAvatarImage(user)} />
+            )}
             <AvatarFallback className="text-xs">
               {user?.email?.[0]?.toUpperCase()}
             </AvatarFallback>

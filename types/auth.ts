@@ -1,8 +1,8 @@
 export interface User {
   id: string
-  email: string | null
-  name?: string | null
-  image?: string | null
+  email?: string
+  name?: string
+  image?: string
 }
 
 export interface AuthState {
