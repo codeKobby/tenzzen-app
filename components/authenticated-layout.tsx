@@ -13,12 +13,12 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
 
   // Return children while loading to prevent flash
   if (loading) {
-    return <div className="relative flex min-h-screen bg-background">{children}</div>
+    return <div className="relative min-h-screen bg-background">{children}</div>
   }
 
   // If not authenticated, just render children
   if (!user) {
-    return <div className="relative flex min-h-screen bg-background">{children}</div>
+    return <div className="relative min-h-screen bg-background">{children}</div>
   }
 
   // If authenticated and not loading, render with sidebar

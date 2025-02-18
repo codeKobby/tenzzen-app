@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,12 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { MoreVertical, Star, Clock, Edit3, Trash2, Share2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Note } from "../page";
+import { type NoteInterface } from "../page";
 import { format } from "date-fns"
 
 
 interface NoteCardProps {
-  note: Note;
+  note: NoteInterface;
   className?: string;
 }
 

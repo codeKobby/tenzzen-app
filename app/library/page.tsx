@@ -27,7 +27,7 @@ import {
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 
-interface Note {
+export interface NoteInterface {
   id: string;
   title: string;
   content: string;
@@ -46,7 +46,7 @@ const categories = [
   { id: "personal", name: "Personal Notes", icon: <File className="h-4 w-4 mr-2" /> },
 ]
 
-const notesData: Note[] = [
+const notesData: NoteInterface[] = [
   {
     id: "1",
     title: "Meeting Notes",
@@ -79,7 +79,7 @@ export default function LibraryPage() {
   const [filter, setFilter] = useState<CategoryFilter>("all")
   const [search, setSearch] = useState("")
 
-  const NoteCard = ({ note }: { note: Note }) => (
+  const InternalNoteCard = ({ note }: { note: NoteInterface }) => (
     <Card>
       <p>{note.title}</p>
     </Card>
@@ -138,7 +138,7 @@ export default function LibraryPage() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredNotes.length > 0 ? (
                 filteredNotes.map((note) => (
-                  <NoteCard key={note.id} note={note} />
+                  <InternalNoteCard key={note.id} note={note} />
                 ))
               ) : (
                 <div className="col-span-full flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">

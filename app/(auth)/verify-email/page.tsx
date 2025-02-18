@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button"
 
 export default function VerifyEmailPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-      <div className="w-full max-w-md">
-        <Card className="border-0 shadow-lg">
-          <CardContent className="p-8 text-center">
-            {/* Logo */}
-            <div className="w-12 h-12 mx-auto mb-4 relative">
+    <div className="w-full max-w-sm px-3">
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-6 text-center">
+          {/* Logo */}
+          <div className="w-10 h-10 mx-auto mb-3 relative">
               <Image
                 src="/logo.png"
                 alt="Tenzzen Logo"
@@ -22,8 +21,8 @@ export default function VerifyEmailPage() {
             </div>
 
             {/* Icon */}
-            <div className="w-16 h-16 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center">
-              <Mail className="h-8 w-8 text-primary" />
+            <div className="w-14 h-14 mx-auto mb-5 bg-primary/10 rounded-full flex items-center justify-center">
+              <Mail className="h-7 w-7 text-primary" />
             </div>
 
             <h1 className="text-3xl font-bold tracking-tight mb-2">Check your email</h1>
@@ -56,8 +55,7 @@ export default function VerifyEmailPage() {
               </p>
             </div>
           </CardContent>
-        </Card>
-      </div>
+      </Card>
     </div>
   )
 }
