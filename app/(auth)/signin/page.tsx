@@ -1,14 +1,12 @@
 import { SignInForm } from "./sign-in-form"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import Image from "next/image"
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
+    <div className="min-h-screen flex items-center justify-center px-6 py-12 bg-gradient-to-b from-background to-muted/30">
       <div className="w-full max-w-md">
         <Card className="border-0 shadow-lg">
           <CardContent className="p-8">
