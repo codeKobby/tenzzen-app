@@ -34,7 +34,20 @@ interface NavigationItem {
   badge?: string | number
 }
 
-const mainNavigation: NavigationItem[] = [
+const publicNavigation: NavigationItem[] = [
+  {
+    title: "Explore",
+    href: "/explore",
+    icon: Compass,
+  },
+  {
+    title: "Billing",
+    href: "/billing",
+    icon: Wallet,
+  },
+]
+
+const protectedNavigation: NavigationItem[] = [
   {
     title: "Dashboard",
     href: "/dashboard",
@@ -51,11 +64,6 @@ const mainNavigation: NavigationItem[] = [
     href: "/library",
     icon: Library,
   },
-  {
-    title: "Explore",
-    href: "/explore",
-    icon: Compass,
-  },
 ]
 
 const settingsNavigation: NavigationItem[] = [
@@ -63,11 +71,6 @@ const settingsNavigation: NavigationItem[] = [
     title: "Settings",
     href: "/settings",
     icon: Settings,
-  },
-  {
-    title: "Billing",
-    href: "/billing",
-    icon: Wallet,
   },
   {
     title: "Report Bug",
@@ -84,7 +87,7 @@ interface SidebarProps {
 export function Sidebar({ children, className }: SidebarProps) {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
-  const { signOut, user } = useAuth()
+  const { supabase, user } = useAuth()
   const { resolvedTheme } = useTheme()
   const [isMobile, setIsMobile] = React.useState(false)
 
@@ -103,7 +106,7 @@ export function Sidebar({ children, className }: SidebarProps) {
 
   const handleSignOut = async () => {
     try {
-      await signOut()
+      await supabase.auth.signOut()
       if (navigator.vibrate) navigator.vibrate([20])
       toast({
         title: "Signed out successfully",
@@ -298,14 +301,19 @@ export function Sidebar({ children, className }: SidebarProps) {
           {/* Navigation */}
           <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto px-3 py-2">
             <nav className="space-y-4">
-              <NavigationGroup items={mainNavigation} title="Menu" />
-              <Separator className="my-2" />
-              <NavigationGroup items={settingsNavigation} title="Settings" />
+              <NavigationGroup items={publicNavigation} title="Menu" />
+              {user && (
+                <>
+                  <NavigationGroup items={protectedNavigation} />
+                  <Separator className="my-2" />
+                  <NavigationGroup items={settingsNavigation} title="Settings" />
+                </>
+              )}
             </nav>
           </div>
 
           {/* Profile */}
-          <UserProfile />
+          {user && <UserProfile />}
         </div>
       </aside>
       <main className={cn(

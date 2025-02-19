@@ -56,24 +56,36 @@ export async function middleware(request: NextRequest) {
 
   const { data: { session }, error } = await supabase.auth.getSession()
 
-  // Auth routes protection
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+  // Define protected and public routes
+  const protectedRoutes = ['/dashboard', '/courses', '/library', '/settings', '/report-bug']
+  const publicAuthRoutes = ['/signin', '/signup']
+  const publicRoutes = ['/explore', '/billing']
+
+  // Check if current path starts with any protected route
+  const isProtectedRoute = protectedRoutes.some(route => 
+    request.nextUrl.pathname.startsWith(route)
+  )
+
+  // Protected routes - redirect to signin if not authenticated
+  if (isProtectedRoute) {
     if (!session) {
       return NextResponse.redirect(new URL('/signin', request.url))
     }
   }
 
-  // Public routes protection
-  const publicRoutes = ['/signin', '/signup']
-  if (publicRoutes.includes(request.nextUrl.pathname)) {
+  // Public auth routes (signin/signup) - redirect to dashboard if authenticated
+  if (publicAuthRoutes.includes(request.nextUrl.pathname)) {
     if (session) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
 
-  // Allow access to verification routes
-  if (request.nextUrl.pathname.startsWith('/(auth)/verify-email') || 
-      request.nextUrl.pathname.startsWith('/verify-email')) {
+  // Always allow access to public routes and verification routes
+  if (
+    publicRoutes.some(route => request.nextUrl.pathname.startsWith(route)) ||
+    request.nextUrl.pathname.startsWith('/(auth)/verify-email') || 
+    request.nextUrl.pathname.startsWith('/verify-email')
+  ) {
     return response
   }
 
@@ -83,6 +95,10 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/dashboard/:path*',
+    '/courses/:path*',
+    '/library/:path*',
+    '/settings/:path*',
+    '/report-bug/:path*',
     '/signin',
     '/signup',
     '/(auth)/verify-email',

@@ -11,23 +11,32 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+type ColorTheme = 'purple' | 'neutral'
+
 export function ThemeToggle() {
   const [mounted, setMounted] = React.useState(false)
+  const [colorTheme, setColorTheme] = React.useState<ColorTheme>('purple')
   const { theme, setTheme } = useTheme()
-  const [colorTheme, setColorTheme] = React.useState('purple')
 
   React.useEffect(() => {
     setMounted(true)
+    // Initialize theme
+    document.documentElement.classList.add('theme-purple')
   }, [])
 
-  const handleThemeChange = (selectedTheme: 'purple' | 'neutral') => {
+  const toggleDarkMode = () => {
+    if (theme === 'dark') {
+      setTheme('light')
+      document.documentElement.classList.remove('dark')
+    } else {
+      setTheme('dark')
+      document.documentElement.classList.add('dark')
+    }
+  }
+
+  const handleThemeChange = (selectedTheme: ColorTheme) => {
     setColorTheme(selectedTheme)
-    const isDark = theme === 'dark'
-    setTheme(isDark ? 'dark' : 'light')
-    
-    // Remove existing theme classes
     document.documentElement.classList.remove('theme-purple', 'theme-neutral')
-    // Add new theme class
     document.documentElement.classList.add(`theme-${selectedTheme}`)
   }
 
@@ -41,7 +50,7 @@ export function ThemeToggle() {
         variant="ghost" 
         size="icon"
         className="bg-background/80 backdrop-blur-sm border shadow-sm"
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        onClick={toggleDarkMode}
       >
         {theme === 'dark' ? (
           <Moon className="h-[1.2rem] w-[1.2rem]" />

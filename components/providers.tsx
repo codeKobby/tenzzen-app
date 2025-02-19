@@ -7,12 +7,9 @@ export function Providers({ children, ...props }: ThemeProviderProps) {
   return (
     <NextThemeProvider 
       attribute="class"
-      defaultTheme="light"
-      value={{
-        light: "theme-purple",
-        dark: "theme-purple dark",
-        system: "theme-purple",
-      }}
+      defaultTheme="system"
+      forcedTheme={props.forcedTheme}
+      disableTransitionOnChange
       {...props}
     >
       {children}

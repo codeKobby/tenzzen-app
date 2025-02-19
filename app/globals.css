@@ -2,81 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ------------------- Theme Neutral ------------------- */
-@layer base {
-  .theme-neutral {
-    /* Light Theme (Neutral) */
-    --background: 0 0% 98%;       /* Nearly white */
-    --foreground: 0 0% 18%;       /* Very dark gray */
-    
-    --card: 0 0% 100%;           /* White cards */
-    --card-foreground: 0 0% 18%;
-    
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 18%;
-    
-    --primary: 0 0% 20%;          /* Dark neutral for primary elements */
-    --primary-foreground: 0 0% 100%; /* White text on primary */
-    
-    --secondary: 0 0% 40%;        /* Medium gray */
-    --secondary-foreground: 0 0% 100%;
-    
-    --muted: 0 0% 85%;           /* Very light gray */
-    --muted-foreground: 0 0% 40%;
-    
-    --accent: 0 0% 50%;           /* Neutral midtone */
-    --accent-foreground: 0 0% 100%;
-    
-    --destructive: 0 84.2% 60.2%;  /* Vivid red for errors */
-    --destructive-foreground: 0 0% 100%;
-    
-    --border: 0 0% 90%;           /* Very light border */
-    --input: 0 0% 90%;
-    --ring: 0 0% 50%;
-    --radius: 0.75rem;
-    --success: 0 0% 40%;
-    --success-foreground: 0 0% 100%;
-    --warning: 0 0% 40%;
-    --warning-foreground: 0 0% 100%;
-  }
-
-  .theme-neutral.dark {
-    /* Dark Theme (Neutral) */
-    --background: 0 0% 12%;       /* Very dark gray */
-    --foreground: 0 0% 100%;      /* White text */
-    
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 100%;
-    
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 100%;
-    
-    --primary: 0 0% 20%;
-    --primary-foreground: 0 0% 100%;
-    
-    --secondary: 0 0% 30%;
-    --secondary-foreground: 0 0% 100%;
-    
-    --muted: 0 0% 30%;
-    --muted-foreground: 0 0% 100%;
-    
-    --accent: 0 0% 40%;
-    --accent-foreground: 0 0% 100%;
-    
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-    
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 0 0% 50%;
-    --radius: 0.75rem;
-    --success: 0 0% 40%;
-    --success-foreground: 0 0% 100%;
-    --warning: 0 0% 40%;
-    --warning-foreground: 0 0% 100%;
-  }
-}
-
 /* ------------------- Theme Purple ------------------- */
 @layer base {
   .theme-purple {
@@ -119,7 +44,7 @@
     --warning-foreground: 0 0% 100%;
   }
 
-  .theme-purple.dark {
+  .dark.theme-purple {
     /* Dark Theme (Purple) */
     --background: 240 10% 20%;            
     --foreground: 0 0% 100%;               
@@ -160,6 +85,81 @@
   }
 }
 
+/* ------------------- Theme Neutral ------------------- */
+@layer base {
+  .theme-neutral {
+    /* Light Theme (Neutral) */
+    --background: 0 0% 98%;       /* Nearly white */
+    --foreground: 0 0% 18%;       /* Very dark gray */
+    
+    --card: 0 0% 100%;           /* White cards */
+    --card-foreground: 0 0% 18%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 18%;
+    
+    --primary: 0 0% 20%;          /* Dark neutral for primary elements */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+    
+    --secondary: 0 0% 40%;        /* Medium gray */
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 0 0% 85%;           /* Very light gray */
+    --muted-foreground: 0 0% 40%;
+    
+    --accent: 0 0% 50%;           /* Neutral midtone */
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 84.2% 60.2%;  /* Vivid red for errors */
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 0 0% 90%;           /* Very light border */
+    --input: 0 0% 90%;
+    --ring: 0 0% 50%;
+    --radius: 0.75rem;
+    --success: 0 0% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 0 0% 40%;
+    --warning-foreground: 0 0% 100%;
+  }
+
+  .dark.theme-neutral {
+    /* Dark Theme (Neutral) */
+    --background: 0 0% 12%;       /* Very dark gray */
+    --foreground: 0 0% 100%;      /* White text */
+    
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 100%;
+    
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 100%;
+    
+    --primary: 0 0% 20%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 0 0% 30%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 0 0% 30%;
+    --muted-foreground: 0 0% 100%;
+    
+    --accent: 0 0% 40%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 0% 50%;
+    --radius: 0.75rem;
+    --success: 0 0% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 0 0% 40%;
+    --warning-foreground: 0 0% 100%;
+  }
+}
+
 /* ------------------- Global Base Styles ------------------- */
 @layer base {
   * {
@@ -167,7 +167,7 @@
   }
   body {
     @apply bg-background text-foreground min-h-screen antialiased;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
