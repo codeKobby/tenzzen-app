@@ -156,7 +156,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-[1500px] space-y-4 p-3 sm:p-4 lg:p-6">
+      <div className="mx-auto w-full space-y-4 p-3 sm:p-4 lg:p-6">
         {/* Hero Section */}
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-primary/90 p-4 sm:p-6 shadow-xl">
           <div
@@ -164,80 +164,83 @@ export default function DashboardPage() {
             style={{ backgroundSize: '200% 100%', animation: 'shine 8s linear infinite' }}
           />
           <div className="relative z-10">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-              <div className="space-y-3 flex-1">
-                <div>
-                  <h1 className="text-xl font-bold tracking-tight text-primary-foreground sm:text-2xl lg:text-3xl">
-                    {greeting}, <span className="text-white">Alex</span>
-                  </h1>
-                  <p className="mt-1.5 text-sm text-primary-foreground/90 font-medium sm:text-base">
-                    Transform YouTube content into structured learning
-                  </p>
-                </div>
-                <div className="mt-3 rounded-lg bg-white/10 p-3.5 backdrop-blur-[2px] shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-6">
+              {/* Greeting */}
+              <div className="flex-1 flex items-center">
+                <h1 className="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl lg:text-4xl">
+                  {greeting} <span className="text-xl">👋</span> <span className="text-white">Alex</span>
+                </h1>
+              </div>
+              
+              {/* Streak and Buttons Stack */}
+              <div className="flex flex-col gap-4 flex-1">
+                {/* Streak Card */}
+                <div className="rounded-lg bg-white/10 p-3.5 backdrop-blur-[2px] shadow-sm">
                   <div className="flex justify-between">
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center self-stretch">
-                          <span className="text-2xl font-bold text-white">
-                            {streak.current}
-                          </span>
-                        </div>
-                        <div className="flex flex-col justify-between">
-                          <span className="text-sm text-primary-foreground/90 font-medium">
-                            day streak
-                          </span>
-                          <p className="text-[11px] text-primary-foreground/80 flex items-center gap-1.5">
-                            Best: {streak.longest} days
-                            {streak.current >= streak.longest &&
-                              <span className="text-xs animate-pulse">
-                                🏆
-                              </span>}
-                          </p>
-                        </div>
-                        <div className="flex items-center self-stretch text-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold text-white">
+                          {streak.current}
+                        </span>
+                        <span className="text-lg">
                           {streak.current >= 30 ? '🔥' :
-                            streak.current >= 14 ? '💪' :
-                              streak.current >= 7 ? '✨' : '🎯'}
-                        </div>
+                          streak.current >= 14 ? '💪' :
+                          streak.current >= 7 ? '✨' : '🎯'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col justify-between">
+                        <span className="text-sm text-primary-foreground/90">day streak</span>
+                        <p className="text-[11px] text-primary-foreground/80 flex items-center gap-1.5">
+                          Best: {streak.longest} days
+                          {streak.current >= streak.longest && (
+                            <span className="text-xs animate-pulse">
+                              🏆
+                            </span>
+                          )}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex flex-col justify-between text-xs text-primary-foreground/90">
-                      <div className="flex items-center gap-1.5">
-                        <Timer className="h-3.5 w-3.5" />
-                        <span>45m today</span>
-                        <span className="ml-1 text-xs">⭐</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <ListChecks className="h-3.5 w-3.5" />
-                        <span>2 tasks done</span>
-                        <span className="ml-1 text-xs">✅</span>
+                    {/* Right side */}
+                    <div className="flex flex-col justify-between items-end">
+                      <div className="flex flex-col gap-1.5 text-xs text-primary-foreground/90">
+                        <div className="flex items-center gap-1.5">
+                          <Timer className="h-3.5 w-3.5" />
+                          <span>45m today</span>
+                          <span className="ml-1 text-xs">⭐</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <ListChecks className="h-3.5 w-3.5" />
+                          <span>2 tasks done</span>
+                          <span className="ml-1 text-xs">✅</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
-                >
-                  <Youtube className="h-4 w-4" />
-                  <span className="font-medium">Import Video</span>
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span className="font-medium">AI Generate</span>
-                </Button>
+                {/* Buttons */}
+                <div className="flex gap-3">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1 h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
+                  >
+                    <Youtube className="h-4 w-4 shrink-0" />
+                    <span className="font-medium">Import Video</span>
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1 h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
+                  >
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    <span className="font-medium">AI Generate</span>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
 
+          {/* Stats Grid */}
           <div className="relative z-10 mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {learningStats.map((stat) => (
               <div
@@ -388,8 +391,8 @@ export default function DashboardPage() {
                           Due {task.deadline}
                         </span>
                         <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${task.status === 'in-progress'
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-muted text-muted-foreground'
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-muted text-muted-foreground'
                           }`}>
                           {task.status === 'in-progress' ? 'In Progress' : 'Not Started'}
                         </span>

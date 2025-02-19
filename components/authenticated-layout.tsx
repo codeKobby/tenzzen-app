@@ -23,7 +23,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
 
   // If authenticated and not loading, render with sidebar
   return (
-    <div className={cn("relative flex min-h-screen bg-background")}>
+    <div className={cn("relative flex min-h-screen bg-background justify-center")}>
       <Sidebar>{children}</Sidebar>
     </div>
   )

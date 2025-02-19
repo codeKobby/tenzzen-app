@@ -235,93 +235,90 @@ export function Sidebar({ children, className }: SidebarProps) {
   )
 
   return (
-    <div className="relative">
-      {/* Mobile Toggle */}
-      {!isOpen && isMobile && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="fixed left-4 top-4 z-50 h-9 w-9"
-          onClick={toggle}
-        >
-          <Menu className="h-4 w-4" />
-        </Button>
-      )}
-
-      {/* Desktop Toggle */}
+    <>
+      {/* Toggle Button */}
       <Button
         variant="ghost"
         size="icon"
         className={cn(
-          "fixed top-4 z-50 h-9 w-9 hidden lg:flex",
-          isOpen ? "left-[200px]" : "left-[0px]"
+          "fixed top-4 left-4 z-50 h-9 w-9",
+          isMobile ? "flex" : "hidden lg:flex"
         )}
         onClick={toggle}
       >
-        <ChevronLeft className={cn(
-          "h-4 w-4 transition-transform duration-200",
-          !isOpen && "rotate-180"
-        )} />
+        {isMobile ? (
+          <Menu className="h-4 w-4" />
+        ) : (
+          <ChevronLeft className={cn(
+            "h-4 w-4 transition-transform duration-200",
+            !isOpen && "rotate-180"
+          )} />
+        )}
       </Button>
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed left-0 top-0 z-40 flex h-[100dvh] flex-col border-r bg-card overflow-hidden",
-          "w-[240px] transition-[width,transform] duration-300 ease-in-out",
-          !isOpen && (isMobile ? "-translate-x-full" : "w-0"),
-          className
-        )}
-      >
-        <div className="flex h-full flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between px-3 py-3">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-6 w-6 shrink-0 text-primary" />
-              <span className={cn(
-                "text-base font-bold tracking-tight text-foreground transition-opacity duration-300",
-                !isOpen && "lg:hidden"
-              )}>
-                Tenzzen
-              </span>
-            </div>
-            {/* Mobile Close Button */}
-            {isMobile && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={toggle}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-
-          {/* Navigation */}
-          <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto px-3 py-2">
-            <nav className="space-y-4">
-              <NavigationGroup items={publicNavigation} title="Menu" />
-              {user && (
-                <>
-                  <NavigationGroup items={protectedNavigation} />
-                  <Separator className="my-2" />
-                  <NavigationGroup items={settingsNavigation} title="Settings" />
-                </>
+      <div className="flex min-h-screen w-full">
+        {/* Sidebar */}
+        <aside
+          className={cn(
+            "flex flex-col border-r bg-card",
+            "transition-all duration-500 ease-in-out",
+            isMobile ? "fixed left-0 top-0 z-40 h-[100dvh]" : "relative h-screen",
+            isOpen ? "w-[240px] opacity-100 visible" : "w-0 opacity-0 invisible",
+            !isOpen && isMobile && "-translate-x-full",
+            className
+          )}
+        >
+          <div className="flex h-full flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-3 py-3">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-6 w-6 shrink-0 text-primary" />
+                <span className="text-base font-bold tracking-tight text-foreground">
+                  Tenzzen
+                </span>
+              </div>
+              {/* Mobile Close Button */}
+              {isMobile && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={toggle}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               )}
-            </nav>
-          </div>
+            </div>
 
-          {/* Profile */}
-          {user && <UserProfile />}
-        </div>
-      </aside>
-      <main className={cn(
-        "transition-[margin] duration-300 ease-in-out",
-        isOpen ? "ml-[240px]" : "ml-0"
-      )}>
-        {children}
-      </main>
-    </div>
+            {/* Navigation */}
+            <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto px-3 py-2">
+              <nav className="space-y-4">
+                <NavigationGroup items={publicNavigation} title="Menu" />
+                {user && (
+                  <>
+                    <NavigationGroup items={protectedNavigation} />
+                    <Separator className="my-2" />
+                    <NavigationGroup items={settingsNavigation} title="Settings" />
+                  </>
+                )}
+              </nav>
+            </div>
+
+            {/* Profile */}
+            {user && <UserProfile />}
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1">
+          <div className={cn(
+            "mx-auto w-full px-6",
+            "transition-all duration-500 ease-in-out"
+          )}>
+            {children}
+          </div>
+        </main>
+      </div>
+    </>
   )
 }
