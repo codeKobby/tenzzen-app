@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import Image from "next/image"
 import { Progress } from "@/components/ui/progress"
 import {
   Clock,
@@ -18,11 +17,15 @@ import {
   Plus,
   ChevronRight,
   Youtube,
-  Sparkles
+  Sparkles,
+  Timer,
+  ListChecks,
+  Code2
 } from "lucide-react"
-import Link from "next/link"
-import { useState } from "react"
 import { useGreeting } from "@/hooks/use-greeting"
+import Link from "next/link"
+import Image from "next/image"
+import { useState } from "react"
 import { LineChart } from "@/components/dashboard/line-chart"
 
 const learningStats = [
@@ -45,9 +48,9 @@ const learningStats = [
     change: { value: "+5%", type: "increase" }
   },
   {
-    label: "Achievements",
+    label: "Tasks Done",
     value: "12",
-    icon: Award,
+    icon: ListChecks,
     change: { value: "+2", type: "increase" }
   }
 ]
@@ -94,26 +97,53 @@ const recentlyCreatedCourses = [
   }
 ]
 
-const upcomingLessons = [
+type Task = {
+  id: number
+  type: "assignment" | "project" | "quiz"
+  title: string
+  course: string
+  deadline: string
+  status: "in-progress" | "not-started"
+}
+
+const upcomingTasks: Task[] = [
   {
     id: 1,
+    type: "assignment",
     title: "Advanced Data Structures",
     course: "Full-Stack Web Development",
-    time: "Tomorrow, 10:00 AM",
-    duration: "45m"
+    deadline: "Tomorrow, 10:00 AM",
+    status: "not-started"
   },
   {
     id: 2,
+    type: "quiz",
     title: "Neural Networks Basics",
     course: "Advanced Machine Learning",
-    time: "Thursday, 2:00 PM",
-    duration: "1h"
+    deadline: "Thursday, 2:00 PM",
+    status: "in-progress"
+  },
+  {
+    id: 3,
+    type: "project",
+    title: "JavaScript Closures Quiz",
+    course: "Advanced JavaScript Concepts",
+    deadline: "Today, 6:00 PM",
+    status: "not-started"
   }
 ]
 
 export default function DashboardPage() {
   const greeting = useGreeting()
-  const [timeRange, setTimeRange] = useState("week")
+  const [timeRange] = useState("week")
+  const [streak] = useState({
+    current: 12,
+    longest: 30,
+    today: {
+      minutes: 45,
+      tasks: 2
+    }
+  })
   const activityData = [
     { date: "Mon", hours: 2.5 },
     { date: "Tue", hours: 3.2 },
@@ -128,56 +158,83 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-[1500px] space-y-4 p-3 sm:p-4 lg:p-6">
         {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-primary/80 p-4 sm:p-6">
-          <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-lg font-bold text-primary-foreground sm:text-xl lg:text-2xl">
-                {greeting}, Alex
-              </h1>
-              <p className="text-sm text-primary-foreground/90 sm:text-base">
-                Transform YouTube content into structured learning
-              </p>
-              <div className="mt-3 rounded-lg bg-primary-foreground/10 p-3 backdrop-blur-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-primary-foreground">12</span>
-                      <span className="text-sm text-primary-foreground/70">day streak</span>
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-primary/90 p-4 sm:p-6 shadow-xl">
+          <div
+            className="absolute inset-0 bg-[linear-gradient(to_right,transparent_0%,rgba(255,255,255,0.05)_15%,transparent_100%)] pointer-events-none"
+            style={{ backgroundSize: '200% 100%', animation: 'shine 8s linear infinite' }}
+          />
+          <div className="relative z-10">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+              <div className="space-y-3 flex-1">
+                <div>
+                  <h1 className="text-xl font-bold tracking-tight text-primary-foreground sm:text-2xl lg:text-3xl">
+                    {greeting}, <span className="text-white">Alex</span>
+                  </h1>
+                  <p className="mt-1.5 text-sm text-primary-foreground/90 font-medium sm:text-base">
+                    Transform YouTube content into structured learning
+                  </p>
+                </div>
+                <div className="mt-3 rounded-lg bg-white/10 p-3.5 backdrop-blur-[2px] shadow-sm">
+                  <div className="flex justify-between">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center self-stretch">
+                          <span className="text-2xl font-bold text-white">
+                            {streak.current}
+                          </span>
+                        </div>
+                        <div className="flex flex-col justify-between">
+                          <span className="text-sm text-primary-foreground/90 font-medium">
+                            day streak
+                          </span>
+                          <p className="text-[11px] text-primary-foreground/80 flex items-center gap-1.5">
+                            Best: {streak.longest} days
+                            {streak.current >= streak.longest &&
+                              <span className="text-xs animate-pulse">
+                                🏆
+                              </span>}
+                          </p>
+                        </div>
+                        <div className="flex items-center self-stretch text-lg">
+                          {streak.current >= 30 ? '🔥' :
+                            streak.current >= 14 ? '💪' :
+                              streak.current >= 7 ? '✨' : '🎯'}
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-1 text-xs text-primary-foreground/70">
-                      Longest: 30 days
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-primary-foreground/90">
-                    <span className="flex items-center gap-1">
-                      <Timer className="h-3 w-3" />
-                      45m today
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <ListChecks className="h-3 w-3" />
-                      2 tasks done
-                    </span>
+                    <div className="flex flex-col justify-between text-xs text-primary-foreground/90">
+                      <div className="flex items-center gap-1.5">
+                        <Timer className="h-3.5 w-3.5" />
+                        <span>45m today</span>
+                        <span className="ml-1 text-xs">⭐</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <ListChecks className="h-3.5 w-3.5" />
+                        <span>2 tasks done</span>
+                        <span className="ml-1 text-xs">✅</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button 
-                variant="secondary"
-                size="sm" 
-                className="gap-2"
-              >
-                <Youtube className="h-4 w-4" />
-                Import from YouTube
-              </Button>
-              <Button 
-                variant="secondary"
-                size="sm" 
-                className="gap-2"
-              >
-                <Sparkles className="h-4 w-4" />
-                AI Course Generation
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
+                >
+                  <Youtube className="h-4 w-4" />
+                  <span className="font-medium">Import Video</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span className="font-medium">AI Generate</span>
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -192,9 +249,7 @@ export default function DashboardPage() {
                     <stat.icon className="h-4 w-4 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-primary-foreground/70">
-                      {stat.label}
-                    </p>
+                    <p className="text-xs font-medium text-primary-foreground/70">{stat.label}</p>
                     <div className="flex items-center gap-2">
                       <span className="text-base font-bold text-primary-foreground sm:text-lg">
                         {stat.value}
@@ -210,29 +265,28 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-          
+
           {/* Decorative Elements */}
           <div className="absolute right-0 top-0 h-64 w-64 translate-x-1/3 -translate-y-1/3 rounded-full bg-primary-foreground opacity-10 blur-3xl" />
           <div className="absolute bottom-0 left-0 h-32 w-32 -translate-x-1/3 translate-y-1/3 rounded-full bg-primary-foreground opacity-10 blur-3xl" />
         </div>
 
+        {/* Main Grid */}
         <div className="grid gap-4 md:grid-cols-3">
-          {/* Current Progress */}
+          {/* Left Column */}
           <div className="space-y-4 md:col-span-2">
+            {/* Active Courses */}
             <Card className="relative overflow-hidden">
               <div className="absolute right-0 top-0 h-32 w-32 translate-x-8 -translate-y-8 bg-primary/5 rounded-full blur-3xl" />
               <CardHeader className="relative z-10">
                 <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
                   <BookOpen className="h-5 w-5" />
-                  In Progress
+                  Active YouTube Courses
                 </CardTitle>
               </CardHeader>
               <CardContent className="relative z-10 space-y-4">
                 {inProgressCourses.map((course) => (
-                  <div 
-                    key={course.id}
-                    className="group rounded-lg border bg-card p-3 hover:border-primary/50 transition-all"
-                  >
+                  <div key={course.id} className="group rounded-lg border bg-card p-3 hover:border-primary/50 transition-all">
                     <div className="flex gap-3">
                       <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-md sm:w-40">
                         <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] transition-opacity group-hover:opacity-0" />
@@ -250,148 +304,100 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex-1 space-y-2">
                         <div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Activity Graph */}
-          <Card className="relative overflow-hidden">
-            <div className="absolute right-0 top-0 h-32 w-32 translate-x-8 -translate-y-8 bg-primary/5 rounded-full blur-3xl" />
-            <CardHeader className="relative z-10">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
-                  <Target className="h-5 w-5" />
-                  Learning Activity
-                </CardTitle>
-                <Tabs defaultValue="week" className="space-y-0">
-                  <TabsList className="grid h-7 w-[180px] grid-cols-3 p-1">
-                    <TabsTrigger value="week" className="text-xs">Week</TabsTrigger>
-                    <TabsTrigger value="month" className="text-xs">Month</TabsTrigger>
-                    <TabsTrigger value="year" className="text-xs">Year</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            </CardHeader>
-            <CardContent className="relative z-10">
-              <div className="h-[250px]">
-                <LineChart data={activityData} />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-6">
-          {/* Recently Created Courses */}
-          <Card className="relative overflow-hidden lg:col-span-4">
-            <div className="absolute right-0 top-0 h-32 w-32 translate-x-8 -translate-y-8 bg-primary/5 rounded-full blur-3xl" />
-            <CardHeader className="relative z-10 p-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
-                  <BrainCircuit className="h-5 w-5" />
-                  Recently Created Courses
-                </CardTitle>
-                <Button variant="ghost" size="sm" className="h-8 text-xs" asChild>
-                  <Link href="/courses" className="gap-1">
-                    View all courses
-                    <ChevronRight className="h-3 w-3" />
-                  </Link>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="relative z-10 p-4 pt-0">
-              <div className="grid gap-4 sm:grid-cols-2">
-                {recentlyCreatedCourses.map((course) => (
-                  <div 
-                    key={course.id}
-                    className="group relative overflow-hidden rounded-lg border bg-card hover:border-primary/50 transition-colors"
-                  >
-                    <div className="aspect-video relative">
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm">
-            <BookOpen className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 text-muted-foreground/20" />
-          </div>
-          {course.thumbnail && (
-            <Image
-              src={course.thumbnail}
-              alt={course.title}
-              fill
-              className="absolute inset-0 object-cover"
-            />
-          )}
-                      <Link
-                        href={`/courses/${course.id}`}
-                        className="absolute inset-0 flex items-center justify-center bg-primary/0 transition-colors group-hover:bg-primary/20"
-                      >
-                        <PlayCircle className="h-12 w-12 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
-                      </Link>
-                      <div className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-1 backdrop-blur-sm">
-                        <p className="text-xs font-medium">{course.source}</p>
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      <h3 className="font-semibold leading-none tracking-tight">
-                        {course.title}
-                      </h3>
-                      <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" />
-                            {course.duration}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <FileText className="h-3.5 w-3.5" />
-                            {course.lessons} lessons
-                          </span>
+                          <h3 className="font-medium leading-snug tracking-tight group-hover:text-primary transition-colors">
+                            {course.title}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            Last accessed {course.lastAccessed}
+                          </p>
                         </div>
-                        <span className="flex items-center gap-1">
-                          <Star className="h-3.5 w-3.5 text-primary" />
-                          {course.rating}
-                        </span>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              {course.completedLessons}/{course.totalLessons} lessons
+                            </span>
+                            <span>{course.progress}%</span>
+                          </div>
+                          <Progress value={course.progress} className="h-1.5" />
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Upcoming Lessons */}
-          <Card className="relative overflow-hidden lg:col-span-2">
+            {/* Activity Graph */}
+            <Card className="relative overflow-hidden">
+              <div className="absolute right-0 top-0 h-32 w-32 translate-x-8 -translate-y-8 bg-primary/5 rounded-full blur-3xl" />
+              <CardHeader className="relative z-10">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
+                    <Target className="h-5 w-5" />
+                    Learning Activity
+                  </CardTitle>
+                  <Tabs defaultValue="week" className="space-y-0">
+                    <TabsList className="grid h-7 w-[180px] grid-cols-3 p-1">
+                      <TabsTrigger value="week" className="text-xs">Week</TabsTrigger>
+                      <TabsTrigger value="month" className="text-xs">Month</TabsTrigger>
+                      <TabsTrigger value="year" className="text-xs">Year</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="h-[250px]">
+                  <LineChart data={activityData} />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column */}
+          <Card className="relative overflow-hidden">
             <div className="absolute right-0 top-0 h-32 w-32 translate-x-8 -translate-y-8 bg-primary/5 rounded-full blur-3xl" />
-            <CardHeader className="relative z-10 p-4">
+            <CardHeader className="relative z-10">
               <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
-                <Clock className="h-5 w-5" />
-                Upcoming Lessons
+                <ListChecks className="h-5 w-5" />
+                Tasks & Assignments
               </CardTitle>
             </CardHeader>
-            <CardContent className="relative z-10 p-4 pt-0">
-              <div className="space-y-3">
-                {upcomingLessons.map((lesson) => (
+            <CardContent className="relative z-10 space-y-3">
+              {upcomingTasks.map((task) => {
+                const Icon = task.type === 'project' ? Code2 :
+                  task.type === 'quiz' ? Target : ListChecks
+
+                return (
                   <div
-                    key={lesson.id}
+                    key={task.id}
                     className="group flex items-start gap-3 rounded-lg border p-3 hover:border-primary/50 transition-colors"
                   >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <PlayCircle className="h-5 w-5 text-primary" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                      <Icon className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 space-y-1">
                       <h4 className="text-sm font-medium leading-none group-hover:text-primary transition-colors">
-                        {lesson.title}
+                        {task.title}
                       </h4>
                       <p className="text-xs text-muted-foreground">
-                        {lesson.course}
+                        {task.course}
                       </p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {lesson.time}
+                          Due {task.deadline}
                         </span>
-                        <span>{lesson.duration}</span>
+                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${task.status === 'in-progress'
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-muted text-muted-foreground'
+                          }`}>
+                          {task.status === 'in-progress' ? 'In Progress' : 'Not Started'}
+                        </span>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </CardContent>
           </Card>
         </div>
