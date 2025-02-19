@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Moon, Sun, Paintbrush } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useThemePersistence } from "@/hooks/use-theme-persistence"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -16,7 +17,8 @@ type ColorTheme = 'purple' | 'neutral'
 export function ThemeToggle() {
   const [mounted, setMounted] = React.useState(false)
   const [colorTheme, setColorTheme] = React.useState<ColorTheme>('purple')
-  const { theme, setTheme } = useTheme()
+  const { theme } = useTheme()
+  const { updateTheme } = useThemePersistence()
 
   React.useEffect(() => {
     setMounted(true)
@@ -25,19 +27,14 @@ export function ThemeToggle() {
   }, [])
 
   const toggleDarkMode = () => {
-    if (theme === 'dark') {
-      setTheme('light')
-      document.documentElement.classList.remove('dark')
-    } else {
-      setTheme('dark')
-      document.documentElement.classList.add('dark')
-    }
+    updateTheme(theme === 'dark' ? 'light' : 'dark', colorTheme)
   }
 
   const handleThemeChange = (selectedTheme: ColorTheme) => {
     setColorTheme(selectedTheme)
     document.documentElement.classList.remove('theme-purple', 'theme-neutral')
     document.documentElement.classList.add(`theme-${selectedTheme}`)
+    updateTheme(theme || 'system', selectedTheme)
   }
 
   if (!mounted) {

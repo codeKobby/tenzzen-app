@@ -12,6 +12,8 @@ import {
   BookOpen,
   Star,
   FileText,
+  TrendingUp,
+  TrendingDown,
   PlayCircle,
   BrainCircuit,
   Plus,
@@ -28,7 +30,20 @@ import Image from "next/image"
 import { useState } from "react"
 import { LineChart } from "@/components/dashboard/line-chart"
 
-const learningStats = [
+type StatChange = {
+  value: string;
+  type: "increase" | "decrease";
+  showTrend?: boolean;
+}
+
+type LearningStatItem = {
+  label: string;
+  value: string;
+  icon: any;
+  change: StatChange;
+}
+
+const learningStats: LearningStatItem[] = [
   {
     label: "Learning Hours",
     value: "32.5h",
@@ -45,7 +60,7 @@ const learningStats = [
     label: "Avg. Progress",
     value: "85%",
     icon: Target,
-    change: { value: "+5%", type: "increase" }
+    change: { value: "5%", type: "increase", showTrend: true }
   },
   {
     label: "Tasks Done",
@@ -178,16 +193,9 @@ export default function DashboardPage() {
                 <div className="rounded-lg bg-white/10 p-3.5 backdrop-blur-[2px] shadow-sm">
                   <div className="flex justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-white">
-                          {streak.current}
-                        </span>
-                        <span className="text-lg">
-                          {streak.current >= 30 ? '🔥' :
-                          streak.current >= 14 ? '💪' :
-                          streak.current >= 7 ? '✨' : '🎯'}
-                        </span>
-                      </div>
+                      <span className="text-2xl font-bold text-white">
+                        {streak.current}
+                      </span>
                       <div className="flex flex-col justify-between">
                         <span className="text-sm text-primary-foreground/90">day streak</span>
                         <p className="text-[11px] text-primary-foreground/80 flex items-center gap-1.5">
@@ -199,6 +207,11 @@ export default function DashboardPage() {
                           )}
                         </p>
                       </div>
+                      <span className="text-lg">
+                        {streak.current >= 30 ? '🔥' :
+                        streak.current >= 14 ? '💪' :
+                        streak.current >= 7 ? '✨' : '🎯'}
+                      </span>
                     </div>
                     {/* Right side */}
                     <div className="flex flex-col justify-between items-end">
@@ -247,19 +260,30 @@ export default function DashboardPage() {
                 key={stat.label}
                 className="rounded-lg bg-primary-foreground/10 p-3 backdrop-blur-sm"
               >
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-primary-foreground/10 p-2">
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <div className="rounded-lg bg-primary-foreground/10 p-2 shrink-0">
                     <stat.icon className="h-4 w-4 text-primary-foreground" />
                   </div>
-                  <div>
-                    <p className="text-xs font-medium text-primary-foreground/70">{stat.label}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-primary-foreground/70 truncate">{stat.label}</p>
                     <div className="flex items-center gap-2">
                       <span className="text-base font-bold text-primary-foreground sm:text-lg">
                         {stat.value}
                       </span>
                       {stat.change && (
-                        <span className="text-xs font-medium text-primary-foreground/90">
+                        <span className={`text-xs font-medium flex items-center gap-1 px-1.5 py-0.5 rounded-full
+                          ${stat.change.type === "increase" 
+                            ? "text-emerald-400 bg-emerald-400/10" 
+                            : "text-red-400 bg-red-400/10"}`}
+                        >
                           {stat.change.value}
+                          {stat.change.showTrend ? (
+                            <span className="ml-0.5">
+                              {stat.change.type === "increase" 
+                                ? <TrendingUp className="h-3 w-3" />
+                                : <TrendingDown className="h-3 w-3" />}
+                            </span>
+                          ) : null}
                         </span>
                       )}
                     </div>
