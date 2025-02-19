@@ -2,11 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------- Theme Neutral ------------------- */
 @layer base {
-  :root {
-    /* Light Theme */
+  .theme-neutral {
+    /* Light Theme (Neutral) */
     --background: 0 0% 98%;       /* Nearly white */
-    --foreground: 0 0% 18%;       /* Very dark gray for text */
+    --foreground: 0 0% 18%;       /* Very dark gray */
     
     --card: 0 0% 100%;           /* White cards */
     --card-foreground: 0 0% 18%;
@@ -39,8 +40,8 @@
     --warning-foreground: 0 0% 100%;
   }
 
-  .dark {
-    /* Dark Theme */
+  .theme-neutral.dark {
+    /* Dark Theme (Neutral) */
     --background: 0 0% 12%;       /* Very dark gray */
     --foreground: 0 0% 100%;      /* White text */
     
@@ -50,22 +51,22 @@
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 100%;
     
-    --primary: 0 0% 20%;          /* Dark neutral */
+    --primary: 0 0% 20%;
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 0 0% 30%;        /* Slightly lighter than primary */
+    --secondary: 0 0% 30%;
     --secondary-foreground: 0 0% 100%;
     
     --muted: 0 0% 30%;
     --muted-foreground: 0 0% 100%;
     
-    --accent: 0 0% 40%;           /* Neutral accent */
+    --accent: 0 0% 40%;
     --accent-foreground: 0 0% 100%;
     
-    --destructive: 0 84.2% 60.2%; /* Retain red for errors */
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 0 0% 20%;           /* Dark border */
+    --border: 0 0% 20%;
     --input: 0 0% 20%;
     --ring: 0 0% 50%;
     --radius: 0.75rem;
@@ -76,13 +77,96 @@
   }
 }
 
+/* ------------------- Theme Purple ------------------- */
+@layer base {
+  .theme-purple {
+    /* Light Theme (Purple) */
+    --background: 0 0% 100%;               /* White background */
+    --foreground: 240 10% 15%;             /* Deep dark gray text */
+    
+    --card: 0 0% 100%;                    /* White cards */
+    --card-foreground: 240 10% 15%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+    
+    /* Primary: A deep violet for strong UI elements */
+    --primary: 270 70% 45%;                
+    --primary-foreground: 0 0% 100%;        
+    
+    /* Secondary: A subtle pastel blue-gray for hierarchy */
+    --secondary: 220 15% 95%;              
+    --secondary-foreground: 240 10% 15%;
+    
+    --muted: 0 0% 90%;                    
+    --muted-foreground: 240 10% 40%;
+    
+    /* Accent: A soft lavender for gentle highlights */
+    --accent: 270 50% 70%;                 
+    --accent-foreground: 240 10% 15%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 240 5% 90%;                 
+    --input: 240 5% 90%;
+    --ring: 270 70% 45%;                  
+    --radius: 0.75rem;
+    
+    --success: 120 60% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 40 90% 50%;
+    --warning-foreground: 0 0% 100%;
+  }
+
+  .theme-purple.dark {
+    /* Dark Theme (Purple) */
+    --background: 240 10% 20%;            
+    --foreground: 0 0% 100%;               
+    
+    --card: 240 10% 25%;
+    --card-foreground: 0 0% 100%;
+    
+    --popover: 240 10% 25%;
+    --popover-foreground: 0 0% 100%;
+    
+    /* Primary: A lighter violet for contrast on dark backgrounds */
+    --primary: 270 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary: A muted blue-gray tone */
+    --secondary: 220 15% 25%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 0 0% 25%;
+    --muted-foreground: 0 0% 100%;
+    
+    /* Accent: A slightly lighter soft lavender for dark mode */
+    --accent: 270 50% 60%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 62% 35%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 240 5% 30%;
+    --input: 240 5% 30%;
+    --ring: 270 70% 55%;
+    --radius: 0.75rem;
+    
+    --success: 120 60% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 40 90% 50%;
+    --warning-foreground: 0 0% 100%;
+  }
+}
+
+/* ------------------- Global Base Styles ------------------- */
 @layer base {
   * {
-    border-color: hsl(var(--border));
+    @apply border-border;
   }
   body {
-    color: hsl(var(--foreground));
-    background-color: hsl(var(--background));
+    @apply bg-background text-foreground min-h-screen antialiased;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 }

@@ -1,10 +1,21 @@
 'use client'
 
 import Link from "next/link"
-import { Facebook, Twitter, Instagram, Github } from "lucide-react"
+import { Facebook, Twitter, Instagram, Github, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 
 export function Footer() {
+  const router = useRouter()
+  const { user, supabase } = useAuth()
+  
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.refresh()
+    router.push('/')
+  }
+
   return (
     <footer className="w-full bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 border-t">
       <div className="w-[90%] mx-auto py-12">
@@ -16,16 +27,34 @@ export function Footer() {
               <p className="text-muted-foreground">Join thousands of satisfied users today.</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button variant="outline" size="lg" asChild>
-                <Link href="/signin">Sign In</Link>
-              </Button>
-              <Button
-                size="lg"
-                asChild
-                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
-              >
-                <Link href="/signup">Get Started Free</Link>
-              </Button>
+              {user ? (
+                <>
+                  <Button variant="outline" size="lg" asChild>
+                    <Link href="/dashboard">Back to Dashboard</Link>
+                  </Button>
+                  <Button
+                    size="lg"
+                    className="bg-gradient-primary hover:bg-gradient-primary-hover text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="h-5 w-5 mr-2" />
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" size="lg" asChild>
+                    <Link href="/signin">Sign In</Link>
+                  </Button>
+                  <Button
+                    size="lg"
+                    asChild
+                    className="bg-gradient-primary hover:bg-gradient-primary-hover text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <Link href="/signup">Get Started Free</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -35,7 +64,7 @@ export function Footer() {
           {/* Brand Section */}
           <div className="space-y-4 col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center space-x-2">
-              <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-foreground">
+              <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-primary">
                 Tenzzen
               </span>
             </Link>

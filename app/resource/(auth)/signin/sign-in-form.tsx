@@ -14,12 +14,10 @@ import { GoogleSignInButton } from "@/components/google-sign-in-button"
 import { Separator } from "@/components/ui/separator"
 import { signInSchema, getAuthErrorMessage, AUTH_MESSAGES } from "@/lib/validations/auth"
 import type { z } from "zod"
-import React from "react"
 
 type FormData = z.infer<typeof signInSchema>
 
 export function SignInForm() {
-  const [isLoading, setIsLoading] = React.useState(false)
   const router = useRouter()
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -81,7 +79,7 @@ export function SignInForm() {
 
   return (
     <div className="space-y-6">
-      <GoogleSignInButton isLoading={isLoading} setIsLoading={setIsLoading} />
+      <GoogleSignInButton type="signin" />
       
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
@@ -144,7 +142,7 @@ export function SignInForm() {
           <div className="flex items-center justify-end">
             <Button
               variant="link"
-              className="px-0 font-medium text-primary hover:text-primary/90"
+              className="px-0 font-normal text-muted-foreground hover:text-primary"
               asChild
             >
               <Link href="/reset-password">

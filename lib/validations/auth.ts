@@ -8,10 +8,10 @@ export const emailSchema = z.string()
 export const passwordSchema = z.string()
   .min(8, "Password must be at least 8 characters")
   .max(72, "Password cannot exceed 72 characters") // bcrypt limit
-  .regex(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-    "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
-  )
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/\d/, "Password must contain at least one number")
+  .regex(/[@$!%*?&]/, "Password must contain at least one special character")
 
 export const signInSchema = z.object({
   email: emailSchema,

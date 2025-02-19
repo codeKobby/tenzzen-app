@@ -1,20 +1,18 @@
-import { SignUpForm } from "./sign-up-form"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
+import { Card, CardContent } from "@/components/ui/card"
+import { ResetPasswordForm } from "./reset-password-form"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import Image from "next/image"
 
-export default function SignUpPage() {
+export default function ResetPasswordPage() {
   return (
     <div className="w-full max-w-sm px-3">
       <Card className="border-0 shadow-lg">
         <CardContent className="p-6">
           {/* Back Button */}
-          <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
+          <Link href="/signin" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
+              Back to Sign In
             </Link>
 
             {/* Logo and Title */}
@@ -28,19 +26,19 @@ export default function SignUpPage() {
                   priority
                 />
               </div>
-              <h1 className="text-3xl font-bold tracking-tight">Create an account</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Reset Password</h1>
               <p className="text-sm text-muted-foreground mt-2">
-                Enter your details to get started
+                Enter your email address and we'll send you a link to reset your password.
               </p>
             </div>
 
-            <SignUpForm />
+            <ResetPasswordForm />
 
             <p className="text-center text-sm text-muted-foreground mt-6">
-              Already have an account?{" "}
+              Remember your password?{" "}
               <Link
                 href="/signin"
-                className="font-medium text-foreground hover:text-foreground/90"
+                className="text-primary underline-offset-4 hover:underline"
               >
                 Sign in here
               </Link>

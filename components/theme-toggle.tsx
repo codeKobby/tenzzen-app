@@ -1,29 +1,88 @@
-'use client'
+"use client"
 
 import * as React from "react"
-import { Moon, Sun } from "lucide-react"
+import { Moon, Sun, Paintbrush } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export function ThemeToggle() {
+  const [mounted, setMounted] = React.useState(false)
   const { theme, setTheme } = useTheme()
+  const [colorTheme, setColorTheme] = React.useState('purple')
 
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light')
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleThemeChange = (selectedTheme: 'purple' | 'neutral') => {
+    setColorTheme(selectedTheme)
+    const isDark = theme === 'dark'
+    setTheme(isDark ? 'dark' : 'light')
+    
+    // Remove existing theme classes
+    document.documentElement.classList.remove('theme-purple', 'theme-neutral')
+    // Add new theme class
+    document.documentElement.classList.add(`theme-${selectedTheme}`)
+  }
+
+  if (!mounted) {
+    return null
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="flex gap-2">
       <Button 
-        variant="outline" 
-        size="icon" 
-        className="rounded-full h-10 w-10"
-        onClick={toggleTheme}
+        variant="ghost" 
+        size="icon"
+        className="bg-background/80 backdrop-blur-sm border shadow-sm"
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       >
-        <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-        <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        {theme === 'dark' ? (
+          <Moon className="h-[1.2rem] w-[1.2rem]" />
+        ) : (
+          <Sun className="h-[1.2rem] w-[1.2rem]" />
+        )}
         <span className="sr-only">Toggle theme</span>
       </Button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-background/80 backdrop-blur-sm border shadow-sm"
+          >
+            <Paintbrush className="h-[1.2rem] w-[1.2rem]" />
+            <span className="sr-only">Select theme</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-[120px]">
+          <DropdownMenuItem 
+            onClick={() => handleThemeChange('purple')}
+            className={`flex items-center gap-2 px-3 py-1.5 my-1 mx-1 rounded-sm transition-colors ${
+              colorTheme === 'purple' ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
+            }`}
+          >
+            <Paintbrush className="h-3.5 w-3.5" />
+            Purple
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => handleThemeChange('neutral')}
+            className={`flex items-center gap-2 px-3 py-1.5 my-1 mx-1 rounded-sm transition-colors ${
+              colorTheme === 'neutral' ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
+            }`}
+          >
+            <Paintbrush className="h-3.5 w-3.5" />
+            Neutral
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

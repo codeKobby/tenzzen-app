@@ -23,15 +23,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <Providers
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <Providers>
           <AuthenticatedLayout>
             {children}
-            <ThemeToggle />
+            <div className="fixed bottom-4 right-4 z-50">
+              <ThemeToggle />
+            </div>
             <CookieConsent />
           </AuthenticatedLayout>
         </Providers>

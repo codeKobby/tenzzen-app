@@ -1,41 +1,44 @@
-import { useState, useEffect } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
-import { type User, type Session, AuthChangeEvent } from '@supabase/supabase-js'
+import { useState, useEffect } from "react"
+import { User } from "@supabase/supabase-js"
+import { createBrowserClient } from "@supabase/ssr"
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event: AuthChangeEvent, session: Session | null) => {
-        setUser(session?.user ?? null)
+    const getUser = async () => {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        setUser(currentUser)
+      } catch (error) {
+        console.error("Error getting user:", error)
+        setUser(null)
+      } finally {
         setLoading(false)
       }
-    )
+    }
 
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      setUser(session?.user ?? null)
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
       setLoading(false)
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
-
-  const signOut = async () => {
-    await supabase.auth.signOut()
-  }
+  }, [supabase.auth])
 
   return {
     user,
     loading,
-    signOut,
+    supabase
   }
 }

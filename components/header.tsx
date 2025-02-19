@@ -2,17 +2,28 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, Compass } from "lucide-react"
+import { Menu, Compass, LogOut } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
 
 export function Header() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { user, supabase } = useAuth()
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.refresh()
+    router.push('/')
+  }
 
   // Only show header on homepage
   if (pathname !== '/') {
@@ -25,7 +36,7 @@ export function Header() {
         <div className="flex h-14 items-center justify-between bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 rounded-full border px-6 shadow-sm">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-foreground">
+            <span className="font-bold text-xl text-foreground">
               Tenzzen
             </span>
           </Link>
@@ -44,56 +55,108 @@ export function Header() {
             >
               Pricing
             </Link>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/signin">Sign In</Link>
-            </Button>
-            <Button 
-              size="sm"
-              asChild
-              className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
-            >
-              <Link href="/signup">Get Started</Link>
-            </Button>
+            {user ? (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/dashboard">Back to Dashboard</Link>
+                </Button>
+                <Button 
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/signin">Sign In</Link>
+                </Button>
+                <Button 
+                  size="sm"
+                  asChild
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                >
+                  <Link href="/signup">Get Started</Link>
+                </Button>
+              </>
+            )}
           </nav>
 
           {/* Mobile Navigation */}
           <div className="flex items-center gap-2 md:hidden">
-            <Button 
-              size="sm"
-              asChild
-              className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
-            >
-              <Link href="/signup">Get Started</Link>
-            </Button>
+            {!user && (
+              <Button 
+                size="sm"
+                asChild
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+              >
+                <Link href="/signup">Get Started</Link>
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 data-[state=open]:bg-accent/50"
+                >
+                  <Menu className="h-4 w-4" />
                   <span className="sr-only">Toggle menu</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[200px]">
-                <DropdownMenuItem asChild className="flex items-center gap-2 py-3 hover:bg-muted cursor-pointer">
-                  <Link href="/explore" className="w-full">
-                    <Compass className="h-4 w-4 inline-block mr-2" />
+              <DropdownMenuContent 
+                className="w-52 p-2"
+                align="end"
+                side="bottom"
+                sideOffset={8}
+                alignOffset={0}
+              >
+                <DropdownMenuItem asChild className="focus:bg-accent">
+                  <Link href="/explore" className="w-full flex items-center py-2 px-3 hover:bg-accent rounded-md">
+                    <Compass className="h-4 w-4 mr-2" />
                     Explore
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className="py-3 hover:bg-muted cursor-pointer">
-                  <Link href="/pricing" className="w-full">
+                <DropdownMenuItem asChild className="focus:bg-accent">
+                  <Link href="/pricing" className="w-full flex items-center py-2 px-3 hover:bg-accent rounded-md">
                     Pricing
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className="py-3 hover:bg-muted cursor-pointer">
-                  <Link href="/signin" className="w-full">
-                    Sign In
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer py-3">
-                  <Link href="/signup" className="w-full">
-                    Get Started
-                  </Link>
-                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {user ? (
+                  <>
+                    <DropdownMenuItem asChild className="focus:bg-accent">
+                      <Link href="/dashboard" className="w-full flex items-center py-2 px-3 hover:bg-accent rounded-md">
+                        Back to Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={handleSignOut}
+                      className="focus:bg-destructive/10 focus:text-destructive"
+                    >
+                      <span className="w-full flex items-center py-2 px-3 hover:bg-destructive/10 text-destructive rounded-md">
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                      </span>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem asChild className="focus:bg-accent">
+                      <Link href="/signin" className="w-full flex items-center py-2 px-3 hover:bg-accent rounded-md">
+                        Sign In
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="focus:bg-primary">
+                      <Link href="/signup" className="w-full flex items-center py-2 px-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium">
+                        Get Started
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

@@ -1,49 +1,44 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
-    const { token, email } = await request.json()
+    const { token, type } = await request.json()
+    
+    if (!token || !type) {
+      return NextResponse.json(
+        { error: 'Token and type are required' },
+        { status: 400 }
+      )
+    }
+    
     const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set(name, value, options)
-          },
-          remove(name: string, options: CookieOptions) {
-            cookieStore.set(name, '', options)
-          },
-        },
-      }
-    )
+    const supabase = createClient(cookieStore)
 
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'signup'
+    const { data, error } = await supabase.auth.verifyOtp({
+      type: type as 'email',
+      token_hash: token,
     })
 
     if (error) {
+      console.error('Verification error:', error)
       return NextResponse.json(
-        { error: 'Invalid or expired token' },
+        { error: error.message },
         { status: 400 }
       )
     }
 
-    return NextResponse.json(
-      { message: 'Email verified successfully' },
-      { status: 200 }
-    )
+    return NextResponse.json({
+      message: 'Email verified successfully',
+      user: data.user,
+      session: data.session
+    }, { status: 200 })
+
   } catch (error) {
+    console.error('Server error:', error)
     return NextResponse.json(
-      { error: 'Verification failed' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

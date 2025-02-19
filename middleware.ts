@@ -17,6 +17,16 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
           response.cookies.set({
             name,
             value,
@@ -24,6 +34,16 @@ export async function middleware(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
           response.cookies.set({
             name,
             value: '',
@@ -34,21 +54,27 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { session }, error } = await supabase.auth.getSession()
 
-  // If there's no session and the user is trying to access protected routes
-  if (!session && request.nextUrl.pathname.startsWith('/dashboard')) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/auth/signin'
-    redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
-    return NextResponse.redirect(redirectUrl)
+  // Auth routes protection
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    if (!session) {
+      return NextResponse.redirect(new URL('/signin', request.url))
+    }
   }
 
-  // If there's a session and the user is trying to access auth routes
-  if (session && request.nextUrl.pathname.startsWith('/auth')) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/dashboard'
-    return NextResponse.redirect(redirectUrl)
+  // Public routes protection
+  const publicRoutes = ['/signin', '/signup']
+  if (publicRoutes.includes(request.nextUrl.pathname)) {
+    if (session) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+
+  // Allow access to verification routes
+  if (request.nextUrl.pathname.startsWith('/(auth)/verify-email') || 
+      request.nextUrl.pathname.startsWith('/verify-email')) {
+    return response
   }
 
   return response
@@ -56,12 +82,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Protect dashboard routes
     '/dashboard/:path*',
-    // Protect auth routes from authenticated users
-    '/auth/:path*',
-    // Handle email verification
-    '/auth/callback',
-    '/verify-email',
+    '/signin',
+    '/signup',
+    '/(auth)/verify-email',
+    '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
   ],
 }

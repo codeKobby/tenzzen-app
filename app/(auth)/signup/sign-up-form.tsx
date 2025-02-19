@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from 'react'
 import Link from "next/link"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
@@ -9,22 +10,20 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
 import { Icons } from "@/components/ui/icons"
-import { createBrowserClient } from '@supabase/ssr'
+import { useAuth } from '@/hooks/use-auth'
 import { GoogleSignInButton } from "@/components/google-sign-in-button"
 import { Separator } from "@/components/ui/separator"
-import { signUpSchema, getAuthErrorMessage, AUTH_MESSAGES } from "@/lib/validations/auth"
+import { signUpSchema } from "@/lib/validations/auth"
 import { PasswordStrengthMeter } from "@/components/password-strength-meter"
 import type { z } from "zod"
-import { useState } from "react"
 
 type FormData = z.infer<typeof signUpSchema>
 
 export function SignUpForm() {
+  const [isFocused, setIsFocused] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(false)
+  const { supabase } = useAuth()
   const router = useRouter()
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
 
   const form = useForm<FormData>({
     resolver: zodResolver(signUpSchema),
@@ -36,50 +35,44 @@ export function SignUpForm() {
     mode: "onChange" // Enable real-time validation
   })
 
-  const [isFocused, setIsFocused] = useState(false)
-
-  const onSubmit = async (values: FormData) => {
+  async function onSubmit(values: FormData) {
     try {
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?type=email_verification`,
-          data: {
-            email: values.email,
-            email_confirm_redirect_url: `${window.location.origin}/auth/signin?message=email-verified`
-          }
-        }
+          emailRedirectTo: `${location.origin}/auth/callback`,
+        },
       })
 
       if (error) {
-        const errorMessage = getAuthErrorMessage(error)
         form.setError("root", {
           type: "manual",
-          message: errorMessage
+          message: error.message
         })
         toast({
           title: "Sign Up Error",
-          description: errorMessage,
+          description: error.message,
           variant: "destructive",
         })
         return
       }
 
-      // Handle successful signup with email verification
-      if (data?.user) {
-        if (!data.user.email_confirmed_at) {
-          // Email verification required
-          toast(AUTH_MESSAGES.SIGN_UP_SUCCESS)
-          router.push(`/verify-email?email=${encodeURIComponent(values.email)}`)
-        } else {
-          // Email already verified (rare case)
-          toast({
-            title: "Success",
-            description: "Account created successfully. You can now sign in.",
-          })
-          router.push("/auth/signin")
-        }
+      if (data.session === null) {
+        // Email verification required
+        toast({
+          title: "Account created",
+          description: "Please check your email to verify your account.",
+        })
+        router.push(`/verify-email?email=${encodeURIComponent(values.email)}`)
+      } else {
+        // Auto-confirmed email
+        router.refresh()
+        router.push('/dashboard')
+        toast({
+          title: "Welcome to Tenzzen!",
+          description: "Your account has been created successfully.",
+        })
       }
     } catch (error) {
       toast({
@@ -92,8 +85,8 @@ export function SignUpForm() {
 
   return (
     <div className="space-y-4">
-      <GoogleSignInButton type="signup" />
-
+      <GoogleSignInButton isLoading={isLoading} setIsLoading={setIsLoading} />
+      
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <Separator />
@@ -105,101 +98,103 @@ export function SignUpForm() {
         </div>
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="name@example.com"
-                    autoComplete="email"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+      <div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="name@example.com"
+                      autoComplete="email"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      autoComplete="new-password"
+                      {...field}
+                      onFocus={() => setIsFocused(true)}
+                      onBlur={() => setIsFocused(false)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <div className="mt-2">
+                    <PasswordStrengthMeter password={form.getValues("password")} isFocused={isFocused} />
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      autoComplete="new-password"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {form.formState.errors.root && (
+              <FormMessage>{form.formState.errors.root.message}</FormMessage>
             )}
-          />
 
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    {...field}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                  />
-                </FormControl>
-                <FormMessage />
-                <div className="mt-2">
-                  <PasswordStrengthMeter password={form.getValues("password")} isFocused={isFocused} />
-                </div>
-              </FormItem>
-            )}
-          />
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={form.formState.isSubmitting || !form.formState.isValid}
+            >
+              {form.formState.isSubmitting ? (
+                <>
+                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                "Create Account"
+              )}
+            </Button>
 
-          <FormField
-            control={form.control}
-            name="confirmPassword"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Confirm Password</FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {form.formState.errors.root && (
-            <FormMessage>{form.formState.errors.root.message}</FormMessage>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={form.formState.isSubmitting || !form.formState.isValid}
-          >
-            {form.formState.isSubmitting ? (
-              <>
-                <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                Creating account...
-              </>
-            ) : (
-              "Create Account"
-            )}
-          </Button>
-
-          <p className="text-center text-sm text-muted-foreground">
-            By creating an account, you agree to our{" "}
-            <Link href="/terms" className="underline underline-offset-4 hover:text-primary">
-              Terms of Service
-            </Link>
-            {" "}and{" "}
-            <Link href="/privacy" className="underline underline-offset-4 hover:text-primary">
-              Privacy Policy
-            </Link>
-          </p>
-        </form>
-      </Form>
+            <p className="text-center text-sm text-muted-foreground">
+              By creating an account, you agree to our{" "}
+              <Link href="/terms" className="underline underline-offset-4 hover:text-primary">
+                Terms of Service
+              </Link>
+              {" "}and{" "}
+              <Link href="/privacy" className="underline underline-offset-4 hover:text-primary">
+                Privacy Policy
+              </Link>
+            </p>
+          </form>
+        </Form>
+      </div>
     </div>
   )
 }

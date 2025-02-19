@@ -107,13 +107,13 @@ export default function HomePage() {
                 <div className="space-y-4">
                   <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 border border-primary/20 shadow-sm">
                     <div className="size-2 rounded-full bg-primary animate-pulse" />
-                    <span className="text-sm font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-foreground">AI-Powered Learning Platform</span>
+                    <span className="text-sm font-medium text-foreground">AI-Powered Learning Platform</span>
                   </div>
                   <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight [text-wrap:balance]">
                     Transform Videos into
                     <span className="relative whitespace-nowrap">
                       <span className="absolute -z-10 inset-0 bg-gradient-to-r from-primary/30 to-primary/0 blur-2xl" />
-                      <span className="relative text-primary"> Engaging Courses</span>
+                      <span className="relative text-foreground"> Engaging Courses</span>
                     </span>
                     <span className="block text-2xl sm:text-3xl lg:text-4xl mt-6 text-muted-foreground font-normal">
                       With the Power of AI
@@ -219,7 +219,7 @@ export default function HomePage() {
               <div className="size-2 rounded-full bg-primary animate-pulse" />
               <span className="text-sm font-medium">Powered by Advanced AI</span>
             </div>
-            <h2 className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground via-foreground to-foreground/70">
+            <h2 className="text-4xl sm:text-5xl font-bold text-foreground">
               Transform Your Learning Experience
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -243,7 +243,7 @@ export default function HomePage() {
                           <feature.icon className="h-8 w-8 text-primary" />
                         </div>
                       </div>
-                      <h3 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
+                      <h3 className="text-3xl font-bold text-foreground">
                         {feature.title}
                       </h3>
                     </div>
