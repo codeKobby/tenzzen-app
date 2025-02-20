@@ -20,12 +20,23 @@ import {
   Compass,
   Wallet,
   X,
+  FolderKanban,
+  Crown,
+  Sun,
+  Moon,
+  Laptop
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import { useTheme } from "next-themes"
 import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface NavigationItem {
   title: string
@@ -34,20 +45,7 @@ interface NavigationItem {
   badge?: string | number
 }
 
-const publicNavigation: NavigationItem[] = [
-  {
-    title: "Explore",
-    href: "/explore",
-    icon: Compass,
-  },
-  {
-    title: "Billing",
-    href: "/billing",
-    icon: Wallet,
-  },
-]
-
-const protectedNavigation: NavigationItem[] = [
+const mainNavigation: NavigationItem[] = [
   {
     title: "Dashboard",
     href: "/dashboard",
@@ -63,6 +61,24 @@ const protectedNavigation: NavigationItem[] = [
     title: "Library",
     href: "/library",
     icon: Library,
+  },
+  {
+    title: "Projects",
+    href: "/projects",
+    icon: FolderKanban,
+  },
+  {
+    title: "Explore",
+    href: "/explore",
+    icon: Compass,
+  },
+]
+
+const billingNavigation: NavigationItem[] = [
+  {
+    title: "Billing",
+    href: "/billing",
+    icon: Wallet,
   },
 ]
 
@@ -87,9 +103,10 @@ interface SidebarProps {
 export function Sidebar({ children, className }: SidebarProps) {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
-  const { supabase, user } = useAuth()
-  const { resolvedTheme } = useTheme()
+  const { user, signOut } = useAuth()
+  const { theme, setTheme } = useTheme()
   const [isMobile, setIsMobile] = React.useState(false)
+  const [colorTheme, setColorTheme] = React.useState<'purple' | 'neutral'>('purple')
 
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024)
@@ -106,17 +123,34 @@ export function Sidebar({ children, className }: SidebarProps) {
 
   const handleSignOut = async () => {
     try {
-      await supabase.auth.signOut()
+      await signOut()
       if (navigator.vibrate) navigator.vibrate([20])
       toast({
         title: "Signed out successfully",
         variant: "default",
       })
-    } catch (error) {
+    } catch {
       toast({
         title: "Error signing out",
         variant: "destructive",
       })
+    }
+  }
+
+  const handleThemeChange = (selectedTheme: 'purple' | 'neutral') => {
+    setColorTheme(selectedTheme)
+    document.documentElement.classList.remove('theme-purple', 'theme-neutral')
+    document.documentElement.classList.add(`theme-${selectedTheme}`)
+  }
+
+  const getThemeIcon = () => {
+    switch (theme) {
+      case 'dark':
+        return <Moon className="mr-2 h-3.5 w-3.5" />
+      case 'system':
+        return <Laptop className="mr-2 h-3.5 w-3.5" />
+      default:
+        return <Sun className="mr-2 h-3.5 w-3.5" />
     }
   }
 
@@ -184,141 +218,198 @@ export function Sidebar({ children, className }: SidebarProps) {
     </div>
   )
 
-  const getAvatarImage = (user: User | null): string | undefined => {
-    if (user && 'image' in user && typeof user.image === 'string') {
-      return user.image;
-    }
-    return undefined;
-  }
-
-  const UserProfile = () => (
-    <div className="flex flex-col justify-end border-t">
-      <div className="px-3 py-2">
-        <div className={cn(
-          "flex items-center gap-2 rounded-md bg-accent/50 px-2 py-1.5",
-          !isOpen && "lg:justify-center"
-        )}>
-          <Avatar className="h-7 w-7 shrink-0">
-            {getAvatarImage(user) && (
-              <AvatarImage src={getAvatarImage(user)} />
-            )}
-            <AvatarFallback className="text-xs">
-              {user?.email?.[0]?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className={cn("flex-1 truncate", !isOpen && "lg:hidden")}>
-            <p className="truncate text-xs font-medium text-foreground">
-              {user?.email}
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              Free Plan
-            </p>
-          </div>
-        </div>
+  return (
+    <div className="relative">
+      {/* Mobile Toggle */}
+      {!isOpen && isMobile && (
         <Button
           variant="ghost"
-          onClick={handleSignOut}
-          className={cn(
-            "group mt-1 flex h-8 w-full items-center justify-start gap-2 rounded-md px-2",
-            "text-xs font-medium",
-            "transition-all duration-200 ease-out active:scale-[0.98]",
-            "text-foreground hover:bg-destructive/10 hover:text-destructive",
-            "focus-visible:ring-2 focus-visible:ring-ring",
-            !isOpen && "lg:justify-center"
-          )}
+          size="icon"
+          className="fixed left-4 top-4 z-50 h-9 w-9"
+          onClick={toggle}
         >
-          <LogOut className="h-3.5 w-3.5 shrink-0" />
-          <span className={cn("truncate", !isOpen && "lg:hidden")}>Sign out</span>
+          <Menu className="h-4 w-4" />
         </Button>
-      </div>
-    </div>
-  )
+      )}
 
-  return (
-    <>
-      {/* Toggle Button */}
+      {/* Desktop Toggle */}
       <Button
         variant="ghost"
         size="icon"
         className={cn(
-          "fixed top-4 left-4 z-50 h-9 w-9",
-          isMobile ? "flex" : "hidden lg:flex"
+          "fixed top-4 z-50 h-9 w-9 hidden lg:flex",
+          isOpen ? "left-[200px]" : "left-[0px]"
         )}
         onClick={toggle}
       >
-        {isMobile ? (
-          <Menu className="h-4 w-4" />
-        ) : (
-          <ChevronLeft className={cn(
-            "h-4 w-4 transition-transform duration-200",
-            !isOpen && "rotate-180"
-          )} />
-        )}
+        <ChevronLeft className={cn(
+          "h-4 w-4 transition-transform duration-200",
+          !isOpen && "rotate-180"
+        )} />
       </Button>
 
-      <div className="flex min-h-screen w-full">
-        {/* Sidebar */}
-        <aside
-          className={cn(
-            "flex flex-col border-r bg-card",
-            "transition-all duration-500 ease-in-out",
-            isMobile ? "fixed left-0 top-0 z-40 h-[100dvh]" : "relative h-screen",
-            isOpen ? "w-[240px] opacity-100 visible" : "w-0 opacity-0 invisible",
-            !isOpen && isMobile && "-translate-x-full",
-            className
-          )}
-        >
-          <div className="flex h-full flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between px-3 py-3">
-              <div className="flex items-center gap-2">
-                <GraduationCap className="h-6 w-6 shrink-0 text-primary" />
-                <span className="text-base font-bold tracking-tight text-foreground">
-                  Tenzzen
-                </span>
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-40 flex h-[100dvh] flex-col border-r bg-card overflow-hidden",
+          "w-[240px] transition-[width,transform] duration-300 ease-in-out",
+          !isOpen && (isMobile ? "-translate-x-full" : "w-0"),
+          className
+        )}
+      >
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between px-3 py-3">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-6 w-6 shrink-0 text-primary" />
+              <span className={cn(
+                "text-base font-bold tracking-tight text-foreground transition-opacity duration-300",
+                !isOpen && "lg:hidden"
+              )}>
+                Tenzzen
+              </span>
+            </div>
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={toggle}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+
+          <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto px-3 py-2">
+            <nav className="space-y-4">
+              <NavigationGroup items={mainNavigation} />
+              <Separator className="my-4" />
+              <NavigationGroup items={[...billingNavigation, ...settingsNavigation]} />
+            </nav>
+          </div>
+
+          <div className="px-3 py-4 space-y-4">
+            <div className={cn(
+              "flex items-center gap-2 rounded-md bg-accent/50 p-3",
+              "transition-all duration-200"
+            )}>
+              <Crown className="h-4 w-4 text-yellow-500" />
+              <div className="flex-1">
+                <p className="text-xs font-medium">Upgrade to Pro</p>
+                <p className="text-[10px] text-muted-foreground">Get unlimited access</p>
               </div>
-              {/* Mobile Close Button */}
-              {isMobile && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={toggle}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => handleNavigation()}
+              >
+                Upgrade
+              </Button>
             </div>
 
-            {/* Navigation */}
-            <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto px-3 py-2">
-              <nav className="space-y-4">
-                <NavigationGroup items={publicNavigation} title="Menu" />
-                {user && (
-                  <>
-                    <NavigationGroup items={protectedNavigation} />
-                    <Separator className="my-2" />
-                    <NavigationGroup items={settingsNavigation} title="Settings" />
-                  </>
-                )}
-              </nav>
+            <div className="px-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-xs"
+                  >
+                    {getThemeIcon()}
+                    Theme
+                    <span className="ml-auto text-muted-foreground">
+                      {colorTheme === 'purple' ? 'Purple' : 'Neutral'}
+                      {" / "}
+                      {theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[240px] p-2">
+                  <Tabs 
+                    defaultValue={colorTheme} 
+                    className="w-full" 
+                    onValueChange={(value) => handleThemeChange(value as 'purple' | 'neutral')}
+                  >
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="purple" className="text-xs">Purple</TabsTrigger>
+                      <TabsTrigger value="neutral" className="text-xs">Neutral</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="purple" className="mt-2">
+                      <div className="space-y-1">
+                        <DropdownMenuItem 
+                          onClick={() => setTheme('light')}
+                          className={theme === 'light' ? "bg-accent" : undefined}
+                        >
+                          <Sun className="mr-2 h-3.5 w-3.5" />
+                          Light
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => setTheme('dark')}
+                          className={theme === 'dark' ? "bg-accent" : undefined}
+                        >
+                          <Moon className="mr-2 h-3.5 w-3.5" />
+                          Dark
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => setTheme('system')}
+                          className={theme === 'system' ? "bg-accent" : undefined}
+                        >
+                          <Laptop className="mr-2 h-3.5 w-3.5" />
+                          System
+                        </DropdownMenuItem>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="neutral" className="mt-2">
+                      <div className="space-y-1">
+                        <DropdownMenuItem 
+                          onClick={() => setTheme('light')}
+                          className={theme === 'light' ? "bg-accent" : undefined}
+                        >
+                          <Sun className="mr-2 h-3.5 w-3.5" />
+                          Light
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => setTheme('dark')}
+                          className={theme === 'dark' ? "bg-accent" : undefined}
+                        >
+                          <Moon className="mr-2 h-3.5 w-3.5" />
+                          Dark
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => setTheme('system')}
+                          className={theme === 'system' ? "bg-accent" : undefined}
+                        >
+                          <Laptop className="mr-2 h-3.5 w-3.5" />
+                          System
+                        </DropdownMenuItem>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
-            {/* Profile */}
-            {user && <UserProfile />}
-          </div>
-        </aside>
+            <Separator />
 
-        {/* Main Content */}
-        <main className="flex-1">
-          <div className={cn(
-            "mx-auto w-full px-6",
-            "transition-all duration-500 ease-in-out"
-          )}>
-            {children}
+            <Button
+              variant="ghost"
+              onClick={handleSignOut}
+              className="w-full justify-start px-2 text-xs"
+            >
+              <LogOut className="mr-2 h-3.5 w-3.5" />
+              Sign out
+            </Button>
           </div>
-        </main>
-      </div>
-    </>
+        </div>
+      </aside>
+
+      <main className={cn(
+        "min-h-screen transition-[margin] duration-300 ease-in-out",
+        isOpen ? "ml-[240px]" : "ml-0"
+      )}>
+        {children}
+      </main>
+    </div>
   )
 }

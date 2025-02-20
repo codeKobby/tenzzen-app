@@ -12,29 +12,21 @@ export interface GoogleSignInButtonProps {
 }
 
 export function GoogleSignInButton({ isLoading, setIsLoading }: GoogleSignInButtonProps) {
-  const { supabase } = useAuth()
+  const { signInWithGoogle } = useAuth()
   const router = useRouter()
 
   const handleSignIn = async () => {
     try {
       setIsLoading(true)
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${location.origin}/auth/callback`
-        }
-      })
+      const { data, error } = await signInWithGoogle()
 
       if (error) {
         throw error
       }
 
-      if (!data.url) {
-        throw new Error('No OAuth URL returned')
+      if (data?.url) {
+        router.push(data.url)
       }
-
-      // Redirect to Google sign in
-      window.location.href = data.url
     } catch (error) {
       console.error('Google sign in error:', error)
       toast.error('Failed to sign in with Google')

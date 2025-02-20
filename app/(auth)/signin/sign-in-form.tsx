@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
 import { Icons } from "@/components/ui/icons"
-import { createBrowserClient } from '@supabase/ssr'
+import { useAuth } from "@/hooks/use-auth"
 import { GoogleSignInButton } from "@/components/google-sign-in-button"
 import { Separator } from "@/components/ui/separator"
 import { signInSchema, getAuthErrorMessage, AUTH_MESSAGES } from "@/lib/validations/auth"
@@ -21,11 +21,8 @@ type FormData = z.infer<typeof signInSchema>
 export function SignInForm() {
   const [isLoading, setIsLoading] = React.useState(false)
   const router = useRouter()
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-  
+  const { signIn } = useAuth()
+
   const form = useForm<FormData>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -36,12 +33,9 @@ export function SignInForm() {
 
   const onSubmit = async (values: FormData) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
-      })
+      const { data, error } = await signIn(values.email, values.password)
 
-      if (error) {
+      if (error?.message) {
         form.setError("root", {
           type: "manual",
           message: getAuthErrorMessage(error)
@@ -62,7 +56,7 @@ export function SignInForm() {
         return
       }
 
-      if (data?.user?.email_confirmed_at) {
+      if (data?.user && data.user.email_confirmed_at) {
         toast(AUTH_MESSAGES.SIGN_IN_SUCCESS)
         router.push("/dashboard")
         router.refresh()
@@ -82,7 +76,7 @@ export function SignInForm() {
   return (
     <div className="space-y-6">
       <GoogleSignInButton isLoading={isLoading} setIsLoading={setIsLoading} />
-      
+
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <Separator />
@@ -124,7 +118,7 @@ export function SignInForm() {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input 
+                  <Input
                     type="password"
                     autoComplete="current-password"
                     {...field}

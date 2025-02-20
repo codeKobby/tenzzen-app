@@ -169,6 +169,81 @@
   }
 }
 
+/* ------------------- Theme Minimal ------------------- */
+@layer base {
+  .theme-minimal {
+    /* Light Theme */
+    --background: 0 0% 100%;       /* Pure white */
+    --foreground: 0 0% 13%;        /* Very dark gray (#212121) */
+
+    --card: 0 0% 100%;            /* White cards */
+    --card-foreground: 0 0% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+
+    /* Minimal neutral for primary/secondary/muted/accent */
+    --primary: 0 0% 10%;          /* Deep gray for any 'primary' UI (rarely used) */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 0 0% 40%;        /* Medium gray for secondary elements */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 90%;            /* Light gray for muted content */
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 0 0% 70%;           /* Subtle gray accent (e.g., #b3b3b3) */
+    --accent-foreground: 0 0% 13%;
+
+    /* YouTube's signature red for loading bars, progress bars, or minimal highlights */
+    --youtube-red: 0 100% 50%;    /* #FF0000 */
+
+    /* Destructive can remain a red tone for errors if you prefer consistency */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 88%;           /* #e0e0e0 for subtle borders */
+    --input: 0 0% 88%;
+    --ring: 0 100% 50%;           /* If you want a ring to be red, use --youtube-red or keep this minimal */
+    --radius: 0.5rem;
+  }
+
+  .dark.theme-minimal {
+    /* Dark Theme */
+    --background: 0 0% 6%;        /* #0f0f0f near-black for dark mode */
+    --foreground: 0 0% 100%;      /* White text */
+
+    --card: 0 0% 10%;            /* #1a1a1a or #181818 for dark cards */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 0 0% 20%;          /* Dark neutral (#333333) for minimal usage */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 30%;        /* #4d4d4d medium gray for secondary */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 100%;
+
+    --accent: 0 0% 40%;           /* #666666 or so for accent */
+    --accent-foreground: 0 0% 100%;
+
+    /* Keep the same YouTube red for progress bars if needed */
+    --youtube-red: 0 100% 50%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 20%;           /* #333333 for borders */
+    --input: 0 0% 20%;
+    --ring: 0 100% 50%;
+    --radius: 0.5rem;
+  }
+}
+
 /* ------------------- Global Base Styles ------------------- */
 @layer base {
   * {

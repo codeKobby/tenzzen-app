@@ -8,7 +8,8 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  TooltipProps
+  TooltipProps,
+  Area
 } from "recharts"
 
 interface DataPoint {
@@ -36,10 +37,10 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   }
 
   return (
-    <Card className="p-2 !border-primary/50">
-      <p className="text-sm font-medium">{label}</p>
-      <p className="text-sm text-muted-foreground">
-        {payload[0].value.toFixed(1)} hours
+    <Card className="p-3 shadow-lg !border-primary/20">
+      <p className="text-sm font-medium text-primary mb-1">{label}</p>
+      <p className="text-lg font-semibold">
+        {payload[0].value.toFixed(1)}h <span className="text-xs text-muted-foreground">study time</span>
       </p>
     </Card>
   )
@@ -55,10 +56,16 @@ export function LineChart({ data }: LineChartProps) {
         data={data} 
         margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
       >
+        <defs>
+          <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
+            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+          </linearGradient>
+        </defs>
         <CartesianGrid 
-          strokeDasharray="3 3" 
+          strokeDasharray="5 5" 
           vertical={false} 
-          stroke={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}
+          stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}
           horizontal
         />
         <XAxis
@@ -86,18 +93,26 @@ export function LineChart({ data }: LineChartProps) {
             stroke: "hsl(var(--primary))"
           }}
         />
+        <Area
+          type="monotone"
+          dataKey="hours"
+          stroke="hsl(var(--primary))"
+          strokeWidth={2.5}
+          fillOpacity={1}
+          fill="url(#colorHours)"
+        />
         <Line
           type="monotone"
           dataKey="hours"
           stroke="hsl(var(--primary))"
-          strokeWidth={2}
+          strokeWidth={2.5}
           dot={false}
           activeDot={{
-            r: 6,
+            r: 8,
             style: {
               fill: "hsl(var(--primary))",
               stroke: "var(--background)",
-              strokeWidth: 2,
+              strokeWidth: 3,
             },
           }}
           isAnimationActive={true}

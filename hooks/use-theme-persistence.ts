@@ -1,20 +1,41 @@
 "use client"
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
-import { useAuth } from '@/hooks/use-auth'
+import { createBrowserClient } from '@supabase/ssr'
+import { User } from '@supabase/supabase-js'
 
-type ColorTheme = 'purple' | 'neutral'
+type ColorTheme = 'purple' | 'neutral' | 'minimal'
 
 export function useThemePersistence() {
   const { theme, setTheme } = useTheme()
-  const { supabase, user } = useAuth()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+  const [user, setUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
 
   // Load theme from localStorage on mount
   useEffect(() => {
     const colorTheme = localStorage.getItem('colorTheme') as ColorTheme | null
     if (colorTheme) {
-      document.documentElement.classList.remove('theme-purple', 'theme-neutral')
+      document.documentElement.classList.remove('theme-purple', 'theme-neutral', 'theme-minimal')
       document.documentElement.classList.add(`theme-${colorTheme}`)
     }
 
@@ -43,7 +64,7 @@ export function useThemePersistence() {
       if (data) {
         setTheme(data.theme)
         if (data.color_theme) {
-          document.documentElement.classList.remove('theme-purple', 'theme-neutral')
+          document.documentElement.classList.remove('theme-purple', 'theme-neutral', 'theme-minimal')
           document.documentElement.classList.add(`theme-${data.color_theme}`)
           localStorage.setItem('colorTheme', data.color_theme)
         }

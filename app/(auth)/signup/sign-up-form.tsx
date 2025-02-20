@@ -22,7 +22,7 @@ type FormData = z.infer<typeof signUpSchema>
 export function SignUpForm() {
   const [isFocused, setIsFocused] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
-  const { supabase } = useAuth()
+  const { signUp } = useAuth()
   const router = useRouter()
 
   const form = useForm<FormData>({
@@ -37,15 +37,9 @@ export function SignUpForm() {
 
   async function onSubmit(values: FormData) {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
-        options: {
-          emailRedirectTo: `${location.origin}/auth/callback`,
-        },
-      })
+      const { data, error } = await signUp(values.email, values.password)
 
-      if (error) {
+      if (error?.message) {
         form.setError("root", {
           type: "manual",
           message: error.message
@@ -58,7 +52,7 @@ export function SignUpForm() {
         return
       }
 
-      if (data.session === null) {
+      if (!data?.session) {
         // Email verification required
         toast({
           title: "Account created",

@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-type ColorTheme = 'purple' | 'neutral'
+type ColorTheme = 'purple' | 'neutral' | 'minimal'
 
 export function ThemeToggle() {
   const [mounted, setMounted] = React.useState(false)
@@ -32,7 +32,7 @@ export function ThemeToggle() {
 
   const handleThemeChange = (selectedTheme: ColorTheme) => {
     setColorTheme(selectedTheme)
-    document.documentElement.classList.remove('theme-purple', 'theme-neutral')
+    document.documentElement.classList.remove('theme-purple', 'theme-neutral', 'theme-minimal')
     document.documentElement.classList.add(`theme-${selectedTheme}`)
     updateTheme(theme || 'system', selectedTheme)
   }
@@ -86,6 +86,15 @@ export function ThemeToggle() {
           >
             <Paintbrush className="h-3.5 w-3.5" />
             Neutral
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => handleThemeChange('minimal')}
+            className={`flex items-center gap-2 px-3 py-1.5 my-1 mx-1 rounded-sm transition-colors ${
+              colorTheme === 'minimal' ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
+            }`}
+          >
+            <Paintbrush className="h-3.5 w-3.5" />
+            Minimal
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
