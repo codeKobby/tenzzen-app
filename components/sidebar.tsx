@@ -6,25 +6,24 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { useAuth } from "@/hooks/use-auth"
-import { type User } from "@/types/auth"
 import {
   BookOpen,
-  ChevronLeft,
   GraduationCap,
   LayoutDashboard,
   Library,
   LogOut,
-  Menu,
+  X,
   Settings,
   Bug,
   Compass,
   Wallet,
-  X,
   FolderKanban,
   Crown,
   Sun,
   Moon,
-  Laptop
+  Laptop,
+  PanelLeftClose,
+  PanelLeftOpen
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
@@ -43,6 +42,7 @@ interface NavigationItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   badge?: string | number
+  isPro?: boolean
 }
 
 const mainNavigation: NavigationItem[] = [
@@ -66,6 +66,7 @@ const mainNavigation: NavigationItem[] = [
     title: "Projects",
     href: "/projects",
     icon: FolderKanban,
+    isPro: true,
   },
   {
     title: "Explore",
@@ -95,12 +96,7 @@ const settingsNavigation: NavigationItem[] = [
   },
 ]
 
-interface SidebarProps {
-  children: React.ReactNode
-  className?: string
-}
-
-export function Sidebar({ children, className }: SidebarProps) {
+export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
   const { user, signOut } = useAuth()
@@ -109,17 +105,15 @@ export function Sidebar({ children, className }: SidebarProps) {
   const [colorTheme, setColorTheme] = React.useState<'purple' | 'neutral'>('purple')
 
   React.useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
+    const checkMobile = () => {
+      const isMobileView = window.innerWidth < 1024
+      setIsMobile(isMobileView)
+    }
+    
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
-
-  const handleNavigation = () => {
-    if (isMobile) {
-      toggle()
-    }
-  }
 
   const handleSignOut = async () => {
     try {
@@ -146,11 +140,11 @@ export function Sidebar({ children, className }: SidebarProps) {
   const getThemeIcon = () => {
     switch (theme) {
       case 'dark':
-        return <Moon className="mr-2 h-3.5 w-3.5" />
+        return <Moon className="h-3.5 w-3.5 group-hover:text-primary" />
       case 'system':
-        return <Laptop className="mr-2 h-3.5 w-3.5" />
+        return <Laptop className="h-3.5 w-3.5 group-hover:text-primary" />
       default:
-        return <Sun className="mr-2 h-3.5 w-3.5" />
+        return <Sun className="h-3.5 w-3.5 group-hover:text-primary" />
     }
   }
 
@@ -161,31 +155,28 @@ export function Sidebar({ children, className }: SidebarProps) {
     return (
       <Link
         href={item.href}
-        onClick={() => handleNavigation()}
         className={cn(
-          "group relative flex items-center gap-2 rounded-md px-2",
-          "h-8",
-          "transition-all duration-200 ease-out hover:bg-accent active:scale-[0.98]",
-          "touch-action-manipulation focus-visible:outline-none focus-visible:ring-2",
+          "group relative flex items-center gap-2.5 rounded-lg px-2.5",
+          "h-9",
+          "transition-all duration-200 ease-out hover:bg-accent/50",
+          "touch-action-manipulation focus-visible:outline-none group",
           isActive && [
-            "bg-primary",
-            "before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-background",
-          ],
-          "focus-visible:ring-ring"
+            "bg-primary text-primary-foreground",
+            "before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary-foreground/80",
+          ]
         )}
       >
         <Icon
           className={cn(
-            "h-3.5 w-3.5",
-            "transition-all duration-200",
-            "group-hover:scale-110 group-active:scale-95",
-            isActive ? "text-background" : "text-muted-foreground"
+            "h-4 w-4",
+            "transition-colors duration-200",
+            isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"
           )}
         />
         <span className={cn(
-          "text-xs font-medium",
-          isActive ? "text-background" : "text-foreground",
-          !isOpen && "lg:hidden"
+          "text-sm font-medium",
+          isActive ? "text-primary-foreground" : "text-foreground",
+          !isOpen && "hidden"
         )}>
           {item.title}
         </span>
@@ -193,10 +184,17 @@ export function Sidebar({ children, className }: SidebarProps) {
           <span className={cn(
             "ml-auto rounded-full px-1.5 py-px text-[10px] font-medium",
             isActive ? "bg-background/20 text-background" : "bg-muted text-muted-foreground",
-            !isOpen && "lg:hidden"
+            !isOpen && "hidden"
           )}>
             {item.badge}
           </span>
+        )}
+        {item.isPro && (
+          <Crown className={cn(
+            "ml-auto h-3.5 w-3.5",
+            isActive ? "text-background/80" : "text-yellow-500",
+            !isOpen && "hidden"
+          )}/>
         )}
       </Link>
     )
@@ -207,7 +205,7 @@ export function Sidebar({ children, className }: SidebarProps) {
       {title && (
         <h3 className={cn(
           "mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60",
-          !isOpen && "lg:hidden"
+          !isOpen && "hidden"
         )}>
           {title}
         </h3>
@@ -219,197 +217,173 @@ export function Sidebar({ children, className }: SidebarProps) {
   )
 
   return (
-    <div className="relative">
-      {/* Mobile Toggle */}
-      {!isOpen && isMobile && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="fixed left-4 top-4 z-50 h-9 w-9"
-          onClick={toggle}
-        >
-          <Menu className="h-4 w-4" />
-        </Button>
+    <aside
+      className={cn(
+        "shrink-0 border-r bg-card h-screen",
+        "fixed inset-y-0 left-0 z-50",
+        "w-[280px] transition-transform duration-300 ease-in-out",
+        !isOpen && "-translate-x-full",
+        className
       )}
-
-      {/* Desktop Toggle */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          "fixed top-4 z-50 h-9 w-9 hidden lg:flex",
-          isOpen ? "left-[200px]" : "left-[0px]"
-        )}
-        onClick={toggle}
-      >
-        <ChevronLeft className={cn(
-          "h-4 w-4 transition-transform duration-200",
-          !isOpen && "rotate-180"
-        )} />
-      </Button>
-
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed left-0 top-0 z-40 flex h-[100dvh] flex-col border-r bg-card overflow-hidden",
-          "w-[240px] transition-[width,transform] duration-300 ease-in-out",
-          !isOpen && (isMobile ? "-translate-x-full" : "w-0"),
-          className
-        )}
-      >
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between px-3 py-3">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-6 w-6 shrink-0 text-primary" />
-              <span className={cn(
-                "text-base font-bold tracking-tight text-foreground transition-opacity duration-300",
-                !isOpen && "lg:hidden"
-              )}>
-                Tenzzen
-              </span>
-            </div>
-            {isMobile && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={toggle}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-
-          <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto px-3 py-2">
-            <nav className="space-y-4">
-              <NavigationGroup items={mainNavigation} />
-              <Separator className="my-4" />
-              <NavigationGroup items={[...billingNavigation, ...settingsNavigation]} />
-            </nav>
-          </div>
-
-          <div className="px-3 py-4 space-y-4">
-            <div className={cn(
-              "flex items-center gap-2 rounded-md bg-accent/50 p-3",
-              "transition-all duration-200"
+    >
+      <div className="flex h-full w-[280px] flex-col">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <Link href="/" className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5 text-primary" />
+            <span className={cn(
+              "text-sm font-bold tracking-tight",
+              !isOpen && "hidden"
             )}>
-              <Crown className="h-4 w-4 text-yellow-500" />
-              <div className="flex-1">
-                <p className="text-xs font-medium">Upgrade to Pro</p>
-                <p className="text-[10px] text-muted-foreground">Get unlimited access</p>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => handleNavigation()}
-              >
-                Upgrade
-              </Button>
-            </div>
-
-            <div className="px-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-xs"
-                  >
-                    {getThemeIcon()}
-                    Theme
-                    <span className="ml-auto text-muted-foreground">
-                      {colorTheme === 'purple' ? 'Purple' : 'Neutral'}
-                      {" / "}
-                      {theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[240px] p-2">
-                  <Tabs 
-                    defaultValue={colorTheme} 
-                    className="w-full" 
-                    onValueChange={(value) => handleThemeChange(value as 'purple' | 'neutral')}
-                  >
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="purple" className="text-xs">Purple</TabsTrigger>
-                      <TabsTrigger value="neutral" className="text-xs">Neutral</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="purple" className="mt-2">
-                      <div className="space-y-1">
-                        <DropdownMenuItem 
-                          onClick={() => setTheme('light')}
-                          className={theme === 'light' ? "bg-accent" : undefined}
-                        >
-                          <Sun className="mr-2 h-3.5 w-3.5" />
-                          Light
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => setTheme('dark')}
-                          className={theme === 'dark' ? "bg-accent" : undefined}
-                        >
-                          <Moon className="mr-2 h-3.5 w-3.5" />
-                          Dark
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => setTheme('system')}
-                          className={theme === 'system' ? "bg-accent" : undefined}
-                        >
-                          <Laptop className="mr-2 h-3.5 w-3.5" />
-                          System
-                        </DropdownMenuItem>
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="neutral" className="mt-2">
-                      <div className="space-y-1">
-                        <DropdownMenuItem 
-                          onClick={() => setTheme('light')}
-                          className={theme === 'light' ? "bg-accent" : undefined}
-                        >
-                          <Sun className="mr-2 h-3.5 w-3.5" />
-                          Light
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => setTheme('dark')}
-                          className={theme === 'dark' ? "bg-accent" : undefined}
-                        >
-                          <Moon className="mr-2 h-3.5 w-3.5" />
-                          Dark
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => setTheme('system')}
-                          className={theme === 'system' ? "bg-accent" : undefined}
-                        >
-                          <Laptop className="mr-2 h-3.5 w-3.5" />
-                          System
-                        </DropdownMenuItem>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <Separator />
-
-            <Button
-              variant="ghost"
-              onClick={handleSignOut}
-              className="w-full justify-start px-2 text-xs"
-            >
-              <LogOut className="mr-2 h-3.5 w-3.5" />
-              Sign out
-            </Button>
-          </div>
+              Tenzzen
+            </span>
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:bg-transparent"
+            onClick={toggle}
+          >
+            {isMobile ? (
+              <X className="h-4 w-4 transition-colors hover:text-primary" />
+            ) : isOpen ? (
+              <PanelLeftClose className="h-4 w-4 transition-colors hover:text-primary" />
+            ) : (
+              <PanelLeftOpen className="h-4 w-4 transition-colors hover:text-primary" />
+            )}
+          </Button>
         </div>
-      </aside>
+        
+        <div className="flex-1 overflow-y-auto px-4 pt-2">
+          <nav className="space-y-3">
+            <NavigationGroup items={mainNavigation} />
+            <Separator className="my-4" />
+            <NavigationGroup items={[...billingNavigation, ...settingsNavigation]} />
+          </nav>
+        </div>
 
-      <main className={cn(
-        "min-h-screen transition-[margin] duration-300 ease-in-out",
-        isOpen ? "ml-[240px]" : "ml-0"
-      )}>
-        {children}
-      </main>
-    </div>
+        <div className="px-4 py-4 space-y-3">
+          <div className={cn(
+            "group relative rounded-lg py-3 px-3.5 border border-border/50",
+            "bg-gradient-to-br from-primary/10 via-primary/5 to-transparent"
+          )}>
+            <div className="flex items-start gap-2">
+              <Crown className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />
+              <div className="space-y-2 flex-1">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-medium">Upgrade to Pro</p>
+                    <span className="text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded-full">
+                      50% OFF
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Get exclusive access to pro features
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full text-xs font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                >
+                  Upgrade Now
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-xs group"
+                >
+                  {getThemeIcon()}
+                  <span className="ml-2">Theme</span>
+                  <span className="ml-auto text-muted-foreground">
+                    {colorTheme === 'purple' ? 'Purple' : 'Neutral'}
+                    {" / "}
+                    {theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[240px] p-2">
+                <Tabs 
+                  defaultValue={colorTheme} 
+                  className="w-full" 
+                  onValueChange={(value) => handleThemeChange(value as 'purple' | 'neutral')}
+                >
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="purple" className="text-xs">Purple</TabsTrigger>
+                    <TabsTrigger value="neutral" className="text-xs">Neutral</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="purple" className="mt-2">
+                    <div className="space-y-1">
+                      <DropdownMenuItem 
+                        className="group"
+                        onClick={() => setTheme('light')}
+                      >
+                        <Sun className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
+                        Light
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="group"
+                        onClick={() => setTheme('dark')}
+                      >
+                        <Moon className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
+                        Dark
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="group"
+                        onClick={() => setTheme('system')}
+                      >
+                        <Laptop className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
+                        System
+                      </DropdownMenuItem>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="neutral" className="mt-2">
+                    <div className="space-y-1">
+                      <DropdownMenuItem 
+                        className="group"
+                        onClick={() => setTheme('light')}
+                      >
+                        <Sun className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
+                        Light
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="group"
+                        onClick={() => setTheme('dark')}
+                      >
+                        <Moon className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
+                        Dark
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="group"
+                        onClick={() => setTheme('system')}
+                      >
+                        <Laptop className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
+                        System
+                      </DropdownMenuItem>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <Separator />
+
+          <Button
+            variant="ghost"
+            onClick={handleSignOut}
+            className="w-full justify-start px-2 text-xs group"
+          >
+            <LogOut className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
+            Sign out
+          </Button>
+        </div>
+      </div>
+    </aside>
   )
 }

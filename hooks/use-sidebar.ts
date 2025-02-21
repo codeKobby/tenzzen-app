@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { createJSONStorage, persist } from "zustand/middleware"
 
 interface SidebarState {
   isOpen: boolean
@@ -7,7 +8,7 @@ interface SidebarState {
 }
 
 export const useSidebar = create<SidebarState>((set) => ({
-  isOpen: false,
+  isOpen: true,
   toggle: () => set((state) => ({ isOpen: !state.isOpen })),
   close: () => set({ isOpen: false }),
 }))

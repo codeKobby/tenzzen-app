@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { useSidebar } from "@/hooks/use-sidebar"
-import { type User } from "@supabase/supabase-js"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,9 +37,8 @@ export function PageHeader() {
   const { user } = useAuth()
   const { isOpen, toggle } = useSidebar()
   const [isMobile, setIsMobile] = React.useState(false)
-
-  const breadcrumbs = getBreadcrumbFromPath(pathname)
   const [scrolled, setScrolled] = React.useState(false)
+  const breadcrumbs = getBreadcrumbFromPath(pathname)
 
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024)
@@ -60,15 +58,28 @@ export function PageHeader() {
 
   return (
     <header className={cn(
-      "sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+      "w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-40",
       scrolled && "shadow-sm"
     )}>
       <div className={cn(
-        "flex h-14 items-center justify-between transition-[margin] duration-300 ease-in-out",
-        isOpen ? "lg:pl-[240px]" : "pl-0"
+        "flex h-16 items-center justify-between transition-[padding] duration-300 ease-in-out",
+        isOpen ? "lg:pl-[280px]" : "pl-8",
+        "pr-8"
       )}>
-        <div className="flex items-center gap-4 px-4">
-          <nav className="flex items-center gap-1 text-sm">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={toggle}
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+            <div className="h-4 w-px bg-border" />
+          </div>
+
+          <nav className="flex items-center gap-2 text-sm">
             {breadcrumbs.map((item, index) => (
               <React.Fragment key={item.href}>
                 {index > 0 && (
@@ -90,7 +101,7 @@ export function PageHeader() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2 pr-4">
+        <div className="flex items-center gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
