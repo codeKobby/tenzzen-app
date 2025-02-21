@@ -29,7 +29,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     <div className="h-screen flex flex-col bg-background">
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/10 transition-opacity lg:hidden z-40"
+          className="fixed inset-0 bg-black/10 transition-opacity duration-200 lg:hidden z-40"
           onClick={toggle}
         />
       )}
@@ -37,7 +37,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
       <div className="flex-1 flex">
         <Sidebar />
         <main className={cn(
-          "flex-1 relative transition-all duration-300 ease-in-out",
+          "flex-1 relative transition-all duration-200 ease-out",
           isOpen ? "lg:ml-[280px]" : "ml-0"
         )}>
           <div className="absolute inset-0 overflow-y-auto">

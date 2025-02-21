@@ -22,8 +22,6 @@ import {
   Sun,
   Moon,
   Laptop,
-  PanelLeftClose,
-  PanelLeftOpen
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
@@ -221,7 +219,7 @@ export function Sidebar({ className }: { className?: string }) {
       className={cn(
         "shrink-0 border-r bg-card h-screen",
         "fixed inset-y-0 left-0 z-50",
-        "w-[280px] transition-transform duration-300 ease-in-out",
+        "w-[280px] transition-transform duration-200 ease-out",
         !isOpen && "-translate-x-full",
         className
       )}
@@ -237,20 +235,16 @@ export function Sidebar({ className }: { className?: string }) {
               Tenzzen
             </span>
           </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 hover:bg-transparent"
-            onClick={toggle}
-          >
-            {isMobile ? (
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 hover:bg-transparent"
+              onClick={toggle}
+            >
               <X className="h-4 w-4 transition-colors hover:text-primary" />
-            ) : isOpen ? (
-              <PanelLeftClose className="h-4 w-4 transition-colors hover:text-primary" />
-            ) : (
-              <PanelLeftOpen className="h-4 w-4 transition-colors hover:text-primary" />
-            )}
-          </Button>
+            </Button>
+          )}
         </div>
         
         <div className="flex-1 overflow-y-auto px-4 pt-2">
@@ -268,16 +262,16 @@ export function Sidebar({ className }: { className?: string }) {
           )}>
             <div className="flex items-start gap-2">
               <Crown className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />
-              <div className="space-y-2 flex-1">
+              <div className="space-y-1.5">
                 <div>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs font-medium">Upgrade to Pro</p>
-                    <span className="text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded-full">
+                    <span className="text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-px rounded-full">
                       50% OFF
                     </span>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Get exclusive access to pro features
+                    Get unlimited access to pro features
                   </p>
                 </div>
                 <Button

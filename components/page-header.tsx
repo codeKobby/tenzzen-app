@@ -3,7 +3,7 @@
 import * as React from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Bell, Menu, ChevronLeft } from "lucide-react"
+import { Bell, ChevronLeft, PanelLeftOpen, PanelLeftClose } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
@@ -71,10 +71,14 @@ export function PageHeader() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 hover:bg-transparent"
               onClick={toggle}
             >
-              <Menu className="h-4 w-4" />
+              {isOpen ? (
+                <PanelLeftClose className="h-4 w-4 transition-colors hover:text-primary" />
+              ) : (
+                <PanelLeftOpen className="h-4 w-4 transition-colors hover:text-primary" />
+              )}
             </Button>
             <div className="h-4 w-px bg-border" />
           </div>
@@ -107,9 +111,9 @@ export function PageHeader() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-9 w-9"
+                className="relative h-9 w-9 hover:bg-transparent"
               >
-                <Bell className="h-4 w-4" />
+                <Bell className="h-4 w-4 transition-colors hover:text-primary" />
                 <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
                   2
                 </span>
@@ -141,7 +145,7 @@ export function PageHeader() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-9 w-9 rounded-full"
+                className="relative h-9 w-9 rounded-full hover:bg-transparent transition-colors"
               >
                 <Avatar className="h-9 w-9">
                   <AvatarImage
