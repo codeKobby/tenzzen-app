@@ -14,7 +14,9 @@ import {
   BookOpen,
   Search,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useMemo } from "react"
+import { useSidebar } from "@/hooks/use-sidebar"
+import { cn } from "@/lib/utils"
 import { CourseCard } from "./components/course-card"
 import { CourseDialog } from "./components/course-dialog"
 import { Course, CourseFilter, CourseCategory } from "./types"
@@ -39,42 +41,63 @@ export default function CoursesPage() {
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState<CourseCategory>("all")
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
+  const [sortBy, setSortBy] = useState<"title" | "lastAccessed" | "progress">("lastAccessed")
 
-  const filteredCourses = sampleCourses.filter(course => {
-    const matchesSearch = search.toLowerCase().trim() === "" ||
-      course.title.toLowerCase().includes(search.toLowerCase()) ||
-      course.description.toLowerCase().includes(search.toLowerCase())
-    
-    const matchesCategory = category === "all" || 
-      course.category.toLowerCase() === category.toLowerCase()
-    
-    const matchesFilter = filter === "all" ||
-      (filter === "in-progress" && course.progress > 0 && course.progress < 100) ||
-      (filter === "completed" && course.progress === 100) ||
-      (filter === "not-started" && course.progress === 0)
+  const sortedAndFilteredCourses = useMemo(() => {
+    const filtered = sampleCourses.filter(course => {
+      const matchesSearch = search.toLowerCase().trim() === "" ||
+        course.title.toLowerCase().includes(search.toLowerCase()) ||
+        course.description.toLowerCase().includes(search.toLowerCase())
+      
+      const matchesCategory = category === "all" || 
+        course.category.toLowerCase() === category.toLowerCase()
+      
+      const matchesFilter = filter === "all" ||
+        (filter === "in-progress" && course.progress > 0 && course.progress < 100) ||
+        (filter === "completed" && course.progress === 100) ||
+        (filter === "not-started" && course.progress === 0)
 
-    return matchesSearch && matchesCategory && matchesFilter
-  })
+      return matchesSearch && matchesCategory && matchesFilter
+    })
+
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "title":
+          return a.title.localeCompare(b.title)
+        case "lastAccessed":
+          return new Date(b.lastAccessed || 0).getTime() - new Date(a.lastAccessed || 0).getTime()
+        case "progress":
+          return b.progress - a.progress
+        default:
+          return 0
+      }
+    })
+  }, [search, category, filter, sortBy])
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="mx-auto w-full max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-6">
+      <div className={cn(
+        "mx-auto space-y-6 transition-all duration-300",
+        useSidebar().isOpen 
+          ? "w-[95%]" 
+          : "w-[90%]"
+      )}>
         {/* Header Section */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">My Courses</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl font-medium tracking-tight">My Courses</h1>
+            <p className="text-sm text-muted-foreground">
               Continue learning where you left off
             </p>
           </div>
-          <Button>
+          <Button size="sm">
             <PlusCircle className="mr-2 h-4 w-4" />
             Browse Courses
           </Button>
         </div>
 
         {/* Filters & Search */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row flex-wrap sm:items-center">
           <div className="flex flex-wrap gap-2">
             {filters.map((f) => (
               <Button
@@ -85,7 +108,7 @@ export default function CoursesPage() {
               >
                 {f.label}
                 <span className="ml-2 rounded-full bg-background/20 px-2 py-0.5 text-xs">
-                  {filteredCourses.filter(course => 
+                  {sortedAndFilteredCourses.filter(course => 
                     f.id === "all" ? true :
                     f.id === "in-progress" ? (course.progress > 0 && course.progress < 100) :
                     f.id === "completed" ? course.progress === 100 :
@@ -95,23 +118,38 @@ export default function CoursesPage() {
               </Button>
             ))}
           </div>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <Select
-              value={category}
-              onValueChange={(value: CourseCategory) => setCategory(value)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="relative">
+          <div className="flex flex-wrap gap-4 sm:ml-auto">
+            <div className="flex gap-4">
+              <Select
+                value={sortBy}
+                onValueChange={(value: "title" | "lastAccessed" | "progress") => setSortBy(value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lastAccessed">Last Accessed</SelectItem>
+                  <SelectItem value="title">Title</SelectItem>
+                  <SelectItem value="progress">Progress</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={category}
+                onValueChange={(value: CourseCategory) => setCategory(value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search courses..."
@@ -124,9 +162,9 @@ export default function CoursesPage() {
         </div>
 
         {/* Course Grid */}
-        {filteredCourses.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredCourses.map((course) => (
+        {sortedAndFilteredCourses.length > 0 ? (
+          <div className="grid gap-x-4 gap-y-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            {sortedAndFilteredCourses.map((course) => (
               <CourseCard
                 key={course.id}
                 course={course}
@@ -136,7 +174,7 @@ export default function CoursesPage() {
           </div>
         ) : (
           <div className="col-span-full flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
-            <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
+          <div className="mx-auto flex max-w-[600px] flex-col items-center justify-center text-center">
               <BookOpen className="h-10 w-10 text-muted-foreground/40" />
               <h3 className="mt-4 text-lg font-semibold">No courses found</h3>
               <p className="mb-4 mt-2 text-sm text-muted-foreground">

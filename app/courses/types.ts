@@ -4,15 +4,22 @@ export interface Course {
   description: string
   duration: string
   progress: number
-  rating: number
-  instructor: string
   category: string
   thumbnail?: string
   lastAccessed?: string
-  totalLessons?: number
-  completedLessons?: number
-  enrolledCount: number
-  videoSource: string
+  isPublic: boolean
+  sources: Array<{
+    name: string
+    avatar: string
+  }>
+  topics: {
+    current: number
+    total: number
+    currentTitle: string
+  }
+  // Only available for public courses
+  rating?: number
+  enrolledCount?: number
 }
 
 export type CourseFilter = "all" | "in-progress" | "completed" | "not-started"
