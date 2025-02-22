@@ -57,12 +57,16 @@ export function Header() {
             </Link>
             {user ? (
               <>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/dashboard">Back to Dashboard</Link>
-                </Button>
                 <Button 
                   size="sm"
                   className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                  asChild
+                >
+                  <Link href="/dashboard">Back to Dashboard</Link>
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
                   onClick={handleSignOut}
                 >
                   <LogOut className="h-4 w-4 mr-2" />
@@ -87,7 +91,15 @@ export function Header() {
 
           {/* Mobile Navigation */}
           <div className="flex items-center gap-2 md:hidden">
-            {!user && (
+            {user ? (
+              <Button 
+                size="sm"
+                asChild
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+              >
+                <Link href="/dashboard">Back to Dashboard</Link>
+              </Button>
+            ) : (
               <Button 
                 size="sm"
                 asChild
@@ -128,16 +140,16 @@ export function Header() {
                 <DropdownMenuSeparator />
                 {user ? (
                   <>
-                    <DropdownMenuItem asChild className="focus:bg-accent">
-                      <Link href="/dashboard" className="w-full flex items-center py-2 px-3 hover:bg-accent rounded-md">
+                    <DropdownMenuItem asChild className="focus:bg-primary">
+                      <Link href="/dashboard" className="w-full flex items-center py-2 px-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium">
                         Back to Dashboard
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={handleSignOut}
-                      className="focus:bg-destructive/10 focus:text-destructive"
+                      className="focus:bg-accent"
                     >
-                      <span className="w-full flex items-center py-2 px-3 hover:bg-destructive/10 text-destructive rounded-md">
+                      <span className="w-full flex items-center py-2 px-3 hover:bg-accent rounded-md">
                         <LogOut className="h-4 w-4 mr-2" />
                         Sign Out
                       </span>

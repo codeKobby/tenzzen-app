@@ -29,12 +29,16 @@ export function Footer() {
             <div className="flex flex-col sm:flex-row gap-4">
               {user ? (
                 <>
-                  <Button variant="outline" size="lg" asChild>
-                    <Link href="/dashboard">Back to Dashboard</Link>
-                  </Button>
                   <Button
                     size="lg"
                     className="bg-gradient-primary hover:bg-gradient-primary-hover text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                    asChild
+                  >
+                    <Link href="/dashboard">Back to Dashboard</Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
                     onClick={handleSignOut}
                   >
                     <LogOut className="h-5 w-5 mr-2" />

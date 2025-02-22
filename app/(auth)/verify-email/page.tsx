@@ -4,40 +4,65 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/use-auth'
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import { CheckCircle2, Loader2, Mail, XCircle } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { toast } from '@/components/ui/use-toast'
 
-type VerificationStatus = 'verifying' | 'success' | 'error'
+type VerificationStatus = 'pending' | 'verifying' | 'success' | 'error'
 
 export default function VerifyEmail() {
   const { user, session } = useAuth()
-  const [status, setStatus] = useState<VerificationStatus>('verifying')
+  const [status, setStatus] = useState<VerificationStatus>('pending')
+  const searchParams = useSearchParams()
+  const email = searchParams.get('email')
+  const error = searchParams.get('error')
 
   useEffect(() => {
-    // Check if user's email is confirmed
+    // Show error toast if verification failed
+    if (error === 'verification_failed') {
+      toast({
+        title: "Verification Failed",
+        description: "We couldn't verify your email. The link may be invalid or expired.",
+        variant: "destructive"
+      })
+    }
+
+    // Check verification status
     if (user?.email_confirmed_at) {
       setStatus('success')
-    } else if (!user && !session) {
+      toast({
+        title: "Email Verified ✓",
+        description: "Your email has been verified successfully.",
+      })
+    } else if (!user && !session && !email) {
       setStatus('error')
     }
-  }, [user, session])
+  }, [user, session, email, error])
 
-  if (status === 'verifying') {
+  if (status === 'pending') {
     return (
       <div className="container flex h-screen w-screen flex-col items-center justify-center">
         <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-          <div className="flex flex-col items-center space-y-4 text-center">
+          <div className="flex flex-col items-center space-y-6 text-center">
             <div className="relative">
               <div className="absolute -inset-1 rounded-full bg-primary/20 blur-sm" />
-              <Loader2 className="h-12 w-12 animate-spin text-primary relative" />
+              <Mail className="h-12 w-12 text-primary relative" />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col space-y-2">
               <h1 className="text-2xl font-semibold tracking-tight">
-                Verifying your email
+                Check your email
               </h1>
               <p className="text-sm text-muted-foreground">
-                Please wait while we verify your email address...
+                We sent a verification link to{' '}
+                <span className="font-medium text-primary">{email}</span>
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Click the link in the email to verify your account. If you don't see the email, check your spam folder.
               </p>
             </div>
+            <Button asChild variant="outline">
+              <Link href="/signin">Back to Sign In</Link>
+            </Button>
           </div>
         </div>
       </div>

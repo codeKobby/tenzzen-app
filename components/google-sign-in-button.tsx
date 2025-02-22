@@ -3,7 +3,8 @@
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/use-toast'
+import { AUTH_MESSAGES } from '@/lib/validations/auth'
 import { useRouter } from 'next/navigation'
 
 export interface GoogleSignInButtonProps {
@@ -29,7 +30,11 @@ export function GoogleSignInButton({ isLoading, setIsLoading }: GoogleSignInButt
       }
     } catch (error) {
       console.error('Google sign in error:', error)
-      toast.error('Failed to sign in with Google')
+      toast({
+        title: "Authentication Error",
+        description: "Failed to sign in with Google. Please try again.",
+        variant: "destructive"
+      })
       setIsLoading(false)
     }
   }

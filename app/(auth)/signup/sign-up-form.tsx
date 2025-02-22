@@ -13,7 +13,7 @@ import { Icons } from "@/components/ui/icons"
 import { useAuth } from '@/hooks/use-auth'
 import { GoogleSignInButton } from "@/components/google-sign-in-button"
 import { Separator } from "@/components/ui/separator"
-import { signUpSchema } from "@/lib/validations/auth"
+import { signUpSchema, getAuthErrorMessage, AUTH_MESSAGES } from "@/lib/validations/auth"
 import { PasswordStrengthMeter } from "@/components/password-strength-meter"
 import type { z } from "zod"
 
@@ -24,7 +24,6 @@ export function SignUpForm() {
   const [isLoading, setIsLoading] = React.useState(false)
   const { signUp } = useAuth()
   const router = useRouter()
-
   const form = useForm<FormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
@@ -40,13 +39,10 @@ export function SignUpForm() {
       const { data, error } = await signUp(values.email, values.password)
 
       if (error?.message) {
-        form.setError("root", {
-          type: "manual",
-          message: error.message
-        })
+        // Show auth errors as toasts
         toast({
-          title: "Sign Up Error",
-          description: error.message,
+          title: "Sign Up Failed",
+          description: getAuthErrorMessage(error),
           variant: "destructive",
         })
         return
@@ -55,23 +51,22 @@ export function SignUpForm() {
       if (!data?.session) {
         // Email verification required
         toast({
-          title: "Account created",
-          description: "Please check your email to verify your account.",
+          ...AUTH_MESSAGES.SIGN_UP_SUCCESS
         })
         router.push(`/verify-email?email=${encodeURIComponent(values.email)}`)
       } else {
         // Auto-confirmed email
+        toast({
+          ...AUTH_MESSAGES.SIGN_IN_SUCCESS,
+          title: "Welcome to Tenzzen! 🎉"
+        })
         router.refresh()
         router.push('/dashboard')
-        toast({
-          title: "Welcome to Tenzzen!",
-          description: "Your account has been created successfully.",
-        })
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        title: "Unexpected Error",
+        description: "Something went wrong. Please try again.",
         variant: "destructive",
       })
     }
@@ -157,9 +152,6 @@ export function SignUpForm() {
               )}
             />
 
-            {form.formState.errors.root && (
-              <FormMessage>{form.formState.errors.root.message}</FormMessage>
-            )}
 
             <Button
               type="submit"

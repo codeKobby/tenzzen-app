@@ -36,37 +36,43 @@ export function SignInForm() {
       const { data, error } = await signIn(values.email, values.password)
 
       if (error?.message) {
-        form.setError("root", {
-          type: "manual",
-          message: getAuthErrorMessage(error)
-        })
-
-        // Handle specific error cases
+        // Handle verification required case
         if (error.message === "Email not confirmed") {
-          toast(AUTH_MESSAGES.VERIFICATION_REQUIRED)
+          toast({
+            ...AUTH_MESSAGES.VERIFICATION_REQUIRED
+          })
           router.push("/verify-email")
           return
         }
 
+        // Show invalid credentials and other auth errors as toasts
+        const errorMessage = getAuthErrorMessage(error)
         toast({
-          title: "Authentication Error",
-          description: getAuthErrorMessage(error),
+          title: "Authentication Failed",
+          description: errorMessage,
           variant: "destructive",
         })
         return
       }
 
+      // Handle successful authentication
       if (data?.user && data.user.email_confirmed_at) {
-        toast(AUTH_MESSAGES.SIGN_IN_SUCCESS)
+        toast({
+          ...AUTH_MESSAGES.SIGN_IN_SUCCESS
+        })
         router.push("/dashboard")
         router.refresh()
       } else {
-        toast(AUTH_MESSAGES.VERIFICATION_REQUIRED)
+        // Handle unverified email case
+        toast({
+          ...AUTH_MESSAGES.VERIFICATION_REQUIRED
+        })
         router.push("/verify-email")
       }
     } catch (error) {
+      console.error('Sign in error:', error)
       toast({
-        title: "Error",
+        title: "Sign In Failed",
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       })
@@ -128,12 +134,6 @@ export function SignInForm() {
               </FormItem>
             )}
           />
-
-          {form.formState.errors.root && (
-            <div className="text-sm font-medium text-destructive">
-              {form.formState.errors.root.message}
-            </div>
-          )}
 
           <div className="flex items-center justify-end">
             <Button

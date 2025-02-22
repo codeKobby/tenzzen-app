@@ -71,7 +71,7 @@ export function useAuth() {
       });
 
       if (error) {
-        throw error;
+        return { data: null, error };
       }
 
       // Update attempt as successful
@@ -84,10 +84,18 @@ export function useAuth() {
       return { data, error: null };
     } catch (error) {
       console.error('Login error:', error);
+      // Only wrap non-Supabase errors
+      const supabaseError = error as any;
+      if (supabaseError?.message === 'Invalid login credentials') {
+        return {
+          data: null,
+          error: { message: 'Invalid login credentials' }
+        };
+      }
       return { 
         data: null, 
         error: {
-          message: error instanceof Error ? error.message : 'An unexpected error occurred'
+          message: 'An unexpected error occurred'
         }
       };
     }

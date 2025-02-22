@@ -14,8 +14,9 @@ export async function GET(request: Request) {
       await supabase.auth.exchangeCodeForSession(code)
     } catch (error) {
       console.error('Auth callback error:', error)
+      // Redirect to verify-email page with error param instead of directly to signin
       return NextResponse.redirect(
-        `${requestUrl.origin}/signin?error=Failed%20to%20verify%20email`
+        `${requestUrl.origin}/verify-email?error=verification_failed`
       )
     }
   }
