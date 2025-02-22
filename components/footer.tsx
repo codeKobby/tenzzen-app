@@ -8,10 +8,10 @@ import { useAuth } from "@/hooks/use-auth"
 
 export function Footer() {
   const router = useRouter()
-  const { user, supabase } = useAuth()
+  const { user, signOut } = useAuth()
   
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
+    await signOut()
     router.refresh()
     router.push('/')
   }

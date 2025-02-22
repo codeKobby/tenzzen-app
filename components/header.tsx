@@ -17,10 +17,10 @@ import {
 export function Header() {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, supabase } = useAuth()
+  const { user, signOut } = useAuth()
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
+    await signOut()
     router.refresh()
     router.push('/')
   }

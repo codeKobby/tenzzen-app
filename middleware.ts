@@ -76,9 +76,9 @@ export async function middleware(request: NextRequest) {
   const { data: { session }, error } = await supabase.auth.getSession()
 
   // Strict path matching for routes
-  const protectedRoutes = ['^/dashboard/?.*$', '^/courses/?.*$', '^/library/?.*$', '^/settings/?.*$', '^/report-bug/?.*$'].map(r => new RegExp(r))
+  const protectedRoutes = ['^/dashboard/?.*$', '^/courses/?.*$', '^/library/?.*$', '^/settings/?.*$', '^/report-bug/?.*$', '^/explore/?.*$', '^/billing/?.*$', '^/projects/?.*$'].map(r => new RegExp(r))
   const publicAuthRoutes = ['^/signin/?$', '^/signup/?$'].map(r => new RegExp(r))
-  const publicRoutes = ['^/explore/?.*$', '^/billing/?.*$'].map(r => new RegExp(r))
+const publicRoutes = ['^/$'].map(r => new RegExp(r))
 
   // For auth routes, apply additional security headers
   if (publicAuthRoutes.some(route => route.test(request.nextUrl.pathname))) {
@@ -125,6 +125,9 @@ export const config = {
     '/library/:path*',
     '/settings/:path*',
     '/report-bug/:path*',
+    '/explore/:path*',
+    '/billing/:path*',
+    '/projects/:path*',
     '/signin',
     '/signup',
     '/(auth)/verify-email',

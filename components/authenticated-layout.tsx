@@ -3,6 +3,7 @@
 import { Sidebar } from "@/components/sidebar"
 import { PageHeader } from "@/components/page-header"
 import { useAuth } from "@/hooks/use-auth"
+import { usePathname } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { cn } from "@/lib/utils"
 
@@ -11,8 +12,14 @@ interface AuthenticatedLayoutProps {
 }
 
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
+  const pathname = usePathname()
   const { user, loading } = useAuth()
   const { isOpen, toggle } = useSidebar()
+
+  // Return children without layout for homepage and auth pages
+  if (pathname === '/' || pathname === '/signin' || pathname === '/signup') {
+    return <div className="relative min-h-screen bg-background">{children}</div>
+  }
 
   // Return children while loading to prevent flash
   if (loading) {

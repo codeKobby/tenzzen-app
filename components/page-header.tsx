@@ -36,6 +36,10 @@ export function PageHeader() {
   const pathname = usePathname()
   const { user } = useAuth()
   const { isOpen, toggle } = useSidebar()
+
+  // Do not render on homepage or auth pages
+  if (pathname === '/' || pathname === '/signin' || pathname === '/signup') return null
+
   const [isMobile, setIsMobile] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
   const breadcrumbs = getBreadcrumbFromPath(pathname)

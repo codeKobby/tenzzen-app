@@ -9,44 +9,17 @@ import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
 type VerificationStatus = 'verifying' | 'success' | 'error'
 
 export default function VerifyEmail() {
-  const { supabase } = useAuth()
+  const { user, session } = useAuth()
   const [status, setStatus] = useState<VerificationStatus>('verifying')
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined
-
-    const handleVerification = async () => {
-      try {
-        // Subscribe to auth state changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (event === 'USER_UPDATED' && session?.user?.email_confirmed_at) {
-            setStatus('success')
-          }
-        })
-
-        unsubscribe = () => subscription.unsubscribe()
-
-        // Check current auth state
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.email_confirmed_at) {
-          setStatus('success')
-        } else if (!user) {
-          setStatus('error')
-        }
-      } catch (error) {
-        console.error('Verification error:', error)
-        setStatus('error')
-      }
+    // Check if user's email is confirmed
+    if (user?.email_confirmed_at) {
+      setStatus('success')
+    } else if (!user && !session) {
+      setStatus('error')
     }
-
-    handleVerification()
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe()
-      }
-    }
-  }, [supabase.auth])
+  }, [user, session])
 
   if (status === 'verifying') {
     return (
