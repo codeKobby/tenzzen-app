@@ -50,7 +50,7 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/20 focus:ring-0 focus-visible:ring-1 focus-visible:ring-white"
+              className="h-8 w-8 text-white bg-black/40 hover:bg-black/60 transition-colors focus:ring-0 focus-visible:ring-1 focus-visible:ring-white sm:bg-transparent sm:hover:bg-black/20"
               onClick={(e) => e.stopPropagation()}
             >
               <MoreVertical className="h-4 w-4" />
@@ -92,20 +92,25 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
           className="object-cover"
           sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
+          <div className="absolute inset-0 bg-black/0 sm:group-hover:bg-black/20 transition-colors" />
+        </div>
         {course.lastAccessed && (
           <div className="absolute top-2 left-2 text-white text-xs drop-shadow-md">
             Last accessed {course.lastAccessed}
           </div>
         )}
+        {course.topics && (
           <div className="absolute bottom-1 right-2 flex items-center gap-2">
             <div className="text-white text-xs drop-shadow text-shadow">
               {course.topics.current}/{course.topics.total} • {course.duration}
             </div>
           </div>
+        )}
         <Button
           size="sm"
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-transform duration-200 hover:scale-105 bg-white hover:bg-white/90 text-black font-medium shadow-xl"
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-100 scale-100 sm:opacity-0 sm:scale-95 sm:group-hover:opacity-100 sm:group-hover:scale-100 transition-transform duration-200 hover:scale-105 bg-white hover:bg-white/90 text-black font-medium shadow-xl"
         >
           <PlayCircle className="h-4 w-4 mr-2" />
           {course.progress > 0 ? "Resume Course" : "Start Course"}
@@ -132,91 +137,94 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
           </Tooltip>
         </TooltipProvider>
         
-        <div className="flex items-center gap-2 text-muted-foreground text-[11px] mt-1">
-          <span>Sources:</span>
-          <div className="flex items-center">
-            {course.sources.slice(0, 3).map((source, i) => (
-              <Popover key={i}>
-                <TooltipProvider>
-                  <Tooltip>
-                    <PopoverTrigger asChild>
-                      <TooltipTrigger asChild>
-                        <button 
-                          className={cn(
-                            "relative h-4 w-4 rounded-full overflow-hidden border border-background transition-transform hover:z-10",
-                            i > 0 && "-ml-1.5 hover:translate-x-0.5"
-                          )}
-                          aria-label={source.name}
-                          onClick={(e) => e.stopPropagation()}
-                        >
+        {course.sources && (
+          <div className="flex items-center gap-2 text-muted-foreground text-[11px] mt-1">
+            <span>Sources:</span>
+            <div className="flex items-center">
+              {course.sources.slice(0, 3).map((source, i) => (
+                <Popover key={i}>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <PopoverTrigger asChild>
+                        <TooltipTrigger asChild>
+                          <button 
+                            className={cn(
+                              "relative h-4 w-4 rounded-full overflow-hidden border border-background transition-transform hover:z-10",
+                              i > 0 && "-ml-1.5 hover:translate-x-0.5"
+                            )}
+                            aria-label={source.name}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Image
+                              src={source.avatar}
+                              alt={source.name}
+                              fill
+                              className="object-cover"
+                            />
+                          </button>
+                        </TooltipTrigger>
+                      </PopoverTrigger>
+                      <TooltipContent side="top">
+                        <p>{source.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <PopoverContent 
+                    className="w-72 p-3" 
+                    side="top" 
+                    align="center"
+                    sideOffset={5}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3 pb-2 border-b">
+                        <div className="relative h-8 w-8 rounded-full overflow-hidden shrink-0">
                           <Image
                             src={source.avatar}
                             alt={source.name}
                             fill
                             className="object-cover"
                           />
-                        </button>
-                      </TooltipTrigger>
-                    </PopoverTrigger>
-                    <TooltipContent side="top">
-                      <p>{source.name}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <PopoverContent 
-                  className="w-72 p-3" 
-                  side="right" 
-                  align="start"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="relative h-8 w-8 rounded-full overflow-hidden shrink-0">
-                        <Image
-                          src={source.avatar}
-                          alt={source.name}
-                          fill
-                          className="object-cover"
-                        />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-semibold leading-none">{source.name}</h4>
+                          <p className="text-xs text-muted-foreground">Original content source</p>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <h4 className="text-sm font-semibold leading-none">{source.name}</h4>
-                        <p className="text-xs text-muted-foreground">Original content source</p>
+                      <div className="text-xs text-muted-foreground">
+                        <p>Content curated from this source with all rights reserved to the original creator. Visit their channel for more content.</p>
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground rounded-lg bg-muted/50 p-2.5">
-                      <p>Content curated from tutorials and courses by {source.name}. Original content rights belong to their respective owners.</p>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            ))}
-            {course.sources.length > 3 && (
-              <div className="relative h-4 w-4 rounded-full bg-muted flex items-center justify-center text-[9px] font-medium border border-background -ml-1.5 hover:translate-x-0.5 hover:z-10 transition-transform">
-                +{course.sources.length - 3}
+                  </PopoverContent>
+                </Popover>
+              ))}
+              {course.sources.length > 3 && (
+                <div className="relative h-4 w-4 rounded-full bg-muted flex items-center justify-center text-[9px] font-medium border border-background -ml-1.5 hover:translate-x-0.5 hover:z-10 transition-transform">
+                  +{course.sources.length - 3}
+                </div>
+              )}
+            </div>
+
+            {course.isPublic ? (
+              <>
+                <div className="ml-auto flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  <span>{course.enrolledCount?.toLocaleString()}</span>
+                </div>
+                <span>•</span>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 text-yellow-500" />
+                  <span>{course.rating}</span>
+                </div>
+              </>
+            ) : (
+              <div className="ml-auto flex items-center gap-1 text-muted-foreground">
+                <Lock className="h-3 w-3" />
+                <span>Private</span>
               </div>
             )}
           </div>
-
-          {course.isPublic ? (
-            <>
-              <div className="ml-auto flex items-center gap-1">
-                <Users className="h-3 w-3" />
-                <span>{course.enrolledCount?.toLocaleString()}</span>
-              </div>
-              <span>•</span>
-              <div className="flex items-center gap-1">
-                <Star className="h-3 w-3 text-yellow-500" />
-                <span>{course.rating}</span>
-              </div>
-            </>
-          ) : (
-            <div className="ml-auto flex items-center gap-1 text-muted-foreground">
-              <Lock className="h-3 w-3" />
-              <span>Private</span>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   )

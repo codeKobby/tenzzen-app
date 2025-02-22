@@ -49,9 +49,11 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
           >
             <PlayCircle className="w-16 h-16 text-white opacity-90 group-hover:opacity-100 transition-all" />
           </button>
-          <div className="absolute top-4 left-4 px-3 py-1.5 bg-background/90 backdrop-blur-sm rounded-full">
-            <span className="text-sm font-medium text-foreground">Topic {course.topics.current} of {course.topics.total}</span>
-          </div>
+          {course.topics && (
+            <div className="absolute top-4 left-4 px-3 py-1.5 bg-background/90 backdrop-blur-sm rounded-full">
+              <span className="text-sm font-medium text-foreground">Topic {course.topics.current} of {course.topics.total}</span>
+            </div>
+          )}
         </div>
         <div className="p-6 space-y-6">
           <DialogHeader>
@@ -88,81 +90,85 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
           </div>
 
           {/* Course Progress */}
-          <div className="space-y-4 text-foreground">
-            <h3 className="text-lg sm:text-xl font-semibold">Current Topic</h3>
-            <div className="text-sm sm:text-base opacity-80">
-              {course.topics.currentTitle}
+          {course.topics && (
+            <div className="space-y-4 text-foreground">
+              <h3 className="text-lg sm:text-xl font-semibold">Current Topic</h3>
+              <div className="text-sm sm:text-base opacity-80">
+                {course.topics.currentTitle}
+              </div>
+              <div className="w-full h-2 bg-zinc-600/50 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-red-600 transition-all duration-300"
+                  style={{ width: `${course.progress}%` }}
+                />
+              </div>
+              <div className="text-sm opacity-80">
+                {course.progress}% complete • {course.topics.current} of {course.topics.total} topics
+              </div>
             </div>
-            <div className="w-full h-2 bg-zinc-600/50 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-red-600 transition-all duration-300"
-                style={{ width: `${course.progress}%` }}
-              />
-            </div>
-            <div className="text-sm opacity-80">
-              {course.progress}% complete • {course.topics.current} of {course.topics.total} topics
-            </div>
-          </div>
+          )}
 
           {/* Course Sources */}
-          <div className="space-y-4 text-foreground">
-            <h3 className="text-lg sm:text-xl font-semibold">Course Sources</h3>
-            <div className="flex flex-wrap gap-2">
-              {course.sources.map((source, i) => (
-                <Popover key={i}>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <PopoverTrigger asChild>
-                        <TooltipTrigger asChild>
-                          <button 
-                            className="relative h-8 w-8 rounded-full overflow-hidden ring-2 ring-background hover:ring-primary transition-colors"
-                            aria-label={`View details for ${source.name}`}
-                          >
+          {course.sources && (
+            <div className="space-y-4 text-foreground">
+              <h3 className="text-lg sm:text-xl font-semibold">Course Sources</h3>
+              <div className="flex flex-wrap gap-2">
+                {course.sources.map((source, i) => (
+                  <Popover key={i}>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <PopoverTrigger asChild>
+                          <TooltipTrigger asChild>
+                            <button 
+                              className="relative h-8 w-8 rounded-full overflow-hidden ring-2 ring-background hover:ring-primary transition-colors"
+                              aria-label={`View details for ${source.name}`}
+                            >
+                              <Image
+                                src={source.avatar}
+                                alt={source.name}
+                                fill
+                                className="object-cover"
+                              />
+                            </button>
+                          </TooltipTrigger>
+                        </PopoverTrigger>
+                        <TooltipContent side="top">
+                          <p>{source.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <PopoverContent className="w-80 p-4" side="right" align="start">
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-4">
+                          <div className="relative h-10 w-10 rounded-full overflow-hidden shrink-0">
                             <Image
                               src={source.avatar}
                               alt={source.name}
                               fill
                               className="object-cover"
                             />
-                          </button>
-                        </TooltipTrigger>
-                      </PopoverTrigger>
-                      <TooltipContent side="top">
-                        <p>{source.name}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <PopoverContent className="w-80 p-4" side="right" align="start">
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-4">
-                        <div className="relative h-10 w-10 rounded-full overflow-hidden shrink-0">
-                          <Image
-                            src={source.avatar}
-                            alt={source.name}
-                            fill
-                            className="object-cover"
-                          />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-semibold leading-none">{source.name}</h4>
+                            <p className="text-sm text-muted-foreground/80">
+                              Original content source
+                            </p>
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <h4 className="text-sm font-semibold leading-none">{source.name}</h4>
-                          <p className="text-sm text-muted-foreground/80">
-                            Original content source
-                          </p>
+                        <div className="text-sm text-muted-foreground rounded-lg bg-muted/50 p-3">
+                          <p className="font-medium text-foreground mb-1">About this source</p>
+                          <p>This content was curated from tutorials and courses by {source.name}. Original content rights belong to their respective owners.</p>
                         </div>
                       </div>
-                      <div className="text-sm text-muted-foreground rounded-lg bg-muted/50 p-3">
-                        <p className="font-medium text-foreground mb-1">About this source</p>
-                        <p>This content was curated from tutorials and courses by {source.name}. Original content rights belong to their respective owners.</p>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              ))}
+                    </PopoverContent>
+                  </Popover>
+                ))}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                This course includes content from multiple sources
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              This course includes content from multiple sources
-            </div>
-          </div>
+          )}
 
           {/* Course Info */}
           <div className="space-y-4 text-foreground">

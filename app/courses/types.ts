@@ -7,16 +7,20 @@ export interface Course {
   category: string
   thumbnail?: string
   lastAccessed?: string
-  isPublic: boolean
-  sources: Array<{
+  videoSource?: string
+  instructor?: string
+  isPublic?: boolean
+  sources?: Array<{
     name: string
     avatar: string
   }>
-  topics: {
+  topics?: {
     current: number
     total: number
     currentTitle: string
   }
+  totalLessons?: number
+  completedLessons?: number
   // Only available for public courses
   rating?: number
   enrolledCount?: number
