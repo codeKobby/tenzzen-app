@@ -44,20 +44,35 @@ export default function CoursesPage() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [sortBy, setSortBy] = useState<"title" | "lastAccessed" | "progress">("lastAccessed")
   const [showScrollButtons, setShowScrollButtons] = useState(false)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const checkScroll = () => {
       if (scrollContainerRef.current) {
-        const { scrollWidth, clientWidth } = scrollContainerRef.current
-        setShowScrollButtons(scrollWidth > clientWidth)
+        const { scrollWidth, clientWidth, scrollLeft } = scrollContainerRef.current
+        const hasOverflow = scrollWidth > clientWidth
+        setShowScrollButtons(hasOverflow)
+        setCanScrollLeft(scrollLeft > 0)
+        setCanScrollRight(scrollLeft < scrollWidth - clientWidth)
       }
     }
 
     checkScroll()
     window.addEventListener('resize', checkScroll)
-    return () => window.removeEventListener('resize', checkScroll)
+
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.addEventListener('scroll', checkScroll)
+    }
+
+    return () => {
+      window.removeEventListener('resize', checkScroll)
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.removeEventListener('scroll', checkScroll)
+      }
+    }
   }, [])
 
   const scroll = (direction: 'left' | 'right') => {
@@ -196,22 +211,26 @@ export default function CoursesPage() {
               {/* Navigation Arrows */}
               {showScrollButtons && (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md"
-                    onClick={() => scroll('left')}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md"
-                    onClick={() => scroll('right')}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                  {canScrollLeft && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md"
+                      onClick={() => scroll('left')}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {canScrollRight && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md"
+                      onClick={() => scroll('right')}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  )}
                 </>
               )}
             </div>
