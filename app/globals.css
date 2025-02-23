@@ -1,68 +1,282 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
-    --radius: 0.75rem;
+
+@keyframes shine {
+  0% {
+    background-position: 200% 0;
   }
- 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+  100% {
+    background-position: -200% 0;
   }
 }
- 
+
+/* ------------------- Theme Purple ------------------- */
+@layer base {
+  .theme-purple {
+    /* Light Theme (Purple) */
+    --background: 0 0% 100%;               /* White background */
+    --foreground: 240 10% 15%;             /* Deep dark gray text */
+    
+    --card: 0 0% 100%;                    /* White cards */
+    --card-foreground: 240 10% 15%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+    
+    /* Primary: A deep violet for strong UI elements */
+    --primary: 270 70% 45%;                
+    --primary-foreground: 0 0% 100%;        
+    
+    /* Secondary: A subtle pastel blue-gray for hierarchy */
+    --secondary: 220 15% 95%;              
+    --secondary-foreground: 240 10% 15%;
+    
+    --muted: 0 0% 90%;                    
+    --muted-foreground: 240 10% 40%;
+    
+    /* Accent: A soft lavender for gentle highlights */
+    --accent: 270 50% 70%;                 
+    --accent-foreground: 240 10% 15%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 240 5% 90%;                 
+    --input: 240 5% 90%;
+    --ring: 270 70% 45%;                  
+    --radius: 0.75rem;
+    
+    --success: 120 60% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 40 90% 50%;
+    --warning-foreground: 0 0% 100%;
+  }
+
+  .dark.theme-purple {
+    /* Dark Theme (Purple) */
+    --background: 240 10% 20%;            
+    --foreground: 0 0% 100%;               
+    
+    --card: 240 10% 25%;
+    --card-foreground: 0 0% 100%;
+    
+    --popover: 240 10% 25%;
+    --popover-foreground: 0 0% 100%;
+    
+    /* Primary: A lighter violet for contrast on dark backgrounds */
+    --primary: 270 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary: A muted blue-gray tone */
+    --secondary: 220 15% 25%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 0 0% 25%;
+    --muted-foreground: 0 0% 100%;
+    
+    /* Accent: A slightly lighter soft lavender for dark mode */
+    --accent: 270 50% 60%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 62% 35%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 240 5% 30%;
+    --input: 240 5% 30%;
+    --ring: 270 70% 55%;
+    --radius: 0.75rem;
+    
+    --success: 120 60% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 40 90% 50%;
+    --warning-foreground: 0 0% 100%;
+  }
+}
+
+/* ------------------- Theme Neutral ------------------- */
+@layer base {
+  .theme-neutral {
+    /* Light Theme (Neutral) */
+    --background: 0 0% 98%;       /* Nearly white */
+    --foreground: 0 0% 18%;       /* Very dark gray */
+    
+    --card: 0 0% 100%;           /* White cards */
+    --card-foreground: 0 0% 18%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 18%;
+    
+    --primary: 0 0% 20%;          /* Dark neutral for primary elements */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+    
+    --secondary: 0 0% 40%;        /* Medium gray */
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 0 0% 85%;           /* Very light gray */
+    --muted-foreground: 0 0% 40%;
+    
+    --accent: 0 0% 50%;           /* Neutral midtone */
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 84.2% 60.2%;  /* Vivid red for errors */
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 0 0% 90%;           /* Very light border */
+    --input: 0 0% 90%;
+    --ring: 0 0% 50%;
+    --radius: 0.75rem;
+    --success: 0 0% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 0 0% 40%;
+    --warning-foreground: 0 0% 100%;
+  }
+
+  .dark.theme-neutral {
+    /* Dark Theme (Neutral) */
+    --background: 0 0% 12%;       /* Very dark gray */
+    --foreground: 0 0% 100%;      /* White text */
+    
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 100%;
+    
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 100%;
+    
+    --primary: 0 0% 20%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 0 0% 30%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 0 0% 30%;
+    --muted-foreground: 0 0% 100%;
+    
+    --accent: 0 0% 40%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 0% 50%;
+    --radius: 0.75rem;
+    --success: 0 0% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 0 0% 40%;
+    --warning-foreground: 0 0% 100%;
+  }
+}
+
+/* ------------------- Theme Minimal ------------------- */
+@layer base {
+  .theme-minimal {
+    /* Light Theme */
+    --background: 0 0% 100%;       /* Pure white */
+    --foreground: 0 0% 13%;        /* Very dark gray (#212121) */
+
+    --card: 0 0% 100%;            /* White cards */
+    --card-foreground: 0 0% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+
+    /* Minimal neutral for primary/secondary/muted/accent */
+    --primary: 0 0% 10%;          /* Deep gray for any 'primary' UI (rarely used) */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 0 0% 40%;        /* Medium gray for secondary elements */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 90%;            /* Light gray for muted content */
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 0 0% 70%;           /* Subtle gray accent (e.g., #b3b3b3) */
+    --accent-foreground: 0 0% 13%;
+
+    /* YouTube's signature red for loading bars, progress bars, or minimal highlights */
+    --youtube-red: 0 100% 50%;    /* #FF0000 */
+
+    /* Destructive can remain a red tone for errors if you prefer consistency */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 88%;           /* #e0e0e0 for subtle borders */
+    --input: 0 0% 88%;
+    --ring: 0 100% 50%;           /* If you want a ring to be red, use --youtube-red or keep this minimal */
+    --radius: 0.5rem;
+  }
+
+  .dark.theme-minimal {
+    /* Dark Theme */
+    --background: 0 0% 6%;        /* #0f0f0f near-black for dark mode */
+    --foreground: 0 0% 100%;      /* White text */
+
+    --card: 0 0% 10%;            /* #1a1a1a or #181818 for dark cards */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 0 0% 20%;          /* Dark neutral (#333333) for minimal usage */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 30%;        /* #4d4d4d medium gray for secondary */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 100%;
+
+    --accent: 0 0% 40%;           /* #666666 or so for accent */
+    --accent-foreground: 0 0% 100%;
+
+    /* Keep the same YouTube red for progress bars if needed */
+    --youtube-red: 0 100% 50%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 20%;           /* #333333 for borders */
+    --input: 0 0% 20%;
+    --ring: 0 100% 50%;
+    --radius: 0.5rem;
+  }
+}
+
+/* ------------------- Global Base Styles ------------------- */
 @layer base {
   * {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground min-h-screen antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-@layer utilities {
-  .text-shadow {
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+.animate-in {
+  animation: animate-in 0.2s ease-in-out;
+}
+
+@keyframes animate-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-  .text-shadow-sm {
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
