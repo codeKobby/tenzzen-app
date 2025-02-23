@@ -49,21 +49,8 @@ export function Header() {
                 Explore
               </Link>
             </Button>
-            <Link
-              href="/pricing"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Pricing
-            </Link>
             {user ? (
               <>
-                <Button 
-                  size="sm"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
-                  asChild
-                >
-                  <Link href="/dashboard">Back to Dashboard</Link>
-                </Button>
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -71,6 +58,13 @@ export function Header() {
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
+                </Button>
+                <Button 
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                  asChild
+                >
+                  <Link href="/dashboard">Back to Dashboard</Link>
                 </Button>
               </>
             ) : (
@@ -132,19 +126,9 @@ export function Header() {
                     Explore
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className="focus:bg-accent">
-                  <Link href="/pricing" className="w-full flex items-center py-2 px-3 hover:bg-accent rounded-md">
-                    Pricing
-                  </Link>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {user ? (
                   <>
-                    <DropdownMenuItem asChild className="focus:bg-primary">
-                      <Link href="/dashboard" className="w-full flex items-center py-2 px-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium">
-                        Back to Dashboard
-                      </Link>
-                    </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={handleSignOut}
                       className="focus:bg-accent"
@@ -153,6 +137,11 @@ export function Header() {
                         <LogOut className="h-4 w-4 mr-2" />
                         Sign Out
                       </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="focus:bg-primary">
+                      <Link href="/dashboard" className="w-full flex items-center py-2 px-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium">
+                        Back to Dashboard
+                      </Link>
                     </DropdownMenuItem>
                   </>
                 ) : (

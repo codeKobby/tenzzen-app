@@ -3,12 +3,13 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Search,
   SlidersHorizontal,
@@ -128,14 +129,14 @@ export default function CoursesPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Fixed Header */}
-      <div className="sticky top-0 z-10 bg-background">
+      <div className="sticky top-0 z-10 bg-background border-b">
         {/* Search and Sort */}
         <div className={cn(
-          "mx-auto h-14 flex items-center gap-4 px-4",
-          useSidebar().isOpen ? "lg:w-[95%]" : "lg:w-[90%]"
+          "h-14 flex items-center gap-2 sm:gap-4 px-2 sm:px-4",
+          "lg:pl-72"
         )}>
-          <div className="relative flex-1 max-w-[600px] flex gap-2 items-center">
-            <div className="relative flex-1">
+          <div className="flex items-center gap-2 sm:gap-4 w-full">
+            <div className="relative flex-1 max-w-[600px] min-w-0">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search courses..."
@@ -144,48 +145,68 @@ export default function CoursesPage() {
                 className="pl-9 w-full h-8 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
-            <Select
-              value={filter}
-              onValueChange={(value: CourseFilter) => setFilter(value)}
-            >
-              <SelectTrigger className="w-[130px] h-8 bg-transparent">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <SlidersHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
                 {filters.map((f) => (
-                  <SelectItem key={f.id} value={f.id}>
+                  <DropdownMenuItem
+                    key={f.id}
+                    onClick={() => setFilter(f.id)}
+                    className={cn(
+                      "cursor-pointer",
+                      filter === f.id && "bg-muted"
+                    )}
+                  >
                     {f.label}
-                  </SelectItem>
+                  </DropdownMenuItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Sort */}
-          <div className="hidden sm:block">
-            <Select
-              value={sortBy}
-              onValueChange={(value: "title" | "lastAccessed" | "progress") => setSortBy(value)}
-            >
-              <SelectTrigger className="w-[130px] h-8 bg-transparent">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="lastAccessed">Last Accessed</SelectItem>
-                <SelectItem value="title">Title</SelectItem>
-                <SelectItem value="progress">Progress</SelectItem>
-              </SelectContent>
-            </Select>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Sort By</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setSortBy("lastAccessed")}
+                  className={cn(
+                    "cursor-pointer",
+                    sortBy === "lastAccessed" && "bg-muted"
+                  )}
+                >
+                  Last Accessed
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortBy("title")}
+                  className={cn(
+                    "cursor-pointer",
+                    sortBy === "title" && "bg-muted"
+                  )}
+                >
+                  Title
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortBy("progress")}
+                  className={cn(
+                    "cursor-pointer",
+                    sortBy === "progress" && "bg-muted"
+                  )}
+                >
+                  Progress
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
         {/* Category Pills */}
-        <div className="relative border-t">
+        <div className="relative bg-background/80 backdrop-blur-sm">
           <div className={cn(
-            "mx-auto px-4 overflow-hidden",
-            useSidebar().isOpen ? "lg:w-[95%]" : "lg:w-[90%]"
+            "px-2 sm:px-4 overflow-hidden",
+            "lg:pl-72"
           )}>
-            <div className="relative py-3">
+            <div className="relative py-2 sm:py-3">
               <div
                 ref={scrollContainerRef}
                 className="flex gap-3 overflow-x-hidden scroll-smooth"
@@ -240,8 +261,8 @@ export default function CoursesPage() {
 
       {/* Content Area */}
       <div className={cn(
-        "mx-auto px-4 py-6 space-y-6",
-        useSidebar().isOpen ? "lg:w-[95%]" : "lg:w-[90%]"
+        "px-2 sm:px-4 py-4 sm:py-6 space-y-6",
+        "lg:pl-72"
       )}>
         {sortedAndFilteredCourses.length > 0 ? (
           <div className="space-y-6">
@@ -249,7 +270,7 @@ export default function CoursesPage() {
             {inProgressCourses.length > 0 && (
               <section>
                 <h2 className="font-medium text-lg mb-4">Continue Learning</h2>
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
                   {inProgressCourses.map((course) => (
                     <CourseCard
                       key={course.id}
@@ -270,7 +291,7 @@ export default function CoursesPage() {
                     filter === "not-started" ? "Start Learning" :
                       "All Courses"}
                 </h2>
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
                   {otherCourses.map((course) => (
                     <CourseCard
                       key={course.id}

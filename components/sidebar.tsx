@@ -217,14 +217,15 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <aside
       className={cn(
-        "shrink-0 border-r bg-card h-screen",
+        "shrink-0 border-r bg-card min-h-screen",
         "fixed inset-y-0 left-0 z-50",
-        "w-[280px] transition-transform duration-200 ease-out",
-        !isOpen && "-translate-x-full",
+        "w-[280px] transition-transform duration-200 ease-out lg:w-60",
+        !isOpen && "-translate-x-full lg:translate-x-0",
+        "overflow-hidden flex flex-col",
         className
       )}
     >
-      <div className="flex h-full w-[280px] flex-col">
+      <div className="flex h-full w-full flex-col">
         <div className="flex items-center justify-between px-4 py-2.5">
           <Link href="/" className="flex items-center gap-2">
             <GraduationCap className="h-5 w-5 text-primary" />
@@ -247,7 +248,7 @@ export function Sidebar({ className }: { className?: string }) {
           )}
         </div>
         
-        <div className="flex-1 overflow-y-auto px-4 pt-2">
+        <div className="flex-1 overflow-y-auto px-4 pt-2 scrollbar-none">
           <nav className="space-y-3">
             <NavigationGroup items={mainNavigation} />
             <Separator className="my-4" />

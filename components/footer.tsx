@@ -17,11 +17,16 @@ export function Footer() {
   }
 
   return (
-    <footer className="w-full bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 border-t">
-      <div className="w-[90%] mx-auto py-12">
-        {/* CTA Section */}
-        <div className="mb-16">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+    <footer className="relative w-full bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 border-t overflow-hidden">
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--primary-rgb),0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--primary-rgb),0.02)_1px,transparent_1px)] bg-[size:2rem_2rem]" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
+      </div>
+
+      <div className="relative w-[90%] mx-auto py-12">
+        <div className="mb-16 relative">
+          <div className="absolute -inset-4 bg-gradient-to-br from-primary/5 via-primary/2 to-transparent rounded-3xl blur-2xl" />
+          <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="text-center md:text-left">
               <h2 className="text-2xl font-bold mb-2">Ready to get started?</h2>
               <p className="text-muted-foreground">Join thousands of satisfied users today.</p>
@@ -63,8 +68,8 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Main Footer Content */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="relative grid grid-cols-2 md:grid-cols-4 gap-8 mt-16">
+          <div className="absolute inset-x-0 -top-8 h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
           {/* Brand Section */}
           <div className="space-y-4 col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center space-x-2">
@@ -158,8 +163,8 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom Section */}
-        <div className="mt-16 pt-8 border-t">
+        <div className="relative mt-16 pt-8">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
             <p>© 2025 Tenzzen. All rights reserved.</p>
             <div className="flex gap-6">

@@ -1,14 +1,35 @@
+'use client'
+
 import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
-import { ArrowRight, Check, YoutubeIcon, BookOpen, Brain, Target } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { ArrowRight, Check, YoutubeIcon, BookOpen, Brain, Target, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { PlaceholderImage } from "@/components/ui/placeholder-image";
 import { CourseGenerateButton } from "@/components/course-generate-button";
+import { FeatureCard } from "@/components/ui/feature-card";
 
-const features = [
+interface Feature {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  preview: string;
+}
+
+interface Benefit {
+  title: string;
+  description: string;
+}
+
+interface Step {
+  number: string;
+  title: string;
+  description: string;
+}
+
+const features: Feature[] = [
   {
     icon: YoutubeIcon,
     title: "AI-Powered Course Generation",
@@ -35,7 +56,7 @@ const features = [
   },
 ];
 
-const benefits = [
+const benefits: Benefit[] = [
   {
     title: "Structured learning paths",
     description: "Carefully organized content progression ensuring optimal knowledge retention"
@@ -62,7 +83,7 @@ const benefits = [
   },
 ];
 
-const steps = [
+const steps: Step[] = [
   {
     number: "01",
     title: "Paste YouTube URL",
@@ -86,23 +107,22 @@ const steps = [
 ];
 
 export default function HomePage() {
+  const { user } = useAuth();
+  
   return (
     <div className="pb-26">
       <Header />
+      
       {/* Hero Section */}
-      <section className="relative min-h-screen overflow-hidden pt-28 pb-32">
-        {/* Background patterns */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-primary/10" />
-          <div className="absolute top-0 left-0 right-0 h-[800px] bg-[radial-gradient(circle_800px_at_50%_-100px,rgba(var(--primary-rgb),0.15),transparent)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--primary-rgb),0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--primary-rgb),0.07)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_100%_100%_at_50%_0%,black_20%,transparent_70%)]" />
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-        </div>
+      <section className="section-light min-h-screen pt-28 pb-32">
+        <div className="background-grid" />
+        <div className="background-gradient" />
+        <div className="background-drift" />
+        <div className="pattern-noise" />
 
         <div className="container relative mx-auto">
           <div className="flex flex-col gap-16 items-center">
-            {/* Content */}
-            <div className="relative space-y-10 text-center max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-1000 fill-mode-both">
+            <div className="relative space-y-10 text-center max-w-3xl mx-auto fade-in-up">
               <div className="space-y-8">
                 <div className="space-y-4">
                   <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 border border-primary/20 shadow-sm">
@@ -125,15 +145,19 @@ export default function HomePage() {
                 </p>
               </div>
 
-              {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <CourseGenerateButton />
-                <Button size="lg" variant="outline" className="text-lg h-14" asChild>
-                  <Link href="/signup">Start Learning Free</Link>
-                </Button>
+                {user ? (
+                  <Button size="lg" variant="outline" className="text-lg h-14 shadow-lg" asChild>
+                    <Link href="/courses">Continue Learning</Link>
+                  </Button>
+                ) : (
+                  <Button size="lg" variant="outline" className="text-lg h-14" asChild>
+                    <Link href="/signup">Start Learning Free</Link>
+                  </Button>
+                )}
               </div>
 
-              {/* Benefits Pills */}
               <div className="flex flex-wrap gap-3 justify-center max-w-2xl mx-auto">
                 {benefits.slice(0, 3).map((benefit) => (
                   <div
@@ -147,12 +171,13 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Demo Preview */}
-            <div className="relative max-w-5xl w-full animate-in fade-in zoom-in-50 duration-1000 fill-mode-both">
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/30 via-primary/5 to-background rounded-2xl blur-2xl opacity-50 transition-opacity duration-500 hover:opacity-75" />
-              <div className="relative aspect-[16/9] rounded-xl overflow-hidden border shadow-2xl transition-transform duration-500 hover:scale-[1.02]">
-                <PlaceholderImage title="Platform Demo" />
-              </div>
+            <div className="relative max-w-5xl w-full fade-in-up delay-300">
+              <FeatureCard className="group p-2 shadow-2xl bg-gradient-to-br from-card/50 to-card/30">
+                <div className="relative aspect-[16/9] rounded-xl overflow-hidden">
+                  <PlaceholderImage title="Platform Demo" />
+                </div>
+              </FeatureCard>
+              
               {/* Floating badges */}
               <div className="absolute -bottom-8 -left-8 bg-card/80 backdrop-blur-sm rounded-lg shadow-lg p-4 border animate-in fade-in slide-in-from-left-4 duration-1000 fill-mode-both delay-300">
                 <div className="flex items-center gap-3">
@@ -182,39 +207,41 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="w-[85%] mx-auto max-w-6xl py-24">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <h2 className="text-3xl font-bold mb-4">How It Works</h2>
-          <p className="text-muted-foreground">
-            Transform any educational video into a structured course in four simple steps
-          </p>
-        </div>
+      <section className="section-dark">
+        <div className="background-grid" />
+        <div className="background-gradient" />
+        <div className="pattern-grid opacity-30" />
+        
+        <div className="w-[85%] mx-auto max-w-6xl py-24">
+          <div className="text-center max-w-2xl mx-auto mb-12 fade-in-up">
+            <h2 className="text-3xl font-bold mb-4">How It Works</h2>
+            <p className="text-muted-foreground">
+              Transform any educational video into a structured course in four simple steps
+            </p>
+          </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {steps.map((step) => (
-            <Card key={step.number} className="relative overflow-hidden transition-colors hover:border-primary/50">
-              <CardHeader>
-                <div className="text-4xl font-bold text-primary/20 mb-4">{step.number}</div>
-                <CardTitle>{step.title}</CardTitle>
-                <CardDescription>{step.description}</CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {steps.map((step, index) => (
+              <Card key={step.number} className={`relative overflow-hidden transition-colors hover:border-primary/50 fade-in-up delay-${(index + 1) * 100}`}>
+                <CardHeader>
+                  <div className="text-4xl font-bold text-primary/20 mb-4">{step.number}</div>
+                  <CardTitle>{step.title}</CardTitle>
+                  <CardDescription>{step.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="relative py-32 overflow-hidden">
-        {/* Background patterns */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-gradient-to-br from-muted/80 via-background to-background" />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--primary-rgb),0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--primary-rgb),0.05)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,transparent,black,transparent)]" />
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0" />
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0" />
-        </div>
+      <section className="section-light py-32">
+        <div className="background-grid" />
+        <div className="background-drift" />
+        <div className="pattern-dots opacity-50" />
 
         <div className="w-[92%] mx-auto max-w-7xl relative">
-          <div className="text-center space-y-4 mb-24">
+          <div className="text-center space-y-4 mb-24 fade-in-up">
             <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 mb-4">
               <div className="size-2 rounded-full bg-primary animate-pulse" />
               <span className="text-sm font-medium">Powered by Advanced AI</span>
@@ -228,15 +255,14 @@ export default function HomePage() {
           </div>
 
           <div className="flex flex-col gap-48">
-            {features.map((feature) => (
+            {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className={`flex flex-col ${features.indexOf(feature) % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} gap-8 lg:gap-16 items-start`}
+                className={`flex flex-col ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} gap-8 lg:gap-16 items-start fade-in-up delay-${(index + 1) * 100}`}
               >
-                {/* Description */}
-                <div className={`w-full lg:w-[40%] space-y-8 ${features.indexOf(feature) % 2 === 0 ? '' : 'lg:text-right'}`}>
+                <div className={`w-full lg:w-[40%] space-y-8 ${index % 2 === 0 ? '' : 'lg:text-right'}`}>
                   <div>
-                    <div className={`inline-flex items-center gap-4 mb-6 ${features.indexOf(feature) % 2 === 0 ? '' : 'lg:flex-row-reverse lg:justify-end'}`}>
+                    <div className={`inline-flex items-center gap-4 mb-6 ${index % 2 === 0 ? '' : 'lg:flex-row-reverse lg:justify-end'}`}>
                       <div className="relative group/icon">
                         <div className="absolute -inset-2 bg-gradient-to-br from-primary/20 to-primary/0 rounded-xl blur-lg opacity-0 group-hover/icon:opacity-100 transition-opacity" />
                         <div className="relative p-3 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-sm transform hover:scale-110 transition-all duration-300">
@@ -255,7 +281,7 @@ export default function HomePage() {
                   <Button
                     variant="outline"
                     className={`group/btn relative overflow-hidden border-primary/20 hover:border-primary/50 ${
-                      features.indexOf(feature) % 2 === 0 ? '' : 'lg:ml-auto'
+                      index % 2 === 0 ? '' : 'lg:ml-auto'
                     }`}
                   >
                     <span className="relative z-10 flex items-center">
@@ -266,25 +292,23 @@ export default function HomePage() {
                   </Button>
                 </div>
 
-                {/* Screenshot */}
-                <div className="relative group w-full lg:w-[60%]">
-                  <div className="absolute -inset-4 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent rounded-3xl blur-2xl opacity-50 group-hover:opacity-75 transition-all duration-500" />
-                  <div className="relative bg-gradient-to-br from-card to-card/50 rounded-2xl p-2 shadow-2xl">
-                    <div className="absolute inset-[1px] rounded-2xl bg-gradient-to-br from-primary/20 via-background to-background" />
-                    <div className="relative aspect-[16/9] rounded-xl overflow-hidden backdrop-blur-sm transform group-hover:scale-[1.02] transition-transform duration-500">
-                      <PlaceholderImage title={feature.preview} />
-                    </div>
-                  </div>
-
-                  {/* Floating Badge */}
-                  <div className={`absolute -bottom-6 ${features.indexOf(feature) % 2 === 0 ? 'right-10' : 'left-10'} bg-card shadow-xl rounded-xl p-4 border transform group-hover:translate-y-1 transition-transform duration-500`}>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-primary/10">
-                        <feature.icon className="h-5 w-5 text-primary" />
+                <div className="w-full lg:w-[60%]">
+                  <div className="relative">
+                    <FeatureCard className="interactive group p-2 shadow-2xl bg-gradient-to-br from-card/50 to-card/30">
+                      <div className="relative aspect-[16/9] rounded-xl overflow-hidden">
+                        <PlaceholderImage title={feature.preview} />
                       </div>
-                      <div className="text-sm">
-                        <div className="font-medium">AI-Powered</div>
-                        <div className="text-muted-foreground">Feature</div>
+                    </FeatureCard>
+                    
+                    <div className={`feature-card-label ${index % 2 === 0 ? 'right-10' : 'left-10'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-primary/10">
+                          <feature.icon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="text-sm">
+                          <div className="font-medium">AI-Powered</div>
+                          <div className="text-muted-foreground">Feature</div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -295,7 +319,33 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer Section */}
+      {/* Benefits Section */}
+      <section className="section-dark">
+        <div className="background-grid" />
+        <div className="background-gradient" />
+        <div className="pattern-grid opacity-30" />
+        
+        <div className="w-[85%] mx-auto max-w-6xl py-24">
+          <div className="text-center max-w-2xl mx-auto mb-12 fade-in-up">
+            <h2 className="text-3xl font-bold mb-4">Key Benefits</h2>
+            <p className="text-muted-foreground">
+              Experience a new way of learning with our comprehensive features
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {benefits.map((benefit, index) => (
+              <Card key={benefit.title} className={`relative overflow-hidden transition-colors hover:border-primary/50 fade-in-up delay-${(index + 1) * 100}`}>
+                <CardHeader>
+                  <CardTitle>{benefit.title}</CardTitle>
+                  <CardDescription>{benefit.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <Footer />
     </div>
   );

@@ -39,18 +39,18 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
   return (
     <div 
       className={cn(
-        "group cursor-pointer relative",
+        "group cursor-pointer relative overflow-hidden rounded-xl",
         className
       )}
       onClick={onClick}
     >
-      <div className="absolute top-2 right-2 z-10">
+      <div className="absolute top-2 right-2 z-[5]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-white bg-black/40 hover:bg-black/60 transition-colors focus:ring-0 focus-visible:ring-1 focus-visible:ring-white sm:bg-transparent sm:hover:bg-black/20"
+            <Button
+              variant="ghost"
+              size="icon"
+            className="h-8 w-8 text-white bg-black/40 hover:bg-black/60 transition-colors focus:ring-0 focus-visible:ring-1 focus-visible:ring-white backdrop-blur-sm"
               onClick={(e) => e.stopPropagation()}
             >
               <MoreVertical className="h-4 w-4" />
@@ -58,7 +58,7 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-[200px]">
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={(e) => handleAction(e, "save")}
               className="cursor-pointer"
             >
@@ -66,14 +66,14 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
               Save to playlist
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={(e) => handleAction(e, "share")}
               className="cursor-pointer"
             >
               <Share2 className="h-4 w-4 mr-2" />
               Share course
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={(e) => handleAction(e, "report")}
               className="cursor-pointer text-destructive"
             >
@@ -103,7 +103,7 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
         )}
         {course.topics && (
           <div className="absolute bottom-1 right-2 flex items-center gap-2">
-            <div className="text-white text-xs drop-shadow text-shadow">
+            <div className="text-white text-xs drop-shadow-lg leading-none">
               {course.topics.current}/{course.topics.total} • {course.duration}
             </div>
           </div>
@@ -116,8 +116,8 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
           {course.progress > 0 ? "Resume Course" : "Start Course"}
         </Button>
         <div className="absolute inset-x-0 bottom-0 h-[3px]">
-          <div 
-            className="h-full bg-red-600 transition-all" 
+          <div
+            className="h-full bg-red-600 transition-all"
             style={{ width: `${course.progress}%` }}
           />
         </div>
@@ -127,7 +127,7 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <h3 className="font-medium text-[14px] leading-5 line-clamp-2">
+              <h3 className="font-medium text-[13px] leading-[1.4] line-clamp-2">
                 {course.title}
               </h3>
             </TooltipTrigger>
@@ -136,9 +136,9 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        
+
         {course.sources && (
-          <div className="flex items-center gap-2 text-muted-foreground text-[11px] mt-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-[11px] mt-1">
             <span>Sources:</span>
             <div className="flex items-center">
               {course.sources.slice(0, 3).map((source, i) => (
@@ -147,7 +147,7 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
                     <Tooltip>
                       <PopoverTrigger asChild>
                         <TooltipTrigger asChild>
-                          <button 
+                          <button
                             className={cn(
                               "relative h-4 w-4 rounded-full overflow-hidden border border-background transition-transform hover:z-10",
                               i > 0 && "-ml-1.5 hover:translate-x-0.5"
@@ -169,9 +169,9 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  <PopoverContent 
-                    className="w-72 p-3" 
-                    side="top" 
+                  <PopoverContent
+                    className="w-72 p-3"
+                    side="top"
                     align="center"
                     sideOffset={5}
                     onClick={(e) => e.stopPropagation()}
