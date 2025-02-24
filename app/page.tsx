@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { RevealOnScroll } from "@/components/reveal-on-scroll";
+import { YoutubePreview } from "@/components/youtube-preview";
 import { useAuth } from "@/hooks/use-auth";
 import { ArrowRight, Check, YoutubeIcon, BookOpen, Brain, Target, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -114,51 +116,60 @@ export default function HomePage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="section-light min-h-screen pt-28 pb-32">
+      <section className="section-light relative min-h-[85vh] py-20 lg:py-24 flex items-center justify-center">
         <div className="background-grid" />
         <div className="background-gradient" />
         <div className="background-drift" />
         <div className="pattern-noise" />
 
-        <div className="container relative mx-auto">
-          <div className="flex flex-col gap-16 items-center">
-            <div className="relative space-y-10 text-center max-w-3xl mx-auto fade-in-up">
-              <div className="space-y-8">
-                <div className="space-y-4">
-                  <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 border border-primary/20 shadow-sm">
-                    <div className="size-2 rounded-full bg-primary animate-pulse" />
-                    <span className="text-sm font-medium text-foreground">AI-Powered Learning Platform</span>
-                  </div>
-                  <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight [text-wrap:balance]">
-                    Transform Videos into
-                    <span className="relative whitespace-nowrap">
-                      <span className="absolute -z-10 inset-0 bg-gradient-to-r from-primary/30 to-primary/0 blur-2xl" />
-                      <span className="relative text-foreground"> Engaging Courses</span>
-                    </span>
-                    <span className="block text-2xl sm:text-3xl lg:text-4xl mt-6 text-muted-foreground font-normal">
-                      With the Power of AI
-                    </span>
-                  </h1>
-                </div>
-                <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+        <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="space-y-12">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 border border-primary/20 shadow-sm">
+                <div className="size-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-sm font-medium text-foreground">AI-Powered Learning Platform</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center justify-center w-full max-w-6xl mx-auto">
+              <div className="max-w-xl w-full fade-in-up">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight [text-wrap:balance] text-left">
+                  Transform Videos into
+                  <span className="relative whitespace-nowrap block mt-2">
+                    <span className="absolute -z-10 inset-0 bg-gradient-to-r from-primary/30 to-primary/0 blur-2xl" />
+                    <span className="relative text-foreground">Engaging Courses</span>
+                  </span>
+                  <span className="block text-2xl sm:text-3xl lg:text-3xl xl:text-4xl mt-4 lg:mt-6 text-muted-foreground/90 font-medium">
+                    With the Power of AI
+                  </span>
+                </h1>
+                <p className="mt-6 text-lg sm:text-xl text-muted-foreground leading-relaxed text-left">
                   Turn any YouTube video into an interactive learning experience with AI-generated quizzes, notes, and personalized study plans.
                 </p>
               </div>
 
+              <div className="max-w-xl w-full fade-in-up delay-300">
+                <div className="rounded-xl p-2 lg:p-3 shadow-2xl bg-gradient-to-br from-card/50 to-card/30">
+                  <YoutubePreview videoId="demo-video-id" />
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full max-w-3xl mx-auto text-center space-y-8">
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <CourseGenerateButton />
                 {user ? (
-                  <Button size="lg" variant="outline" className="text-lg h-14 shadow-lg" asChild>
+                  <Button size="lg" variant="outline" className="text-lg h-14 shadow-lg hover:bg-primary/5" asChild>
                     <Link href="/courses">Continue Learning</Link>
                   </Button>
                 ) : (
-                  <Button size="lg" variant="outline" className="text-lg h-14" asChild>
+                  <Button size="lg" variant="outline" className="text-lg h-14 hover:bg-primary/5" asChild>
                     <Link href="/signup">Start Learning Free</Link>
                   </Button>
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-3 justify-center max-w-2xl mx-auto">
+              <div className="flex flex-wrap gap-3 justify-center">
                 {benefits.slice(0, 3).map((benefit) => (
                   <div
                     key={benefit.title}
@@ -170,50 +181,19 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-
-            <div className="relative max-w-5xl w-full fade-in-up delay-300">
-              <FeatureCard className="group p-2 shadow-2xl bg-gradient-to-br from-card/50 to-card/30">
-                <div className="relative aspect-[16/9] rounded-xl overflow-hidden">
-                  <PlaceholderImage title="Platform Demo" />
-                </div>
-              </FeatureCard>
-              
-              {/* Floating badges */}
-              <div className="absolute -bottom-8 -left-8 bg-card/80 backdrop-blur-sm rounded-lg shadow-lg p-4 border animate-in fade-in slide-in-from-left-4 duration-1000 fill-mode-both delay-300">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-primary/10">
-                    <Brain className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="text-sm">
-                    <div className="font-medium">AI-Powered</div>
-                    <div className="text-muted-foreground">Smart Learning</div>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute -top-8 -right-8 bg-card/80 backdrop-blur-sm rounded-lg shadow-lg p-4 border animate-in fade-in slide-in-from-right-4 duration-1000 fill-mode-both delay-300">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-primary/10">
-                    <Target className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="text-sm">
-                    <div className="font-medium">Personalized</div>
-                    <div className="text-muted-foreground">Study Plans</div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
       {/* How It Works Section */}
       <section className="section-dark">
-        <div className="background-grid" />
-        <div className="background-gradient" />
-        <div className="pattern-grid opacity-30" />
-        
-        <div className="w-[85%] mx-auto max-w-6xl py-24">
-          <div className="text-center max-w-2xl mx-auto mb-12 fade-in-up">
+        <RevealOnScroll>
+          <div className="background-grid" />
+          <div className="background-gradient" />
+          <div className="pattern-grid opacity-30" />
+          
+          <div className="w-[85%] mx-auto max-w-6xl py-24">
+            <div className="text-center max-w-2xl mx-auto mb-12 fade-in-up">
             <h2 className="text-3xl font-bold mb-4">How It Works</h2>
             <p className="text-muted-foreground">
               Transform any educational video into a structured course in four simple steps
@@ -231,30 +211,32 @@ export default function HomePage() {
               </Card>
             ))}
           </div>
-        </div>
+          </div>
+        </RevealOnScroll>
       </section>
 
       {/* Features Section */}
       <section className="section-light py-32">
-        <div className="background-grid" />
-        <div className="background-drift" />
-        <div className="pattern-dots opacity-50" />
+        <RevealOnScroll>
+          <div className="background-grid" />
+          <div className="background-drift" />
+          <div className="pattern-dots opacity-50" />
 
-        <div className="w-[92%] mx-auto max-w-7xl relative">
-          <div className="text-center space-y-4 mb-24 fade-in-up">
-            <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 mb-4">
-              <div className="size-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-sm font-medium">Powered by Advanced AI</span>
+          <div className="w-[92%] mx-auto max-w-7xl relative">
+            <div className="text-center space-y-4 mb-24 fade-in-up">
+              <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 mb-4">
+                <div className="size-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-sm font-medium">Powered by Advanced AI</span>
+              </div>
+              <h2 className="text-4xl sm:text-5xl font-bold text-foreground">
+                Transform Your Learning Experience
+              </h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                Experience the future of online learning with our powerful AI-driven features
+              </p>
             </div>
-            <h2 className="text-4xl sm:text-5xl font-bold text-foreground">
-              Transform Your Learning Experience
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Experience the future of online learning with our powerful AI-driven features
-            </p>
-          </div>
 
-          <div className="flex flex-col gap-48">
+            <div className="flex flex-col gap-48">
             {features.map((feature, index) => (
               <div
                 key={feature.title}
@@ -267,7 +249,7 @@ export default function HomePage() {
                         <div className="absolute -inset-2 bg-gradient-to-br from-primary/20 to-primary/0 rounded-xl blur-lg opacity-0 group-hover/icon:opacity-100 transition-opacity" />
                         <div className="relative p-3 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-sm transform hover:scale-110 transition-all duration-300">
                           <feature.icon className="h-8 w-8 text-primary" />
-                        </div>
+            </div>
                       </div>
                       <h3 className="text-3xl font-bold text-foreground">
                         {feature.title}
@@ -316,17 +298,19 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-        </div>
+          </div>
+        </RevealOnScroll>
       </section>
 
       {/* Benefits Section */}
       <section className="section-dark">
-        <div className="background-grid" />
-        <div className="background-gradient" />
-        <div className="pattern-grid opacity-30" />
+        <RevealOnScroll>
+          <div className="background-grid" />
+          <div className="background-gradient" />
+          <div className="pattern-grid opacity-30" />
         
-        <div className="w-[85%] mx-auto max-w-6xl py-24">
-          <div className="text-center max-w-2xl mx-auto mb-12 fade-in-up">
+          <div className="w-[85%] mx-auto max-w-6xl py-24">
+            <div className="text-center max-w-2xl mx-auto mb-12 fade-in-up">
             <h2 className="text-3xl font-bold mb-4">Key Benefits</h2>
             <p className="text-muted-foreground">
               Experience a new way of learning with our comprehensive features
@@ -343,7 +327,8 @@ export default function HomePage() {
               </Card>
             ))}
           </div>
-        </div>
+          </div>
+        </RevealOnScroll>
       </section>
 
       <Footer />
