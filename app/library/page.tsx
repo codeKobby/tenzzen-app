@@ -93,69 +93,67 @@ export default function LibraryPage() {
   })
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="mx-auto w-full max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-[240px_1fr] gap-8">
-          {/* Sidebar */}
-          <div className="space-y-4">
-            <Button className="w-full">
-              <Plus className="mr-2 h-4 w-4" />
-              New Note
-            </Button>
+    <div className="space-y-6">
+      <div className="grid lg:grid-cols-[240px_1fr] gap-8">
+        {/* Sidebar */}
+        <div className="space-y-4">
+          <Button className="w-full">
+            <Plus className="mr-2 h-4 w-4" />
+            New Note
+          </Button>
 
-            <Separator />
+          <Separator />
 
-            <div className="space-y-1">
-              {categories.map((category) => (
-                <Button
-                  key={category.id}
-                  variant={filter === category.id ? "secondary" : "ghost"}
-                  className="w-full justify-start gap-2"
-                  onClick={() => setFilter(category.id as CategoryFilter)}
-                >
-                  {category.icon}
-                  <span>{category.name}</span>
-                  <span className="ml-auto text-muted-foreground">
-                    {notesData.filter(n => category.id === "all" || n.category === category.id).length}
-                  </span>
-                </Button>
-              ))}
-            </div>
+          <div className="space-y-1">
+            {categories.map((category) => (
+              <Button
+                key={category.id}
+                variant={filter === category.id ? "secondary" : "ghost"}
+                className="w-full justify-start gap-2"
+                onClick={() => setFilter(category.id as CategoryFilter)}
+              >
+                {category.icon}
+                <span>{category.name}</span>
+                <span className="ml-auto text-muted-foreground">
+                  {notesData.filter(n => category.id === "all" || n.category === category.id).length}
+                </span>
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Search notes..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-[400px]"
+            />
           </div>
 
-          {/* Main Content */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Search notes..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="max-w-[400px]"
-              />
-            </div>
-
-            {/* Note grid display */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredNotes.length > 0 ? (
-                filteredNotes.map((note) => (
-                  <InternalNoteCard key={note.id} note={note} />
-                ))
-              ) : (
-                <div className="col-span-full flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">
-                  <FileText className="h-10 w-10 text-muted-foreground/40" />
-                  <h3 className="mt-4 text-lg font-semibold">No notes found</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {search
-                      ? `No notes match "${search}"`
-                      : "You haven't created any notes yet"}
-                  </p>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create a Note
-                  </Button>
-                </div>
-              )}
-            </div>
+          {/* Note grid display */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredNotes.length > 0 ? (
+              filteredNotes.map((note) => (
+                <InternalNoteCard key={note.id} note={note} />
+              ))
+            ) : (
+              <div className="col-span-full flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">
+                <FileText className="h-10 w-10 text-muted-foreground/40" />
+                <h3 className="mt-4 text-lg font-semibold">No notes found</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {search
+                    ? `No notes match "${search}"`
+                    : "You haven't created any notes yet"}
+                </p>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create a Note
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -127,200 +127,195 @@ export default function CoursesPage() {
   , [sortedAndFilteredCourses])
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-full">
       {/* Fixed Header */}
-      <div className="sticky top-0 z-10 bg-background border-b">
-        {/* Search and Sort */}
-        <div className={cn(
-          "h-14 flex items-center gap-2 sm:gap-4 px-2 sm:px-4",
-          "lg:pl-72"
-        )}>
-          <div className="flex items-center gap-2 sm:gap-4 w-full">
-            <div className="relative flex-1 max-w-[600px] min-w-0">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search courses..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 w-full h-8 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <SlidersHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[200px]">
-                <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
-                {filters.map((f) => (
+      <div className="sticky top-16 z-10 bg-background ">
+        <div className="w-full max-w-[1600px] mx-auto px-4">
+          {/* Search and Sort */}
+          <div className="h-14 flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 w-full">
+              <div className="relative flex-1 max-w-[600px] min-w-0">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search courses..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 w-full h-8 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <SlidersHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[200px]">
+                  <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
+                  {filters.map((f) => (
+                    <DropdownMenuItem
+                      key={f.id}
+                      onClick={() => setFilter(f.id)}
+                      className={cn(
+                        "cursor-pointer",
+                        filter === f.id && "bg-muted"
+                      )}
+                    >
+                      {f.label}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Sort By</DropdownMenuLabel>
                   <DropdownMenuItem
-                    key={f.id}
-                    onClick={() => setFilter(f.id)}
+                    onClick={() => setSortBy("lastAccessed")}
                     className={cn(
                       "cursor-pointer",
-                      filter === f.id && "bg-muted"
+                      sortBy === "lastAccessed" && "bg-muted"
                     )}
                   >
-                    {f.label}
+                    Last Accessed
                   </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Sort By</DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => setSortBy("lastAccessed")}
-                  className={cn(
-                    "cursor-pointer",
-                    sortBy === "lastAccessed" && "bg-muted"
-                  )}
-                >
-                  Last Accessed
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setSortBy("title")}
-                  className={cn(
-                    "cursor-pointer",
-                    sortBy === "title" && "bg-muted"
-                  )}
-                >
-                  Title
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setSortBy("progress")}
-                  className={cn(
-                    "cursor-pointer",
-                    sortBy === "progress" && "bg-muted"
-                  )}
-                >
-                  Progress
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        {/* Category Pills */}
-        <div className="relative bg-background/80 backdrop-blur-sm">
-          <div className={cn(
-            "px-2 sm:px-4 overflow-hidden",
-            "lg:pl-72"
-          )}>
-            <div className="relative py-2 sm:py-3">
-              <div
-                ref={scrollContainerRef}
-                className="flex gap-3 overflow-x-hidden scroll-smooth"
-              >
-                {categories.map((cat) => (
-                  <Button
-                    key={cat.id}
-                    variant={category === cat.id ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setCategory(cat.id)}
+                  <DropdownMenuItem
+                    onClick={() => setSortBy("title")}
                     className={cn(
-                      "h-8 rounded-lg font-normal transition-all whitespace-nowrap",
-                      category === cat.id 
-                        ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" 
-                        : "hover:bg-secondary"
+                      "cursor-pointer",
+                      sortBy === "title" && "bg-muted"
                     )}
                   >
-                    {cat.label}
-                  </Button>
-                ))}
-              </div>
+                    Title
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setSortBy("progress")}
+                    className={cn(
+                      "cursor-pointer",
+                      sortBy === "progress" && "bg-muted"
+                    )}
+                  >
+                    Progress
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
 
-              {/* Navigation Arrows */}
-              {showScrollButtons && (
-                <>
-                  {canScrollLeft && (
+          {/* Category Pills */}
+          <div className="relative">
+            <div className="overflow-hidden">
+              <div className="relative py-2 sm:py-3">
+                <div
+                  ref={scrollContainerRef}
+                  className="flex gap-3 overflow-x-hidden scroll-smooth"
+                >
+                  {categories.map((cat) => (
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md"
-                      onClick={() => scroll('left')}
+                      key={cat.id}
+                      variant={category === cat.id ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCategory(cat.id)}
+                      className={cn(
+                        "h-8 rounded-lg font-normal transition-all whitespace-nowrap",
+                        category === cat.id 
+                          ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" 
+                          : "hover:bg-secondary"
+                      )}
                     >
-                      <ChevronLeft className="h-4 w-4" />
+                      {cat.label}
                     </Button>
-                  )}
-                  {canScrollRight && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md"
-                      onClick={() => scroll('right')}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  )}
-                </>
-              )}
+                  ))}
+                </div>
+
+                {/* Navigation Arrows */}
+                {showScrollButtons && (
+                  <>
+                    {canScrollLeft && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md"
+                        onClick={() => scroll('left')}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canScrollRight && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md"
+                        onClick={() => scroll('right')}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className={cn(
-        "px-2 sm:px-4 py-4 sm:py-6 space-y-6",
-        "lg:pl-72"
-      )}>
-        {sortedAndFilteredCourses.length > 0 ? (
-          <div className="space-y-6">
-            {/* Continue Learning Section */}
-            {inProgressCourses.length > 0 && (
-              <section>
-                <h2 className="font-medium text-lg mb-4">Continue Learning</h2>
-                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
-                  {inProgressCourses.map((course) => (
-                    <CourseCard
-                      key={course.id}
-                      course={course}
-                      onClick={() => setSelectedCourse(course)}
-                      className="animate-in fade-in-50 duration-500"
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
+      {/* Main Content */}
+      <div className="py-8">
+        <div className="w-full max-w-[1600px] mx-auto px-4 space-y-6">
+          {sortedAndFilteredCourses.length > 0 ? (
+            <div className="space-y-8">
+              {/* Continue Learning Section */}
+              {inProgressCourses.length > 0 && (
+                <section>
+                  <h2 className="font-medium text-lg mb-4">Continue Learning</h2>
+                  <div className="grid gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
+                    {inProgressCourses.map((course) => (
+                      <CourseCard
+                        key={course.id}
+                        course={course}
+                        onClick={() => setSelectedCourse(course)}
+                        className="animate-in fade-in-50 duration-500"
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
 
-            {/* Other Courses Section */}
-            {otherCourses.length > 0 && (
-              <section>
-                <h2 className="font-medium text-lg mb-4">
-                  {filter === "completed" ? "Completed" :
-                    filter === "not-started" ? "Start Learning" :
-                      "All Courses"}
-                </h2>
-                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
-                  {otherCourses.map((course) => (
-                    <CourseCard
-                      key={course.id}
-                      course={course}
-                      onClick={() => setSelectedCourse(course)}
-                      className="animate-in fade-in-50 duration-500"
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-muted-foreground">
-              {search
-                ? `No courses match "${search}"`
-                : "No courses found"}
-            </p>
-          </div>
-        )}
-
-        {/* Course Dialog */}
-        <CourseDialog
-          course={selectedCourse}
-          open={!!selectedCourse}
-          onOpenChange={(open) => !open && setSelectedCourse(null)}
-        />
+              {/* Other Courses Section */}
+              {otherCourses.length > 0 && (
+                <section>
+                  <h2 className="font-medium text-lg mb-4">
+                    {filter === "completed" ? "Completed" :
+                      filter === "not-started" ? "Start Learning" :
+                        "All Courses"}
+                  </h2>
+                  <div className="grid gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
+                    {otherCourses.map((course) => (
+                      <CourseCard
+                        key={course.id}
+                        course={course}
+                        onClick={() => setSelectedCourse(course)}
+                        className="animate-in fade-in-50 duration-500"
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-sm text-muted-foreground">
+                {search
+                  ? `No courses match "${search}"`
+                  : "No courses found"}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Course Dialog */}
+      <CourseDialog
+        course={selectedCourse}
+        open={!!selectedCourse}
+        onOpenChange={(open) => !open && setSelectedCourse(null)}
+      />
     </div>
   )
 }

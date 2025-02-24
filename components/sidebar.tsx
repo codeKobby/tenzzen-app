@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { SIDEBAR_WIDTH, TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
@@ -182,16 +183,16 @@ export function Sidebar({ className }: { className?: string }) {
           <span className={cn(
             "ml-auto rounded-full px-1.5 py-px text-[10px] font-medium",
             isActive ? "bg-background/20 text-background" : "bg-muted text-muted-foreground",
-            !isOpen && "hidden"
-          )}>
-            {item.badge}
-          </span>
+          !isOpen && "lg:block hidden"
+        )}>
+          {item.badge}
+        </span>
         )}
         {item.isPro && (
           <Crown className={cn(
             "ml-auto h-3.5 w-3.5",
             isActive ? "text-background/80" : "text-yellow-500",
-            !isOpen && "hidden"
+            !isOpen && "lg:block hidden"
           )}/>
         )}
       </Link>
@@ -217,10 +218,10 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <aside
       className={cn(
-        "shrink-0 border-r bg-card min-h-screen",
-        "fixed inset-y-0 left-0 z-50",
-        "w-[280px] transition-transform duration-200 ease-out lg:w-60",
-        !isOpen && "-translate-x-full lg:translate-x-0",
+        "border-r bg-card h-screen w-[280px]",
+        "z-50 fixed left-0 top-0",
+        `transition-transform duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`,
+        !isOpen && "-translate-x-full",
         "overflow-hidden flex flex-col",
         className
       )}
@@ -231,7 +232,7 @@ export function Sidebar({ className }: { className?: string }) {
             <GraduationCap className="h-5 w-5 text-primary" />
             <span className={cn(
               "text-sm font-bold tracking-tight",
-              !isOpen && "hidden"
+          !isOpen && "hidden"
             )}>
               Tenzzen
             </span>

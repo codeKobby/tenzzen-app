@@ -24,6 +24,16 @@ import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Course } from "../types"
 
+const formatNumber = (num: number): string => {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'm'
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k'
+  }
+  return num.toString()
+}
+
 interface CourseCardProps {
   course: Course
   onClick?: () => void
@@ -39,51 +49,11 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
   return (
     <div 
       className={cn(
-        "group cursor-pointer relative overflow-hidden rounded-xl",
+        "group cursor-pointer relative overflow-hidden",
         className
       )}
       onClick={onClick}
     >
-      <div className="absolute top-2 right-2 z-[5]">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-            className="h-8 w-8 text-white bg-black/40 hover:bg-black/60 transition-colors focus:ring-0 focus-visible:ring-1 focus-visible:ring-white backdrop-blur-sm"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreVertical className="h-4 w-4" />
-              <span className="sr-only">More options</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[200px]">
-            <DropdownMenuItem
-              onClick={(e) => handleAction(e, "save")}
-              className="cursor-pointer"
-            >
-              <BookmarkPlus className="h-4 w-4 mr-2" />
-              Save to playlist
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={(e) => handleAction(e, "share")}
-              className="cursor-pointer"
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              Share course
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => handleAction(e, "report")}
-              className="cursor-pointer text-destructive"
-            >
-              <Flag className="h-4 w-4 mr-2" />
-              Report content
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
       <div className="relative aspect-video rounded-xl overflow-hidden mb-3">
         <Image
           src={course.thumbnail || "/placeholders/course-thumbnail.jpg"}
@@ -124,101 +94,145 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <h3 className="font-medium text-[13px] leading-[1.4] line-clamp-2">
-                {course.title}
-              </h3>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{course.title}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+          <div className="flex items-start justify-between gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <h3 className="font-medium text-[13px] leading-[1.4] line-clamp-2">
+                    {course.title}
+                  </h3>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{course.title}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 -mr-2 text-muted-foreground hover:text-foreground"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                  <span className="sr-only">More options</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                <DropdownMenuItem
+                  onClick={(e) => handleAction(e, "save")}
+                  className="cursor-pointer"
+                >
+                  <BookmarkPlus className="h-4 w-4 mr-2" />
+                  Save to playlist
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => handleAction(e, "share")}
+                  className="cursor-pointer"
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share course
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => handleAction(e, "report")}
+                  className="cursor-pointer text-destructive"
+                >
+                  <Flag className="h-4 w-4 mr-2" />
+                  Report content
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
         {course.sources && (
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-[11px] mt-1">
-            <span>Sources:</span>
-            <div className="flex items-center">
-              {course.sources.slice(0, 3).map((source, i) => (
-                <Popover key={i}>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <PopoverTrigger asChild>
-                        <TooltipTrigger asChild>
-                          <button
-                            className={cn(
-                              "relative h-4 w-4 rounded-full overflow-hidden border border-background transition-transform hover:z-10",
-                              i > 0 && "-ml-1.5 hover:translate-x-0.5"
-                            )}
-                            aria-label={source.name}
-                            onClick={(e) => e.stopPropagation()}
-                          >
+            <span className="shrink-0">Sources:</span>
+            <div className="flex items-center shrink-0">
+              <Popover>
+                <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center">
+                    {course.sources.slice(0, 2).map((source, i) => (
+                      <TooltipProvider key={i}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              className={cn(
+                                "relative h-4 w-4 rounded-full overflow-hidden border border-background transition-transform hover:z-10",
+                                i > 0 && "-ml-1.5 hover:translate-x-0.5"
+                              )}
+                              aria-label={source.name}
+                            >
+                              <Image
+                                src={source.avatar}
+                                alt={source.name}
+                                fill
+                                className="object-cover"
+                              />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p>{source.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ))}
+                    {course.sources.length > 2 && (
+                      <div className="relative h-4 w-4 rounded-full bg-muted flex items-center justify-center text-[9px] font-medium border border-background -ml-1.5 hover:translate-x-0.5 hover:z-10 transition-transform">
+                        +{course.sources.length - 2}
+                      </div>
+                    )}
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-72 p-3"
+                  side="top"
+                  align="center"
+                  sideOffset={5}
+                >
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium leading-none">All Sources</h4>
+                    <div className="space-y-3">
+                      {course.sources.map((source, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="relative h-8 w-8 rounded-full overflow-hidden shrink-0">
                             <Image
                               src={source.avatar}
                               alt={source.name}
                               fill
                               className="object-cover"
                             />
-                          </button>
-                        </TooltipTrigger>
-                      </PopoverTrigger>
-                      <TooltipContent side="top">
-                        <p>{source.name}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <PopoverContent
-                    className="w-72 p-3"
-                    side="top"
-                    align="center"
-                    sideOffset={5}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3 pb-2 border-b">
-                        <div className="relative h-8 w-8 rounded-full overflow-hidden shrink-0">
-                          <Image
-                            src={source.avatar}
-                            alt={source.name}
-                            fill
-                            className="object-cover"
-                          />
+                          </div>
+                          <div>
+                            <h5 className="text-sm font-medium leading-none">{source.name}</h5>
+                            <p className="text-xs text-muted-foreground mt-1">Original content source</p>
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <h4 className="text-sm font-semibold leading-none">{source.name}</h4>
-                          <p className="text-xs text-muted-foreground">Original content source</p>
-                        </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        <p>Content curated from this source with all rights reserved to the original creator. Visit their channel for more content.</p>
-                      </div>
+                      ))}
                     </div>
-                  </PopoverContent>
-                </Popover>
-              ))}
-              {course.sources.length > 3 && (
-                <div className="relative h-4 w-4 rounded-full bg-muted flex items-center justify-center text-[9px] font-medium border border-background -ml-1.5 hover:translate-x-0.5 hover:z-10 transition-transform">
-                  +{course.sources.length - 3}
-                </div>
-              )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {course.isPublic ? (
               <>
-                <div className="ml-auto flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  <span>{course.enrolledCount?.toLocaleString()}</span>
+                <div className="ml-auto flex items-center gap-1 shrink-0 min-w-0">
+                  <Users className="h-3 w-3 shrink-0" />
+                  <span className="truncate">
+                    {formatNumber(course.enrolledCount || 0)}
+                  </span>
                 </div>
-                <span>•</span>
-                <div className="flex items-center gap-1">
-                  <Star className="h-3 w-3 text-yellow-500" />
-                  <span>{course.rating}</span>
+                <span className="shrink-0">•</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Star className="h-3 w-3 text-yellow-500 shrink-0" />
+                  <span>{(course.rating || 0).toFixed(1)}</span>
                 </div>
               </>
             ) : (
-              <div className="ml-auto flex items-center gap-1 text-muted-foreground">
+              <div className="ml-auto flex items-center gap-1 text-muted-foreground shrink-0">
                 <Lock className="h-3 w-3" />
                 <span>Private</span>
               </div>

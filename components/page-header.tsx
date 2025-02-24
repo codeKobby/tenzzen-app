@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Bell, ChevronLeft, PanelLeftOpen, PanelLeftClose } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 import { useAuth } from "@/hooks/use-auth"
 import { useSidebar } from "@/hooks/use-sidebar"
 import {
@@ -61,13 +62,12 @@ export function PageHeader() {
 
   return (
     <header className={cn(
-      "w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-40",
+      "sticky top-0 z-40 w-full border-b bg-background shadow-sm",
       scrolled && "shadow-sm"
     )}>
       <div className={cn(
-        "flex h-16 items-center justify-between transition-[padding] duration-300 ease-in-out",
-        isOpen ? "lg:pl-[280px]" : "pl-8",
-        "pr-8"
+        "mx-auto w-[95%] lg:w-[90%] flex h-16 items-center justify-between",
+        `transition-all duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`
       )}>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">

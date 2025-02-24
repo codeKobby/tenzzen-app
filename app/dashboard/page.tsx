@@ -25,6 +25,7 @@ import Image from "next/image"
 import { useState } from "react"
 import { LineChart } from "@/components/dashboard/line-chart"
 import { TaskCalendar } from "@/components/dashboard/calendar"
+import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 
 type StatChange = {
   value: string;
@@ -146,7 +147,11 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className={cn(
+      "mx-auto space-y-6 pt-6",
+      `transition-all duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`,
+      "w-[95%] lg:w-[90%]"
+    )}>
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-primary/90 p-4 sm:p-6 shadow-xl">
         <div
