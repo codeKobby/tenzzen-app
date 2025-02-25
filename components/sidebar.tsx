@@ -23,10 +23,12 @@ import {
   Sun,
   Moon,
   Laptop,
+  Paintbrush,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import { useTheme } from "next-themes"
+import { useThemePersistence } from "@/hooks/use-theme-persistence"
 import { Separator } from "@/components/ui/separator"
 import {
   DropdownMenu,
@@ -34,7 +36,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+type ColorTheme = 'purple' | 'neutral' | 'minimal' | 'modern'
+type ThemeMode = 'light' | 'dark' | 'system'
 
 interface NavigationItem {
   title: string
@@ -99,9 +103,23 @@ export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
   const { user, signOut } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const { theme, resolvedTheme, setTheme } = useTheme()
+  const { updateTheme } = useThemePersistence()
   const [isMobile, setIsMobile] = React.useState(false)
-  const [colorTheme, setColorTheme] = React.useState<'purple' | 'neutral'>('purple')
+  const [colorTheme, setColorTheme] = React.useState<ColorTheme>('purple')
+  const [systemTheme, setSystemTheme] = React.useState<'light' | 'dark'>('light')
+
+  // Detect system theme changes
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const updateSystemTheme = (e: MediaQueryListEvent | MediaQueryList) => {
+      setSystemTheme(e.matches ? 'dark' : 'light')
+    }
+    
+    updateSystemTheme(mediaQuery) // Initial check
+    mediaQuery.addEventListener('change', updateSystemTheme)
+    return () => mediaQuery.removeEventListener('change', updateSystemTheme)
+  }, [])
 
   React.useEffect(() => {
     const checkMobile = () => {
@@ -112,6 +130,18 @@ export function Sidebar({ className }: { className?: string }) {
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  React.useEffect(() => {
+    // Keep color theme in sync with persistence
+    const savedColorTheme = document.documentElement.classList.value
+      .split(' ')
+      .find(className => className.startsWith('theme-'))
+      ?.replace('theme-', '') as ColorTheme | undefined
+
+    if (savedColorTheme) {
+      setColorTheme(savedColorTheme)
+    }
   }, [])
 
   const handleSignOut = async () => {
@@ -130,21 +160,11 @@ export function Sidebar({ className }: { className?: string }) {
     }
   }
 
-  const handleThemeChange = (selectedTheme: 'purple' | 'neutral') => {
+  const handleThemeChange = (selectedTheme: ColorTheme) => {
     setColorTheme(selectedTheme)
-    document.documentElement.classList.remove('theme-purple', 'theme-neutral')
+    document.documentElement.classList.remove('theme-purple', 'theme-neutral', 'theme-minimal', 'theme-modern')
     document.documentElement.classList.add(`theme-${selectedTheme}`)
-  }
-
-  const getThemeIcon = () => {
-    switch (theme) {
-      case 'dark':
-        return <Moon className="h-3.5 w-3.5 group-hover:text-primary" />
-      case 'system':
-        return <Laptop className="h-3.5 w-3.5 group-hover:text-primary" />
-      default:
-        return <Sun className="h-3.5 w-3.5 group-hover:text-primary" />
-    }
+    updateTheme(theme || 'system', selectedTheme)
   }
 
   const NavigationLink = ({ item }: { item: NavigationItem }) => {
@@ -294,76 +314,91 @@ export function Sidebar({ className }: { className?: string }) {
                   size="sm"
                   className="w-full justify-start text-xs group"
                 >
-                  {getThemeIcon()}
+                  {theme === 'dark' || (theme === 'system' && systemTheme === 'dark') ? (
+                    <Moon className="h-3.5 w-3.5 group-hover:text-primary" />
+                  ) : theme === 'light' || (theme === 'system' && systemTheme === 'light') ? (
+                    <Sun className="h-3.5 w-3.5 group-hover:text-primary" />
+                  ) : (
+                    <Laptop className="h-3.5 w-3.5 group-hover:text-primary" />
+                  )}
                   <span className="ml-2">Theme</span>
                   <span className="ml-auto text-muted-foreground">
-                    {colorTheme === 'purple' ? 'Purple' : 'Neutral'}
-                    {" / "}
-                    {theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'}
+                    {colorTheme.charAt(0).toUpperCase() + colorTheme.slice(1)}
+                    {" • "}
+                    {theme === 'system' 
+                      ? `System (${systemTheme === 'dark' ? 'Dark' : 'Light'})`
+                      : theme === 'dark' ? 'Dark' : 'Light'
+                    }
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[240px] p-2">
-                <Tabs 
-                  defaultValue={colorTheme} 
-                  className="w-full" 
-                  onValueChange={(value) => handleThemeChange(value as 'purple' | 'neutral')}
-                >
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="purple" className="text-xs">Purple</TabsTrigger>
-                    <TabsTrigger value="neutral" className="text-xs">Neutral</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="purple" className="mt-2">
-                    <div className="space-y-1">
-                      <DropdownMenuItem 
-                        className="group"
-                        onClick={() => setTheme('light')}
+              <DropdownMenuContent align="end" className="w-[240px] p-2">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-2">
+                      Mode
+                    </h4>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className={cn("flex-1 gap-1", theme === 'system' && "bg-accent")}
+                        onClick={() => {
+                          setTheme('system')
+                          updateTheme('system', colorTheme)
+                        }}
                       >
-                        <Sun className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
-                        Light
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="group"
-                        onClick={() => setTheme('dark')}
+                        <Laptop className="h-3.5 w-3.5" />
+                        <span className="text-xs">System</span>
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className={cn("flex-1 gap-1", theme === 'light' && "bg-accent")}
+                        onClick={() => {
+                          setTheme('light')
+                          updateTheme('light', colorTheme)
+                        }}
                       >
-                        <Moon className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
-                        Dark
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="group"
-                        onClick={() => setTheme('system')}
+                        <Sun className="h-3.5 w-3.5" />
+                        <span className="text-xs">Light</span>
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className={cn("flex-1 gap-1", theme === 'dark' && "bg-accent")}
+                        onClick={() => {
+                          setTheme('dark')
+                          updateTheme('dark', colorTheme)
+                        }}
                       >
-                        <Laptop className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
-                        System
-                      </DropdownMenuItem>
+                        <Moon className="h-3.5 w-3.5" />
+                        <span className="text-xs">Dark</span>
+                      </Button>
                     </div>
-                  </TabsContent>
-                  <TabsContent value="neutral" className="mt-2">
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex flex-col gap-2">
+                    <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-2">
+                      Colors
+                    </h4>
                     <div className="space-y-1">
-                      <DropdownMenuItem 
-                        className="group"
-                        onClick={() => setTheme('light')}
-                      >
-                        <Sun className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
-                        Light
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="group"
-                        onClick={() => setTheme('dark')}
-                      >
-                        <Moon className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
-                        Dark
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="group"
-                        onClick={() => setTheme('system')}
-                      >
-                        <Laptop className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
-                        System
-                      </DropdownMenuItem>
+                      {(['purple', 'neutral', 'minimal', 'modern'] as const).map((color) => (
+                        <DropdownMenuItem 
+                          key={color}
+                          onClick={() => handleThemeChange(color)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-sm transition-colors"
+                          data-state={colorTheme === color ? 'active' : undefined}
+                        >
+                          <Paintbrush className="h-3.5 w-3.5" />
+                          {color.charAt(0).toUpperCase() + color.slice(1)}
+                        </DropdownMenuItem>
+                      ))}
                     </div>
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

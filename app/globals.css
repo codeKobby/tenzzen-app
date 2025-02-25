@@ -91,6 +91,16 @@
   pointer-events: none;
 }
 
+/* Hide scrollbars but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
 /* ------------------- UI Components ------------------- */
 .youtube-embed-placeholder {
   @apply relative aspect-video w-full rounded-xl overflow-hidden bg-card/50 border shadow-2xl backdrop-blur-sm;
@@ -280,6 +290,56 @@
     --input: 0 0% 20%;
     --ring: 0 100% 50%;
     --radius: 0.5rem;
+  }
+
+  /* Theme Modern */
+  .theme-modern {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark.theme-modern {
+    --background: 222.2 47.4% 11.2%;
+    --foreground: 210 40% 98%;
+    --card: 223 47% 17%;
+    --card-foreground: 210 40% 98%;
+    --popover: 223 47% 17%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 222.2 55% 70%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 222.2 32.6% 25%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 27%;
+    --muted-foreground: 215 20.2% 85%;
+    --accent: 222.2 32.6% 25%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 25%;
+    --input: 217.2 32.6% 25%;
+    --ring: 222.2 55% 70%;
+    --success: 142 69% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 35 100% 55%;
+    --warning-foreground: 0 0% 100%;
   }
 
   /* Global Base Styles */
