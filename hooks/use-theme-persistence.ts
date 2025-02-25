@@ -50,24 +50,38 @@ export function useThemePersistence() {
     if (!user) return
 
     const loadUserTheme = async () => {
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .select('theme, color_theme')
-        .eq('user_id', user.id)
-        .single()
+      try {
+        const { data, error } = await supabase
+          .from('user_preferences')
+          .select('theme, color_theme')
+          .eq('user_id', user.id)
+          .single()
 
-      if (error) {
-        console.error('Error loading theme:', error)
-        return
-      }
+        if (error) {
+          console.error('Error loading theme:', JSON.stringify(error))
+          return
+        }
 
-      if (data) {
-        setTheme(data.theme)
-        if (data.color_theme) {
+        if (!data || !data.theme) {
+          console.error('No theme data found for user')
+          // Set default theme if none exists
+          setTheme('system')
+          return
+        }
+
+        // Set theme only if it's a valid value
+        if (typeof data.theme === 'string') {
+          setTheme(data.theme)
+        }
+
+        // Handle color theme
+        if (data.color_theme && ['purple', 'neutral', 'minimal'].includes(data.color_theme)) {
           document.documentElement.classList.remove('theme-purple', 'theme-neutral', 'theme-minimal')
           document.documentElement.classList.add(`theme-${data.color_theme}`)
           localStorage.setItem('colorTheme', data.color_theme)
         }
+      } catch (error) {
+        console.error('Unexpected error loading theme:', error)
       }
     }
 

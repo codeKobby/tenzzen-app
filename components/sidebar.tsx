@@ -220,7 +220,7 @@ export function Sidebar({ className }: { className?: string }) {
       className={cn(
         "border-r bg-card h-screen w-[280px]",
         "z-50 fixed left-0 top-0",
-        `transition-transform duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`,
+        `transition-transform duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING}`,
         !isOpen && "-translate-x-full",
         "overflow-hidden flex flex-col",
         className

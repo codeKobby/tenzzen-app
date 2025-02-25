@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------- Animations ------------------- */
 @keyframes shine {
   0% {
     background-position: 200% 0;
@@ -11,94 +12,28 @@
   }
 }
 
-/* Keep all existing theme definitions unchanged */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
 
-/* ------------------- Theme Purple ------------------- */
-@layer base {
-  .theme-purple {
-    /* Light Theme (Purple) */
-    --background: 0 0% 100%;               /* White background */
-    --foreground: 240 10% 15%;             /* Deep dark gray text */
-    
-    --card: 0 0% 100%;                    /* White cards */
-    --card-foreground: 240 10% 15%;
-    
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 15%;
-    
-    /* Primary: A deep violet for strong UI elements */
-    --primary: 270 70% 45%;                
-    --primary-foreground: 0 0% 100%;        
-    
-    /* Secondary: A subtle pastel blue-gray for hierarchy */
-    --secondary: 220 15% 95%;              
-    --secondary-foreground: 240 10% 15%;
-    
-    --muted: 0 0% 90%;                    
-    --muted-foreground: 240 10% 40%;
-    
-    /* Accent: A soft lavender for gentle highlights */
-    --accent: 270 50% 70%;                 
-    --accent-foreground: 240 10% 15%;
-    
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    
-    --border: 240 5% 90%;                 
-    --input: 240 5% 90%;
-    --ring: 270 70% 45%;                  
-    --radius: 0.75rem;
-    
-    --success: 120 60% 40%;
-    --success-foreground: 0 0% 100%;
-    --warning: 40 90% 50%;
-    --warning-foreground: 0 0% 100%;
+@keyframes drift {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+@keyframes animate-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-
-  .dark.theme-purple {
-    /* Dark Theme (Purple) */
-    --background: 240 10% 20%;            
-    --foreground: 0 0% 100%;               
-    
-    --card: 240 10% 25%;
-    --card-foreground: 0 0% 100%;
-    
-    --popover: 240 10% 25%;
-    --popover-foreground: 0 0% 100%;
-    
-    /* Primary: A lighter violet for contrast on dark backgrounds */
-    --primary: 270 70% 55%;
-    --primary-foreground: 0 0% 100%;
-    
-    /* Secondary: A muted blue-gray tone */
-    --secondary: 220 15% 25%;
-    --secondary-foreground: 0 0% 100%;
-    
-    --muted: 0 0% 25%;
-    --muted-foreground: 0 0% 100%;
-    
-    /* Accent: A slightly lighter soft lavender for dark mode */
-    --accent: 270 50% 60%;
-    --accent-foreground: 0 0% 100%;
-    
-    --destructive: 0 62% 35%;
-    --destructive-foreground: 0 0% 100%;
-    
-    --border: 240 5% 30%;
-    --input: 240 5% 30%;
-    --ring: 270 70% 55%;
-    --radius: 0.75rem;
-    
-    --success: 120 60% 40%;
-    --success-foreground: 0 0% 100%;
-    --warning: 40 90% 50%;
-    --warning-foreground: 0 0% 100%;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* Keep all other theme definitions unchanged */
-
-/* Updated Background Patterns */
+/* ------------------- Background Patterns ------------------- */
 .pattern-dots {
   @apply absolute inset-0;
   opacity: 0.04;
@@ -106,9 +41,10 @@
   background-size: 16px 16px;
   background-position: center;
   pointer-events: none;
+  mix-blend-mode: multiply;
 }
 
-.background-grid {
+.pattern-grid {
   @apply absolute inset-0;
   opacity: 0.03;
   background-image: 
@@ -117,8 +53,18 @@
   background-size: 16px 16px;
   background-position: center;
   pointer-events: none;
+  mix-blend-mode: multiply;
 }
 
+.pattern-noise {
+  @apply absolute inset-0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* ------------------- Background Effects ------------------- */
 .background-gradient {
   @apply absolute inset-0;
   background: radial-gradient(
@@ -145,26 +91,202 @@
   pointer-events: none;
 }
 
-/* Keep all existing animations and other styles unchanged */
+/* ------------------- UI Components ------------------- */
+.youtube-embed-placeholder {
+  @apply relative aspect-video w-full rounded-xl overflow-hidden bg-card/50 border shadow-2xl backdrop-blur-sm;
+}
+
+.youtube-embed-placeholder::before {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10;
+}
+
+.youtube-embed-placeholder .play-button {
+  @apply absolute inset-0 flex items-center justify-center;
+  background: radial-gradient(circle at center, rgba(var(--primary-rgb), 0.1) 0%, transparent 70%);
+}
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0, 1);
+}
+
+.scroll-reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .animate-in {
   animation: animate-in 0.2s ease-in-out;
 }
 
-@keyframes animate-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* ------------------- Theme System ------------------- */
 @layer base {
+  /* Theme Purple */
+  .theme-purple {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+    --primary: 270 70% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 95%;
+    --secondary-foreground: 240 10% 15%;
+    --muted: 0 0% 90%;
+    --muted-foreground: 240 10% 40%;
+    --accent: 270 50% 70%;
+    --accent-foreground: 240 10% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5% 90%;
+    --input: 240 5% 90%;
+    --ring: 270 70% 45%;
+    --radius: 0.75rem;
+    --success: 120 60% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 40 90% 50%;
+    --warning-foreground: 0 0% 100%;
+  }
+
+  .dark.theme-purple {
+    --background: 240 10% 20%;
+    --foreground: 0 0% 100%;
+    --card: 240 10% 25%;
+    --card-foreground: 0 0% 100%;
+    --popover: 240 10% 25%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 270 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 25%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 25%;
+    --muted-foreground: 0 0% 100%;
+    --accent: 270 50% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 35%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5% 30%;
+    --input: 240 5% 30%;
+    --ring: 270 70% 55%;
+    --radius: 0.75rem;
+    --success: 120 60% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 40 90% 50%;
+    --warning-foreground: 0 0% 100%;
+  }
+
+  /* Theme Neutral */
+  .theme-neutral {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 18%;
+    --primary: 0 0% 20%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 40%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 85%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 50%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 50%;
+    --radius: 0.75rem;
+    --success: 0 0% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 0 0% 40%;
+    --warning-foreground: 0 0% 100%;
+  }
+
+  .dark.theme-neutral {
+    --background: 0 0% 12%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 20%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 30%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 30%;
+    --muted-foreground: 0 0% 100%;
+    --accent: 0 0% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 0% 50%;
+    --radius: 0.75rem;
+    --success: 0 0% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 0 0% 40%;
+    --warning-foreground: 0 0% 100%;
+  }
+
+  /* Theme Minimal */
+  .theme-minimal {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+    --primary: 0 0% 10%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 40%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 70%;
+    --accent-foreground: 0 0% 13%;
+    --youtube-red: 0 100% 50%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 0 100% 50%;
+    --radius: 0.5rem;
+  }
+
+  .dark.theme-minimal {
+    --background: 0 0% 6%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 20%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 30%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 100%;
+    --accent: 0 0% 40%;
+    --accent-foreground: 0 0% 100%;
+    --youtube-red: 0 100% 50%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 100% 50%;
+    --radius: 0.5rem;
+  }
+
+  /* Global Base Styles */
   * {
     @apply border-border outline-ring/50;
   }
+  
   body {
     @apply bg-background text-foreground min-h-screen antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;

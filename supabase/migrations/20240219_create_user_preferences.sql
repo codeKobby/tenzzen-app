@@ -2,7 +2,7 @@
 create table if not exists public.user_preferences (
     user_id uuid references auth.users primary key,
     theme text not null default 'system',
-    color_theme text check (color_theme in ('purple', 'neutral')),
+    color_theme text check (color_theme in ('purple', 'neutral', 'minimal')),
     updated_at timestamptz default now(),
     created_at timestamptz default now()
 );

@@ -67,7 +67,7 @@ export function PageHeader() {
     )}>
       <div className={cn(
         "mx-auto w-[95%] lg:w-[90%] flex h-16 items-center justify-between",
-        `transition-all duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`
+        `transition-all duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING}`
       )}>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
