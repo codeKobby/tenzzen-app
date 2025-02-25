@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     }
     
     const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = await createClient(cookieStore)
 
     const { error } = await supabase.auth.resend({
       type: 'signup',
