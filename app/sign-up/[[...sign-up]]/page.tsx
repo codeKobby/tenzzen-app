@@ -115,9 +115,16 @@ export default function SignUpPage() {
                     placeholder="••••••••"
                   />
                   <Clerk.FieldError className="text-sm font-medium text-destructive" />
-                  <p className="text-sm text-muted-foreground">
-                    Password must be at least 8 characters long
-                  </p>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>Password must contain:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>At least 8 characters</li>
+                      <li>At least one uppercase letter</li>
+                      <li>At least one lowercase letter</li>
+                      <li>At least one number</li>
+                      <li>At least one special character</li>
+                    </ul>
+                  </div>
                 </Clerk.Field>
               </div>
 
@@ -200,8 +207,13 @@ export default function SignUpPage() {
                 </SignUp.Action>
               </SignUp.Strategy>
 
-              {/* CAPTCHA element */}
-              <div id="clerk-captcha" />
+            {/* CAPTCHA and Error Messages */}
+            <div className="space-y-4">
+              <div id="clerk-captcha" className="mx-auto" />
+              <Clerk.FieldError name="emailAddress" className="text-sm font-medium text-destructive text-center mt-2" />
+              <Clerk.FieldError name="username" className="text-sm font-medium text-destructive text-center mt-2" />
+              <Clerk.FieldError name="password" className="text-sm font-medium text-destructive text-center mt-2" />
+            </div>
           </SignUp.Step>
         </SignUp.Root>
       </div>

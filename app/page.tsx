@@ -5,7 +5,7 @@ import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { RevealOnScroll } from "@/components/reveal-on-scroll";
 import { YoutubePreview } from "@/components/youtube-preview";
-import { useAuth } from "@/hooks/use-auth";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { ArrowRight, Check, YoutubeIcon, BookOpen, Brain, Target, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,8 +109,6 @@ const steps: Step[] = [
 ];
 
 export default function HomePage() {
-  const { user } = useAuth();
-  
   return (
     <div className="pb-26">
       <Header />
@@ -158,15 +156,16 @@ export default function HomePage() {
             <div className="w-full max-w-3xl mx-auto text-center space-y-8">
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <CourseGenerateButton />
-                {user ? (
+                <SignedIn>
                   <Button size="lg" variant="outline" className="text-lg h-14 shadow-lg hover:bg-primary/5" asChild>
                     <Link href="/courses">Continue Learning</Link>
                   </Button>
-                ) : (
+                </SignedIn>
+                <SignedOut>
                   <Button size="lg" variant="outline" className="text-lg h-14 hover:bg-primary/5" asChild>
-                    <Link href="/signup">Start Learning Free</Link>
+                    <Link href="/sign-up">Start Learning Free</Link>
                   </Button>
-                )}
+                </SignedOut>
               </div>
 
               <div className="flex flex-wrap gap-3 justify-center">

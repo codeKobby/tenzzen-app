@@ -4,17 +4,12 @@ import Link from "next/link"
 import { Facebook, Twitter, Instagram, Github, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth, useUser, SignedIn, SignedOut } from "@clerk/nextjs"
 
 export function Footer() {
   const router = useRouter()
-  const { user, signOut } = useAuth()
-  
-  const handleSignOut = async () => {
-    await signOut()
-    router.refresh()
-    router.push('/')
-  }
+  const { isLoaded, userId } = useAuth()
+  const { user } = useUser()
 
   return (
     <footer className="relative w-full bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 border-t overflow-hidden">
@@ -32,38 +27,27 @@ export function Footer() {
               <p className="text-muted-foreground">Join thousands of satisfied users today.</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
-              {user ? (
-                <>
-                  <Button
-                    size="lg"
-                    className="bg-gradient-primary hover:bg-gradient-primary-hover text-primary-foreground shadow-lg hover:shadow-xl transition-all"
-                    asChild
-                  >
-                    <Link href="/dashboard">Back to Dashboard</Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={handleSignOut}
-                  >
-                    <LogOut className="h-5 w-5 mr-2" />
-                    Sign Out
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button variant="outline" size="lg" asChild>
-                    <Link href="/signin">Sign In</Link>
-                  </Button>
-                  <Button
-                    size="lg"
-                    asChild
-                    className="bg-gradient-primary hover:bg-gradient-primary-hover text-primary-foreground shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <Link href="/signup">Get Started Free</Link>
-                  </Button>
-                </>
-              )}
+              <SignedIn>
+                <Button
+                  size="lg"
+                  className="bg-gradient-primary hover:bg-gradient-primary-hover text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                  asChild
+                >
+                  <Link href="/dashboard">Back to Dashboard</Link>
+                </Button>
+              </SignedIn>
+              <SignedOut>
+                <Button variant="outline" size="lg" asChild>
+                  <Link href="/sign-in">Sign In</Link>
+                </Button>
+                <Button
+                  size="lg"
+                  asChild
+                  className="bg-gradient-primary hover:bg-gradient-primary-hover text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                >
+                  <Link href="/sign-up">Get Started Free</Link>
+                </Button>
+              </SignedOut>
             </div>
           </div>
         </div>

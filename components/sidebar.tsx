@@ -6,7 +6,7 @@ import { SIDEBAR_WIDTH, TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/con
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
-import { useAuth } from "@/hooks/use-auth"
+import { useClerk } from "@clerk/nextjs"
 import {
   BookOpen,
   GraduationCap,
@@ -102,7 +102,7 @@ const settingsNavigation: NavigationItem[] = [
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
-  const { user, signOut } = useAuth()
+  const { signOut } = useClerk()
   const { theme, resolvedTheme, setTheme } = useTheme()
   const { updateTheme } = useThemePersistence()
   const [isMobile, setIsMobile] = React.useState(false)
@@ -152,7 +152,6 @@ export function Sidebar({ className }: { className?: string }) {
         title: "Signed out successfully",
         variant: "default",
       })
-      window.location.href = "/sign-in"
     } catch {
       toast({
         title: "Error signing out",

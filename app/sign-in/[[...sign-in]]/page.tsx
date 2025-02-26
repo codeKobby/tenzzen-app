@@ -70,7 +70,7 @@ export default function SignInPage() {
               <div className="grid gap-4">
                 <Clerk.Field name="identifier" className="grid gap-2">
                   <Clerk.Label className="text-sm font-medium">Email</Clerk.Label>
-                  <Clerk.Input 
+                  <Clerk.Input
                     className={cn(
                       "flex h-10 w-full rounded-md bg-background px-3 py-2 text-sm",
                       "ring-1 ring-inset ring-input",
@@ -84,22 +84,32 @@ export default function SignInPage() {
                   <Clerk.FieldError className="text-sm font-medium text-destructive" />
                 </Clerk.Field>
 
-                <Clerk.Field name="password" className="grid gap-2">
-                  <Clerk.Label className="text-sm font-medium">Password</Clerk.Label>
-                  <Clerk.Input 
-                    type="password"
-                    className={cn(
-                      "flex h-10 w-full rounded-md bg-background px-3 py-2 text-sm",
-                      "ring-1 ring-inset ring-input",
-                      "placeholder:text-muted-foreground",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                      "disabled:cursor-not-allowed disabled:opacity-50",
-                      "data-[invalid]:ring-destructive"
-                    )}
-                    placeholder="••••••••"
-                  />
-                  <Clerk.FieldError className="text-sm font-medium text-destructive" />
-                </Clerk.Field>
+                <div className="space-y-4">
+                  <Clerk.Field name="password" className="grid gap-2">
+                    <div className="flex items-center justify-between">
+                      <Clerk.Label className="text-sm font-medium">Password</Clerk.Label>
+                      <SignIn.Action
+                        navigate="forgot-password"
+                        className="text-sm font-medium text-primary hover:text-primary/90 underline-offset-4 hover:underline"
+                      >
+                        Forgot password?
+                      </SignIn.Action>
+                    </div>
+                    <Clerk.Input
+                      type="password"
+                      className={cn(
+                        "flex h-10 w-full rounded-md bg-background px-3 py-2 text-sm",
+                        "ring-1 ring-inset ring-input",
+                        "placeholder:text-muted-foreground",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                        "disabled:cursor-not-allowed disabled:opacity-50",
+                        "data-[invalid]:ring-destructive"
+                      )}
+                      placeholder="••••••••"
+                    />
+                    <Clerk.FieldError className="text-sm font-medium text-destructive" />
+                  </Clerk.Field>
+                </div>
               </div>
 
               <SignIn.Action
@@ -143,7 +153,7 @@ export default function SignInPage() {
               <div className="grid gap-6">
                 <Clerk.Field name="code" className="grid gap-2">
                   <Clerk.Label className="text-sm font-medium">Verification Code</Clerk.Label>
-                  <Clerk.Input 
+                  <Clerk.Input
                     type="otp"
                     className={cn(
                       "flex h-10 w-full rounded-md bg-background px-3 py-2 text-sm text-center tracking-widest",
@@ -173,16 +183,20 @@ export default function SignInPage() {
                 </SignIn.Action>
               </div>
 
-                <SignIn.Action
-                  resend
-                  className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
-                >
-                  Didn't receive a code? Send a new one
-                </SignIn.Action>
-              </SignIn.Strategy>
+              <SignIn.Action
+                resend
+                className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
+              >
+                Didn't receive a code? Send a new one
+              </SignIn.Action>
+            </SignIn.Strategy>
 
-              {/* CAPTCHA element */}
-              <div id="clerk-captcha" />
+            {/* CAPTCHA and Error Messages */}
+            <div className="space-y-4">
+              <div id="clerk-captcha" className="mx-auto" />
+              <Clerk.FieldError name="identifier" className="text-sm font-medium text-destructive text-center mt-2" />
+              <Clerk.FieldError name="password" className="text-sm font-medium text-destructive text-center mt-2" />
+            </div>
           </SignIn.Step>
         </SignIn.Root>
       </div>

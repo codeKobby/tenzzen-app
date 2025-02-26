@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { YoutubeIcon, BookText } from "lucide-react"
-import { createBrowserClient } from '@supabase/ssr'
+import { useAuth } from "@clerk/nextjs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,27 +13,22 @@ import {
 
 export function CourseGenerateButton() {
   const router = useRouter()
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const { userId } = useAuth()
 
   const handleNavigation = async (path: string) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (session) {
+    if (userId) {
       router.push(path)
     } else {
-      router.push('/signup')
+      router.push('/sign-up')
     }
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
+        <Button
           variant="default"
-          size="lg" 
+          size="lg"
           className="group text-lg h-14 bg-gradient-primary hover:bg-gradient-primary-hover text-primary-foreground shadow-lg hover:shadow-xl transition-all"
         >
           <span className="flex items-center">
@@ -43,7 +38,7 @@ export function CourseGenerateButton() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[240px]">
-        <DropdownMenuItem 
+        <DropdownMenuItem
           className="flex items-center cursor-pointer"
           onClick={() => handleNavigation('/explore/youtube')}
         >
@@ -53,7 +48,7 @@ export function CourseGenerateButton() {
             <span className="text-xs text-muted-foreground">Use videos or playlists</span>
           </div>
         </DropdownMenuItem>
-        <DropdownMenuItem 
+        <DropdownMenuItem
           className="flex items-center cursor-pointer"
           onClick={() => handleNavigation('/explore/topic')}
         >

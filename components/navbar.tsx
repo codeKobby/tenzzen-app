@@ -1,10 +1,12 @@
 'use client'
 
-import * as React from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/theme-toggle'
+import * as React from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { SignedIn, SignedOut } from "@clerk/nextjs"
+import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { UserMenu } from "@/components/user-menu"
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -88,12 +90,17 @@ export function Navbar() {
         </div>
         <div className="flex items-center gap-4">
           <ThemeToggle />
-          <Link href="/signin">
-            <Button variant="ghost">Sign In</Button>
-          </Link>
-          <Link href="/signup">
-            <Button>Get Started</Button>
-          </Link>
+          <SignedIn>
+            <UserMenu />
+          </SignedIn>
+          <SignedOut>
+            <Link href="/sign-in">
+              <Button variant="ghost">Sign In</Button>
+            </Link>
+            <Link href="/sign-up">
+              <Button>Get Started</Button>
+            </Link>
+          </SignedOut>
         </div>
       </div>
     </header>
