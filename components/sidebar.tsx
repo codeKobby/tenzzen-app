@@ -152,6 +152,7 @@ export function Sidebar({ className }: { className?: string }) {
         title: "Signed out successfully",
         variant: "default",
       })
+      window.location.href = "/sign-in"
     } catch {
       toast({
         title: "Error signing out",
