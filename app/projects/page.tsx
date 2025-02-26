@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -74,13 +74,13 @@ export default function ProjectsPage() {
   const [viewMode, setViewMode] = useState<ProjectViewMode>("grid")
   const [sortBy, setSortBy] = useState<ProjectSortOption>("deadline")
   const [showGenerateDialog, setShowGenerateDialog] = useState(false)
-  
+
   // For category pills scrolling
   const tabsRef = useRef<HTMLDivElement>(null)
   const [showScrollButtons, setShowScrollButtons] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
-  
+
   const { user } = useAuth()
 
   // Check scroll capability on mount and resize
@@ -93,10 +93,10 @@ export default function ProjectsPage() {
         setCanScrollRight(scrollLeft + clientWidth < scrollWidth)
       }
     }
-    
+
     checkScroll()
     window.addEventListener("resize", checkScroll)
-    
+
     return () => window.removeEventListener("resize", checkScroll)
   }, [])
 
@@ -131,54 +131,54 @@ export default function ProjectsPage() {
         (statusFilter === "pending" && (project.status === "Not Started" || project.status === "In Progress")) ||
         (statusFilter === "submitted" && project.status === "Submitted") ||
         (statusFilter === "graded" && project.status === "Graded")
-        
+
       // Category filter (simulate category matching based on project titles/descriptions)
-      const matchesCategoryFilter = categoryFilter === "all" || 
+      const matchesCategoryFilter = categoryFilter === "all" ||
         (categoryFilter === "programming" && (
-          project.title.toLowerCase().includes("web") || 
-          project.title.toLowerCase().includes("api") || 
+          project.title.toLowerCase().includes("web") ||
+          project.title.toLowerCase().includes("api") ||
           project.description.toLowerCase().includes("javascript") ||
           project.description.toLowerCase().includes("python")
         )) ||
         (categoryFilter === "design" && (
-          project.title.toLowerCase().includes("design") || 
-          project.title.toLowerCase().includes("ui") || 
+          project.title.toLowerCase().includes("design") ||
+          project.title.toLowerCase().includes("ui") ||
           project.description.toLowerCase().includes("mockup") ||
           project.description.toLowerCase().includes("figma")
         )) ||
         (categoryFilter === "architecture" && (
-          project.title.toLowerCase().includes("architecture") || 
+          project.title.toLowerCase().includes("architecture") ||
           project.description.toLowerCase().includes("infrastructure") ||
           project.description.toLowerCase().includes("system design")
         )) ||
         (categoryFilter === "seo" && (
-          project.title.toLowerCase().includes("seo") || 
+          project.title.toLowerCase().includes("seo") ||
           project.description.toLowerCase().includes("search engine") ||
           project.description.toLowerCase().includes("optimization")
         )) ||
         (categoryFilter === "business" && (
-          project.title.toLowerCase().includes("business") || 
+          project.title.toLowerCase().includes("business") ||
           project.description.toLowerCase().includes("startup") ||
           project.description.toLowerCase().includes("entrepreneur")
         )) ||
         (categoryFilter === "analytics" && (
           project.title.toLowerCase().includes("analytics") ||
-          project.title.toLowerCase().includes("data") || 
+          project.title.toLowerCase().includes("data") ||
           project.description.toLowerCase().includes("visualization") ||
           project.description.toLowerCase().includes("dashboard")
         )) ||
         (categoryFilter === "marketing" && (
-          project.title.toLowerCase().includes("marketing") || 
+          project.title.toLowerCase().includes("marketing") ||
           project.description.toLowerCase().includes("campaign") ||
           project.description.toLowerCase().includes("content")
         )) ||
         (categoryFilter === "mobile" && (
-          project.title.toLowerCase().includes("mobile") || 
-          project.title.toLowerCase().includes("app") || 
+          project.title.toLowerCase().includes("mobile") ||
+          project.title.toLowerCase().includes("app") ||
           project.description.toLowerCase().includes("android") ||
           project.description.toLowerCase().includes("ios")
         ))
-      
+
       // Difficulty filter
       const matchesDifficulty = difficultyFilter === "all" || project.difficulty === difficultyFilter
 
@@ -196,15 +196,15 @@ export default function ProjectsPage() {
             return 1
           }
           return 0
-        
+
         case "title":
           // Sort alphabetically by title
           return a.title.localeCompare(b.title)
-        
+
         case "recent":
           // Sort by creation date (newest first)
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        
+
         default:
           return 0
       }
@@ -218,7 +218,8 @@ export default function ProjectsPage() {
       <div className="sticky top-16 z-10 bg-background">
         <div className={cn(
           "w-full mx-auto transition-all",
-          `duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`,
+          "duration-300",
+          TRANSITION_TIMING,
           "w-[95%] lg:w-[90%]"
         )}>
           {/* Search and Filter Row */}
@@ -232,7 +233,7 @@ export default function ProjectsPage() {
                 className="pl-9 w-full h-8 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
-            
+
             <div className="flex items-center gap-2">
               {/* View Mode Toggles */}
               <div className="hidden sm:flex rounded-md border p-0.5 h-9">
@@ -255,7 +256,7 @@ export default function ProjectsPage() {
                   <Menu className="h-4 w-4" />
                 </Toggle>
               </div>
-              
+
               {/* Filter Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -265,10 +266,10 @@ export default function ProjectsPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[240px]">
                   <DropdownMenuLabel className="flex items-center gap-2">
-                    <Filter className="h-4 w-4" /> 
+                    <Filter className="h-4 w-4" />
                     Filters
                   </DropdownMenuLabel>
-                  
+
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Status</DropdownMenuLabel>
                   {statusFilters.map((f) => (
@@ -286,7 +287,7 @@ export default function ProjectsPage() {
                       )}
                     </DropdownMenuItem>
                   ))}
-                  
+
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Difficulty</DropdownMenuLabel>
                   {difficultyFilters.map((f) => (
@@ -304,7 +305,7 @@ export default function ProjectsPage() {
                       )}
                     </DropdownMenuItem>
                   ))}
-                  
+
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Sort By</DropdownMenuLabel>
                   <DropdownMenuItem
@@ -343,7 +344,7 @@ export default function ProjectsPage() {
                       <span className="ml-auto">✓</span>
                     )}
                   </DropdownMenuItem>
-                  
+
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>View Mode</DropdownMenuLabel>
                   <DropdownMenuItem
@@ -374,7 +375,7 @@ export default function ProjectsPage() {
               </DropdownMenu>
             </div>
           </div>
-          
+
           {/* Category Pills */}
           <div className="relative py-2 sm:py-3">
             <div
@@ -382,8 +383,8 @@ export default function ProjectsPage() {
               className="overflow-hidden" // Removed overflow-x-auto and hide-scrollbar to prevent scrolling
               onScroll={handleTabsScroll}
             >
-              <Tabs 
-                defaultValue="all" 
+              <Tabs
+                defaultValue="all"
                 className="w-full"
                 onValueChange={(value) => setCategoryFilter(value)}
               >
@@ -405,7 +406,7 @@ export default function ProjectsPage() {
                 </TabsList>
               </Tabs>
             </div>
-            
+
             {/* Navigation Arrows - always show them if content overflows */}
             {showScrollButtons && (
               <>
@@ -438,11 +439,13 @@ export default function ProjectsPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Main Content */}
       <div className={cn(
         "mx-auto space-y-6 pt-4 pb-12",
-        `transition-all duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`,
+        "transition-all",
+        "duration-300",
+        TRANSITION_TIMING,
         "w-[95%] lg:w-[90%]"
       )}>
         {/* Header with title and create button */}
@@ -453,13 +456,13 @@ export default function ProjectsPage() {
               Apply your learning with hands-on projects
             </p>
           </div>
-          
+
           <Button onClick={() => setShowGenerateDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Generate Project
           </Button>
         </div>
-        
+
         {/* Project Content */}
         {hasProjects ? (
           <div className="space-y-8">
@@ -476,7 +479,7 @@ export default function ProjectsPage() {
                 ))}
               </div>
             )}
-            
+
             {/* Course Grouped View */}
             {viewMode === "course-grouped" && (
               <CourseGroupedView
@@ -484,7 +487,7 @@ export default function ProjectsPage() {
                 onProjectClick={(project) => setSelectedProject(project)}
               />
             )}
-            
+
             {/* Project Dialog for viewing details */}
             <ProjectDialog
               project={selectedProject}
@@ -503,8 +506,8 @@ export default function ProjectsPage() {
               {search
                 ? `No projects match "${search}"`
                 : categoryFilter !== "all"
-                ? "No projects match the selected category"
-                : "Create your first project or request a new project from your courses"}
+                  ? "No projects match the selected category"
+                  : "Create your first project or request a new project from your courses"}
             </p>
             <Button onClick={() => setShowGenerateDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -513,7 +516,7 @@ export default function ProjectsPage() {
           </div>
         )}
       </div>
-      
+
       {/* Generate Project Dialog */}
       <GenerateProjectDialog
         open={showGenerateDialog}

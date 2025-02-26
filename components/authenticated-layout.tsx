@@ -15,21 +15,29 @@ interface AuthenticatedLayoutProps {
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   const pathname = usePathname()
   const { user, loading } = useAuth()
-  const { isOpen, toggle } = useSidebar()
+  const { isOpen } = useSidebar()
 
   // Return children without layout for homepage and auth pages
-  if (pathname === '/' || pathname === '/signin' || pathname === '/signup') {
+  if (pathname === '/' || pathname === '/sign-in' || pathname === '/sign-up') {
     return <div className="relative min-h-screen bg-background">{children}</div>
   }
 
   // Return children while loading to prevent flash
   if (loading) {
-    return <div className="relative min-h-screen bg-background">{children}</div>
+    return (
+      <div className="relative min-h-screen bg-background">
+        {children}
+      </div>
+    )
   }
 
   // If not authenticated, just render children
   if (!user) {
-    return <div className="relative min-h-screen bg-background">{children}</div>
+    return (
+      <div className="relative min-h-screen bg-background">
+        {children}
+      </div>
+    )
   }
 
   // If authenticated and not loading, render with sidebar
@@ -38,7 +46,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
       <Sidebar />
       <div className={cn(
         "min-h-screen",
-        `transition-transform duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING}`,
+        `transition-transform duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`,
         isOpen ? "lg:pl-[280px]" : "lg:pl-0"
       )}>
         <PageHeader />

@@ -1,5 +1,6 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -19,7 +20,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Users, Star, PlayCircle, Lock, MoreVertical, BookmarkPlus, Share2, Flag } from "lucide-react"
+import { Users, Star, Plus, Lock, MoreVertical, BookmarkPlus, Share2, Flag } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Course } from "../types"
@@ -38,16 +39,17 @@ interface CourseCardProps {
   course: Course
   onClick?: () => void
   className?: string
+  variant?: "explore" | "default"
 }
 
-export function CourseCard({ course, onClick, className }: CourseCardProps) {
+export function CourseCard({ course, onClick, className, variant = "default" }: CourseCardProps) {
   const handleAction = (e: React.MouseEvent, action: string) => {
     e.stopPropagation()
     console.log(action)
   }
 
   return (
-    <div 
+    <div
       className={cn(
         "group cursor-pointer relative overflow-hidden",
         className
@@ -66,39 +68,58 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
           <div className="absolute inset-0 bg-black/0 sm:group-hover:bg-black/20 transition-colors" />
         </div>
-        {course.lastAccessed && (
-          <div className="absolute top-2 left-2 text-white text-xs drop-shadow-md">
-            Last accessed {course.lastAccessed}
-          </div>
+        {variant === "default" && (
+          <>
+            {course.lastAccessed && (
+              <div className="absolute top-2 left-2 text-white text-xs drop-shadow-md">
+                Last accessed {course.lastAccessed}
+              </div>
+            )}
+            {course.topics && (
+              <div className="absolute bottom-1 right-2 flex items-center gap-2">
+                <div className="text-white text-xs drop-shadow-lg leading-none">
+                  {course.topics.current}/{course.topics.total} • {course.duration}
+                </div>
+              </div>
+            )}
+          </>
         )}
-        {course.topics && (
+        {/* Show duration and topics for explore view */}
+        {variant === "explore" && (
           <div className="absolute bottom-1 right-2 flex items-center gap-2">
+            {course.topics && (
+              <div className="text-white text-xs drop-shadow-lg leading-none">
+                {course.topics.total} topics
+              </div>
+            )}
+            <span className="text-white text-xs">•</span>
             <div className="text-white text-xs drop-shadow-lg leading-none">
-              {course.topics.current}/{course.topics.total} • {course.duration}
+              {course.duration}
             </div>
           </div>
         )}
-        <Button
-          size="sm"
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-100 scale-100 sm:opacity-0 sm:scale-95 sm:group-hover:opacity-100 sm:group-hover:scale-100 transition-transform duration-200 hover:scale-105 bg-white hover:bg-white/90 text-black font-medium shadow-xl"
-        >
-          <PlayCircle className="h-4 w-4 mr-2" />
-          {course.progress > 0 ? "Resume Course" : "Start Course"}
-        </Button>
-        <div className="absolute inset-x-0 bottom-0 h-[3px]">
-          <div
-            className="h-full bg-red-600 transition-all"
-            style={{ width: `${course.progress}%` }}
-          />
-        </div>
+        {variant === "default" && (
+          <div className="absolute inset-x-0 bottom-0 h-[3px]">
+            <div
+              className="h-full bg-red-600 transition-all"
+              style={{ width: `${course.progress}%` }}
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">
-          <div className="flex items-start justify-between gap-2">
+        {/* Title and More Actions Row */}
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <h3 className="font-medium text-[13px] leading-[1.4] line-clamp-2">
+                  <h3 className={cn(
+                    "font-medium text-[13px] leading-[1.4]",
+                    "min-h-[2.8em]", // Force 2 lines height
+                    "line-clamp-2"
+                  )}>
                     {course.title}
                   </h3>
                 </TooltipTrigger>
@@ -107,13 +128,16 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+          </div>
 
+          {/* More Actions Button */}
+          <div className="flex-shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 -mr-2 text-muted-foreground hover:text-foreground"
+                  className="h-6 w-6"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -146,16 +170,18 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+        </div>
 
+        {/* Sources and Stats Row */}
         {course.sources && (
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-[11px] mt-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-[11px]">
             <span className="shrink-0">Sources:</span>
             <div className="flex items-center shrink-0">
               <Popover>
                 <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center">
                     {course.sources.slice(0, 2).map((source, i) => (
-                      <TooltipProvider key={i}>
+                      <TooltipProvider key={`${course.id}-source-${i}`}>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
@@ -196,7 +222,7 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
                     <h4 className="text-sm font-medium leading-none">All Sources</h4>
                     <div className="space-y-3">
                       {course.sources.map((source, i) => (
-                        <div key={i} className="flex items-center gap-3">
+                        <div key={`${course.id}-source-popover-${source.name}`} className="flex items-center gap-3">
                           <div className="relative h-8 w-8 rounded-full overflow-hidden shrink-0">
                             <Image
                               src={source.avatar}
@@ -237,6 +263,26 @@ export function CourseCard({ course, onClick, className }: CourseCardProps) {
                 <span>Private</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Category and CTA Row */}
+        {variant === "explore" && (
+          <div className="flex items-center justify-between mt-1">
+            <Badge variant="secondary" className="text-[10px] px-2 py-0 h-4 font-normal">
+              {course.category}
+            </Badge>
+            <Button
+              size="sm"
+              variant="default"
+              className={cn(
+                "h-7 px-3 text-xs font-medium",
+                "shadow-sm hover:scale-105 transition-transform"
+              )}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add Course
+            </Button>
           </div>
         )}
       </div>

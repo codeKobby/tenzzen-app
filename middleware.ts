@@ -1,136 +1,69 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { clerkMiddleware } from "@clerk/nextjs/server"
+import { NextResponse } from "next/server"
 
-// Configure auth protection settings
-const AUTH_PROTECTION = {
-  MAX_LOGIN_ATTEMPTS: 5, // Maximum failed login attempts before temporary block
-  BLOCK_DURATION: 15 * 60, // Block duration in seconds (15 minutes)
-  SIGNUP_COOLDOWN: 24 * 60 * 60 // Cooldown between signups from same IP (24 hours)
-}
+// Public routes that don't require authentication
+const publicPaths = [
+  "/",
+  "/sign-in",
+  "/sign-up",
+  "/test-auth",  // Add test route to public paths
+  "/api/webhook/clerk",
+  "/privacy",
+  "/terms"
+]
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+export default clerkMiddleware(async (auth, request) => {
+  const isPublicPath = publicPaths.some(path => 
+    request.url.includes(path)
+  )
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error('Missing required Supabase environment variables')
+  if (isPublicPath) {
+    return NextResponse.next()
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions = {}) {
-          // Enforce secure cookie options
-          const secureOptions: CookieOptions = {
-            ...options,
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7 // 1 week
-          }
-          request.cookies.set({
-            name,
-            value,
-            ...secureOptions,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...secureOptions,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-        },
+  try {
+    // Get the resolved auth state
+    const resolvedAuth = await auth()
+
+    // If not authenticated, redirect to sign-in
+    if (!resolvedAuth.userId) {
+      const signInUrl = new URL('/sign-in', request.url)
+      signInUrl.searchParams.set('redirect_url', request.url)
+      return NextResponse.redirect(signInUrl)
+    }
+
+    // Get token for Supabase
+    const token = await resolvedAuth.getToken({
+      template: "supabase"
+    })
+
+    // Create response with modified headers
+    const requestHeaders = new Headers(request.headers)
+    
+    if (token) {
+      // Add the Supabase token to the headers
+      requestHeaders.set('Authorization', `Bearer ${token}`)
+    }
+
+    // Return response with the modified headers
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
       },
-    }
-  )
+    })
 
-  const { data: { session }, error } = await supabase.auth.getSession()
-
-  // Strict path matching for routes
-  const protectedRoutes = ['^/dashboard/?.*$', '^/courses/?.*$', '^/library/?.*$', '^/settings/?.*$', '^/report-bug/?.*$', '^/explore/?.*$', '^/billing/?.*$', '^/projects/?.*$'].map(r => new RegExp(r))
-  const publicAuthRoutes = ['^/signin/?$', '^/signup/?$'].map(r => new RegExp(r))
-const publicRoutes = ['^/$'].map(r => new RegExp(r))
-
-  // For auth routes, apply additional security headers
-  if (publicAuthRoutes.some(route => route.test(request.nextUrl.pathname))) {
-    response.headers.set('X-Frame-Options', 'DENY')
-    response.headers.set('X-Content-Type-Options', 'nosniff')
-    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-    response.headers.set('Content-Security-Policy', "default-src 'self'; frame-ancestors 'none';")
-  }
-
-  // Strict path matching for protected routes
-  const isProtectedRoute = protectedRoutes.some(route => 
-    route.test(request.nextUrl.pathname)
-  )
-
-  // Protected routes - redirect to signin if not authenticated
-  if (isProtectedRoute) {
-    if (!session) {
-      return NextResponse.redirect(new URL('/signin', request.url))
-    }
-  }
-
-  // Public auth routes with strict matching
-  if (publicAuthRoutes.some(route => route.test(request.nextUrl.pathname))) {
-    if (session) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
-    }
-  }
-
-  // Always allow access to public routes and verification routes
-  if (
-    publicRoutes.some(route => route.test(request.nextUrl.pathname)) ||
-    /^\/(auth\/)?verify-email\/?.*$/.test(request.nextUrl.pathname)
-  ) {
     return response
+  } catch (error) {
+    console.error('Error in middleware:', error)
+    // If there's an error getting the token, continue without auth header
+    return NextResponse.next()
   }
-
-  return response
-}
+})
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/courses/:path*',
-    '/library/:path*',
-    '/settings/:path*',
-    '/report-bug/:path*',
-    '/explore/:path*',
-    '/billing/:path*',
-    '/projects/:path*',
-    '/signin',
-    '/signup',
-    '/(auth)/verify-email',
-    '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
-  ],
+    "/((?!.+\\.[\\w]+$|_next).*)", // Match all paths except static files
+    "/",                            // Include root path
+    "/(api|trpc)(.*)"              // Include API routes
+  ]
 }

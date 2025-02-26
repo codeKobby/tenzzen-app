@@ -1,27 +1,53 @@
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
+  const { searchParams } = new URL(request.url)
+  const code = searchParams.get('code')
+  const next = searchParams.get('next') ?? '/dashboard'
 
   if (code) {
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
-    
-    try {
-      await supabase.auth.exchangeCodeForSession(code)
-    } catch (error) {
-      console.error('Auth callback error:', error)
-      // Redirect to verify-email page with error param instead of directly to signin
-      return NextResponse.redirect(
-        `${requestUrl.origin}/verify-email?error=verification_failed`
-      )
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          async get(name: string) {
+            const cookie = await cookieStore.get(name);
+            return cookie?.value ?? '';
+          },
+          async set(name: string, value: string, options: CookieOptions) {
+            await cookieStore.set(name, value, options);
+          },
+          async remove(name: string, options: CookieOptions) {
+            await cookieStore.set(name, '', options);
+          },
+        },
+      }
+    )
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) {
+      console.error('Error exchanging code for session:', error);
+      
+      // Check for specific error types
+      if (error.message?.includes('email') || error.message?.toLowerCase().includes('invalid')) {
+        return NextResponse.redirect(new URL('/auth/invalid-email', request.url));
+      }
+      
+      return NextResponse.redirect(new URL('/auth/auth-code-error', request.url));
     }
+
+    // Validate the session data
+    if (!data?.session?.user?.email) {
+      console.error('No email in session data');
+      return NextResponse.redirect(new URL('/auth/invalid-email', request.url));
+    }
+
+    return NextResponse.redirect(new URL(next, request.url));
   }
 
-  // URL to redirect to after verification
-  const redirectTo = requestUrl.searchParams.get('next') || '/dashboard'
-  return NextResponse.redirect(`${requestUrl.origin}${redirectTo}`)
+  // return the user to an error page with some instructions
+  return NextResponse.redirect(new URL('/auth/auth-code-error', request.url))
 }

@@ -1,171 +1,69 @@
-import { useState, useEffect } from "react"
-import { User, Session } from "@supabase/supabase-js"
-import { createBrowserClient } from "@supabase/ssr"
+"use client"
 
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { useAuth as useClerkAuth, useUser, useSession } from "@clerk/nextjs"
+import { createClerkSupabaseClient } from "@/lib/supabase-client"
+import { useEffect, useState } from "react"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
 interface AuthState {
-  user: User | null
-  session: Session | null
+  user: ReturnType<typeof useUser>["user"]
+  session: ReturnType<typeof useSession>["session"]
   loading: boolean
+  supabase: SupabaseClient | null
 }
 
 export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    session: null,
-    loading: true
-  })
+  const { isLoaded, signOut } = useClerkAuth()
+  const { user } = useUser()
+  const { session } = useSession()
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null)
+  const [loading, setLoading] = useState(true)
 
+  // Initialize Supabase client when session changes
   useEffect(() => {
-    // Check current session
-    const initializeAuth = async () => {
+    const initializeSupabase = () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        setAuthState({
-          user: session?.user ?? null,
-          session: session,
-          loading: false
-        })
-      } catch {
-        // Handle error silently and set to unauthenticated state
-        setAuthState({
-          user: null,
-          session: null,
-          loading: false
-        })
+        const client = createClerkSupabaseClient(session)
+        setSupabase(client)
+      } catch (error) {
+        console.error("Error initializing Supabase client:", error)
       }
+      setLoading(false)
     }
 
-    initializeAuth()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthState({
-        user: session?.user ?? null,
-        session: session,
-        loading: false
-      })
-    })
+    if (isLoaded) {
+      initializeSupabase()
+    }
 
     return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      // Log the attempt first for rate limiting
-      await supabase.rpc('track_login_attempt', {
-        attempt_email: email,
-        attempt_ip: '', // IP is handled server-side
-        was_successful: false
-      });
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        return { data: null, error };
+      // Cleanup Supabase connections
+      if (supabase) {
+        supabase.realtime.disconnect()
       }
-
-      // Update attempt as successful
-      await supabase.rpc('track_login_attempt', {
-        attempt_email: email,
-        attempt_ip: '',
-        was_successful: true
-      });
-
-      return { data, error: null };
-    } catch (error) {
-      console.error('Login error:', error);
-      // Only wrap non-Supabase errors
-      const supabaseError = error as any;
-      if (supabaseError?.message === 'Invalid login credentials') {
-        return {
-          data: null,
-          error: { message: 'Invalid login credentials' }
-        };
-      }
-      return { 
-        data: null, 
-        error: {
-          message: 'An unexpected error occurred'
-        }
-      };
     }
-  }
-
-  const signUp = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            signup_ip: '' // IP is handled server-side
-          }
-        }
-      });
-
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      console.error('Signup error:', error);
-      return { 
-        data: null, 
-        error: {
-          message: error instanceof Error ? error.message : 'An unexpected error occurred'
-        }
-      };
-    }
-  }
-
-  const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Signout error:', error);
-    }
-  }
-
-  const signInWithGoogle = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      });
-
-      if (error) throw error;
-      if (!data.url) throw new Error('No OAuth URL returned');
-      
-      return { data, error: null };
-    } catch (error) {
-      console.error('Google sign in error:', error);
-      return { 
-        data: null, 
-        error: {
-          message: error instanceof Error ? error.message : 'An unexpected error occurred'
-        }
-      };
-    }
-  }
+  }, [isLoaded, session])
 
   return {
-    user: authState.user,
-    session: authState.session,
-    loading: authState.loading,
-    signIn,
-    signUp,
-    signOut,
-    signInWithGoogle
+    user,
+    session,
+    supabase,
+    loading: !isLoaded || loading,
+    signIn: () => {
+      window.location.href = "/sign-in"
+    },
+    signUp: () => {
+      window.location.href = "/sign-up"
+    },
+    signOut: async () => {
+      if (supabase) {
+        // Clean up Supabase session
+        supabase.realtime.disconnect()
+      }
+      // Sign out from Clerk
+      await signOut()
+      // Create new anonymous Supabase client
+      const client = createClerkSupabaseClient(null)
+      setSupabase(client)
+    }
   }
 }

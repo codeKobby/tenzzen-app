@@ -149,7 +149,9 @@ export default function DashboardPage() {
   return (
     <div className={cn(
       "mx-auto space-y-6 pt-6",
-      `transition-all duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`,
+      "transition-all",
+      "duration-300",
+      TRANSITION_TIMING,
       "w-[95%] lg:w-[90%]"
     )}>
       {/* Hero Section */}
