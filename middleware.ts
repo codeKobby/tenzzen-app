@@ -1,69 +1,33 @@
-import { clerkMiddleware } from "@clerk/nextjs/server"
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 
-// Public routes that don't require authentication
-const publicPaths = [
+const publicRoutes = [
   "/",
-  "/sign-in",
-  "/sign-up",
-  "/test-auth",  // Add test route to public paths
+  "/sign-in(.*)",
+  "/sign-up(.*)",
   "/api/webhook/clerk",
   "/privacy",
-  "/terms"
+  "/terms",
+  "/about",
+  "/pricing",
+  "/features(.*)"
 ]
 
+const isPublicRoute = createRouteMatcher(publicRoutes)
+
 export default clerkMiddleware(async (auth, request) => {
-  const isPublicPath = publicPaths.some(path => 
-    request.url.includes(path)
-  )
-
-  if (isPublicPath) {
-    return NextResponse.next()
+  if (!isPublicRoute(request)) {
+    await auth.protect()
   }
-
-  try {
-    // Get the resolved auth state
-    const resolvedAuth = await auth()
-
-    // If not authenticated, redirect to sign-in
-    if (!resolvedAuth.userId) {
-      const signInUrl = new URL('/sign-in', request.url)
-      signInUrl.searchParams.set('redirect_url', request.url)
-      return NextResponse.redirect(signInUrl)
-    }
-
-    // Get token for Supabase
-    const token = await resolvedAuth.getToken({
-      template: "supabase"
-    })
-
-    // Create response with modified headers
-    const requestHeaders = new Headers(request.headers)
-    
-    if (token) {
-      // Add the Supabase token to the headers
-      requestHeaders.set('Authorization', `Bearer ${token}`)
-    }
-
-    // Return response with the modified headers
-    const response = NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    })
-
-    return response
-  } catch (error) {
-    console.error('Error in middleware:', error)
-    // If there's an error getting the token, continue without auth header
-    return NextResponse.next()
-  }
+  return NextResponse.next()
 })
 
+// Stop Middleware running on static files
 export const config = {
   matcher: [
-    "/((?!.+\\.[\\w]+$|_next).*)", // Match all paths except static files
-    "/",                            // Include root path
-    "/(api|trpc)(.*)"              // Include API routes
+    // Skip static files
+    "/((?!.+\\.[\\w]+$|_next).*)",
+    // Route all API routes
+    "/(api|trpc)(.*)"
   ]
 }
