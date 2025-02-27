@@ -16,6 +16,10 @@ import { NoteCard } from "./note-card"
 interface CourseGroupedViewProps {
   notes: NoteInterface[]
   loading?: boolean
+  onToggleStar?: (note: NoteInterface) => void
+  onEdit?: (note: NoteInterface) => void
+  onDelete?: (note: NoteInterface) => void
+  onShare?: (note: NoteInterface) => void
 }
 
 interface CourseGroup {
@@ -24,7 +28,14 @@ interface CourseGroup {
   notes: NoteInterface[]
 }
 
-export function CourseGroupedView({ notes, loading }: CourseGroupedViewProps) {
+export function CourseGroupedView({ 
+  notes, 
+  loading,
+  onToggleStar,
+  onEdit,
+  onDelete,
+  onShare 
+}: CourseGroupedViewProps) {
   // Group notes by course
   const courseGroups = notes.reduce<CourseGroup[]>((groups, note) => {
     if (!note.course) return groups
@@ -65,7 +76,14 @@ export function CourseGroupedView({ notes, loading }: CourseGroupedViewProps) {
             <div className="grid gap-4 pb-4">
               {group.notes.map((note) => (
                 <div key={note.id} className="relative">
-                  <NoteCard note={note} view="list" />
+                  <NoteCard 
+                    note={note} 
+                    view="list"
+                    onToggleStar={onToggleStar}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onShare={onShare}
+                  />
                 </div>
               ))}
             </div>

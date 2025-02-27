@@ -29,6 +29,8 @@ import {
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import { NoteInterface } from "../page"
+import { useEffect } from "react"
 
 const categories = [
   { id: "course", name: "Course Notes" },
@@ -49,13 +51,15 @@ type NewNoteFormValues = z.infer<typeof newNoteSchema>
 interface NewNoteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit?: (data: NewNoteFormValues) => void
+  onCreateNote: (data: NewNoteFormValues) => void
+  editingNote: NoteInterface | null
 }
 
 export function NewNoteDialog({
   open,
   onOpenChange,
-  onSubmit
+  onCreateNote,
+  editingNote
 }: NewNoteDialogProps) {
   const form = useForm<NewNoteFormValues>({
     resolver: zodResolver(newNoteSchema),
@@ -68,19 +72,43 @@ export function NewNoteDialog({
     },
   })
 
+  // Reset form when dialog opens with editingNote or closes
+  useEffect(() => {
+    if (open) {
+      if (editingNote) {
+        form.reset({
+          title: editingNote.title,
+          category: editingNote.category,
+          content: editingNote.content,
+          course: editingNote.course || "",
+          tags: editingNote.tags?.join(", ") || "",
+        });
+      } else {
+        form.reset({
+          title: "",
+          category: "personal",
+          content: "",
+          course: "",
+          tags: "",
+        });
+      }
+    }
+  }, [open, editingNote, form]);
+
   const handleSubmit = (data: NewNoteFormValues) => {
-    onSubmit?.(data)
-    onOpenChange(false)
-    form.reset()
+    onCreateNote(data);
+    onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Create New Note</DialogTitle>
+          <DialogTitle>{editingNote ? "Edit Note" : "Create New Note"}</DialogTitle>
           <DialogDescription>
-            Add a new note to your library. Fill in the details below.
+            {editingNote
+              ? "Edit your note details below."
+              : "Add a new note to your library. Fill in the details below."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -98,7 +126,7 @@ export function NewNoteDialog({
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="category"
@@ -107,7 +135,7 @@ export function NewNoteDialog({
                   <FormLabel>Category</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -182,7 +210,12 @@ export function NewNoteDialog({
             />
 
             <DialogFooter>
-              <Button type="submit">Create Note</Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingNote ? "Save Changes" : "Create Note"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
