@@ -46,7 +46,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
       <Sidebar />
       <div className={cn(
         "min-h-screen",
-        `transition-transform duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING}`,
+        `transition-transform duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING} ease-in-out`,
         isOpen ? "lg:pl-[280px]" : "lg:pl-0"
       )}>
         <PageHeader />

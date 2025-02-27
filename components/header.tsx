@@ -51,15 +51,15 @@ export function Header() {
             </Button>
             {user ? (
               <>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
                   onClick={handleSignOut}
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
                 </Button>
-                <Button 
+                <Button
                   size="sm"
                   className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
                   asChild
@@ -72,7 +72,7 @@ export function Header() {
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/signin">Sign In</Link>
                 </Button>
-                <Button 
+                <Button
                   size="sm"
                   asChild
                   className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
@@ -86,7 +86,7 @@ export function Header() {
           {/* Mobile Navigation */}
           <div className="flex items-center gap-2 md:hidden">
             {user ? (
-              <Button 
+              <Button
                 size="sm"
                 asChild
                 className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
@@ -94,7 +94,7 @@ export function Header() {
                 <Link href="/dashboard">Back to Dashboard</Link>
               </Button>
             ) : (
-              <Button 
+              <Button
                 size="sm"
                 asChild
                 className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
@@ -113,7 +113,7 @@ export function Header() {
                   <span className="sr-only">Toggle menu</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent 
+              <DropdownMenuContent
                 className="w-52 p-2"
                 align="end"
                 side="bottom"
@@ -129,7 +129,7 @@ export function Header() {
                 <DropdownMenuSeparator />
                 {user ? (
                   <>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={handleSignOut}
                       className="focus:bg-accent"
                     >

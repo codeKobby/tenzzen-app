@@ -4,9 +4,9 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { SIDEBAR_WIDTH, TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
-import { useClerk } from "@clerk/nextjs"
+import { SignOutButton, useClerk } from "@clerk/nextjs"
 import {
   BookOpen,
   GraduationCap,
@@ -101,6 +101,7 @@ const settingsNavigation: NavigationItem[] = [
 
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { isOpen, toggle } = useSidebar()
   const { signOut } = useClerk()
   const { theme, resolvedTheme, setTheme } = useTheme()
@@ -115,7 +116,7 @@ export function Sidebar({ className }: { className?: string }) {
     const updateSystemTheme = (e: MediaQueryListEvent | MediaQueryList) => {
       setSystemTheme(e.matches ? 'dark' : 'light')
     }
-    
+
     updateSystemTheme(mediaQuery) // Initial check
     mediaQuery.addEventListener('change', updateSystemTheme)
     return () => mediaQuery.removeEventListener('change', updateSystemTheme)
@@ -126,7 +127,7 @@ export function Sidebar({ className }: { className?: string }) {
       const isMobileView = window.innerWidth < 1024
       setIsMobile(isMobileView)
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -152,6 +153,8 @@ export function Sidebar({ className }: { className?: string }) {
         title: "Signed out successfully",
         variant: "default",
       })
+      // Redirect user after sign out, e.g., to the login page
+      router.push("/login")
     } catch {
       toast({
         title: "Error signing out",
@@ -203,17 +206,17 @@ export function Sidebar({ className }: { className?: string }) {
           <span className={cn(
             "ml-auto rounded-full px-1.5 py-px text-[10px] font-medium",
             isActive ? "bg-background/20 text-background" : "bg-muted text-muted-foreground",
-          !isOpen && "lg:block hidden"
-        )}>
-          {item.badge}
-        </span>
+            !isOpen && "lg:block hidden"
+          )}>
+            {item.badge}
+          </span>
         )}
         {item.isPro && (
           <Crown className={cn(
             "ml-auto h-3.5 w-3.5",
             isActive ? "text-background/80" : "text-yellow-500",
             !isOpen && "lg:block hidden"
-          )}/>
+          )} />
         )}
       </Link>
     )
@@ -240,7 +243,7 @@ export function Sidebar({ className }: { className?: string }) {
       className={cn(
         "border-r bg-card h-screen w-[280px]",
         "z-50 fixed left-0 top-0",
-        `transition-transform duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING}`,
+        `transition-transform duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`,
         !isOpen && "-translate-x-full",
         "overflow-hidden flex flex-col",
         className
@@ -252,7 +255,7 @@ export function Sidebar({ className }: { className?: string }) {
             <GraduationCap className="h-5 w-5 text-primary" />
             <span className={cn(
               "text-sm font-bold tracking-tight",
-          !isOpen && "hidden"
+              !isOpen && "hidden"
             )}>
               Tenzzen
             </span>
@@ -268,7 +271,7 @@ export function Sidebar({ className }: { className?: string }) {
             </Button>
           )}
         </div>
-        
+
         <div className="flex-1 overflow-y-auto px-4 pt-2 scrollbar-none">
           <nav className="space-y-3">
             <NavigationGroup items={mainNavigation} />
@@ -325,7 +328,7 @@ export function Sidebar({ className }: { className?: string }) {
                   <span className="ml-auto text-muted-foreground">
                     {colorTheme.charAt(0).toUpperCase() + colorTheme.slice(1)}
                     {" • "}
-                    {theme === 'system' 
+                    {theme === 'system'
                       ? `System (${systemTheme === 'dark' ? 'Dark' : 'Light'})`
                       : theme === 'dark' ? 'Dark' : 'Light'
                     }
@@ -339,8 +342,8 @@ export function Sidebar({ className }: { className?: string }) {
                       Mode
                     </h4>
                     <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         className={cn("flex-1 gap-1", theme === 'system' && "bg-accent")}
                         onClick={() => {
@@ -351,8 +354,8 @@ export function Sidebar({ className }: { className?: string }) {
                         <Laptop className="h-3.5 w-3.5" />
                         <span className="text-xs">System</span>
                       </Button>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         className={cn("flex-1 gap-1", theme === 'light' && "bg-accent")}
                         onClick={() => {
@@ -363,8 +366,8 @@ export function Sidebar({ className }: { className?: string }) {
                         <Sun className="h-3.5 w-3.5" />
                         <span className="text-xs">Light</span>
                       </Button>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         className={cn("flex-1 gap-1", theme === 'dark' && "bg-accent")}
                         onClick={() => {
@@ -386,7 +389,7 @@ export function Sidebar({ className }: { className?: string }) {
                     </h4>
                     <div className="space-y-1">
                       {(['purple', 'neutral', 'minimal', 'modern'] as const).map((color) => (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           key={color}
                           onClick={() => handleThemeChange(color)}
                           className="flex items-center gap-2 px-3 py-1.5 rounded-sm transition-colors"
