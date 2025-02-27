@@ -1,245 +1,176 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import { NoteInterface } from "../page"
-import { useState } from "react"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Clock,
-  Edit3,
-  MoreVertical,
   Star,
+  Edit3,
   Trash2,
   Share2,
-  FileText,
   BookOpen,
   Code,
-  File,
+  FileText,
 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 interface NoteCardProps {
-  note: NoteInterface;
-  view: "grid" | "list";
-  onEdit?: (note: NoteInterface) => void;
-  onDelete?: (note: NoteInterface) => void;
-  onToggleStar?: (note: NoteInterface) => void;
-  onShare?: (note: NoteInterface) => void;
+  note: NoteInterface
+  view: "grid" | "list"
+  onToggleStar: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onShare: () => void
 }
 
-const categoryIcons = {
-  starred: <Star className="h-4 w-4" />,
-  course: <BookOpen className="h-4 w-4" />,
-  personal: <File className="h-4 w-4" />,
-  code: <Code className="h-4 w-4" />,
-};
+const getCategoryIcon = (category: NoteInterface["category"]) => {
+  switch (category) {
+    case "course":
+      return <BookOpen className="h-4 w-4" />
+    case "code":
+      return <Code className="h-4 w-4" />
+    default:
+      return <FileText className="h-4 w-4" />
+  }
+}
 
 export function NoteCard({
   note,
   view,
+  onToggleStar,
   onEdit,
   onDelete,
-  onToggleStar,
   onShare
 }: NoteCardProps) {
-  const [showActions, setShowActions] = useState(false)
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-
-    // If it's today, show time
-    const isToday = new Date().toDateString() === date.toDateString();
-    if (isToday) {
-      return `Today at ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
-    }
-
-    // If it's within the last week
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    if (date > oneWeekAgo) {
-      return date.toLocaleDateString(undefined, { weekday: 'long' });
-    }
-
-    // Otherwise just the date
-    return date.toLocaleDateString();
-  };
-
   return (
-    <Card
-      className={cn(
-        "group relative transition-all hover:shadow-md border-border min-w-[280px] overflow-hidden",
-        view === "list" ? "flex" : ""
-      )}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
-    >
-      {/* Category indicator color strip */}
-      <div
-        className={cn(
-          "absolute top-0 h-full w-1",
-          note.category === "course" ? "bg-blue-500" :
-            note.category === "code" ? "bg-amber-500" :
-              note.category === "personal" ? "bg-emerald-500" :
-                "bg-primary"
-        )}
-      />
-
-      <CardHeader className={cn(
-        "space-y-0 pl-6",
-        view === "list" ? "flex-1 p-4 pr-6" : "pb-2"
-      )}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1 flex-1">
-            <div className="flex items-center gap-2">
-              {note.starred && <Star className="h-4 w-4 text-primary fill-primary" />}
-              <h3 className="font-medium leading-none">{note.title}</h3>
-            </div>
+    <div className={cn(
+      "group relative rounded-lg border bg-card transition-all",
+      "hover:shadow-md hover:border-primary/50",
+      view === "list" ? "p-3" : "p-4"
+    )}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2 min-w-0">
+          <div className="rounded-md bg-primary/10 p-2 text-primary">
+            {getCategoryIcon(note.category)}
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-medium leading-none tracking-tight truncate group-hover:text-primary transition-colors">
+              {note.title}
+            </h3>
             {note.course && (
-              <div className="flex items-center text-sm text-muted-foreground">
-                <BookOpen className="h-3 w-3 mr-1" />
+              <p className="mt-1 text-sm text-muted-foreground truncate">
                 {note.course}
-              </div>
+              </p>
             )}
           </div>
-          <div className="flex items-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 p-0"
-              onClick={() => onToggleStar?.(note)}
-            >
-              <Star
-                className={cn("h-4 w-4", note.starred && "fill-primary text-primary")}
-              />
-              <span className="sr-only">Toggle star</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 p-0"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">More options</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[180px]">
-                <DropdownMenuItem onClick={() => onEdit?.(note)}>
-                  <Edit3 className="mr-2 h-4 w-4" />
-                  Edit Note
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onShare?.(note)}>
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share Note
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onToggleStar?.(note)}>
-                  <Star className={cn("mr-2 h-4 w-4", note.starred && "fill-primary")} />
-                  {note.starred ? "Unstar" : "Star"}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => onDelete?.(note)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Note
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </div>
-      </CardHeader>
-
-      {(view === "grid" || note.preview) && (
-        <CardContent className={cn(
-          "pl-6",
-          view === "list" ? "py-2" : "pt-0 pb-3"
-        )}>
-          {note.preview && (
-            <p className={cn(
-              "text-sm text-muted-foreground",
-              view === "grid" ? "line-clamp-2" : "line-clamp-1"
-            )}>
-              {note.preview}
-            </p>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-8 w-8 text-muted-foreground transition-colors",
+            note.starred ? "text-yellow-500 hover:text-yellow-600" : "opacity-0 group-hover:opacity-100"
           )}
+          onClick={onToggleStar}
+        >
+          <Star className="h-4 w-4 fill-current" />
+        </Button>
+      </div>
 
-          {note.tags && view === "grid" && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {note.tags.map(tag => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="text-xs px-1.5 py-0 h-5"
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </CardContent>
+      {/* Preview text */}
+      <div className={cn(
+        "line-clamp-3 text-sm text-muted-foreground mt-2",
+        view === "list" && "md:line-clamp-2"
+      )}>
+        {note.preview}
+      </div>
+
+      {/* Tags */}
+      {note.tags && note.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-3">
+          {note.tags.map(tag => (
+            <Badge
+              key={tag}
+              variant="secondary"
+              className="px-1.5 py-0 text-[10px]"
+            >
+              {tag}
+            </Badge>
+          ))}
+        </div>
       )}
 
-      <CardFooter className={cn(
-        "text-xs text-muted-foreground pl-6",
-        view === "list" ? "ml-auto p-4" : "pt-0"
+      {/* Actions */}
+      <div className={cn(
+        "absolute bottom-2 right-2 flex items-center gap-1",
+        "opacity-0 group-hover:opacity-100 transition-opacity"
       )}>
-        <div className="flex items-center gap-2">
-          <Clock className="h-3 w-3" />
-          {formatDate(note.lastModified)}
-        </div>
-      </CardFooter>
-
-      {/* Category icon badge */}
-      <div className="absolute top-0 right-0 p-1">
-        <div className="bg-muted/80 rounded p-1">
-          {categoryIcons[note.category]}
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-primary"
+          onClick={onEdit}
+        >
+          <Edit3 className="h-4 w-4" />
+          <span className="sr-only">Edit</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-primary"
+          onClick={onShare}
+        >
+          <Share2 className="h-4 w-4" />
+          <span className="sr-only">Share</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-4 w-4" />
+          <span className="sr-only">Delete</span>
+        </Button>
       </div>
-    </Card>
+
+      {/* Last modified */}
+      <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+        <span>
+          Last modified: {new Date(note.lastModified).toLocaleDateString()}
+        </span>
+      </div>
+    </div>
   )
 }
 
-export function NoteCardSkeleton({ view = "grid" }: { view?: "grid" | "list" }) {
+export function NoteCardSkeleton({ view }: { view: "grid" | "list" }) {
   return (
-    <Card className={cn(
-      "animate-pulse",
-      view === "list" ? "flex items-center" : ""
+    <div className={cn(
+      "rounded-lg border bg-card",
+      view === "list" ? "p-3" : "p-4",
+      "animate-pulse"
     )}>
-      <div className="absolute top-0 h-full w-1 bg-muted-foreground/20" />
-      <CardHeader className={cn(
-        "space-y-2 pl-6",
-        view === "list" ? "flex-1 p-4" : ""
-      )}>
-        <div className="h-4 bg-muted-foreground/20 rounded w-3/4" />
-        <div className="h-3 bg-muted-foreground/20 rounded w-1/2" />
-      </CardHeader>
-
-      {view === "grid" && (
-        <CardContent className="pl-6 pt-0">
-          <div className="h-8 bg-muted-foreground/20 rounded w-full" />
-          <div className="mt-2 flex gap-1">
-            <div className="h-4 bg-muted-foreground/20 rounded w-12" />
-            <div className="h-4 bg-muted-foreground/20 rounded w-16" />
-          </div>
-        </CardContent>
-      )}
-
-      <CardFooter className={cn(
-        "pl-6",
-        view === "list" ? "ml-auto p-4" : "pt-0"
-      )}>
-        <div className="h-3 bg-muted-foreground/20 rounded w-24" />
-      </CardFooter>
-    </Card>
+      <div className="flex items-start gap-2">
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      </div>
+      <div className="mt-2 space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-3/4" />
+      </div>
+      <div className="mt-3 flex gap-1">
+        <Skeleton className="h-4 w-16 rounded-full" />
+        <Skeleton className="h-4 w-16 rounded-full" />
+      </div>
+      <div className="mt-4">
+        <Skeleton className="h-3 w-32" />
+      </div>
+    </div>
   )
 }
