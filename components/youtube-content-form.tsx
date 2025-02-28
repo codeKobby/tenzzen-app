@@ -26,9 +26,59 @@ import {
 } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
 
+import { getVideoId, getPlaylistId } from "./youtube-validator"
+
+const youtubeUrlPattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/
+
 const formSchema = z.object({
   contentType: z.enum(["video", "playlist", "channel"]),
-  url: z.string().url("Please enter a valid URL"),
+  url: z.string()
+    .url("Please enter a valid URL")
+    .refine(
+      (url) => youtubeUrlPattern.test(url),
+      "Must be a valid YouTube URL"
+    )
+    .refine(
+      (url) => {
+        const videoId = getVideoId(url)
+        const playlistId = getPlaylistId(url)
+        return videoId !== null || playlistId !== null
+      },
+      "URL must contain a valid video or playlist ID"
+    )
+    .superRefine((url, ctx) => {
+      // Content-type specific validation
+      const videoId = getVideoId(url)
+      const playlistId = getPlaylistId(url)
+
+      if (ctx.path[0] === "url") {
+        const formData = ctx.path[2] as { contentType: string }
+        
+        if (formData.contentType === "video" && !videoId) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Must be a valid YouTube video URL",
+          })
+        }
+        
+        if (formData.contentType === "playlist" && !playlistId) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Must be a valid YouTube playlist URL",
+          })
+        }
+        
+        if (formData.contentType === "channel") {
+          const channelPattern = /^https?:\/\/(www\.)?youtube\.com\/(c|channel|user)\/[\w-]+/
+          if (!channelPattern.test(url)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Must be a valid YouTube channel URL",
+            })
+          }
+        }
+      }
+    }),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]),
   aiAnalysis: z.boolean().default(true),
 })
@@ -47,10 +97,37 @@ export function YoutubeContentForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setLoading(true)
-      // TODO: Implement course generation logic
-      console.log(values)
+      
+      // Server-side validation
+      const response = await fetch("/api/youtube/validate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to validate YouTube content")
+      }
+
+      // TODO: Implement course generation logic after validation passes
+      console.log("Validation passed:", values)
+      
     } catch (error) {
-      console.error(error)
+      if (error instanceof Error) {
+        form.setError("url", { 
+          type: "manual",
+          message: error.message
+        })
+      } else {
+        console.error(error)
+        form.setError("url", { 
+          type: "manual",
+          message: "An unexpected error occurred"
+        })
+      }
     } finally {
       setLoading(false)
     }

@@ -3,7 +3,7 @@
 import * as React from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Bell, ChevronLeft, PanelLeftOpen, PanelLeftClose } from "lucide-react"
+import { Bell, ChevronLeft, PanelLeftOpen, PanelLeftClose, ArrowLeft, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
@@ -58,7 +58,7 @@ export function PageHeader() {
   }, [])
 
   // Do not render on homepage or auth pages
-  if (pathname === '/' || pathname === '/signin' || pathname === '/signup') return null
+  if (pathname === '/' || pathname === '/sign-in' || pathname === '/sign-up') return null
 
   return (
     <header className={cn(
@@ -70,23 +70,51 @@ export function PageHeader() {
         `transition-all duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING}`
       )}>
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
+          {pathname === '/analysis' && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 hover:bg-transparent"
+                onClick={() => window.history.back()}
+              >
+                <ArrowLeft className="h-4 w-4 transition-colors hover:text-primary" />
+              </Button>
+              <div className="h-4 w-px bg-border" />
+            </div>
+          )}
+          {pathname !== '/analysis' && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 hover:bg-transparent"
+                onClick={toggle}
+              >
+                {isOpen ? (
+                  <PanelLeftClose className="h-4 w-4 transition-colors hover:text-primary" />
+                ) : (
+                  <PanelLeftOpen className="h-4 w-4 transition-colors hover:text-primary" />
+                )}
+              </Button>
+              <div className="h-4 w-px bg-border" />
+            </div>
+          )}
+          {pathname === '/analysis' && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 hover:bg-transparent"
+              className="h-9 w-9 hover:bg-transparent sm:hidden"
               onClick={toggle}
             >
-              {isOpen ? (
-                <PanelLeftClose className="h-4 w-4 transition-colors hover:text-primary" />
-              ) : (
-                <PanelLeftOpen className="h-4 w-4 transition-colors hover:text-primary" />
-              )}
+              <Menu className="h-4 w-4 transition-colors hover:text-primary" />
             </Button>
-            <div className="h-4 w-px bg-border" />
-          </div>
+          )}
 
-          <nav className="flex items-center gap-2 text-sm">
+          <nav className={cn(
+            "flex items-center gap-2 text-sm",
+            pathname === '/analysis' && "sm:ml-6"
+          )}>
             {breadcrumbs.map((item, index) => (
               <React.Fragment key={item.href}>
                 {index > 0 && (

@@ -9,15 +9,15 @@ Tenzzen is an AI-powered learning platform that transforms YouTube content into 
 ### Phase 1: Core Platform Foundation
 
 - [x] Project setup with Next.js 14 and App Router
-- [x] Setup authentication with Clerk or Supabase
+- [x] Setup authentication with Supabase
 - [x] Implement basic UI components with shadcn and Tailwind
-- [ ] Create responsive layout structure
-- [ ] Implement theme switching functionality
+- [x] Implement theme switching functionality with dark/light mode
+- [-] Create responsive layout structure (Partially Complete)
 - [ ] Establish database schema for courses, users, and learning progress
 
 ### Phase 2: Course Generation Engine
 
-- [ ] Implement YouTube video/playlist/channel input processing
+- [-] Implement YouTube video/playlist/channel input processing (In Progress)
 - [ ] Develop transcript extraction and analysis system
 - [ ] Create AI content analysis engine for concept extraction
 - [ ] Build course structuring algorithm
@@ -40,7 +40,7 @@ Tenzzen is an AI-powered learning platform that transforms YouTube content into 
 
 ### Phase 5: Dashboard & Course Management
 
-- [ ] Create user dashboard with metrics and course management
+- [-] Create user dashboard with metrics and course management (Basic Structure Complete)
 - [ ] Implement "My Courses" page with progress tracking
 - [ ] Build explore/public courses functionality
 - [ ] Develop AI-powered recommendations
@@ -55,21 +55,21 @@ Tenzzen is an AI-powered learning platform that transforms YouTube content into 
 ## Immediate Next Tasks
 
 1. **Complete Core Platform Foundation:**
+   - Complete responsive layout structure for dashboard, courses, and learning pages
+   - Fix known mobile responsive issues in dashboard
+   - Set up remaining database tables for user profiles, courses, and learning progress
 
-   - Finalize responsive layout structure for dashboard, courses, and learning pages
-   - Implement theme switching with next-themes
-   - Set up database tables for user profiles, courses, and learning progress
+2. **Continue Course Generation Engine Development:**
+   - Complete YouTube URL processing and validation system
+   - Implement transcript extraction functionality
+   - Set up initial AI content analysis pipeline
+   - Add loading states to async operations in course generation
 
-2. **Begin Course Generation Engine:**
-
-   - Create API endpoint for YouTube URL processing
-   - Develop basic transcript extraction functionality
-   - Implement initial content analysis for simple course structuring
-
-3. **User Interface Development:**
-   - Build dashboard layout with placeholder metrics
-   - Create course card components for "My Courses" view
-   - Implement basic navigation between platform sections
+3. **Performance Optimization:**
+   - Fix theme switching delay
+   - Optimize course detail modal loading performance
+   - Implement proper error boundaries in course generation
+   - Add loading states to async operations
 
 ## Technology Stack Checklist
 
@@ -77,10 +77,17 @@ Tenzzen is an AI-powered learning platform that transforms YouTube content into 
 - [x] React for UI components
 - [x] Tailwind CSS for styling
 - [x] shadcn UI component library
-- [x] Authentication: Clerk or Supabase
-- [ ] Database: Supabase or Convex
-- [ ] State Management: Server Components + React Context
+- [x] Authentication: Supabase
+- [x] Database: Supabase (Basic Setup)
+- [-] State Management: Server Components + React Context (In Progress)
 - [ ] AI Integration: OpenAI or similar for course generation
+
+## Current Known Issues
+
+1. Theme switching has a noticeable delay
+2. Mobile responsive issues in dashboard layout
+3. Course detail modal loading performance needs optimization
+4. Async operations need loading states
 
 ## Roadmap Maintenance
 
