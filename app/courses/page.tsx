@@ -14,7 +14,8 @@ import {
   Search,
   SlidersHorizontal,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Plus
 } from "lucide-react"
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useSidebar } from "@/hooks/use-sidebar"
@@ -23,6 +24,7 @@ import { CourseCard } from "./components/course-card"
 import { CourseDialog } from "./components/course-dialog"
 import { Course, CourseFilter, CourseCategory } from "./types"
 import { sampleCourses } from "./data"
+import { CourseGenerationModal } from "../explore/components/course-generation-modal"
 
 const filters: { id: CourseFilter; label: string }[] = [
   { id: "all", label: "All" },
@@ -43,6 +45,7 @@ export default function CoursesPage() {
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState<CourseCategory>("all")
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
+  const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [sortBy, setSortBy] = useState<"title" | "lastAccessed" | "progress">("lastAccessed")
   const [showScrollButtons, setShowScrollButtons] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -87,7 +90,7 @@ export default function CoursesPage() {
     }
   }
 
-  const sortedAndFilteredCourses = useMemo(() => {
+  const sortedAndFilteredCourses = useMemo((): Course[] => {
     const filtered = sampleCourses.filter((course: Course) => {
       const matchesSearch = search.toLowerCase().trim() === "" ||
         course.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -118,83 +121,108 @@ export default function CoursesPage() {
     })
   }, [search, category, filter, sortBy])
 
-  const inProgressCourses = useMemo(() => 
-    sortedAndFilteredCourses.filter((c: Course) => c.progress > 0 && c.progress < 100)
-  , [sortedAndFilteredCourses])
+  const inProgressCourses = useMemo((): Course[] =>
+    sortedAndFilteredCourses.filter((c) => c.progress > 0 && c.progress < 100)
+    , [sortedAndFilteredCourses])
 
-  const otherCourses = useMemo(() => 
-    sortedAndFilteredCourses.filter((c: Course) => c.progress === 0 || c.progress === 100)
-  , [sortedAndFilteredCourses])
+  const otherCourses = useMemo((): Course[] =>
+    sortedAndFilteredCourses.filter((c) => c.progress === 0 || c.progress === 100)
+    , [sortedAndFilteredCourses])
 
   return (
     <div className="h-full">
       {/* Fixed Header */}
       <div className="sticky top-16 z-10 bg-background ">
-        <div className="w-full max-w-[1600px] mx-auto px-4">
+        <div className={cn(
+          "w-full mx-auto px-4",
+          "duration-300",
+          "w-[95%] lg:w-[90%]"
+        )}>
           {/* Search and Sort */}
-          <div className="h-14 flex items-center gap-2 sm:gap-4">
+          <div className="h-14 flex items-center gap-2 sm:gap-4 justify-between">
             <div className="flex items-center gap-2 sm:gap-4 w-full">
-              <div className="relative flex-1 max-w-[600px] min-w-0">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search courses..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 w-full h-8 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-              </div>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <SlidersHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[200px]">
-                  <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
-                  {filters.map((f) => (
+              <div className="flex gap-2 flex-1 max-w-[600px]">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search courses..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9 w-full h-8 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <SlidersHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-[200px]">
+                    <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
+                    {filters.map((f) => (
+                      <DropdownMenuItem
+                        key={f.id}
+                        onClick={() => setFilter(f.id)}
+                        className={cn(
+                          "cursor-pointer",
+                          filter === f.id && "bg-muted"
+                        )}
+                      >
+                        {f.label}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Sort By</DropdownMenuLabel>
                     <DropdownMenuItem
-                      key={f.id}
-                      onClick={() => setFilter(f.id)}
+                      onClick={() => setSortBy("lastAccessed")}
                       className={cn(
                         "cursor-pointer",
-                        filter === f.id && "bg-muted"
+                        sortBy === "lastAccessed" && "bg-muted"
                       )}
                     >
-                      {f.label}
+                      Last Accessed
                     </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Sort By</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    onClick={() => setSortBy("lastAccessed")}
-                    className={cn(
-                      "cursor-pointer",
-                      sortBy === "lastAccessed" && "bg-muted"
-                    )}
-                  >
-                    Last Accessed
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setSortBy("title")}
-                    className={cn(
-                      "cursor-pointer",
-                      sortBy === "title" && "bg-muted"
-                    )}
-                  >
-                    Title
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setSortBy("progress")}
-                    className={cn(
-                      "cursor-pointer",
-                      sortBy === "progress" && "bg-muted"
-                    )}
-                  >
-                    Progress
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuItem
+                      onClick={() => setSortBy("title")}
+                      className={cn(
+                        "cursor-pointer",
+                        sortBy === "title" && "bg-muted"
+                      )}
+                    >
+                      Title
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setSortBy("progress")}
+                      className={cn(
+                        "cursor-pointer",
+                        sortBy === "progress" && "bg-muted"
+                      )}
+                    >
+                      Progress
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-8"
+                onClick={() => window.location.href = '/explore'}
+              >
+                Explore
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                className="h-8"
+                onClick={() => setShowGenerateModal(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Generate
+              </Button>
             </div>
           </div>
 
@@ -214,8 +242,8 @@ export default function CoursesPage() {
                       onClick={() => setCategory(cat.id)}
                       className={cn(
                         "h-8 rounded-lg font-normal transition-all whitespace-nowrap",
-                        category === cat.id 
-                          ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" 
+                        category === cat.id
+                          ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90"
                           : "hover:bg-secondary"
                       )}
                     >
@@ -257,7 +285,11 @@ export default function CoursesPage() {
 
       {/* Main Content */}
       <div className="py-8">
-        <div className="w-full max-w-[1600px] mx-auto px-4 space-y-6">
+        <div className={cn(
+          "w-full mx-auto px-4 space-y-6",
+          "duration-300",
+          "w-[95%] lg:w-[90%]"
+        )}>
           {sortedAndFilteredCourses.length > 0 ? (
             <div className="space-y-8">
               {/* Continue Learning Section */}
@@ -265,7 +297,7 @@ export default function CoursesPage() {
                 <section>
                   <h2 className="font-medium text-lg mb-4">Continue Learning</h2>
                   <div className="grid gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
-                    {inProgressCourses.map((course) => (
+                    {inProgressCourses.map((course: Course) => (
                       <CourseCard
                         key={course.id}
                         course={course}
@@ -286,7 +318,7 @@ export default function CoursesPage() {
                         "All Courses"}
                   </h2>
                   <div className="grid gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
-                    {otherCourses.map((course) => (
+                    {otherCourses.map((course: Course) => (
                       <CourseCard
                         key={course.id}
                         course={course}
@@ -315,6 +347,12 @@ export default function CoursesPage() {
         course={selectedCourse}
         open={!!selectedCourse}
         onOpenChange={(open) => !open && setSelectedCourse(null)}
+      />
+
+      {/* Course Generation Modal */}
+      <CourseGenerationModal
+        isOpen={showGenerateModal}
+        onClose={() => setShowGenerateModal(false)}
       />
     </div>
   )

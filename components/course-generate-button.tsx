@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { YoutubeIcon, BookText } from "lucide-react"
 import { useAuth } from "@clerk/nextjs"
+import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export function CourseGenerateButton() {
+interface CourseGenerateButtonProps {
+  className?: string
+}
+
+export function CourseGenerateButton({ className }: CourseGenerateButtonProps) {
   const router = useRouter()
   const { userId } = useAuth()
 
@@ -28,8 +33,11 @@ export function CourseGenerateButton() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="default"
-          size="lg"
-          className="group text-lg h-14 bg-gradient-primary hover:bg-gradient-primary-hover text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+          size="sm"
+          className={cn(
+            "group text-sm transition-all",
+            className
+          )}
         >
           <span className="flex items-center">
             Generate Course

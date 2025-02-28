@@ -1,66 +1,38 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-// Define our route matchers
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/api/webhook'
-])
+const isOnboardingRoute = createRouteMatcher(['/onboarding'])
+const isPublicRoute = createRouteMatcher(['/', '/sign-in', '/sign-up','/explore'])
 
-const isSemiPublicRoute = createRouteMatcher([
-  '/explore'
-])
+export default clerkMiddleware(async (auth, req) => {
+  const { userId, sessionClaims } = await auth()
 
-const isOnboardingRoute = createRouteMatcher([
-  '/onboarding'
-])
-
-export default clerkMiddleware((auth, request) => {
-  return auth().then(({ userId, sessionClaims }) => {
-    // Public routes are always accessible
-    if (isPublicRoute(request)) {
-      return NextResponse.next()
-    }
-
-    // Semi-public routes are accessible but may show different content
-    if (isSemiPublicRoute(request)) {
-      return NextResponse.next()
-    }
-
-    // Handle onboarding route
-    if (isOnboardingRoute(request)) {
-      // If they're not logged in, redirect to sign-in
-      if (!userId) {
-        return NextResponse.redirect(new URL('/sign-in', request.url))
-      }
-      // If they've completed onboarding, redirect to dashboard
-      if (sessionClaims?.metadata?.onboardingComplete) {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
-      }
-      return NextResponse.next()
-    }
-
-    // For all other routes:
-    // 1. Must be authenticated
-    if (!userId) {
-      return NextResponse.redirect(new URL('/sign-in', request.url))
-    }
-
-    // 2. Must have completed onboarding
-    if (!sessionClaims?.metadata?.onboardingComplete) {
-      return NextResponse.redirect(new URL('/onboarding', request.url))
-    }
-
-    // Allow access to protected routes
+  // For users on the onboarding page, don't redirect
+  if (userId && isOnboardingRoute(req)) {
     return NextResponse.next()
-  })
+  }
+
+  // If the user isn't signed in and the route is private, redirect to sign-in
+  if (!userId && !isPublicRoute(req)) {
+    const signInUrl = new URL('/sign-in', req.url)
+    signInUrl.searchParams.set('redirect_url', req.url)
+    return NextResponse.redirect(signInUrl)
+  }
+
+  // Redirect users who haven't completed onboarding to the onboarding page
+  if (userId && !sessionClaims?.metadata?.onboardingComplete && !isOnboardingRoute(req)) {
+    const onboardingUrl = new URL('/onboarding', req.url)
+    return NextResponse.redirect(onboardingUrl)
+  }
+
+  return NextResponse.next()
 })
 
 export const config = {
   matcher: [
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Skip Next.js internals and all static files
+    '/((?!_next|[^?]*\\.[^?]*$).*)',
+    // Always run for API routes
     '/(api|trpc)(.*)'
-  ]
+  ],
 }
