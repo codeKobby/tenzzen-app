@@ -17,8 +17,8 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   const { user, loading } = useAuth()
   const { isOpen } = useSidebar()
 
-  // Return children without layout for homepage and auth pages
-  if (pathname === '/' || pathname === '/sign-in' || pathname === '/sign-up') {
+  // Return children without layout for homepage, auth pages, and onboarding
+  if (pathname === '/' || pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/onboarding') {
     return <div className="relative min-h-screen bg-background">{children}</div>
   }
 

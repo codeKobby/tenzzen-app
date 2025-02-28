@@ -29,8 +29,8 @@ export default function SignUpPage() {
                 "flex items-center justify-center w-full gap-x-2 rounded-lg bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors ring-1 ring-inset ring-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
             },
           }}
-          forceRedirectUrl="/dashboard"
-          signInUrl="/sign-in"
+          routing="path"
+          path="/sign-up"
         />
       </div>
     </AuthLayout>

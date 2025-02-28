@@ -7,6 +7,8 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { CookieConsent } from "@/components/cookie-consent"
 import { ClerkProvider } from "@clerk/nextjs"
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
@@ -24,15 +26,27 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <Providers>
-          <AuthenticatedLayout>
-            {children}
-            <div className="fixed bottom-4 right-4 z-50">
-              <ThemeToggle />
-            </div>
-            <CookieConsent />
-          </AuthenticatedLayout>
-        </Providers>
+        <ClerkProvider 
+          signInFallbackRedirectUrl={process.env.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL}
+          signUpFallbackRedirectUrl="/onboarding"
+          signInUrl="/sign-in"
+          signUpUrl="/sign-up"
+          appearance={{
+            baseTheme: undefined,
+            signIn: { baseTheme: undefined },
+            signUp: { baseTheme: undefined },
+          }}
+        >
+          <Providers>
+            <AuthenticatedLayout>
+              {children}
+              <div className="fixed bottom-4 right-4 z-50">
+                <ThemeToggle />
+              </div>
+              <CookieConsent />
+            </AuthenticatedLayout>
+          </Providers>
+        </ClerkProvider>
       </body>
     </html>
   )
