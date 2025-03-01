@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { usePathname } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { cn } from "@/lib/utils"
-import { SIDEBAR_WIDTH, TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
+import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode

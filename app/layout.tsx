@@ -38,13 +38,15 @@ export default function RootLayout({
           }}
         >
           <Providers>
-            <AuthenticatedLayout>
-              {children}
-              <div className="fixed bottom-4 right-4 z-50">
-                <ThemeToggle />
-              </div>
-              <CookieConsent />
-            </AuthenticatedLayout>
+            <div id="main">
+              <AuthenticatedLayout>
+                {children}
+                <div className="fixed bottom-4 right-4 z-50">
+                  <ThemeToggle />
+                </div>
+                <CookieConsent />
+              </AuthenticatedLayout>
+            </div>
           </Providers>
         </ClerkProvider>
       </body>

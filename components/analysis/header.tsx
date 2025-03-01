@@ -1,14 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { usePathname } from "next/navigation"
-import Link from "next/link"
-import { Bell, ChevronLeft, PanelLeftOpen, PanelLeftClose, ArrowLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
-import { useUser } from "@clerk/nextjs"
-import { useSidebar } from "@/hooks/use-sidebar"
+import { useAnalysis } from "@/hooks/use-analysis-context"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ArrowLeft, Menu } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useUser } from "@clerk/nextjs"
 
 interface BreadcrumbItem {
   label: string
@@ -33,32 +32,18 @@ function getBreadcrumbFromPath(path: string): BreadcrumbItem[] {
   }))
 }
 
-export function PageHeader() {
-  const pathname = usePathname()
+export function AnalysisHeader() {
+  const { handleBack, isOpen, toggle, width } = useAnalysis()
   const { user } = useUser()
-  const { isOpen, toggle } = useSidebar()
-  const [isMobile, setIsMobile] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
-  const breadcrumbs = getBreadcrumbFromPath(pathname)
+  const breadcrumbs = getBreadcrumbFromPath("/analysis")
 
   React.useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
     const handleScroll = () => setScrolled(window.scrollY > 0)
-
-    checkMobile()
     handleScroll()
-    
-    window.addEventListener("resize", checkMobile)
     window.addEventListener("scroll", handleScroll)
-    
-    return () => {
-      window.removeEventListener("resize", checkMobile)
-      window.removeEventListener("scroll", handleScroll)
-    }
+    return () => window.removeEventListener("scroll", handleScroll)
   }, [])
-
-  // Do not render on homepage or auth pages
-  if (pathname === '/' || pathname === '/sign-in' || pathname === '/sign-up') return null
 
   return (
     <header className={cn(
@@ -70,35 +55,34 @@ export function PageHeader() {
         `transition-all duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING}`
       )}>
         <div className="flex items-center gap-6">
-          {pathname !== '/analysis' && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 hover:bg-transparent"
-                onClick={toggle}
-              >
-                {isOpen ? (
-                  <PanelLeftClose className="h-4 w-4 transition-colors hover:text-primary" />
-                ) : (
-                  <PanelLeftOpen className="h-4 w-4 transition-colors hover:text-primary" />
-                )}
-              </Button>
-              <div className="h-4 w-px bg-border" />
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 hover:bg-transparent"
+              onClick={handleBack}
+            >
+              <ArrowLeft className="h-4 w-4 transition-colors hover:text-primary" />
+            </Button>
+            <div className="h-4 w-px bg-border" />
+          </div>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 hover:bg-transparent sm:hidden"
+            onClick={() => toggle()}
+          >
+            <Menu className="h-4 w-4 transition-colors hover:text-primary" />
+          </Button>
 
-          <nav className={cn(
-            "flex items-center gap-2 text-sm",
-            pathname === '/analysis' && "sm:ml-6"
-          )}>
+          <nav className="flex items-center gap-2 text-sm sm:ml-6">
             {breadcrumbs.map((item, index) => (
               <React.Fragment key={item.href}>
                 {index > 0 && (
                   <span className="text-muted-foreground/40">/</span>
                 )}
-                <Link
-                  href={item.href}
+                <span
                   className={cn(
                     "transition-colors hover:text-foreground",
                     index === breadcrumbs.length - 1
@@ -107,7 +91,7 @@ export function PageHeader() {
                   )}
                 >
                   {item.label}
-                </Link>
+                </span>
               </React.Fragment>
             ))}
           </nav>

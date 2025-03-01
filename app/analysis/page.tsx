@@ -1,19 +1,54 @@
 "use client"
 
 import * as React from "react"
-import { PageHeader } from "@/components/page-header"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { AnalysisHeader } from "@/components/analysis/header"
 import { cn } from "@/lib/utils"
 import { ResizablePanel } from "@/components/resizable-panel"
-import { useAnalysisPanel } from "@/hooks/use-analysis-panel"
+import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context"
+import { VideoContent } from "@/components/analysis/video-content"
+import { MobileSheet } from "@/components/analysis/mobile-sheet"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
-export default function AnalysisPage() {
-  const { width, minWidth, maxWidth, isOpen, setWidth, toggle } = useAnalysisPanel()
+function AnalysisContent() {
+  const {
+    width,
+    minWidth,
+    maxWidth,
+    isOpen,
+    showAlert,
+    setWidth,
+    toggle,
+    setShowAlert,
+    confirmBack
+  } = useAnalysis()
+
+  const [mounted, setMounted] = React.useState(false)
+  const [hasMounted, setHasMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    // Two-phase mounting to ensure smoother transitions
+    setMounted(true)
+    const timer = setTimeout(() => {
+      setHasMounted(true)
+    }, 100)
+    return () => {
+      clearTimeout(timer)
+      setMounted(false)
+      setHasMounted(false)
+    }
+  }, [])
 
   return (
-    <div className="min-h-screen flex flex-col bg-background overflow-hidden">
-      <PageHeader />
-      
+    <>
       <main className="flex-1 relative">
         <div className="flex h-[calc(100vh-64px)]">
           {/* Left panel - converts to bottom sheet on small screens */}
@@ -26,26 +61,18 @@ export default function AnalysisPage() {
               className="h-full"
             >
               <div className="h-full p-6">
-                {/* Video content will go here */}
-                Video content
+                <VideoContent />
               </div>
             </ResizablePanel>
           </div>
 
-          {/* Bottom sheet for small screens */}
-          <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40">
-            <Sheet open={isOpen} onOpenChange={toggle}>
-              <SheetContent
-                side="bottom"
-                className="h-[80vh] p-0"
-              >
-                <div className="h-full p-6">
-                  {/* Video content will go here */}
-                  Video content
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+          {/* Mobile bottom sheet */}
+          {mounted && hasMounted && (
+            <MobileSheet
+              isOpen={isOpen}
+              onClose={() => toggle(false)}
+            />
+          )}
 
           {/* Main content area */}
           <div className="flex-1 min-w-0">
@@ -57,6 +84,33 @@ export default function AnalysisPage() {
         </div>
       </main>
 
-    </div>
+      <AlertDialog open={showAlert} onOpenChange={setShowAlert}>
+        <AlertDialogContent className="rounded-lg border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to leave?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Any unsaved changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBack}>
+              Leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
+export default function AnalysisPage() {
+  return (
+    <AnalysisProvider>
+      <div id="main" className="min-h-screen flex flex-col bg-background overflow-hidden">
+        <AnalysisHeader />
+        <AnalysisContent />
+      </div>
+    </AnalysisProvider>
   )
 }
