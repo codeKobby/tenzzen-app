@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Youtube, Bot, Link, VideoIcon } from "lucide-react"
+import { Youtube, Bot, Link, VideoIcon, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { VideoDetailsModal } from "./video-details-modal"
 
@@ -163,16 +163,31 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                                 </Label>
                                 <div className="relative">
                                     <Link className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                    <Input
-                                        id="youtube-url"
-                                        placeholder="Paste video or playlist URL"
-                                        value={youtubeUrl}
-                                        onChange={(e) => {
-                                            setYoutubeUrl(e.target.value)
-                                            if (urlError) validateYoutubeUrl(e.target.value)
-                                        }}
-                                        className="pl-9 text-base"
-                                    />
+                                    <div className="relative">
+                                        <Input
+                                            id="youtube-url"
+                                            placeholder="Paste video or playlist URL"
+                                            value={youtubeUrl}
+                                            onChange={(e) => {
+                                                setYoutubeUrl(e.target.value)
+                                                if (urlError) validateYoutubeUrl(e.target.value)
+                                            }}
+                                            className="pl-9 pr-8 text-base"
+                                        />
+                                        {youtubeUrl && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setYoutubeUrl("")
+                                                    setUrlError(null)
+                                                }}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-full hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
+                                            >
+                                                <X className="h-3 w-3" />
+                                                <span className="sr-only">Clear input</span>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                                 {urlError && (
                                     <p className="text-sm text-destructive">{urlError}</p>

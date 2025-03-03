@@ -4,14 +4,23 @@ import { useState, useEffect } from "react"
 import {
     Dialog,
     DialogContent,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Loader2, ThumbsUp, Clock, Calendar, User, Play, ListVideo } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getVideoDetails, getPlaylistDetails, VideoDetails, PlaylistDetails, VideoItem } from "@/app/actions/youtube"
 
 interface VideoDetailsModalProps {
     isOpen: boolean
@@ -20,47 +29,11 @@ interface VideoDetailsModalProps {
     videoUrl: string
 }
 
-// Individual video data structure
-interface VideoItem {
-    id: string
-    title: string
-    thumbnail: string
-    channelName: string
-    views: string
-    publishDate: string
-    duration: string
-}
+type ContentDetails = VideoDetails | PlaylistDetails;
 
-// Single video details
-interface SingleVideoDetails {
-    type: "video"
-    id: string
-    title: string
-    description: string
-    thumbnail: string
-    channelName: string
-    channelAvatar?: string
-    likes: string
-    views: string
-    publishDate: string
-    duration: string
-}
-
-// Playlist details
-interface PlaylistDetails {
-    type: "playlist"
-    id: string
-    title: string
-    description: string
-    thumbnail: string
-    channelName: string
-    channelAvatar?: string
-    videoCount: number
-    videos: VideoItem[]
-}
-
-// Combined type for content that can be displayed
-type ContentDetails = SingleVideoDetails | PlaylistDetails;
+const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
+    return content.type === "playlist";
+};
 
 export function VideoDetailsModal({
     isOpen,
@@ -72,10 +45,30 @@ export function VideoDetailsModal({
     const [generating, setGenerating] = useState(false)
     const [contentDetails, setContentDetails] = useState<ContentDetails | null>(null)
     const [activeVideoId, setActiveVideoId] = useState<string | null>(null)
+    const [expandedVideoIds, setExpandedVideoIds] = useState<Set<string>>(new Set())
+    const [showCancelDialog, setShowCancelDialog] = useState(false)
+    const [showVideoOpenDialog, setShowVideoOpenDialog] = useState(false)
+    const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null)
+    const [dontShowVideoDialog, setDontShowVideoDialog] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('dontShowVideoDialog') === 'true'
+        }
+        return false
+    })
+    const [showFullDescription, setShowFullDescription] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
-    // Extract video/playlist ID from URL
+    const handleVideoClick = (videoId: string): void => {
+        const url = `https://youtube.com/watch?v=${videoId}`
+        if (dontShowVideoDialog) {
+            window.open(url, '_blank')
+        } else {
+            setSelectedVideoUrl(url)
+            setShowVideoOpenDialog(true)
+        }
+    }
+
     const parseYoutubeUrl = (url: string): { type: 'video' | 'playlist', id: string } | null => {
-        // Handle video URLs
         const videoRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const videoMatch = url.match(videoRegex);
 
@@ -83,7 +76,6 @@ export function VideoDetailsModal({
             return { type: 'video', id: videoMatch[1] };
         }
 
-        // Handle playlist URLs
         const playlistRegex = /[?&]list=([^&]+)/i;
         const playlistMatch = url.match(playlistRegex);
 
@@ -95,353 +87,354 @@ export function VideoDetailsModal({
     };
 
     useEffect(() => {
-        if (isOpen && videoUrl) {
-            setLoading(true);
-            const urlInfo = parseYoutubeUrl(videoUrl);
-
-            // In a real implementation, we'd fetch actual data based on the URL
-            setTimeout(() => {
-                if (!urlInfo) {
-                    // Handle invalid URL
-                    setLoading(false);
-                    return;
-                }
-
+        const fetchContentDetails = async (urlInfo: { type: 'video' | 'playlist', id: string }): Promise<void> => {
+            try {
                 if (urlInfo.type === 'video') {
-                    // Mock data for a single video
-                    const mockVideoData: SingleVideoDetails = {
-                        type: "video",
-                        id: urlInfo.id,
-                        title: "Building a Modern Web Application with Next.js 14",
-                        description: "Learn how to build a full-stack application using Next.js 14, React Server Components, Tailwind CSS, and more. This comprehensive tutorial covers everything from setup to deployment.",
-                        thumbnail: "https://i.ytimg.com/vi/843nec-IvW0/maxresdefault.jpg",
-                        channelName: "Code With Expert",
-                        channelAvatar: "https://yt3.googleusercontent.com/ytc/APkrFKaqca-xQcJtp1Pqv-APucGfqTqYHahZTgF4aGIQ=s176-c-k-c0x00ffffff-no-rj",
-                        likes: "15K",
-                        views: "230K",
-                        publishDate: "2 months ago",
-                        duration: "1:24:36"
-                    };
-
-                    setContentDetails(mockVideoData);
+                    const videoData = await getVideoDetails(urlInfo.id);
+                    setContentDetails(videoData);
                     setActiveVideoId(urlInfo.id);
                 } else {
-                    // Mock data for playlist
-                    const mockPlaylistVideos: VideoItem[] = [
-                        {
-                            id: "video1",
-                            title: "Next.js 14 Tutorial #1 - Introduction & Setup",
-                            thumbnail: "https://i.ytimg.com/vi/843nec-IvW0/mqdefault.jpg",
-                            channelName: "Code With Expert",
-                            views: "120K",
-                            publishDate: "2 months ago",
-                            duration: "15:22"
-                        },
-                        {
-                            id: "video2",
-                            title: "Next.js 14 Tutorial #2 - Server Components & Client Components",
-                            thumbnail: "https://i.ytimg.com/vi/second-id/mqdefault.jpg",
-                            channelName: "Code With Expert",
-                            views: "98K",
-                            publishDate: "2 months ago",
-                            duration: "20:15"
-                        },
-                        {
-                            id: "video3",
-                            title: "Next.js 14 Tutorial #3 - Building the API",
-                            thumbnail: "https://i.ytimg.com/vi/third-id/mqdefault.jpg",
-                            channelName: "Code With Expert",
-                            views: "85K",
-                            publishDate: "2 months ago",
-                            duration: "18:47"
-                        },
-                        {
-                            id: "video4",
-                            title: "Next.js 14 Tutorial #4 - Authentication with Clerk",
-                            thumbnail: "https://i.ytimg.com/vi/fourth-id/mqdefault.jpg",
-                            channelName: "Code With Expert",
-                            views: "76K",
-                            publishDate: "2 months ago",
-                            duration: "22:30"
-                        },
-                        {
-                            id: "video5",
-                            title: "Next.js 14 Tutorial #5 - Database Integration",
-                            thumbnail: "https://i.ytimg.com/vi/fifth-id/mqdefault.jpg",
-                            channelName: "Code With Expert",
-                            views: "65K",
-                            publishDate: "2 months ago",
-                            duration: "25:18"
-                        }
-                    ];
-
-                    const mockPlaylistData: PlaylistDetails = {
-                        type: "playlist",
-                        id: urlInfo.id,
-                        title: "Next.js 14 - Complete Course",
-                        description: "A comprehensive tutorial series for building modern web applications with Next.js 14. We cover everything from setup to deployment, including React Server Components, authentication, and database integration.",
-                        thumbnail: "https://i.ytimg.com/vi/843nec-IvW0/maxresdefault.jpg",
-                        channelName: "Code With Expert",
-                        channelAvatar: "https://yt3.googleusercontent.com/ytc/APkrFKaqca-xQcJtp1Pqv-APucGfqTqYHahZTgF4aGIQ=s176-c-k-c0x00ffffff-no-rj",
-                        videoCount: mockPlaylistVideos.length,
-                        videos: mockPlaylistVideos
-                    };
-
-                    setContentDetails(mockPlaylistData);
-                    setActiveVideoId(mockPlaylistVideos[0].id);
+                    const playlistData = await getPlaylistDetails(urlInfo.id);
+                    setContentDetails(playlistData);
+                    if (playlistData.videos.length > 0) {
+                        setActiveVideoId(playlistData.videos[0].id);
+                    }
                 }
-
+            } catch (error) {
+                console.error("Error fetching content details:", error);
+                setError("Failed to fetch content details. Please try again.");
+            } finally {
                 setLoading(false);
-            }, 1500);
+            }
+        };
+
+        if (isOpen && videoUrl) {
+            setLoading(true);
+            setError(null);
+            const urlInfo = parseYoutubeUrl(videoUrl);
+
+            if (!urlInfo) {
+                setLoading(false);
+                setError("Invalid YouTube URL. Please provide a valid video or playlist URL.");
+                return;
+            }
+
+            fetchContentDetails(urlInfo);
         }
     }, [isOpen, videoUrl]);
 
-    const handleGenerate = async () => {
+    const handleGenerate = async (): Promise<void> => {
         setGenerating(true);
         try {
-            // Simulate API call for course generation
             await new Promise(resolve => setTimeout(resolve, 2000));
             onGenerate();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error generating course:", error);
         } finally {
             setGenerating(false);
         }
     };
 
-    const getEmbedUrl = (videoId: string) => {
-        return `https://www.youtube.com/embed/${videoId}`;
+    const toggleVideoExpand = (videoId: string): void => {
+        setExpandedVideoIds((prev: Set<string>) => {
+            const newSet = new Set(prev);
+            if (prev.has(videoId)) {
+                newSet.delete(videoId);
+            } else {
+                newSet.add(videoId);
+            }
+            return newSet;
+        });
     };
 
-    // Handle clicking on a video in the playlist
-    const handleVideoSelect = (videoId: string) => {
-        setActiveVideoId(videoId);
+    const toggleDescription = (): void => {
+        setShowFullDescription((prev: boolean) => !prev);
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
-                <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold">
-                        {contentDetails?.type === "playlist" ? "Playlist Analysis" : "Video Analysis"}
-                    </DialogTitle>
-                </DialogHeader>
-
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-16">
-                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                        <p className="mt-4 text-lg text-muted-foreground">Fetching content details...</p>
-                    </div>
-                ) : (
-                    <div className="flex flex-col md:flex-row h-[65vh]">
-                        {/* Left side - Video player */}
-                        <div className="md:w-2/3 h-full flex flex-col">
-                            <div className="aspect-video bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                                <iframe
-                                    src={activeVideoId ? getEmbedUrl(activeVideoId) : ""}
-                                    title={contentDetails?.title}
-                                    allowFullScreen
-                                    className="w-full h-full"
-                                ></iframe>
+        <>
+            <Dialog open={isOpen && !showVideoOpenDialog} onOpenChange={(open: boolean) => !open && setShowCancelDialog(true)}>
+                <DialogContent className="max-w-[425px] mx-auto h-auto max-h-[85vh] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent bg-background shadow-lg border border-border rounded-lg p-0">
+                    <div className="flex flex-col h-full">
+                        {contentDetails?.type !== "playlist" && (
+                            <div className="p-6 pb-0">
+                                <DialogHeader>
+                                    <DialogTitle className="text-xl font-semibold tracking-tight">
+                                        {loading ? "Loading Content..." : "Video Details"}
+                                    </DialogTitle>
+                                </DialogHeader>
                             </div>
-                            <div className="mt-4 overflow-y-auto">
-                                <h3 className="text-xl font-semibold">{contentDetails?.title}</h3>
-                                <div className="flex items-center gap-3 mt-2">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full overflow-hidden">
-                                            <img
-                                                src={contentDetails?.channelAvatar || 'https://ui-avatars.com/api/?name=C'}
-                                                alt={contentDetails?.channelName}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </div>
-                                        <span className="font-medium">{contentDetails?.channelName}</span>
-                                    </div>
-                                    {contentDetails?.type === "playlist" && (
-                                        <Badge variant="outline" className="flex items-center gap-1">
-                                            <ListVideo className="h-3 w-3" />
-                                            {contentDetails.videoCount} videos
-                                        </Badge>
-                                    )}
+                        )}
+
+                        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/10 hover:scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent p-6">
+                            {loading ? (
+                                <div className="flex flex-col items-center justify-center py-16">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                    <p className="mt-4 text-muted-foreground">Loading content details...</p>
                                 </div>
-
-                                {contentDetails?.type === "video" && (
-                                    <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                                        <div className="flex items-center gap-1">
-                                            <ThumbsUp className="h-4 w-4" />
-                                            {contentDetails.likes}
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <Play className="h-4 w-4" />
-                                            {contentDetails.views} views
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <Calendar className="h-4 w-4" />
-                                            {contentDetails.publishDate}
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <Clock className="h-4 w-4" />
-                                            {contentDetails.duration}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="mt-4 p-3 bg-muted/30 rounded-md">
-                                    <p className="text-sm text-muted-foreground">
-                                        {contentDetails?.description}
-                                    </p>
+                            ) : error ? (
+                                <div className="flex flex-col items-center justify-center py-16">
+                                    <p className="text-destructive">{error}</p>
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Right side - Video list or additional info */}
-                        <div className="md:w-1/3 md:ml-4 mt-4 md:mt-0 h-full overflow-hidden">
-                            <div className="h-full flex flex-col">
-                                <div className="mb-2 px-2 border-b pb-2">
-                                    <h4 className="font-semibold">
-                                        {contentDetails?.type === "playlist"
-                                            ? "Videos in this playlist"
-                                            : "What will be generated"}
-                                    </h4>
-                                </div>
-
-                                <div className="overflow-y-auto flex-grow">
-                                    {contentDetails?.type === "playlist" ? (
-                                        <div className="space-y-2">
-                                            {contentDetails.videos.map((video, index) => (
-                                                <div
-                                                    key={video.id}
-                                                    onClick={() => handleVideoSelect(video.id)}
-                                                    className={cn(
-                                                        "flex gap-2 p-2 rounded-md cursor-pointer hover:bg-accent/50",
-                                                        activeVideoId === video.id && "bg-accent"
-                                                    )}
-                                                >
-                                                    <div className="flex-shrink-0 relative">
+                            ) : contentDetails ? (
+                                <div className="space-y-4">
+                                    {contentDetails.type === "video" ? (
+                                        // Single Video Display
+                                        <div className="space-y-4">
+                                            <div className="flex gap-4">
+                                                <div className="flex-shrink-0">
+                                                    <div
+                                                        className="w-28 relative cursor-pointer rounded-lg overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
+                                                        onClick={() => handleVideoClick(contentDetails.id)}
+                                                    >
                                                         <img
-                                                            src={video.thumbnail}
-                                                            alt={video.title}
-                                                            className="w-28 h-16 object-cover rounded"
+                                                            src={contentDetails.thumbnail}
+                                                            alt={contentDetails.title}
+                                                            className="w-full aspect-video object-cover"
                                                         />
                                                         <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
-                                                            {video.duration}
-                                                        </div>
-                                                        <div className="absolute top-0 left-0 bg-black/80 text-white text-xs px-1 rounded">
-                                                            {index + 1}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h5 className="font-medium text-sm truncate">{video.title}</h5>
-                                                        <p className="text-xs text-muted-foreground mt-1">{video.channelName}</p>
-                                                        <div className="flex items-center text-xs text-muted-foreground mt-1">
-                                                            <span>{video.views} views</span>
-                                                            <span className="mx-1">•</span>
-                                                            <span>{video.publishDate}</span>
+                                                            {contentDetails.duration}
                                                         </div>
                                                     </div>
                                                 </div>
-                                            ))}
+
+                                                <div className="flex-1 min-w-0">
+                                                    <h2 className="text-base font-semibold leading-tight tracking-tight text-foreground line-clamp-2">
+                                                        {contentDetails.title}
+                                                    </h2>
+                                                    <div className="flex items-center justify-between gap-2 mt-2">
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <div className="h-6 w-6 rounded-full bg-secondary overflow-hidden flex-shrink-0">
+                                                                {contentDetails.channelAvatar ? (
+                                                                    <img
+                                                                        src={contentDetails.channelAvatar}
+                                                                        alt={contentDetails.channelName}
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                                                        {contentDetails.channelName.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-xs text-muted-foreground/80 truncate">
+                                                                {contentDetails.channelName}
+                                                            </span>
+                                                        </div>
+                                                        <Button
+                                                            onClick={toggleDescription}
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-7 px-2 text-xs text-muted-foreground/70 hover:text-muted-foreground"
+                                                        >
+                                                            {showFullDescription ? "Hide details" : "Show details"}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className={cn(
+                                                "space-y-4 transition-all duration-200",
+                                                !showFullDescription && "h-0 opacity-0 invisible"
+                                            )}>
+                                                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70 pb-3 border-b">
+                                                    <span>{contentDetails.views} views</span>
+                                                    <span>{contentDetails.likes} likes</span>
+                                                    <span>{contentDetails.publishDate}</span>
+                                                </div>
+                                                <div className="text-xs leading-relaxed text-muted-foreground/80 whitespace-pre-wrap">
+                                                    {contentDetails.description}
+                                                </div>
+                                            </div>
                                         </div>
                                     ) : (
-                                        <div className="space-y-2 px-2">
-                                            <h5 className="font-medium text-sm">This course will include:</h5>
-                                            <ul className="space-y-2 text-sm">
-                                                <li className="flex items-start gap-2">
-                                                    <div className="rounded-full p-1 bg-primary/10 mt-0.5">
-                                                        <Check className="h-3 w-3 text-primary" />
+                                        // Playlist Display
+                                        <div className="space-y-4">
+                                            <div className="flex gap-4">
+                                                <div className="flex-shrink-0">
+                                                    <div 
+                                                        className="w-24 relative cursor-pointer rounded-lg overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
+                                                        onClick={() => handleVideoClick(contentDetails.id)}
+                                                    >
+                                                        <img
+                                                            src={contentDetails.thumbnail}
+                                                            alt={contentDetails.title}
+                                                            className="w-full aspect-video object-cover"
+                                                        />
                                                     </div>
-                                                    <span>Structured course outline with chapters and lessons</span>
-                                                </li>
-                                                <li className="flex items-start gap-2">
-                                                    <div className="rounded-full p-1 bg-primary/10 mt-0.5">
-                                                        <Check className="h-3 w-3 text-primary" />
-                                                    </div>
-                                                    <span>Key concepts and learning objectives</span>
-                                                </li>
-                                                <li className="flex items-start gap-2">
-                                                    <div className="rounded-full p-1 bg-primary/10 mt-0.5">
-                                                        <Check className="h-3 w-3 text-primary" />
-                                                    </div>
-                                                    <span>Interactive timestamps for easy navigation</span>
-                                                </li>
-                                                <li className="flex items-start gap-2">
-                                                    <div className="rounded-full p-1 bg-primary/10 mt-0.5">
-                                                        <Check className="h-3 w-3 text-primary" />
-                                                    </div>
-                                                    <span>AI-generated quizzes and assessments</span>
-                                                </li>
-                                                <li className="flex items-start gap-2">
-                                                    <div className="rounded-full p-1 bg-primary/10 mt-0.5">
-                                                        <Check className="h-3 w-3 text-primary" />
-                                                    </div>
-                                                    <span>Personalized note-taking system</span>
-                                                </li>
-                                            </ul>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h2 className="text-base font-semibold leading-tight tracking-tight text-foreground line-clamp-2">
+                                                        {contentDetails.title}
+                                                    </h2>
+                                                    {isPlaylist(contentDetails) && (
+                                                        <div className="flex items-center gap-2 mt-2">
+                                                            <span className="text-xs text-muted-foreground/90">
+                                                                {contentDetails.channelName}
+                                                            </span>
+                                                            <span className="text-xs text-muted-foreground/60">•</span>
+                                                            <span className="text-xs text-muted-foreground/80">
+                                                                {contentDetails.videoCount} videos
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="h-px bg-border/50" />
 
-                                            <div className="pt-4 border-t mt-4">
-                                                <h5 className="font-medium text-sm mb-2">Related content we'll include:</h5>
-                                                <div className="space-y-2">
-                                                    {[1, 2, 3].map((i) => (
-                                                        <div key={i} className="flex gap-2">
-                                                            <div className="flex-shrink-0">
-                                                                <div className="w-28 h-16 bg-muted rounded"></div>
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <h6 className="font-medium text-xs line-clamp-2">
-                                                                    Related Next.js {i} concept video
-                                                                </h6>
-                                                                <p className="text-xs text-muted-foreground mt-1">Recommended resource</p>
+                                            {isPlaylist(contentDetails) && (
+                                                <div className="space-y-4">
+                                                    {contentDetails.videos.map((video: VideoItem, index: number) => (
+                                                        <div key={video.id} className="group">
+                                                            <div className="flex gap-4 hover:bg-secondary/50 rounded-lg p-2 -mx-2">
+                                                                <span className="text-xs text-center text-muted-foreground/60 pt-1.5 hidden sm:block">
+                                                                    {index + 1}
+                                                                </span>
+                                                                <div className="flex-shrink-0">
+                                                                    <div
+                                                                        className="w-24 relative cursor-pointer rounded overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
+                                                                        onClick={() => handleVideoClick(video.id)}
+                                                                    >
+                                                                        <img
+                                                                            src={video.thumbnail}
+                                                                            alt={video.title}
+                                                                            className="w-full aspect-video object-cover"
+                                                                        />
+                                                                        <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+                                                                            {video.duration}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex-1 min-w-0 overflow-hidden">
+                                                                    <h4 className="font-medium text-sm leading-snug text-foreground line-clamp-2">
+                                                                        {video.title}
+                                                                    </h4>
+                                                                    <div className="flex items-center justify-between mt-1">
+                                                                        <span className="text-xs text-muted-foreground/80 truncate">
+                                                                            {video.channelName}
+                                                                        </span>
+                                                                        <Button
+                                                                            onClick={() => toggleVideoExpand(video.id)}
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            className="h-6 px-2 text-xs text-muted-foreground/70 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                                                        >
+                                                                            {expandedVideoIds.has(video.id) ? "Hide details" : "Show details"}
+                                                                        </Button>
+                                                                    </div>
+
+                                                                    <div className={cn(
+                                                                        "overflow-hidden transition-all duration-200",
+                                                                        expandedVideoIds.has(video.id) ? "max-h-[500px] mt-2" : "max-h-0"
+                                                                    )}>
+                                                                        <div className="p-2 rounded-lg bg-secondary/30">
+                                                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground/70 pb-2 mb-2 border-b border-border/50">
+                                                                                <span>{video.views} views</span>
+                                                                                <span>•</span>
+                                                                                <span>{video.publishDate}</span>
+                                                                            </div>
+                                                                            <div className="text-xs leading-relaxed text-muted-foreground/80 whitespace-pre-line">
+                                                                                {video.description}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
-                                            </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
-                            </div>
+                            ) : null}
+                        </div>
+
+                        <div className="shrink-0 flex items-center justify-between gap-2 p-6 pt-4 border-t bg-background/95 backdrop-blur-sm">
+                            <Button
+                                variant="ghost"
+                                onClick={onClose}
+                                className="text-muted-foreground hover:text-foreground"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleGenerate}
+                                disabled={generating || loading || !!error || !contentDetails}
+                                className="min-w-[120px]"
+                            >
+                                {generating ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Generating...
+                                    </>
+                                ) : "Generate Course"}
+                            </Button>
                         </div>
                     </div>
-                )}
+                </DialogContent>
+            </Dialog>
 
-                <DialogFooter className="flex flex-row sm:justify-between gap-3">
-                    <Button variant="outline" onClick={onClose}>
-                        Back
-                    </Button>
-                    <Button
-                        onClick={handleGenerate}
-                        disabled={loading || generating}
-                        className="min-w-[140px]"
-                    >
-                        {generating ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Generating...
-                            </>
-                        ) : "Generate Course"}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
+            <AlertDialog open={showVideoOpenDialog} onOpenChange={setShowVideoOpenDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Open Video in New Tab?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will open the video in a new browser tab on YouTube.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                id="dontShowAgain"
+                                className="rounded border-input h-4 w-4"
+                                checked={dontShowVideoDialog}
+                                onChange={(e) => {
+                                    setDontShowVideoDialog(e.target.checked)
+                                    localStorage.setItem('dontShowVideoDialog', e.target.checked.toString())
+                                }}
+                            />
+                            <label htmlFor="dontShowAgain" className="text-sm text-muted-foreground">
+                                Don't show this message again
+                            </label>
+                        </div>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setShowVideoOpenDialog(false)}>
+                                Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction onClick={() => {
+                                if (selectedVideoUrl) {
+                                    window.open(selectedVideoUrl, '_blank');
+                                }
+                                setShowVideoOpenDialog(false);
+                            }}>
+                                Open Video
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </div>
+                </AlertDialogContent>
+            </AlertDialog>
 
-// Check icon component
-function Check(props: React.SVGProps<SVGSVGElement>) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            {...props}
-        >
-            <polyline points="20 6 9 17 4 12" />
-        </svg>
-    )
+            <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Cancel Course Generation?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to cancel? Any progress will be lost.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setShowCancelDialog(false)}>
+                            No, continue
+                        </AlertDialogCancel>
+                        <AlertDialogAction onClick={onClose}>
+                            Yes, cancel
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    );
 }

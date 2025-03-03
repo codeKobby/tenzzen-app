@@ -6,6 +6,7 @@ import { AuthenticatedLayout } from "@/components/authenticated-layout"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CookieConsent } from "@/components/cookie-consent"
 import { ClerkProvider } from "@clerk/nextjs"
+import { ThemeScript } from "@/components/theme-script"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -25,19 +26,22 @@ export default function RootLayout({
 }: RootLayoutProps) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body className={inter.className}>
-        <ClerkProvider 
-          signInFallbackRedirectUrl={process.env.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL}
-          signUpFallbackRedirectUrl="/onboarding"
-          signInUrl="/sign-in"
-          signUpUrl="/sign-up"
-          appearance={{
-            baseTheme: undefined,
-            signIn: { baseTheme: undefined },
-            signUp: { baseTheme: undefined },
-          }}
-        >
-          <Providers>
+        <Providers>
+          <ClerkProvider
+            signInFallbackRedirectUrl={process.env.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL}
+            signUpFallbackRedirectUrl="/onboarding"
+            signInUrl="/sign-in"
+            signUpUrl="/sign-up"
+            appearance={{
+              baseTheme: undefined,
+              signIn: { baseTheme: undefined },
+              signUp: { baseTheme: undefined },
+            }}
+          >
             <div id="main">
               <AuthenticatedLayout>
                 {children}
@@ -47,8 +51,8 @@ export default function RootLayout({
                 <CookieConsent />
               </AuthenticatedLayout>
             </div>
-          </Providers>
-        </ClerkProvider>
+          </ClerkProvider>
+        </Providers>
       </body>
     </html>
   )
