@@ -18,7 +18,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   const { isOpen } = useSidebar()
 
   // Return children without layout for homepage, auth pages, onboarding, and analysis
-  if (pathname === '/' || pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/onboarding' || pathname === '/analysis') {
+  if (pathname === '/' || pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/onboarding' || pathname.startsWith('/analysis/')) {
     return <div className="relative min-h-screen bg-background">{children}</div>
   }
 
@@ -43,11 +43,11 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   // If authenticated and not loading, render with sidebar (except for analysis page)
   return (
     <div className="relative min-h-screen bg-background">
-      {pathname !== '/analysis' && <Sidebar />}
+      {!pathname.startsWith('/analysis/') && <Sidebar />}
       <div className={cn(
         "min-h-screen",
-        `transition-transform duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING} ease-in-out`,
-        pathname !== '/analysis' && (isOpen ? "lg:pl-[280px]" : "lg:pl-0")
+        `transition-transform duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING} ease-in-out`,
+        !pathname.startsWith('/analysis/') && (isOpen ? "lg:pl-[280px]" : "lg:pl-0")
       )}>
         <PageHeader />
         <main>

@@ -7,9 +7,11 @@ import { VideoContent } from "./video-content"
 interface MobileSheetProps {
   isOpen: boolean
   onClose: () => void
+  loading?: boolean
+  error?: string | null
 }
 
-export function MobileSheet({ isOpen, onClose }: MobileSheetProps) {
+export function MobileSheet({ isOpen, onClose, loading, error }: MobileSheetProps) {
   return (
     <div className="block sm:hidden">
       <Sheet 
@@ -49,7 +51,7 @@ export function MobileSheet({ isOpen, onClose }: MobileSheetProps) {
           <Sheet.Content>
             <Sheet.Scroller>
               <div className="px-6 pb-6">
-                <VideoContent />
+                <VideoContent loading={loading} error={error} />
               </div>
             </Sheet.Scroller>
           </Sheet.Content>

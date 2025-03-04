@@ -24,7 +24,7 @@ import { CourseCard } from "./components/course-card"
 import { CourseDialog } from "./components/course-dialog"
 import { Course, CourseFilter, CourseCategory } from "./types"
 import { sampleCourses } from "./data"
-import { CourseGenerationModal } from "../explore/components/course-generation-modal"
+import { CourseGenerationModal } from "@/components/modals/course-generation-modal"
 
 const filters: { id: CourseFilter; label: string }[] = [
   { id: "all", label: "All" },

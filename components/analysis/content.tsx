@@ -1,12 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { AnalysisHeader } from "@/components/analysis/header"
-import { cn } from "@/lib/utils"
+import { useParams } from "next/navigation"
+import { useAnalysis } from "@/hooks/use-analysis-context"
 import { ResizablePanel } from "@/components/resizable-panel"
-import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context"
 import { VideoContent } from "@/components/analysis/video-content"
 import { MobileSheet } from "@/components/analysis/mobile-sheet"
+import { getVideoDetails, getPlaylistDetails } from "@/app/actions/youtube"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +18,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-function AnalysisContent() {
+export function AnalysisContent() {
+  const params = useParams()
+  const videoId = params["video-id"] as string
   const {
     width,
     minWidth,
@@ -28,14 +30,58 @@ function AnalysisContent() {
     setWidth,
     toggle,
     setShowAlert,
-    confirmBack
+    confirmBack,
+    setVideoData
   } = useAnalysis()
 
   const [mounted, setMounted] = React.useState(false)
   const [hasMounted, setHasMounted] = React.useState(false)
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    // Two-phase mounting to ensure smoother transitions
+    const fetchContent = async () => {
+      if (!videoId) {
+        setError("No video or playlist ID provided")
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+
+      // Try to fetch as video first, then as playlist if that fails
+      try {
+        const data = await getVideoDetails(videoId)
+        setVideoData(data)
+        setLoading(false)
+      } catch (videoError) {
+        console.log("Video fetch failed, trying as playlist:", videoError)
+
+        try {
+          const data = await getPlaylistDetails(videoId)
+          setVideoData(data)
+          setLoading(false)
+        } catch (playlistError) {
+          console.error("Error fetching content:", playlistError)
+          setError(
+            playlistError instanceof Error
+              ? playlistError.message
+              : "Failed to fetch content details"
+          )
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchContent()
+
+    return () => {
+      setVideoData(null)
+    }
+  }, [videoId, setVideoData])
+
+  React.useEffect(() => {
     setMounted(true)
     const timer = setTimeout(() => {
       setHasMounted(true)
@@ -48,9 +94,9 @@ function AnalysisContent() {
   }, [])
 
   return (
-    <>
-      <main className="flex-1 relative">
-        <div className="flex h-[calc(100vh-64px)]">
+    <div className="relative flex-1">
+      <main className="flex-1 relative overflow-hidden">
+        <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
           {/* Left panel - converts to bottom sheet on small screens */}
           <div className="hidden sm:block relative border-r bg-background">
             <ResizablePanel
@@ -60,8 +106,8 @@ function AnalysisContent() {
               onWidthChange={setWidth}
               className="h-full"
             >
-              <div className="h-full p-6">
-                <VideoContent />
+              <div className="h-full overflow-auto hover:scrollbar scrollbar-thin">
+                <VideoContent loading={loading} error={error} />
               </div>
             </ResizablePanel>
           </div>
@@ -76,9 +122,9 @@ function AnalysisContent() {
 
           {/* Main content area */}
           <div className="flex-1 min-w-0">
-            <div className="p-6">
+            <div className="h-full p-6 overflow-auto hover:scrollbar scrollbar-thin">
               {/* Main content will go here */}
-              <div className="h-[200vh]">Temporary content for scrolling test</div>
+              <div className="h-[200vh]">Analysis content will go here</div>
             </div>
           </div>
         </div>
@@ -100,17 +146,6 @@ function AnalysisContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
-  )
-}
-
-export default function AnalysisPage() {
-  return (
-    <AnalysisProvider>
-      <div id="main" className="min-h-screen flex flex-col bg-background overflow-hidden">
-        <AnalysisHeader />
-        <AnalysisContent />
-      </div>
-    </AnalysisProvider>
+    </div>
   )
 }
