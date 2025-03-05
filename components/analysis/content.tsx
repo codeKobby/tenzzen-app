@@ -6,7 +6,7 @@ import { useAnalysis } from "@/hooks/use-analysis-context"
 import { ResizablePanel } from "@/components/resizable-panel"
 import { VideoContent } from "@/components/analysis/video-content"
 import { MobileSheet } from "@/components/analysis/mobile-sheet"
-import { getVideoDetails, getPlaylistDetails } from "@/app/actions/youtube"
+import { getVideoDetails, getPlaylistDetails } from "@/app/actions/getYoutubeData"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,9 +94,9 @@ export function AnalysisContent() {
   }, [])
 
   return (
-    <div className="relative flex-1">
-      <main className="flex-1 relative overflow-hidden">
-        <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="h-[calc(100vh-64px)] overflow-hidden">
+      <main className="h-full overflow-hidden">
+        <div className="flex h-full overflow-hidden">
           {/* Left panel - converts to bottom sheet on small screens */}
           <div className="hidden sm:block relative border-r bg-background">
             <ResizablePanel
@@ -122,9 +122,13 @@ export function AnalysisContent() {
 
           {/* Main content area */}
           <div className="flex-1 min-w-0">
-            <div className="h-full p-6 overflow-auto hover:scrollbar scrollbar-thin">
-              {/* Main content will go here */}
-              <div className="h-[200vh]">Analysis content will go here</div>
+            <div className="h-full p-6">
+              {/* Content */}
+              <div className="flex items-center justify-center h-full">
+                <p className="text-lg text-muted-foreground">
+                  Select content on the left to analyze
+                </p>
+              </div>
             </div>
           </div>
         </div>

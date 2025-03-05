@@ -1,0 +1,7 @@
+/* Page-specific styles to prevent scrolling only on analysis pages */
+.analysis-page {
+  overflow: hidden;
+  height: 100vh;
+  width: 100%;
+  position: fixed;
+}

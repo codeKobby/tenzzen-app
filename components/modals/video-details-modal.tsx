@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getVideoDetails, getPlaylistDetails, VideoDetails, PlaylistDetails, VideoItem } from "@/app/actions/youtube"
+import { getVideoDetails, getPlaylistDetails, VideoDetails, PlaylistDetails, VideoItem } from "@/app/actions/getyoutube"
 
 interface VideoDetailsModalProps {
     isOpen: boolean

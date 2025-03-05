@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { CookieConsent } from "@/components/cookie-consent"
 import { ClerkProvider } from "@clerk/nextjs"
 import { ThemeScript } from "@/components/theme-script"
+import { Toaster } from "sonner"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -53,6 +54,12 @@ export default function RootLayout({
             </div>
           </ClerkProvider>
         </Providers>
+        <Toaster
+          position="bottom-right"
+          closeButton
+          theme="system"
+          richColors
+        />
       </body>
     </html>
   )

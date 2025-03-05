@@ -17,6 +17,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import type { ContentDetails } from "@/types/youtube"
+import { Sparkles } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+// Add the isPlaylist helper function
+const isPlaylist = (content: ContentDetails): content is any => {
+  return content?.type === "playlist"
+}
 
 interface ContentProps {
   initialContent: ContentDetails | null
@@ -34,16 +41,40 @@ function Content({ initialContent, initialError }: ContentProps) {
     toggle,
     setShowAlert,
     confirmBack,
-    setVideoData
+    setVideoData,
+    videoData
   } = useAnalysis()
 
   const [mounted, setMounted] = React.useState(false)
   const [hasMounted, setHasMounted] = React.useState(false)
-  const [loading, setLoading] = React.useState(false)
+  const [loading, setLoading] = React.useState(initialContent === null && !initialError)
   const [error, setError] = React.useState<string | null>(initialError)
 
+  // Add a ref to track whether we've already opened the sheet
+  const initialOpenDoneRef = React.useRef(false);
+
+  // Only open sheet on first load
   React.useEffect(() => {
-    // Two-phase mounting to ensure smoother transitions
+    if (initialOpenDoneRef.current) {
+      // Skip if we've already done the initial open
+      return;
+    }
+
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+
+    // Only open on initial mount for mobile
+    if (isMobile && !isOpen && mounted && hasMounted) {
+      const timer = setTimeout(() => {
+        toggle(true); // Open the sheet
+        initialOpenDoneRef.current = true; // Mark as done
+      }, 200);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, mounted, hasMounted, toggle]);
+
+  // Regular mounting logic
+  React.useEffect(() => {
     setMounted(true)
     const timer = setTimeout(() => {
       setHasMounted(true)
@@ -57,9 +88,19 @@ function Content({ initialContent, initialError }: ContentProps) {
 
   React.useEffect(() => {
     if (initialContent) {
+      setLoading(false)
       setVideoData(initialContent)
+    } else if (initialError) {
+      setLoading(false)
     }
-  }, [initialContent, setVideoData])
+  }, [initialContent, initialError, setVideoData])
+
+  const handleGenerateCourse = React.useCallback(() => {
+    // You would add your course generation logic here
+    console.log("Generate course from:", videoData);
+    // In the future, you might navigate to a new page
+    // or open a modal with course generation options
+  }, [videoData]);
 
   return (
     <>
@@ -84,17 +125,38 @@ function Content({ initialContent, initialError }: ContentProps) {
           {mounted && hasMounted && (
             <MobileSheet
               isOpen={isOpen}
-              onClose={() => toggle(false)}
+              onClose={() => toggle(false)} // Make sure we're explicitly calling toggle(false)
               loading={loading}
               error={error}
             />
           )}
 
-          {/* Main content area */}
+          {/* Main content area with course generation button */}
           <div className="flex-1 min-w-0">
-            <div className="p-6 h-full overflow-auto hover:scrollbar scrollbar-thin">
-              {/* Main content will go here */}
-              <div className="h-[200vh]">Analysis content will go here</div>
+            <div className="p-6 h-full flex flex-col items-center justify-center">
+              <div className="text-center max-w-md">
+                <h3 className="text-xl font-semibold mb-2">Ready to create a course?</h3>
+                <p className="text-muted-foreground mb-6">
+                  Generate a structured learning experience from the selected content.
+                </p>
+
+                <Button
+                  onClick={handleGenerateCourse}
+                  disabled={!videoData}
+                  size="lg"
+                  className="gap-2 px-6 py-6 h-auto text-base font-medium transition-all hover:scale-105 hover:shadow-md"
+                >
+                  <Sparkles className="h-5 w-5" />
+                  Generate Course
+                </Button>
+
+                <p className="text-sm text-muted-foreground mt-6">
+                  {!videoData
+                    ? "Select content from the left panel to begin"
+                    : `Using ${isPlaylist(videoData) ? "playlist" : "video"}: ${videoData.title.slice(0, 50)}${videoData.title.length > 50 ? '...' : ''}`
+                  }
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -127,7 +189,7 @@ interface AnalysisClientProps {
 
 export function AnalysisClient({ initialContent, initialError }: AnalysisClientProps) {
   return (
-    <div id="main" className="min-h-screen flex flex-col bg-background overflow-hidden">
+    <div id="main" className="h-full w-full flex flex-col bg-background">
       <AnalysisProvider>
         <AnalysisHeader />
         <Content initialContent={initialContent} initialError={initialError} />

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Youtube, Bot, Link as LinkIcon, VideoIcon, X } from "lucide-react"
+import { Youtube, Bot, Link as LinkIcon, VideoIcon, X, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 interface CourseGenerationModalProps {
@@ -125,6 +125,8 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
         }
         const urlInfo = parseYoutubeUrl(youtubeUrl)
         if (urlInfo) {
+          // Show loading state for a moment before navigation
+          await new Promise(resolve => setTimeout(resolve, 500))
           await router.push(`/analysis/${urlInfo.id}`)
           onClose()
         }
@@ -144,14 +146,19 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
     }
   }, [activeTab, youtubeUrl, formData.title, router, onClose, validateYoutubeUrl, parseYoutubeUrl])
 
+  // Utility function to conditionally join class names
+  const cn = (...classes: (string | boolean | undefined)[]): string => {
+    return classes.filter(Boolean).join(" ")
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[425px] mx-auto h-auto max-h-[85vh] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent bg-background shadow-lg border border-border rounded-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl leading-tight">
+          <DialogTitle className="text-2xl font-semibold leading-tight">
             Generate New Course
           </DialogTitle>
-          <DialogDescription className="text-base">
+          <DialogDescription className="text-base text-muted-foreground/90 mt-1.5">
             Create a custom course from YouTube content or describe what you want to learn.
           </DialogDescription>
         </DialogHeader>
@@ -173,9 +180,9 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="link" className="mt-4 space-y-4">
+            <TabsContent value="link" className="mt-6 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="youtube-url" className="text-base">
+                <Label htmlFor="youtube-url" className="text-base font-medium">
                   YouTube URL
                 </Label>
                 <div className="relative">
@@ -186,7 +193,7 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                       placeholder="Paste video or playlist URL"
                       value={youtubeUrl}
                       onChange={(e) => handleUrlChange(e.target.value)}
-                      className="pl-9 pr-8 text-base"
+                      className="pl-9 pr-8 text-base placeholder:text-muted-foreground/60 placeholder:text-sm"
                     />
                     {youtubeUrl && (
                       <button
@@ -206,16 +213,16 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                 {urlError && (
                   <p className="text-sm text-destructive">{urlError}</p>
                 )}
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground/80 mt-1">
                   Enter a YouTube video or playlist URL to generate a structured course.
                 </p>
               </div>
             </TabsContent>
 
-            <TabsContent value="discover" className="mt-4 space-y-4">
+            <TabsContent value="discover" className="mt-6 space-y-5">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title" className="text-base">
+                  <Label htmlFor="title" className="text-base font-medium">
                     What do you want to learn? <span className="text-destructive">*</span>
                   </Label>
                   <Input
@@ -226,12 +233,12 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                       ...prev,
                       title: e.target.value
                     }))}
-                    className="text-base"
+                    className="text-base placeholder:text-muted-foreground/60 placeholder:text-sm"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="level" className="text-base">
+                  <Label htmlFor="level" className="text-base font-medium">
                     Knowledge Level <span className="text-destructive">*</span>
                   </Label>
                   <select
@@ -251,7 +258,7 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="channels" className="text-base">
+                  <Label htmlFor="channels" className="text-base font-medium">
                     Preferred YouTube Channels
                   </Label>
                   <div className="relative">
@@ -262,7 +269,7 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                       value={currentChannel}
                       onChange={(e) => setCurrentChannel(e.target.value)}
                       onKeyDown={handleChannelKeyDown}
-                      className="pl-9 text-base"
+                      className="pl-9 text-base placeholder:text-muted-foreground/60 placeholder:text-sm"
                     />
                   </div>
                   {formData.preferredChannels.length > 0 && (
@@ -284,13 +291,13 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                       ))}
                     </div>
                   )}
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground/80 mt-1">
                     Optionally specify preferred channels for better results
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="context" className="text-base">
+                  <Label htmlFor="context" className="text-base font-medium">
                     Additional Context
                   </Label>
                   <Input
@@ -301,9 +308,9 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                       ...prev,
                       additionalContext: e.target.value
                     }))}
-                    className="text-base"
+                    className="text-base placeholder:text-muted-foreground/60 placeholder:text-sm"
                   />
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground/80 mt-1">
                     Any specific preferences or requirements for the course
                   </p>
                 </div>
@@ -312,16 +319,32 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
           </Tabs>
         </div>
 
-        <DialogFooter className="flex flex-row flex-nowrap gap-3">
-          <Button variant="outline" onClick={onClose} className="flex-1">
+        <DialogFooter className="flex flex-row flex-nowrap gap-3 mt-2">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="flex-1"
+            disabled={isLoading}
+          >
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={isLoading || (activeTab === "link" ? !youtubeUrl : !formData.title)}
-            className="flex-1"
+            className={cn(
+              "flex-1",
+              (isLoading || (activeTab === "link" ? !youtubeUrl : !formData.title)) &&
+              "cursor-not-allowed opacity-60"
+            )}
           >
-            {isLoading ? "Processing..." : "Next"}
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading...
+              </span>
+            ) : (
+              "Next"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

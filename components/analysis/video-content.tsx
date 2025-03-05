@@ -1,12 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useAnalysis } from "@/hooks/use-analysis-context"
 import { Button } from "@/components/ui/button"
-import { Loader2, ChevronDown, ChevronUp, ExternalLink, AlertCircle } from "lucide-react"
+import { Loader2, ChevronDown, ChevronUp, AlertCircle, MinusCircle, Sparkles } from "lucide-react"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import type { VideoDetails, PlaylistDetails, VideoItem } from "@/types/youtube"
 import { startUrl } from "@/lib/utils"
+import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 type ContentDetails = VideoDetails | PlaylistDetails
 
@@ -19,9 +22,17 @@ interface VideoContentProps {
   error?: string | null
 }
 
+// Define a more specific type for toast custom function parameter
+interface ToastType {
+  id: string | number;
+  visible: boolean;
+  swipeDirection?: string;
+  dismiss: () => void;
+}
+
 export function VideoContent({ loading, error }: VideoContentProps) {
   const { videoData } = useAnalysis()
-  const [expandedVideoIds, setExpandedVideoIds] = useState<Set<string>>(new Set())
+  const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null)
   const [showVideoOpenDialog, setShowVideoOpenDialog] = useState(false)
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null)
   const [dontShowVideoDialog, setDontShowVideoDialog] = useState(() => {
@@ -31,6 +42,16 @@ export function VideoContent({ loading, error }: VideoContentProps) {
     return false
   })
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [removedVideos, setRemovedVideos] = useState<Record<string, VideoItem>>({})
+  const [activeCancelId, setActiveCancelId] = useState<string | null>(null)
+
+  // Calculate active video count that responds to removals - with null check
+  const activeVideoCount = useMemo(() => {
+    if (videoData && isPlaylist(videoData)) {
+      return videoData.videos.filter(video => !removedVideos[video.id]).length;
+    }
+    return 0;
+  }, [videoData, removedVideos]);
 
   const handleVideoClick = (videoId: string): void => {
     const url = `https://youtube.com/watch?v=${videoId}`
@@ -53,28 +74,80 @@ export function VideoContent({ loading, error }: VideoContentProps) {
   }
 
   const toggleVideoExpand = (videoId: string): void => {
-    setExpandedVideoIds((prev) => {
-      const newSet = new Set(prev)
-      if (prev.has(videoId)) {
-        newSet.delete(videoId)
-      } else {
-        newSet.add(videoId)
-      }
-      return newSet
-    })
+    setExpandedVideoId(prev => prev === videoId ? null : videoId)
   }
 
   const toggleDescription = (): void => {
     setShowFullDescription((prev) => !prev)
   }
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Loading content details...</p>
+  const handleRemoveVideo = useCallback((video: VideoItem, event: React.MouseEvent) => {
+    // Stop propagation to prevent other click handlers from firing
+    event.stopPropagation();
+
+    setRemovedVideos(prev => ({
+      ...prev,
+      [video.id]: video
+    }))
+
+    setActiveCancelId(video.id)
+
+    // Fix TypeScript errors with proper type casting for toast parameters
+    toast.custom((t: any) => (
+      <div
+        className={cn(
+          "flex flex-col gap-2 rounded-lg border bg-background p-4 shadow-lg",
+          "data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=cancel]:translate-x-0 data-[swipe=cancel]:transition-[transform_200ms_ease-out] data-[swipe=end]:animate-out data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-5",
+          t.visible ? "animate-in slide-in-from-bottom-4" : "animate-out fade-out-0 slide-out-to-right-4"
+        )}
+        data-swipe={t.swipeDirection}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-1">
+            <div className="text-sm font-medium">Video removed from list</div>
+            <div className="text-xs text-muted-foreground">
+              This video has been removed from your playlist
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              // Restore the video
+              setRemovedVideos(prev => {
+                const newRemoved = { ...prev }
+                delete newRemoved[video.id]
+                return newRemoved
+              })
+              setActiveCancelId(null)
+              toast.dismiss(t.id)
+            }}
+            className="border border-border px-2 h-8 hover:bg-accent hover:text-accent-foreground"
+          >
+            Undo
+          </Button>
+        </div>
+
+        {/* Theme-based progress bar */}
+        <div className="w-full h-[3px] bg-muted rounded-full overflow-hidden mt-2">
+          <div
+            className="h-full bg-primary animate-countdown-progress"
+            style={{ animationDuration: "5s" }}
+            onAnimationEnd={() => {
+              setActiveCancelId(null)
+              toast.dismiss(t.id)
+            }}
+          />
+        </div>
       </div>
-    )
+    ), {
+      id: `remove-${video.id}`,
+      duration: 5000,
+    })
+  }, [])
+
+  if (loading) {
+    return <VideoContentSkeleton />
   }
 
   if (error) {
@@ -106,7 +179,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
     <>
       <div className="space-y-4 pb-2 p-4">
         {!isPlaylist(videoData) ? (
-          // Single Video Display
           <div className="space-y-4">
             <div className="flex gap-4">
               <div className="flex-shrink-0">
@@ -152,7 +224,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                     onClick={toggleDescription}
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs text-muted-foreground/70 hover:text-muted-foreground flex items-center gap-1 z-10"
+                    className="h-7 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground hover:bg-transparent flex items-center gap-1 z-10"
                   >
                     {showFullDescription ? (
                       <>
@@ -184,98 +256,140 @@ export function VideoContent({ loading, error }: VideoContentProps) {
             )}
           </div>
         ) : (
-          // Playlist Display
           <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-shrink-0">
-                <div
-                  className="w-24 relative cursor-pointer rounded-lg overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
-                  onClick={() => handlePlaylistClick(videoData.id)}
-                >
-                  <img
-                    src={videoData.thumbnail}
-                    alt={videoData.title}
-                    className="w-full aspect-video object-cover"
-                  />
+            {/* Sticky playlist header */}
+            <div className="sticky top-0 z-10 bg-background pt-2 pb-3 -mt-2 -mx-4 px-4 border-b border-border/40">
+              <div className="flex gap-4">
+                <div className="flex-shrink-0">
+                  <div
+                    className="w-24 relative cursor-pointer rounded-lg overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
+                    onClick={() => handlePlaylistClick(videoData.id)}
+                  >
+                    <img
+                      src={videoData.thumbnail}
+                      alt={videoData.title}
+                      className="w-full aspect-video object-cover"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-base font-semibold leading-tight tracking-tight text-foreground line-clamp-2">
-                  {videoData.title}
-                </h2>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-muted-foreground/90">
-                    {videoData.channelName}
-                  </span>
-                  <span className="text-xs text-muted-foreground/60">•</span>
-                  <span className="text-xs text-muted-foreground/80">
-                    {videoData.videoCount} videos
-                  </span>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-base font-semibold leading-tight tracking-tight text-foreground line-clamp-2">
+                    {videoData.title}
+                  </h2>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-muted-foreground/90">
+                      {videoData.channelName}
+                    </span>
+                    <span className="text-xs text-muted-foreground/60">•</span>
+                    <span className="text-xs text-muted-foreground/80">
+                      {activeVideoCount} video{activeVideoCount !== 1 ? "s" : ""}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="h-px bg-border/50" />
+            {/* Content list */}
+            <div className="space-y-4 pt-2">
+              {videoData.videos
+                .filter(video => !removedVideos[video.id])
+                .map((video: VideoItem, index: number) => (
+                  <div key={video.id} className="group -mx-4 px-4">
+                    <div className={`hover:bg-secondary/50 rounded-lg ${expandedVideoId === video.id ? "bg-secondary/30" : ""}`}>
+                      <div className="flex gap-3 p-2">
+                        {/* Remove button column with improved visibility */}
+                        <div className="flex-shrink-0 self-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 flex-shrink-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10 
+                                     opacity-70 sm:opacity-40 sm:group-hover:opacity-100 transition-all rounded-full border border-transparent
+                                     hover:border-destructive/30"
+                            onClick={(e) => handleRemoveVideo(video, e)}
+                            title="Remove from list"
+                            aria-label="Remove video"
+                          >
+                            <MinusCircle className="h-[15px] w-[15px]" />
+                            <span className="sr-only">Remove from list</span>
+                          </Button>
+                        </div>
 
-            <div className="space-y-4">
-              {videoData.videos.map((video: VideoItem, index: number) => (
-                <div key={video.id} className="group">
-                  <div className="flex gap-4 hover:bg-secondary/50 rounded-lg p-2 -mx-2">
-                    <span className="text-xs text-center text-muted-foreground/60 pt-1.5 hidden sm:block">
-                      {index + 1}
-                    </span>
-                    <div className="flex-shrink-0">
-                      <div
-                        className="w-24 relative cursor-pointer rounded overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
-                        onClick={() => handleVideoClick(video.id)}
-                      >
-                        <img
-                          src={video.thumbnail}
-                          alt={video.title}
-                          className="w-full aspect-video object-cover"
-                        />
-                        <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
-                          {video.duration}
+                        {/* Position number column */}
+                        <span className="text-xs text-center text-muted-foreground/60 pt-1.5 hidden sm:block">
+                          {index + 1}
+                        </span>
+
+                        {/* Thumbnail column */}
+                        <div className="flex-shrink-0">
+                          <div
+                            className="w-24 relative cursor-pointer rounded overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
+                            onClick={() => handleVideoClick(video.id)}
+                          >
+                            <img
+                              src={video.thumbnail}
+                              alt={video.title}
+                              className="w-full aspect-video object-cover"
+                            />
+                            <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+                              {video.duration}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Content column with improved text styles */}
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <h4 className="font-medium text-sm leading-snug text-foreground line-clamp-2">
+                            {video.title}
+                          </h4>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-xs text-muted-foreground/80 truncate">
+                              {video.channelName}
+                            </span>
+                            <Button
+                              onClick={() => toggleVideoExpand(video.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground hover:bg-transparent flex items-center gap-1 z-10"
+                            >
+                              {expandedVideoId === video.id ? (
+                                <>
+                                  <ChevronUp className="h-3.5 w-3.5" />
+                                  Show less
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                  Show more
+                                </>
+                              )}
+                            </Button>
+                          </div>
+
+                          {/* Progress indicator for the item being removed */}
+                          {activeCancelId === video.id && (
+                            <div className="w-full mt-1 bg-muted h-[3px] rounded-full overflow-hidden">
+                              <div
+                                className="bg-primary h-full animate-countdown-progress"
+                                style={{ animationDuration: "5s" }}
+                                onAnimationEnd={() => {
+                                  setActiveCancelId(null);
+                                  // Don't dismiss toast here as it could interfere
+                                  // with the toast's own dismissal mechanism
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <h4 className="font-medium text-sm leading-snug text-foreground line-clamp-2">
-                        {video.title}
-                      </h4>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs text-muted-foreground/80 truncate">
-                          {video.channelName}
-                        </span>
-                        <Button
-                          onClick={() => toggleVideoExpand(video.id)}
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs text-muted-foreground/70 hover:text-muted-foreground transition-all duration-200 flex items-center gap-1 z-10"
-                        >
-                          {expandedVideoIds.has(video.id) ? (
-                            <>
-                              <ChevronUp className="h-3.5 w-3.5" />
-                              Show less
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-3.5 w-3.5" />
-                              Show more
-                            </>
-                          )}
-                        </Button>
-                      </div>
 
-                      {expandedVideoIds.has(video.id) && (
-                        <div className="mt-2">
-                          <div className="p-2 rounded-lg bg-secondary/30">
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground/70 pb-2 mb-2 border-b border-border/50">
+                      {expandedVideoId === video.id && (
+                        <div className="px-2 pb-4 mt-2">
+                          <div className="mt-1 space-y-4">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70 pb-3 border-b">
                               <span>{video.views} views</span>
-                              <span>•</span>
                               <span>{video.publishDate}</span>
                             </div>
-                            <div className="text-xs leading-relaxed text-muted-foreground/80 whitespace-pre-line">
+                            <div className="text-xs leading-relaxed text-foreground/90 whitespace-pre-wrap break-words overflow-x-hidden">
                               {video.description}
                             </div>
                           </div>
@@ -283,8 +397,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         )}

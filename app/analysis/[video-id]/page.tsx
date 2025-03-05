@@ -1,4 +1,4 @@
-import { getVideoDetails, getPlaylistDetails } from "@/app/actions/youtube"
+import { getVideoDetails, getPlaylistDetails } from "@/app/actions/getYoutubeData"
 import { AnalysisClient } from "./client"
 import { formatErrorMessage } from "@/lib/utils"
 
@@ -8,8 +8,9 @@ interface Props {
 
 // This renders on the server
 export default async function AnalysisPage({ params }: Props) {
-  // Get video ID from params
-  const videoId = params['video-id'];
+  // Ensure params are properly handled as they might be a promise
+  const resolvedParams = await Promise.resolve(params);
+  const videoId = resolvedParams['video-id'];
 
   if (!videoId) {
     return <AnalysisClient initialContent={null} initialError="No content ID provided" />;

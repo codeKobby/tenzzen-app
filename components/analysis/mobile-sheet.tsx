@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Sheet } from "react-modal-sheet"
 import { VideoContent } from "./video-content"
+import { useAnalysis } from "@/hooks/use-analysis-context"
 
 interface MobileSheetProps {
   isOpen: boolean
@@ -14,8 +15,8 @@ interface MobileSheetProps {
 export function MobileSheet({ isOpen, onClose, loading, error }: MobileSheetProps) {
   return (
     <div className="block sm:hidden">
-      <Sheet 
-        isOpen={isOpen} 
+      <Sheet
+        isOpen={isOpen}
         onClose={onClose}
         snapPoints={[0.95, 0.65]}
         initialSnap={1}
@@ -49,7 +50,29 @@ export function MobileSheet({ isOpen, onClose, loading, error }: MobileSheetProp
             <div className="h-1.5 w-12 rounded-full mx-auto mb-4 bg-muted-foreground/20" />
           </Sheet.Header>
           <Sheet.Content>
-            <Sheet.Scroller>
+            <Sheet.Scroller
+              className="hover:scrollbar scrollbar-thin"
+              style={{
+                scrollbarWidth: "thin",
+              }}
+            >
+              <style jsx global>{`
+                .react-modal-sheet-content::-webkit-scrollbar {
+                  width: 8px !important;
+                  height: 8px !important;
+                }
+                .react-modal-sheet-content::-webkit-scrollbar-track {
+                  background: transparent !important;
+                }
+                .react-modal-sheet-content::-webkit-scrollbar-thumb {
+                  background-color: hsla(var(--muted-foreground) / 0.2) !important;
+                  border-radius: 20px !important;
+                  border: none !important;
+                }
+                .react-modal-sheet-content::-webkit-scrollbar-thumb:hover {
+                  background-color: hsla(var(--muted-foreground) / 0.3) !important;
+                }
+              `}</style>
               <div className="px-6 pb-6">
                 <VideoContent loading={loading} error={error} />
               </div>

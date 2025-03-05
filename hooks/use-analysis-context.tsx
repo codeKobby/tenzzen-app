@@ -1,6 +1,7 @@
 "use client"
 
-import { ReactNode, createContext, useContext, useState } from "react"
+import * as React from "react"
+import { createContext, useContext, useState, useCallback, ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import type { ContentDetails } from "@/types/youtube"
 
@@ -16,6 +17,9 @@ interface AnalysisContextType {
   setShowAlert: (show: boolean) => void
   setVideoData: (data: ContentDetails | null) => void
   confirmBack: () => void
+  removedVideoIds: Record<string, boolean>
+  removeVideo: (videoId: string) => void
+  restoreVideo: (videoId: string) => void
 }
 
 const initialState: AnalysisContextType = {
@@ -25,11 +29,14 @@ const initialState: AnalysisContextType = {
   isOpen: false,
   videoData: null,
   showAlert: false,
-  setWidth: () => {},
-  toggle: () => {},
-  setShowAlert: () => {},
-  setVideoData: () => {},
-  confirmBack: () => {},
+  setWidth: () => { },
+  toggle: () => { },
+  setShowAlert: () => { },
+  setVideoData: () => { },
+  confirmBack: () => { },
+  removedVideoIds: {},
+  removeVideo: () => { },
+  restoreVideo: () => { },
 }
 
 const AnalysisContext = createContext<AnalysisContextType>(initialState)
@@ -44,10 +51,31 @@ export function AnalysisProvider({ children }: AnalysisProviderProps) {
   const [isOpen, setIsOpen] = useState(initialState.isOpen)
   const [showAlert, setShowAlert] = useState(initialState.showAlert)
   const [videoData, setVideoData] = useState<ContentDetails | null>(null)
+  const [removedVideoIds, setRemovedVideoIds] = useState<Record<string, boolean>>({})
 
-  const toggle = (value?: boolean) => {
-    setIsOpen(prev => value ?? !prev)
-  }
+  // Make sure toggle has stable behavior
+  const toggle = useCallback((value?: boolean) => {
+    if (value !== undefined) {
+      setIsOpen(value); // Directly set the state if a value is provided
+    } else {
+      setIsOpen(prev => !prev); // Toggle the state if no value is provided
+    }
+  }, []);
+
+  const removeVideo = useCallback((videoId: string) => {
+    setRemovedVideoIds(prev => ({
+      ...prev,
+      [videoId]: true
+    }))
+  }, [])
+
+  const restoreVideo = useCallback((videoId: string) => {
+    setRemovedVideoIds(prev => {
+      const newRemoved = { ...prev }
+      delete newRemoved[videoId]
+      return newRemoved
+    })
+  }, [])
 
   const confirmBack = () => {
     setShowAlert(false)
@@ -68,6 +96,9 @@ export function AnalysisProvider({ children }: AnalysisProviderProps) {
         setShowAlert,
         setVideoData,
         confirmBack,
+        removedVideoIds,
+        removeVideo,
+        restoreVideo,
       }}
     >
       {children}
