@@ -60,7 +60,7 @@ export function AnalysisHeader() {
     )}>
       <div className={cn(
         "mx-auto w-[95%] lg:w-[90%] flex h-16 items-center justify-between",
-        `transition-all duration-[300ms] ease-in-out`
+        `transition-all duration-&lsqb;300ms&rsqb; ease-in-out`
       )}>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">

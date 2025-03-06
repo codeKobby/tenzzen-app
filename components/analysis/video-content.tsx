@@ -5,6 +5,7 @@ import { useAnalysis } from "@/hooks/use-analysis-context"
 import { Button } from "@/components/ui/button"
 import { Loader2, ChevronDown, ChevronUp, AlertCircle, MinusCircle, Sparkles } from "lucide-react"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { getVideoDetails } from "@/app/actions/getYoutubeData"
 import type { VideoDetails, PlaylistDetails, VideoItem } from "@/types/youtube"
 import { startUrl } from "@/lib/utils"
 import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton"
@@ -31,7 +32,7 @@ interface ToastType {
 }
 
 export function VideoContent({ loading, error }: VideoContentProps) {
-  const { videoData } = useAnalysis()
+  const { videoData, setVideoData } = useAnalysis()
   const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null)
   const [showVideoOpenDialog, setShowVideoOpenDialog] = useState(false)
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null)
@@ -53,13 +54,34 @@ export function VideoContent({ loading, error }: VideoContentProps) {
     return 0;
   }, [videoData, removedVideos]);
 
-  const handleVideoClick = (videoId: string): void => {
-    const url = `https://youtube.com/watch?v=${videoId}`
-    if (dontShowVideoDialog) {
-      startUrl(url, '_blank', 'noopener,noreferrer')
+  const handleVideoClick = async (videoId: string): Promise<void> => {
+    if (isPlaylist(videoData)) {
+      try {
+        // If we're in a playlist, fetch the full video details
+        const details = await getVideoDetails(videoId)
+        setVideoData(details)
+      } catch (error) {
+        console.error('Error fetching video details:', error)
+        // Fallback to basic playlist data if fetch fails
+        const playlistVideo = videoData.videos.find(v => v.id === videoId)
+        if (playlistVideo) {
+          setVideoData({
+            ...playlistVideo,
+            type: 'video' as const,
+            channelAvatar: undefined,
+            likes: '0'
+          } as VideoDetails)
+        }
+      }
     } else {
-      setSelectedVideoUrl(url)
-      setShowVideoOpenDialog(true)
+      // Regular video click behavior for opening in new tab
+      const url = `https://youtube.com/watch?v=${videoId}`
+      if (dontShowVideoDialog) {
+        startUrl(url, '_blank', 'noopener,noreferrer')
+      } else {
+        setSelectedVideoUrl(url)
+        setShowVideoOpenDialog(true)
+      }
     }
   }
 

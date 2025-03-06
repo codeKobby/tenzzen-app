@@ -1,13 +1,28 @@
-"use client"
+import { ThemeScript } from "@/components/theme-script"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Providers } from "@/components/providers"
+import type { ReactNode } from "react"
 
-export default function AuthLayout({
-  children,
-}: {
+interface AuthLayoutProps {
   children: React.ReactNode
-}) {
+}
+
+export default function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-      {children}
-    </div>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
+      <body>
+        <Providers>
+          <div className="min-h-screen flex items-center justify-center bg-background">
+            {children}
+            <div className="fixed bottom-4 right-4 z-50">
+              <ThemeToggle />
+            </div>
+          </div>
+        </Providers>
+      </body>
+    </html>
   )
 }

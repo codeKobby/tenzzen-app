@@ -1,88 +1,122 @@
-# Tenzzen - AI-Powered Course Generation Platform
+# Tenzzen
 
-Transform YouTube videos into structured learning experiences with AI.
+A Next.js application with Convex backend and Clerk authentication.
+
+## Technology Stack
+
+- **Frontend**: Next.js 14 with App Router
+- **Backend**: Convex
+- **Authentication**: Clerk
+- **Styling**: Tailwind CSS
+- **UI Components**: Radix UI
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ and pnpm
-- Supabase account
-- Google OAuth credentials (for Google sign-in)
+- Node.js 18+ 
+- npm or pnpm
+- A Clerk account
+- A Convex account
 
 ### Setup
 
-1. Install dependencies:
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd tenzzen
+```
+
+2. Install dependencies:
 ```bash
 pnpm install
 ```
 
-2. Create a `.env` file in the root directory with your Supabase credentials:
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+3. Environment Variables:
+Copy `.env.local.example` to `.env.local` and fill in your credentials:
+
+```bash
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+CLERK_JWT_ISSUER_DOMAIN=your_clerk_issuer_domain
+
+# Convex
+NEXT_PUBLIC_CONVEX_URL=your_convex_deployment_url
 ```
 
-3. Configure Supabase Authentication:
-   - Go to your Supabase project dashboard
-   - Navigate to Authentication > Providers
-   - Enable Email/Password provider
-   - Enable Google provider and add your OAuth credentials
-   - Add your app's URL to the redirect URLs (e.g., `http://localhost:3000/auth/callback`)
+4. Initialize Convex:
+```bash
+npx convex dev
+```
 
-4. Start the development server:
+5. Start the development server:
 ```bash
 pnpm dev
 ```
 
-Visit `http://localhost:3000` to see the application.
+### Clerk Setup
 
-### Authentication Features
+1. Create a new application in [Clerk Dashboard](https://dashboard.clerk.dev)
+2. Configure your OAuth providers (if needed)
+3. Create a JWT template for Convex:
+   - Go to JWT Templates in Clerk Dashboard
+   - Create a new template with name "convex"
+   - Use the default configuration
 
-- Email/Password authentication
-- Google OAuth sign-in
-- Password strength validation
-- Protected routes
-- Authentication state management
-- Loading states
-- Form validation
+### Convex Setup
 
-### Theme Support
+1. Initialize Convex in your project:
+```bash
+npx convex init
+```
 
-- Light/Dark mode support
-- System theme detection
-- Theme persistence
+2. The schema and authentication are already configured in:
+- `convex/schema.ts`: Database schema
+- `convex/auth.config.ts`: Authentication configuration
+- `convex/videos.ts`: API endpoints
 
 ### Project Structure
 
 ```
-tenzzen/
-├── app/
-│   ├── (app)/          # Protected routes
-│   ├── (auth)/         # Authentication routes
-│   └── layout.tsx      # Root layout
-├── components/         # Reusable components
-├── lib/               # Utilities and providers
-│   ├── supabase/      # Supabase client and auth
-│   └── utils.ts       # Helper functions
-└── public/            # Static assets
+├── app/                    # Next.js app directory
+├── components/            # React components
+├── convex/               # Convex backend
+│   ├── schema.ts        # Database schema
+│   ├── auth.config.ts   # Auth configuration
+│   └── videos.ts        # API endpoints
+├── lib/                 # Utilities and helpers
+├── public/              # Static assets
+└── types/              # TypeScript types
 ```
+
+## Features
+
+- User authentication with Clerk
+- Real-time data synchronization with Convex
+- Video metadata management
+- YouTube data integration
 
 ## Development
 
-### Key Features
+- Run `pnpm dev` to start the Next.js development server
+- Run `npx convex dev` to start the Convex development server
+- Visit `http://localhost:3000` to see your application
 
-- Course generation from YouTube videos
-- Progress tracking
-- Interactive learning paths
-- Responsive design
-- Mobile-first approach
+## Deployment
 
-### Built With
+1. Deploy to Vercel:
+```bash
+vercel deploy
+```
 
-- Next.js 13+ (App Router)
-- React
-- TypeScript
-- Tailwind CSS
-- Supabase
-- shadcn/ui
+2. Deploy Convex:
+```bash
+npx convex deploy
+```
+
+3. Update environment variables in your Vercel deployment
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
