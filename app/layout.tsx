@@ -1,18 +1,27 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { Providers } from "@/components/providers"
-import { AuthenticatedLayout } from "@/components/authenticated-layout"
-import { ThemeScript } from "@/components/theme-script"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { CookieConsent } from "@/components/cookie-consent"
+import { RootLayoutClient } from "./root-layout-client"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Tenzzen - Transform Videos into Structured Courses",
+  title: {
+    template: "%s | Tenzzen",
+    default: "Tenzzen - Transform Videos into Structured Courses",
+  },
   description: "Use AI to turn YouTube videos into interactive learning experiences",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
 }
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" },
+  ],
+} as const
 
 export default function RootLayout({
   children,
@@ -21,21 +30,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <ThemeScript />
-      </head>
       <body className={inter.className}>
-        <Providers>
-          <div id="main">
-            <AuthenticatedLayout>
-              {children}
-              <div className="fixed bottom-4 right-4 z-50">
-                <ThemeToggle />
-              </div>
-              <CookieConsent />
-            </AuthenticatedLayout>
-          </div>
-        </Providers>
+        <RootLayoutClient>
+          {children}
+        </RootLayoutClient>
       </body>
     </html>
   )

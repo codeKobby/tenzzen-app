@@ -1,17 +1,6 @@
 {
-  "project": "",
-  "team": "",
-  "functions": {
-    "codegen": true,
-    "logging": {
-      "level": "debug"
-    },
-    "timeout": 30000
-  },
-  "schema": {
-    "validation": true
-  },
-  "deployment": {
-    "node": "18"
+  "functions": "./convex",
+  "authConfiguration": {
+    "enableStrictJWTMode": true
   }
 }

@@ -2,45 +2,28 @@
 
 import { Sidebar } from "@/components/sidebar"
 import { PageHeader } from "@/components/page-header"
-import { useAuth } from "@/hooks/use-auth"
 import { usePathname } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { cn } from "@/lib/utils"
 import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
+import { Authenticated, Unauthenticated, AuthLoading } from "convex/react"
 
 interface AuthenticatedLayoutClientProps {
   children: React.ReactNode
 }
 
-export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClientProps) {
+function BaseLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative min-h-screen bg-background">
+      {children}
+    </div>
+  )
+}
+
+function AuthenticatedContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { user, loading } = useAuth()
   const { isOpen } = useSidebar()
 
-  // Return children without layout for homepage, auth pages, onboarding, and analysis
-  if (pathname === '/' || pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/onboarding' || pathname.startsWith('/analysis/')) {
-    return <div className="relative min-h-screen bg-background">{children}</div>
-  }
-
-  // Return children while loading to prevent flash
-  if (loading) {
-    return (
-      <div className="relative min-h-screen bg-background">
-        {children}
-      </div>
-    )
-  }
-
-  // If not authenticated, just render children
-  if (!user) {
-    return (
-      <div className="relative min-h-screen bg-background">
-        {children}
-      </div>
-    )
-  }
-
-  // If authenticated and not loading, render with sidebar (except for analysis page)
   return (
     <div className="relative min-h-screen bg-background">
       {!pathname.startsWith('/analysis/') && <Sidebar />}
@@ -55,5 +38,28 @@ export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClien
         </main>
       </div>
     </div>
+  )
+}
+
+export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClientProps) {
+  const pathname = usePathname()
+
+  // Return children without layout for homepage, auth pages, onboarding, and analysis
+  if (pathname === '/' || pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/onboarding' || pathname.startsWith('/analysis/')) {
+    return <BaseLayout>{children}</BaseLayout>
+  }
+
+  return (
+    <>
+      <AuthLoading>
+        <BaseLayout>{children}</BaseLayout>
+      </AuthLoading>
+      <Unauthenticated>
+        <BaseLayout>{children}</BaseLayout>
+      </Unauthenticated>
+      <Authenticated>
+        <AuthenticatedContent>{children}</AuthenticatedContent>
+      </Authenticated>
+    </>
   )
 }

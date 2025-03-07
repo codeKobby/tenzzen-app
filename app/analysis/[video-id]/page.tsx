@@ -3,11 +3,12 @@ import { AnalysisClient } from "./client"
 import { formatErrorMessage } from "@/lib/utils"
 
 interface Props {
-  params: { 'video-id': string }
+  params: Promise<{ 'video-id': string }>
 }
 
 // This renders on the server
-export default async function AnalysisPage({ params }: Props) {
+export default async function AnalysisPage(props: Props) {
+  const params = await props.params;
   // Ensure params are properly handled as they might be a promise
   const resolvedParams = await Promise.resolve(params);
   const videoId = resolvedParams['video-id'];

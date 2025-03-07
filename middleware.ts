@@ -1,38 +1,40 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
-// List of public routes that don't require authentication
-const publicRoutes = new Set(["/", "/sign-in", "/sign-up", "/explore"]);
-const onboardingRoute = "/onboarding";
+const isPublicRoute = createRouteMatcher(['/', '/sign-in(.*)', '/sign-up(.*)', '/explore(.*)'])
+const isOnboardingRoute = createRouteMatcher(['/onboarding(.*)'])
 
 export default clerkMiddleware(async (auth, req) => {
-  const { userId, sessionClaims } = await auth();
-  const path = new URL(req.url).pathname;
+  const { userId, sessionClaims } = await auth()
 
-  // For users on the onboarding page, don't redirect
-  if (userId && path === onboardingRoute) {
-    return NextResponse.next();
+  // For onboarding page, always allow access if user is signed in
+  if (isOnboardingRoute(req) && userId) {
+    return NextResponse.next()
   }
 
-  // If the user isn't signed in and the route is private, redirect to sign-in
-  if (!userId && !publicRoutes.has(path)) {
-    const signInUrl = new URL("/sign-in", req.url);
-    signInUrl.searchParams.set("redirect_url", req.url);
-    return NextResponse.redirect(signInUrl);
+  // If not signed in and trying to access a private route
+  if (!userId && !isPublicRoute(req)) {
+    const signInUrl = new URL('/sign-in', req.url)
+    signInUrl.searchParams.set('redirect_url', req.url)
+    return NextResponse.redirect(signInUrl)
   }
 
-  // Redirect users who haven't completed onboarding to the onboarding page
-  if (userId && !sessionClaims?.metadata?.onboardingComplete && path !== onboardingRoute) {
-    const onboardingUrl = new URL("/onboarding", req.url);
-    return NextResponse.redirect(onboardingUrl);
+  // If signed in but hasn't completed onboarding
+  if (userId && !sessionClaims?.metadata?.onboardingComplete && !isOnboardingRoute(req)) {
+    const onboardingUrl = new URL('/onboarding', req.url)
+    return NextResponse.redirect(onboardingUrl)
   }
 
-  return NextResponse.next();
-});
+  return NextResponse.next()
+}, {
+  debug: process.env.NODE_ENV === 'development'
+})
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
-};
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)'
+  ]
+}

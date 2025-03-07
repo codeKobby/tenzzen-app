@@ -2,53 +2,90 @@ import { action } from "../_generated/server"
 import { v } from "convex/values"
 import { Innertube } from 'youtubei.js'
 import { createApiError } from "../types"
-import type { CaptionSegment, VideoMetadata, ChannelMetadata } from "./youtube-types"
+import type { TranscriptSegment, VideoMetadata, ChannelMetadata } from "../youtube-types"
 
-interface TranscriptSegment {
+const fetch = globalThis.fetch
+
+interface VideoCaptionSegment {
   text: string
+  start: number
   duration: number
-  offset: number
 }
 
-// Get transcript using YouTubeI
+interface VideoCaptions {
+  getCaptions(): Promise<{
+    getByLanguage(code: string): Promise<any[]>
+    getDefault(): Promise<any>
+  }>
+}
+
+interface VideoBasicInfo {
+  basic_info: {
+    id: string
+    title: string
+    description?: string
+    thumbnails?: Array<{ url: string }>
+    duration?: { text: string }
+    channel_id?: string
+    author?: string
+    view_count?: { text: string }
+    like_count?: number
+  }
+  captions?: VideoCaptions
+}
+
+interface Channel {
+  metadata: {
+    title?: string
+    description?: string
+    thumbnail?: Array<{ url: string }>
+    subscriberCount?: string
+    videosCount?: string
+  }
+}
+
 export const getTranscript = action({
   args: {
     videoId: v.string(),
     language: v.optional(v.string())
   },
-  handler: async (ctx, args): Promise<TranscriptSegment[]> => {
+  handler: async (_ctx, args): Promise<TranscriptSegment[]> => {
     try {
       const youtube = await Innertube.create({
         generate_session_locally: true,
-        fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)
+        fetch
       })
 
-      const info = await youtube.getInfo(args.videoId)
+      const info = await youtube.getInfo(args.videoId) as any
       const captions = info.captions
 
       if (!captions) {
         throw new Error("No captions available for this video")
       }
 
-      // Get available caption tracks
-      let captionTrack = captions.getDefaultCaptions()
+      let captionTrack: any = null
       if (args.language) {
-        const tracks = captions.getByLanguage(args.language)
-        if (tracks && tracks.length > 0) {
+        const tracks = await captions.getByLanguage(args.language)
+        if (tracks?.length > 0) {
           captionTrack = tracks[0]
         }
+      }
+
+      if (!captionTrack) {
+        captionTrack = await captions.getDefault()
       }
 
       if (!captionTrack) {
         throw new Error("No suitable caption track found")
       }
 
-      const segments = await captionTrack.getSegments()
-      return segments.map(segment => ({
-        text: segment.text,
-        duration: segment.duration,
-        offset: segment.start
+      const segments = await captionTrack.fetch()
+      return segments.map((segment: any) => ({
+        text: segment.text || '',
+        startTime: segment.start?.toString() || '0',
+        duration: segment.duration?.toString() || '0'
       }))
+
     } catch (error) {
       throw createApiError(
         "INTERNAL_ERROR",
@@ -59,32 +96,30 @@ export const getTranscript = action({
   }
 })
 
-// Get video details using YouTubeI
 export const getVideoDetails = action({
   args: {
     videoId: v.string()
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args): Promise<VideoMetadata> => {
     try {
       const youtube = await Innertube.create({
         generate_session_locally: true,
-        fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)
+        fetch
       })
 
-      const info = await youtube.getInfo(args.videoId)
-      const { basic_info, primary_info, secondary_info } = info
+      const video = await youtube.getBasicInfo(args.videoId)
 
       return {
-        id: basic_info.video_id,
-        title: basic_info.title,
-        description: primary_info?.description_text || "",
-        duration: basic_info.duration?.text || "0:00",
-        thumbnail: basic_info.thumbnail?.[0]?.url || "",
-        channelId: basic_info.channel_id,
-        channelName: basic_info.author,
-        views: basic_info.view_count?.text || "0",
-        likes: primary_info?.like_count?.text || "0",
-        publishDate: basic_info.published?.text || new Date().toISOString()
+        id: video.basic_info.id || args.videoId,
+        title: video.basic_info.title || '',
+        description: video.basic_info.short_description || '',
+        thumbnail: video.basic_info.thumbnail?.[0]?.url || '',
+        duration: video.basic_info.duration?.toString() || '0:00',
+        channelId: video.basic_info.channel_id || '',
+        channelName: video.basic_info.author || '',
+        views: video.basic_info.view_count?.toString() || '0',
+        likes: video.basic_info.like_count?.toString() || '0',
+        publishDate: new Date().toISOString() // Using current date as fallback
       }
     } catch (error) {
       throw createApiError(
@@ -96,29 +131,28 @@ export const getVideoDetails = action({
   }
 })
 
-// Get channel details using YouTubeI
 export const getChannelDetails = action({
   args: {
     channelId: v.string()
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args): Promise<ChannelMetadata> => {
     try {
       const youtube = await Innertube.create({
         generate_session_locally: true,
-        fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)
+        fetch
       })
 
-      const browse = await youtube.getChannel(args.channelId)
-      const meta = browse.metadata
+      const channel = await youtube.getChannel(args.channelId) as any
+      const channelData = channel.header
 
       return {
         id: args.channelId,
-        name: meta.title || "",
-        description: meta.description || "",
-        thumbnail: meta.avatar_thumbnails?.[0]?.url || "",
-        subscriberCount: meta.subscriber_count || "0",
-        videoCount: meta.video_count?.toString() || "0",
-        joinDate: meta.join_date || new Date().toISOString()
+        title: channelData?.title || '',
+        description: channelData?.description || '',
+        thumbnail: channelData?.avatar?.[0]?.url || '',
+        subscriberCount: channelData?.subscriberCount || '0',
+        videoCount: channelData?.videosCount || '0',
+        joinDate: new Date().toISOString() // Using current date as fallback
       }
     } catch (error) {
       throw createApiError(

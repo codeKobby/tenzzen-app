@@ -1,6 +1,7 @@
 import { Innertube } from 'youtubei.js'
+import { VideoDetails } from '@/types/youtube'
 
-export interface YouTubeVideoData {
+interface YouTubeVideoData {
   id: string
   title: string
   thumbnail: string
@@ -11,7 +12,40 @@ export interface YouTubeVideoData {
   description: string
 }
 
-export async function getYouTubeData(videoId: string): Promise<YouTubeVideoData> {
+export interface PlaylistDetails {
+  id: string
+  title: string
+  thumbnail: string
+  videoCount: number
+  channel: string
+}
+
+export async function getPlaylistDetails(playlistId: string): Promise<PlaylistDetails> {
+  try {
+    const youtube = await Innertube.create({
+      generate_session_locally: true,
+      fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)
+    })
+
+    const playlist = await youtube.getPlaylist(playlistId)
+    if (!playlist) {
+      throw new Error('Playlist information not found')
+    }
+
+    return {
+      id: playlistId,
+      title: playlist.info.title || '',
+      thumbnail: playlist.info.thumbnails?.[0]?.url || '',
+      videoCount: Number(playlist.info.total_items) || 0,
+      channel: playlist.info.author?.name || ''
+    }
+  } catch (error) {
+    console.error('Error fetching playlist data:', error)
+    throw new Error('Failed to fetch playlist data')
+  }
+}
+
+export async function getVideoDetails(videoId: string): Promise<VideoDetails> {
   try {
     const youtube = await Innertube.create({
       generate_session_locally: true,
@@ -40,15 +74,21 @@ export async function getYouTubeData(videoId: string): Promise<YouTubeVideoData>
       }, null)?.url || ''
     }
 
+    // Use current date since publishDate is not reliably available from the API
+    const date = new Date()
+    
     return {
       id: videoId,
+      type: "video",
       title: video.basic_info.title || '',
       thumbnail: getBestThumbnail(video.basic_info.thumbnail || []),
       duration: formatDuration(video.basic_info.duration || 0),
-      channel_id: video.basic_info.channel_id || '',
-      channel_name: video.basic_info.author || '',
+      channelId: video.basic_info.channel_id || '',
+      channelName: video.basic_info.author || '',
       views: video.basic_info.view_count?.toString() || '0',
+      likes: video.basic_info.like_count?.toString() || '0',
       description: video.basic_info.short_description || '',
+      publishDate: date.toISOString()
     }
   } catch (error) {
     console.error('Error fetching YouTube data:', error)
