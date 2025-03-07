@@ -2,7 +2,7 @@
 
 import { ThemeProvider as NextThemeProvider } from "next-themes"
 import { Toaster } from "@/components/ui/toaster"
-import ConvexClientProvider from "./ConvexClientProvider"
+import { ConvexClientProvider } from "@/app/ConvexClientProvider"
 
 interface ProvidersProps {
   children: React.ReactNode

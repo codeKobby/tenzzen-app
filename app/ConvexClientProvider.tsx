@@ -2,12 +2,8 @@
 
 import { ClerkProvider, useAuth } from "@clerk/clerk-react"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
-import { ConvexReactClient } from "convex/react"
 import { ReactNode } from "react"
-
-// Create Convex client
-const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL!
-const convex = new ConvexReactClient(convexUrl)
+import { convex } from "@/hooks/use-convex"
 
 if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
   throw new Error("Missing Clerk Publishable Key")
@@ -16,7 +12,7 @@ if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
 /**
  * Provider component that wraps the app with Clerk auth and Convex
  */
-export default function ConvexClientProvider({
+export function ConvexClientProvider({
   children,
 }: {
   children: ReactNode

@@ -1,48 +1,26 @@
-import { QueryCtx, MutationCtx } from "./_generated/server"
+import { QueryCtx } from "./_generated/server"
+import type { DbVideo, DbPlaylist, DbPlaylistVideo } from "./youtubeTypes"
 
-// Type for authenticated context
-export type AuthenticatedCtx = {
-  userId: string
-  email?: string | null
-  name?: string | null
-}
-
-// Helper to ensure user is authenticated
-export async function requireAuthentication(ctx: QueryCtx | MutationCtx): Promise<AuthenticatedCtx> {
-  const identity = await ctx.auth.getUserIdentity()
-  if (!identity) {
-    throw new Error("Not authenticated")
-  }
-
-  return {
-    userId: identity.subject,
-    email: identity.email,
-    name: identity.name
-  }
-}
-
-// Helper to get a video by ID with authentication check
-export async function getVideoWithAuth(
+// Helper to check if video exists in cache
+export async function checkVideoCache(
   ctx: QueryCtx,
-  videoId: string,
-  requireOwnership: boolean = false
-) {
-  const auth = await requireAuthentication(ctx)
-  
-  const video = await ctx.db
+  videoId: string
+): Promise<DbVideo | null> {
+  return await ctx.db
     .query("videos")
-    .filter((q) => q.eq(q.field("id"), videoId))
-    .first()
+    .withIndex("by_youtube_id", (q) => q.eq("youtubeId", videoId))
+    .unique()
+}
 
-  if (!video) {
-    throw new Error("Video not found")
-  }
-
-  if (requireOwnership && video.userId !== auth.userId) {
-    throw new Error("Not authorized")
-  }
-
-  return video
+// Helper to check if playlist exists in cache
+export async function checkPlaylistCache(
+  ctx: QueryCtx,
+  playlistId: string
+): Promise<(DbPlaylist & { videos?: DbPlaylistVideo[] }) | null> {
+  return await ctx.db
+    .query("playlists")
+    .withIndex("by_youtube_id", (q) => q.eq("youtubeId", playlistId))
+    .unique()
 }
 
 // Helper to format dates consistently
@@ -50,12 +28,15 @@ export function formatDate(date: string | Date): string {
   return new Date(date).toISOString()
 }
 
-// Helper to validate video data
-export function validateVideoData(data: any) {
-  if (!data.id || !data.title) {
-    throw new Error("Video must have an ID and title")
-  }
+// Helper to validate YouTube IDs
+export function validateYouTubeId(id: string, type: 'video' | 'playlist'): boolean {
+  if (!id) return false
   
-  // Add any other validation logic here
-  return data
+  // Video IDs are 11 characters
+  if (type === 'video' && id.length !== 11) return false
+  
+  // Playlist IDs typically start with PL, UU, or similar
+  if (type === 'playlist' && id.length < 12) return false
+  
+  return true
 }

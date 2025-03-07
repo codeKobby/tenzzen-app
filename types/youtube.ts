@@ -1,57 +1,49 @@
-export interface VideoDetails {
+// Base types for cached data
+export interface CachedVideo {
+  youtubeId: string
+  title: string
+  description?: string
+  thumbnail?: string
+  duration?: string
+  channelId?: string
+  channelName?: string
+  channelAvatar?: string
+  views?: string
+  likes?: string
+  publishDate?: string
+  cachedAt: string
+}
+
+export interface CachedPlaylist {
+  youtubeId: string
+  title: string
+  thumbnail?: string
+  channelId?: string
+  channelName?: string
+  videoCount?: number
+  cachedAt: string
+}
+
+export interface PlaylistVideoRelation {
+  playlistId: string
+  videoId: string
+  position: number
+  cachedAt: string
+}
+
+// Frontend types for displaying content
+export interface VideoDetails extends Omit<CachedVideo, 'youtubeId' | 'cachedAt'> {
   id: string
   type: "video"
-  title: string
-  description: string
-  thumbnail: string
-  duration: string
-  channelId: string
-  channelName: string
-  channelAvatar?: string
-  views: string
-  likes: string
-  publishDate: string
 }
 
-export interface PlaylistDetails {
+export interface PlaylistDetails extends Omit<CachedPlaylist, 'youtubeId' | 'cachedAt'> {
   id: string
   type: "playlist"
-  title: string
-  description: string
-  thumbnail: string
-  channelId: string
-  channelName: string
-  channelAvatar?: string
-  videoCount: string
-  videos: VideoItem[]
+  videos?: Array<{
+    videoId: string
+    position: number
+  }>
 }
 
-export interface VideoItem {
-  id: string
-  title: string
-  description: string
-  thumbnail: string
-  duration: string
-  channelId: string
-  channelName: string
-  views: string
-  publishDate: string
-}
-
-export interface DatabaseVideo {
-  id: string
-  title: string
-  description: string | null
-  thumbnail: string | null
-  duration: string | null
-  channel_id: string | null
-  channel_name: string | null
-  channel_avatar: string | null
-  views: string | null
-  likes: string | null
-  publish_date: string | null
-  created_at: string
-  updated_at: string
-}
-
-export type ContentDetails = VideoDetails | PlaylistDetails;
+export type ContentDetails = VideoDetails | PlaylistDetails
