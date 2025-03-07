@@ -6,8 +6,8 @@ import { useAnalysis } from "@/hooks/use-analysis-context"
 import { ResizablePanel } from "@/components/resizable-panel"
 import { VideoContent } from "@/components/analysis/video-content"
 import { MobileSheet } from "@/components/analysis/mobile-sheet"
-import { getVideoDetails, getPlaylistDetails } from "@/app/actions/getYoutubeData"
-import { getYoutubeTranscript, type TranscriptSegment } from "@/app/actions/getYoutubeTranscript"
+import { getVideoDetails, getPlaylistDetails } from "@/actions/getYoutubeData"
+import { getYoutubeTranscript, type TranscriptSegment } from "@/actions/getYoutubeTranscript"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -110,17 +110,17 @@ export function AnalysisContent() {
     try {
       const data = await getYoutubeTranscript(videoData.id)
       setTranscript(data)
-      
+
       toast.success("Transcript generated!", {
         description: "Click on any segment to jump to that point in the video.",
       })
     } catch (err) {
       console.error("Error fetching transcript:", err)
       setTranscriptError(err instanceof Error ? err.message : "Failed to fetch transcript")
-      
+
       let errorMessage = "Failed to generate transcript"
       let description = "Something went wrong"
-      
+
       // Try to extract more meaningful error messages
       if (err instanceof Error) {
         if (err.message.includes("subtitles are disabled")) {
@@ -131,7 +131,7 @@ export function AnalysisContent() {
           description = "This video does not have an available transcript"
         }
       }
-      
+
       toast.error(errorMessage, { description })
     } finally {
       setTranscriptLoading(false)
@@ -188,7 +188,7 @@ export function AnalysisContent() {
                     Transcript
                   </h2>
                   {videoData?.type === 'video' && (
-                    <Button 
+                    <Button
                       onClick={handleGenerateClick}
                       disabled={transcriptLoading}
                       className="flex items-center gap-2"
@@ -234,7 +234,7 @@ export function AnalysisContent() {
                   ) : transcriptError ? (
                     <div className="flex flex-col items-center justify-center h-full gap-4">
                       <p className="text-lg text-destructive text-center">{transcriptError}</p>
-                      <Button 
+                      <Button
                         variant="outline"
                         onClick={handleGenerateClick}
                         className="flex items-center gap-2"
@@ -246,8 +246,8 @@ export function AnalysisContent() {
                   ) : transcript.length > 0 ? (
                     <div className="p-4 space-y-4">
                       {transcript.map((segment, index) => (
-                        <div 
-                          key={index} 
+                        <div
+                          key={index}
                           className="group p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
                           onClick={() => handleTranscriptClick(segment.timestamp)}
                         >

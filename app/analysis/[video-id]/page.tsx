@@ -1,4 +1,4 @@
-import { getVideoDetails, getPlaylistDetails } from "@/app/actions/getYoutubeData"
+import { getVideoDetails, getPlaylistDetails } from "@/actions/getYoutubeData"
 import { AnalysisClient } from "./client"
 import { formatErrorMessage } from "@/lib/utils"
 
