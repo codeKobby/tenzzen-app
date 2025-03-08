@@ -11,8 +11,11 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverActions: true,
-    typedRoutes: true
+    typedRoutes: true,
+    serverActions: {
+      allowedOrigins: ["localhost:3000"],
+      bodySizeLimit: "2mb"
+    }
   }
 };
 
