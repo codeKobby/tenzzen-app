@@ -10,6 +10,10 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    serverActions: true,
+    typedRoutes: true
+  }
 };
 
 module.exports = nextConfig;

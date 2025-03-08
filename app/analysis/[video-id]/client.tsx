@@ -1,11 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { AnalysisHeader } from "@/components/analysis/header"
-import { ResizablePanel } from "@/components/resizable-panel"
-import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context"
-import { VideoContent } from "@/components/analysis/video-content"
-import { MobileSheet } from "@/components/analysis/mobile-sheet"
+import { AnalysisHeader } from '@/components/analysis/header'
+import { ResizablePanel } from '@/components/resizable-panel'
+import { AnalysisProvider, useAnalysis } from '@/hooks/use-analysis-context'
+import { VideoContent } from '@/components/analysis/video-content'
+import { MobileSheet } from '@/components/analysis/mobile-sheet'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,13 +15,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import type { ContentDetails, PlaylistDetails, VideoDetails, VideoItem } from "@/types/youtube"
-import { Sparkles } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { TranscriptDisplay } from "@/components/analysis/transcript-display"
-import { getYoutubeTranscript, TranscriptSegment } from "@/actions/getYoutubeTranscript"
-import { Loader2 } from "lucide-react"
+} from '@/components/ui/alert-dialog'
+import type { ContentDetails, PlaylistDetails, VideoDetails, VideoItem } from '@/types/youtube'
+import { Sparkles } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { TranscriptDisplay } from '@/components/analysis/transcript-display'
+import { getYoutubeTranscript, TranscriptSegment } from '@/actions/getYoutubeTranscript'
+import { Loader2 } from 'lucide-react'
 
 // Improve the type guard to be more specific
 const isPlaylist = (content: ContentDetails | null): content is PlaylistDetails => {
