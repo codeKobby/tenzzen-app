@@ -19,6 +19,7 @@ import {
 import type { ContentDetails } from "@/types/youtube"
 import { Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Toaster } from "sonner"
 
 // Add the isPlaylist helper function
 const isPlaylist = (content: ContentDetails): content is any => {
@@ -125,7 +126,7 @@ function Content({ initialContent, initialError }: ContentProps) {
           {mounted && hasMounted && (
             <MobileSheet
               isOpen={isOpen}
-              onClose={() => toggle(false)} // Make sure we're explicitly calling toggle(false)
+              onClose={() => toggle(false)}
               loading={loading}
               error={error}
             />
@@ -188,9 +189,24 @@ interface AnalysisClientProps {
 }
 
 export function AnalysisClient({ initialContent, initialError }: AnalysisClientProps) {
+  // Debug log to see what's being passed in
+  React.useEffect(() => {
+    console.log("Initial content:", initialContent ? {
+      type: initialContent.type,
+      id: initialContent.id,
+      title: initialContent.title,
+      videoCount: initialContent.type === 'playlist' ? initialContent.videoCount : 'N/A',
+      videosLength: initialContent.type === 'playlist' ? initialContent.videos?.length : 'N/A'
+    } : null);
+    console.log("Initial error:", initialError);
+  }, [initialContent, initialError]);
+
   return (
     <div id="main" className="h-full w-full flex flex-col bg-background">
-      <AnalysisProvider>
+      {/* Global toast container */}
+      <Toaster position="bottom-right" />
+
+      <AnalysisProvider initialContent={initialContent}>
         <AnalysisHeader />
         <Content initialContent={initialContent} initialError={initialError} />
       </AnalysisProvider>

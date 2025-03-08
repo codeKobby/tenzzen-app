@@ -37,13 +37,24 @@ export interface VideoDetails extends Omit<CachedVideo, 'youtubeId' | 'cachedAt'
   type: "video"
 }
 
+// Video item in a playlist
+export interface VideoItem {
+  id: string
+  videoId: string
+  title: string
+  description: string
+  thumbnail: string
+  channelId: string
+  channelName: string
+  publishDate: string
+  position: number
+  duration: string
+}
+
 export interface PlaylistDetails extends Omit<CachedPlaylist, 'youtubeId' | 'cachedAt'> {
   id: string
   type: "playlist"
-  videos?: Array<{
-    videoId: string
-    position: number
-  }>
+  videos: VideoItem[]
 }
 
 export type ContentDetails = VideoDetails | PlaylistDetails

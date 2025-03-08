@@ -1,10 +1,10 @@
-import { defineSchema, defineTable } from "convex/server"
-import { v } from "convex/values"
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 
 export default defineSchema({
-  // Cache for video data
+  // Videos table - for caching individual videos
   videos: defineTable({
-    youtubeId: v.string(), // YouTube video ID
+    youtubeId: v.string(),
     title: v.string(),
     description: v.optional(v.string()),
     thumbnail: v.optional(v.string()),
@@ -15,28 +15,29 @@ export default defineSchema({
     views: v.optional(v.string()),
     likes: v.optional(v.string()),
     publishDate: v.optional(v.string()),
-    cachedAt: v.string(), // When this data was fetched
+    cachedAt: v.string()
   }).index("by_youtube_id", ["youtubeId"]),
 
-  // Cache for playlist data
+  // Playlists table - for caching playlists (without videos field)
   playlists: defineTable({
-    youtubeId: v.string(), // YouTube playlist ID
+    youtubeId: v.string(),
     title: v.string(),
+    description: v.optional(v.string()),
     thumbnail: v.optional(v.string()),
     channelId: v.optional(v.string()),
     channelName: v.optional(v.string()),
-    videoCount: v.optional(v.number()),
-    cachedAt: v.string(), // When this data was fetched
+    channelAvatar: v.optional(v.string()), 
+    publishDate: v.optional(v.string()),
+    videoCount: v.optional(v.float64()),
+    cachedAt: v.string()
   }).index("by_youtube_id", ["youtubeId"]),
 
-  // Track which videos belong to which playlists
+  // Playlist-video relations table
   playlist_videos: defineTable({
-    playlistId: v.string(), // YouTube playlist ID
-    videoId: v.string(), // YouTube video ID
-    position: v.number(), // Order in playlist
-    cachedAt: v.string(), // When this relationship was recorded
-  })
-  .index("by_playlist", ["playlistId"])
-  .index("by_video", ["videoId"])
-  .index("by_playlist_position", ["playlistId", "position"])
-})
+    playlistId: v.string(),
+    videoId: v.string(),
+    position: v.float64(),
+    cachedAt: v.string()
+  }).index("by_playlist", ["playlistId"])
+    .index("by_video", ["videoId"])
+});
