@@ -3,26 +3,20 @@
 import * as React from "react"
 import { createContext, useContext, useState, useCallback, ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import type { VideoDetails, PlaylistDetails } from "@/types/youtube"
-
-// Define the type for video data
-type ContentDetails = VideoDetails | PlaylistDetails
+import { VideoDetails, PlaylistDetails, ContentDetails } from "@/types/youtube"
 
 interface AnalysisContextType {
   width: number
   minWidth: number
   maxWidth: number
   isOpen: boolean
-  videoData: ContentDetails | null
   showAlert: boolean
+  videoData: ContentDetails | null
   setWidth: (width: number) => void
-  toggle: (value?: boolean) => void
+  toggle: (open?: boolean) => void
   setShowAlert: (show: boolean) => void
-  setVideoData: (data: ContentDetails | null) => void
   confirmBack: () => void
-  removedVideoIds: Record<string, boolean>
-  removeVideo: (videoId: string) => void
-  restoreVideo: (videoId: string) => void
+  setVideoData: (data: ContentDetails | null) => void
 }
 
 const initialState: AnalysisContextType = {
@@ -37,9 +31,6 @@ const initialState: AnalysisContextType = {
   setShowAlert: () => { },
   setVideoData: () => { },
   confirmBack: () => { },
-  removedVideoIds: {},
-  removeVideo: () => { },
-  restoreVideo: () => { },
 }
 
 const AnalysisContext = createContext<AnalysisContextType>(initialState)
@@ -49,7 +40,13 @@ interface AnalysisProviderProps {
   initialContent?: ContentDetails | null;
 }
 
-export function AnalysisProvider({ children, initialContent }: AnalysisProviderProps) {
+export function AnalysisProvider({
+  children,
+  initialContent
+}: {
+  children: React.ReactNode
+  initialContent: ContentDetails | null
+}) {
   const router = useRouter()
   const [width, setWidth] = useState(initialState.width)
   const [isOpen, setIsOpen] = useState(initialState.isOpen)
@@ -97,25 +94,25 @@ export function AnalysisProvider({ children, initialContent }: AnalysisProviderP
     }
   }, [initialContent]);
 
+  const context = {
+    width,
+    minWidth: initialState.minWidth,
+    maxWidth: initialState.maxWidth,
+    isOpen,
+    videoData,
+    showAlert,
+    setWidth,
+    toggle,
+    setShowAlert,
+    setVideoData,
+    confirmBack,
+    removedVideoIds,
+    removeVideo,
+    restoreVideo,
+  }
+
   return (
-    <AnalysisContext.Provider
-      value={{
-        width,
-        minWidth: initialState.minWidth,
-        maxWidth: initialState.maxWidth,
-        isOpen,
-        videoData,
-        showAlert,
-        setWidth,
-        toggle,
-        setShowAlert,
-        setVideoData,
-        confirmBack,
-        removedVideoIds,
-        removeVideo,
-        restoreVideo,
-      }}
-    >
+    <AnalysisContext.Provider value={context}>
       {children}
     </AnalysisContext.Provider>
   )

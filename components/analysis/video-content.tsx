@@ -16,7 +16,13 @@ import { PlaceholderImage } from "@/components/ui/placeholder-image";
 type ContentDetails = VideoDetails | PlaylistDetails
 
 const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
-  return content.type === "playlist"
+  if (!content) return false;
+  return content.type === "playlist";
+}
+
+const isVideo = (content: ContentDetails): content is VideoDetails => {
+  if (!content) return false;
+  return content.type === "video";
 }
 
 interface VideoContentProps {
@@ -39,7 +45,7 @@ const createVideoKey = (video: VideoItem, index: number): string => {
 
 export function VideoContent({ loading, error }: VideoContentProps) {
   const { videoData, setVideoData } = useAnalysis()
-  const [expandedVideoIds, setExpandedVideoIds] = useState<Set<string>>(new Set())
+  const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null)
   const [showVideoOpenDialog, setShowVideoOpenDialog] = useState(false)
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null)
   const [dontShowVideoDialog, setDontShowVideoDialog] = useState(() => {
@@ -114,7 +120,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
       setSelectedVideoUrl(url)
       setShowVideoOpenDialog(true)
     }
-  }, [videoData, isPlaylist, updateVideoData, dontShowVideoDialog])
+  }, [videoData, updateVideoData, dontShowVideoDialog])
 
   const handlePlaylistClick = useCallback((playlistId: string): void => {
     const url = `https://youtube.com/playlist?list=${playlistId}`
@@ -127,15 +133,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
   }, [dontShowVideoDialog])
 
   const toggleVideoExpand = useCallback((videoId: string): void => {
-    setExpandedVideoIds(prev => {
-      const newSet = new Set(prev)
-      if (prev.has(videoId)) {
-        newSet.delete(videoId)
-      } else {
-        newSet.add(videoId)
-      }
-      return newSet
-    })
+    setExpandedVideoId(prev => prev === videoId ? null : videoId)
   }, [])
 
   const toggleDescription = useCallback((): void => {
@@ -151,58 +149,54 @@ export function VideoContent({ loading, error }: VideoContentProps) {
 
     setActiveCancelId(video.id);
 
-    const id = `remove-${video.id}`;
+    const toastId = `remove-${video.id}`;
 
-    const dismiss = () => {
-      toast.dismiss(id);
-      setActiveCancelId(null);
-    };
-
-    toast.custom(() => (
-      <div
-        className={cn(
-          "flex flex-col gap-2 rounded-lg border bg-background p-4 shadow-lg",
-          "data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=cancel]:translate-x-0 data-[swipe=cancel]:transition-[transform_200ms_ease-out] data-[swipe=end]:animate-out data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-5",
-          "animate-in slide-in-from-bottom-4"
-        )}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex flex-col gap-1">
-            <div className="text-sm font-medium">Video removed from list</div>
-            <div className="text-xs text-muted-foreground">
-              This video has been removed from your playlist
+    // Use the standard toast API rather than custom toast
+    toast.custom(
+      (t) => (
+        <div className="flex flex-col gap-2 rounded-lg border bg-background p-4 shadow-lg">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-col gap-1">
+              <div className="text-sm font-medium">Video removed from list</div>
+              <div className="text-xs text-muted-foreground">
+                This video has been removed from your playlist
+              </div>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setRemovedVideos(prev => {
+                  const newRemoved = { ...prev }
+                  delete newRemoved[video.id]
+                  return newRemoved
+                });
+                setActiveCancelId(null);
+                toast.dismiss(toastId);
+              }}
+              className="border border-border px-2 h-8 hover:bg-accent hover:text-accent-foreground"
+            >
+              Undo
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setRemovedVideos(prev => {
-                const newRemoved = { ...prev }
-                delete newRemoved[video.id]
-                return newRemoved
-              });
-              dismiss();
-            }}
-            className="border border-border px-2 h-8 hover:bg-accent hover:text-accent-foreground"
-          >
-            Undo
-          </Button>
-        </div>
 
-        <div className="w-full h-[3px] bg-muted rounded-full overflow-hidden mt-2">
-          <div
-            className="h-full bg-primary animate-countdown-progress"
-            style={{ animationDuration: "5s" }}
-            onAnimationEnd={dismiss}
-          />
+          <div className="w-full h-[3px] bg-muted rounded-full overflow-hidden mt-2">
+            <div
+              className="h-full bg-primary animate-countdown-progress"
+              style={{ animationDuration: "5s" }}
+              onAnimationEnd={() => {
+                setActiveCancelId(null);
+                toast.dismiss(toastId);
+              }}
+            />
+          </div>
         </div>
-      </div>
-    ), {
-      id,
-      duration: 5000,
-      onAutoClose: dismiss
-    })
+      ),
+      {
+        id: toastId,
+        duration: 5000,
+      }
+    );
   }, [])
 
   if (loading) {
@@ -236,7 +230,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
 
   return (
     <>
-      <Toaster position="bottom-right" />
       <div className="space-y-4 pb-2 p-4">
         {!isPlaylist(videoData) ? (
           <div className="space-y-4">
@@ -353,7 +346,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                 .filter(video => !removedVideos[video.id])
                 .map((video: VideoItem, index: number) => (
                   <div key={createVideoKey(video, index)} className="group -mx-4 px-4">
-                    <div className={`hover:bg-secondary/50 rounded-lg ${expandedVideoIds.has(video.id) ? "bg-secondary/30" : ""}`}>
+                    <div className={`hover:bg-secondary/50 rounded-lg ${expandedVideoId === video.id ? "bg-secondary/30" : ""}`}>
                       <div className="flex gap-3 p-2">
                         <div className="flex-shrink-0 self-center">
                           <Button
@@ -405,7 +398,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                               size="sm"
                               className="h-6 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground hover:bg-transparent flex items-center gap-1 z-10"
                             >
-                              {expandedVideoIds.has(video.id) ? (
+                              {expandedVideoId === video.id ? (
                                 <>
                                   <ChevronUp className="h-3.5 w-3.5" />
                                   Show less
@@ -431,17 +424,16 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                         </div>
                       </div>
 
-                      {expandedVideoIds.has(video.id) && (
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-background/95 backdrop-blur-[2px]" />
-                          <div className="relative z-10 px-2 pb-4 mt-2">
-                            <div className="mt-1 space-y-4">
-                              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70 pb-3 border-b">
-                                <span>{video.publishDate}</span>
-                              </div>
-                              <div className="text-xs leading-relaxed text-foreground/90 whitespace-pre-wrap break-words overflow-x-hidden">
-                                {video.description}
-                              </div>
+                      {expandedVideoId === video.id && (
+                        <div className="px-2 pb-4 mt-2">
+                          <div className="mt-1 space-y-4">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70 pb-3 border-b">
+                              <span>{video.views} views</span>
+                              <span>{video.likes} likes</span>
+                              <span>{video.publishDate}</span>
+                            </div>
+                            <div className="text-xs leading-relaxed text-muted-foreground/80 whitespace-pre-wrap break-words overflow-x-hidden">
+                              {video.description}
                             </div>
                           </div>
                         </div>

@@ -2,26 +2,14 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { RootLayoutClient } from "./root-layout-client"
+import { Providers } from "@/components/providers"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: {
-    template: "%s | Tenzzen",
-    default: "Tenzzen - Transform Videos into Structured Courses",
-  },
-  description: "Use AI to turn YouTube videos into interactive learning experiences",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  title: "Tenzzen",
+  description: "Transform YouTube videos into structured learning experiences",
 }
-
-export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
-  ],
-} as const
 
 export default function RootLayout({
   children,
@@ -31,9 +19,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <RootLayoutClient>
-          {children}
-        </RootLayoutClient>
+        <Providers>
+          <RootLayoutClient>
+            {children}
+          </RootLayoutClient>
+        </Providers>
       </body>
     </html>
   )

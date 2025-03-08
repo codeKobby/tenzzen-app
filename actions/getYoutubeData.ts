@@ -427,9 +427,34 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
     )
 
     if (!response.ok) {
-      // Error handling code
-      // ...existing error handling code...
-      throw new Error(`YouTube API error: ${response.status}`)
+      const responseText = await response.text()
+      const errorDetails = {
+        status: response.status,
+        url: `${config.youtube.apiUrl}/playlists?part=snippet,contentDetails&id=${playlistId}`,
+        response: responseText
+      }
+      console.error('YouTube API error:', errorDetails)
+      
+      // Handle various HTTP status codes
+      switch (response.status) {
+        case 403:
+          throw new Error('Access to this content is restricted in your region.')
+        case 404:
+          throw new Error('Playlist not found or has been removed.')
+        case 429:
+          throw new Error('YouTube API quota exceeded. Please try again later.')
+        default:
+          // Try to parse error response
+          try {
+            const errorJson = JSON.parse(responseText)
+            if (errorJson.error?.message) {
+              throw new Error(errorJson.error.message)
+            }
+          } catch (e) {
+            // Default error message if we can't parse the response
+            throw new Error(`YouTube API error: ${response.status}`)
+          }
+      }
     }
 
     const data = await response.json()
@@ -480,7 +505,8 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
         day: 'numeric'
       }) : 'Unknown date';
 
-    // Initialize playlist details
+    // Initialize playlist details with correct typing
+    const videoCountValue = safeGet(playlist, 'contentDetails.itemCount', '0');
     const playlistData: PlaylistDetails = {
       id: playlistId,
       type: "playlist",
@@ -491,9 +517,9 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
       channelName: channelTitle,
       channelAvatar,
       publishDate,
-      videoCount: String(safeGet(playlist, 'contentDetails.itemCount', '0')),
+      videoCount: String(videoCountValue), // Ensure it's a string
       videos: [] // We'll populate this with actual videos
-    }
+    };
 
     // Get playlist items using pagination
     const videos: VideoItem[] = [];
@@ -575,39 +601,65 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
                 return !!videoId;
               })
               .map((item: any) => {
-                const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId;
-                const videoDetails = videoDetailsMap.get(videoId);
-                const thumbnails = item.snippet?.thumbnails || {};
+                try {
+                  const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId;
+                  if (!videoId) {
+                    console.warn("Missing video ID in playlist item:", item);
+                    return null;
+                  }
+                  
+                  const videoDetails = videoDetailsMap.get(videoId);
+                  const thumbnails = item.snippet?.thumbnails || {};
+                  
+                  // Make sure we handle all date formatting properly
+                  let publishDate = "";
+                  try {
+                    const publishDateStr = item.contentDetails?.videoPublishedAt || 
+                                          item.snippet?.publishedAt || 
+                                          (videoDetails?.snippet?.publishedAt || "");
+                    
+                    if (publishDateStr) {
+                      const date = new Date(publishDateStr);
+                      if (!isNaN(date.getTime())) {
+                        publishDate = date.toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        });
+                      }
+                    }
+                  } catch (dateError) {
+                    console.warn("Error formatting date:", dateError);
+                  }
 
-                const videoItem: VideoItem = {
-                  id: videoId,
-                  videoId: videoId,
-                  title: item.snippet?.title || "Untitled Video",
-                  description: videoDetails?.snippet?.description || item.snippet?.description || "",
-                  thumbnail: thumbnails.maxres?.url ||
-                    thumbnails.standard?.url ||
-                    thumbnails.high?.url ||
-                    thumbnails.medium?.url ||
-                    thumbnails.default?.url || "",
-                  duration: videoDetails ? formatDuration(videoDetails.contentDetails?.duration || "") : "0:00",
-                  channelId: item.snippet?.videoOwnerChannelId || item.snippet?.channelId || "",
-                  channelName: item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || "Unknown",
-                  views: videoDetails?.statistics ? formatViews(videoDetails.statistics.viewCount) : "0",
-                  likes: videoDetails?.statistics ? formatViews(videoDetails.statistics.likeCount) : "0",
-                  position: typeof item.snippet?.position === 'number' ? item.snippet.position : videos.length,
-                  publishDate: formatDate(
-                    item.contentDetails?.videoPublishedAt ||
-                    (item.snippet?.publishedAt || "") ||
-                    (videoDetails?.snippet?.publishedAt || "")
-                  )
-                };
-                return videoItem;
-              });
+                  return {
+                    id: videoId,
+                    videoId: videoId,
+                    title: item.snippet?.title || "Untitled Video",
+                    description: videoDetails?.snippet?.description || item.snippet?.description || "",
+                    thumbnail: thumbnails.maxres?.url || 
+                              thumbnails.standard?.url || 
+                              thumbnails.high?.url || 
+                              thumbnails.medium?.url || 
+                              thumbnails.default?.url || "",
+                    duration: videoDetails ? formatDuration(videoDetails.contentDetails?.duration || "") : "0:00",
+                    channelId: item.snippet?.videoOwnerChannelId || item.snippet?.channelId || "",
+                    channelName: item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || "Unknown",
+                    views: videoDetails?.statistics ? formatViews(videoDetails.statistics.viewCount) : "0",
+                    likes: videoDetails?.statistics ? formatViews(videoDetails.statistics.likeCount) : "0",
+                    position: typeof item.snippet?.position === 'number' ? item.snippet.position : videos.length,
+                    publishDate: publishDate
+                  };
+                } catch (itemError) {
+                  console.warn("Error processing playlist item:", itemError);
+                  return null;
+                }
+              })
+              .filter(Boolean); // Filter out any null items
 
             videos.push(...currentBatchVideos);
-            console.log(`Added ${currentBatchVideos.length} videos, total now: ${videos.length}`);
-          } catch (error) {
-            console.error("Error processing video details:", error);
+          } catch (videoDetailsError) {
+            console.error("Error processing video details:", videoDetailsError);
             // Continue with partial data
           }
         }
@@ -623,13 +675,9 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
         }
 
       } while (nextPageToken);
-    } catch (error) {
-      console.error("Error fetching playlist items:", error);
-      // If we have no videos yet, throw the error
-      if (videos.length === 0) {
-        throw new Error(`Failed to fetch playlist videos: ${error instanceof Error ? error.message : String(error)}`);
-      }
-      // Otherwise continue with the videos we have
+    } catch (paginationError) {
+      console.error("Error in playlist pagination:", paginationError);
+      // If we already have some videos, don't fail completely
     }
 
     if (videos.length === 0) {
@@ -639,23 +687,28 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
     // Add the videos to our playlist data
     playlistData.videos = videos;
 
-    // Cache the playlist data for future use
+    // When caching, convert videoCount to number as required by the API
     try {
-      // Extract minimal data for caching
-      const minimalVideos = videos.map(video => ({
-        videoId: video.videoId,
-        position: video.position
-      }));
+      if (videos.length > 0) {
+        // Extract minimal data for caching
+        const minimalVideos = videos.map(video => ({
+          videoId: video.videoId,
+          position: video.position
+        }));
 
-      await getConvexClient().mutation(api.videos.cachePlaylist, {
-        youtubeId: playlistId,
-        title: playlistData.title,
-        thumbnail: playlistData.thumbnail,
-        channelId: playlistData.channelId,
-        channelName: playlistData.channelName,
-        videoCount: parseFloat(playlistData.videoCount),
-        videos: minimalVideos
-      });
+        // Convert videoCount to number for the cache API
+        const videoCountNumber = parseInt(playlistData.videoCount) || videos.length;
+        
+        await getConvexClient().mutation(api.videos.cachePlaylist, {
+          youtubeId: playlistId,
+          title: playlistData.title || "Unknown Playlist",
+          thumbnail: playlistData.thumbnail || "",
+          channelId: playlistData.channelId || "",
+          channelName: playlistData.channelName || "",
+          videoCount: videoCountNumber, // Convert to number for the API
+          videos: minimalVideos
+        });
+      }
     } catch (cacheError) {
       console.warn('Failed to cache playlist:', cacheError);
       // Continue even if caching fails
@@ -671,15 +724,18 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
 // Helper function to format dates consistently
 function formatDate(publishedAt: string): string {
   if (!publishedAt) return "";
-
+  
   try {
     const date = new Date(publishedAt);
+    if (isNaN(date.getTime())) return ""; // Check if date is valid
+    
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric"
     });
   } catch (error) {
+    console.warn("Error formatting date:", error);
     return "";
   }
 }

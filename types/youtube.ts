@@ -32,12 +32,24 @@ export interface PlaylistVideoRelation {
 }
 
 // Frontend types for displaying content
-export interface VideoDetails extends Omit<CachedVideo, 'youtubeId' | 'cachedAt'> {
+
+// Single video details
+export interface VideoDetails {
   id: string
-  type: "video"
+  type: "video"  // Literal type to help with type narrowing
+  title: string
+  description: string
+  thumbnail: string
+  duration: string
+  channelId: string
+  channelName: string
+  channelAvatar?: string
+  views: string
+  likes: string
+  publishDate: string
 }
 
-// Video item in a playlist
+// Video item in a playlist - make the type definition more explicit
 export interface VideoItem {
   id: string
   videoId: string
@@ -46,15 +58,27 @@ export interface VideoItem {
   thumbnail: string
   channelId: string
   channelName: string
-  publishDate: string
-  position: number
   duration: string
+  views?: string
+  likes?: string
+  publishDate?: string
+  position: number
 }
 
-export interface PlaylistDetails extends Omit<CachedPlaylist, 'youtubeId' | 'cachedAt'> {
+// Playlist details with videos
+export interface PlaylistDetails {
   id: string
-  type: "playlist"
-  videos: VideoItem[]
+  type: "playlist"  // Literal type to help with type narrowing
+  title: string
+  description: string
+  thumbnail: string
+  channelId: string
+  channelName: string
+  channelAvatar?: string
+  videoCount: string  // Changed to string to match our getPlaylistDetails implementation
+  publishDate?: string
+  videos: VideoItem[]  // Array of VideoItems
 }
 
+// Union type for content
 export type ContentDetails = VideoDetails | PlaylistDetails

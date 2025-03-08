@@ -2,8 +2,10 @@
 
 import * as React from "react"
 import { Sheet } from "react-modal-sheet"
-import { VideoContent } from "./video-content"
+import { VideoContent } from "@/components/analysis/video-content"
 import { useAnalysis } from "@/hooks/use-analysis-context"
+import { X } from "lucide-react" // Import X icon for close button
+import { Button } from "@/components/ui/button"
 
 interface MobileSheetProps {
   isOpen: boolean
@@ -13,12 +15,73 @@ interface MobileSheetProps {
 }
 
 export function MobileSheet({ isOpen, onClose, loading, error }: MobileSheetProps) {
+  // Reference to measure content height
+  const contentRef = React.useRef<HTMLDivElement>(null)
+  const [contentHeight, setContentHeight] = React.useState<number | null>(null)
+  const [snapPoints, setSnapPoints] = React.useState([0.95, 0.65])
+  const { videoData } = useAnalysis()
+
+  // Update snap points based on content height
+  React.useEffect(() => {
+    if (!contentRef.current) return
+
+    const updateSnapPoints = () => {
+      if (!contentRef.current) return
+
+      const viewportHeight = window.innerHeight
+      const contentHeight = contentRef.current.scrollHeight
+      const contentRatio = contentHeight / viewportHeight
+
+      // Calculate optimal snap points based on content
+      if (contentRatio < 0.3) {
+        // Very small content - just show exactly what's needed
+        setSnapPoints([contentRatio + 0.05, contentRatio + 0.05])
+      } else if (contentRatio < 0.5) {
+        // Small content
+        setSnapPoints([contentRatio + 0.1, contentRatio + 0.05])
+      } else if (contentRatio < 0.7) {
+        // Medium content
+        setSnapPoints([0.75, contentRatio + 0.05])
+      } else {
+        // Larger content - use default
+        setSnapPoints([0.95, 0.65])
+      }
+
+      setContentHeight(contentHeight)
+    }
+
+    // Initial update
+    updateSnapPoints()
+
+    // Set up an observer to detect content changes
+    const resizeObserver = new ResizeObserver(() => {
+      updateSnapPoints()
+    })
+
+    resizeObserver.observe(contentRef.current)
+
+    // Update on window resize
+    window.addEventListener('resize', updateSnapPoints)
+
+    return () => {
+      if (contentRef.current) {
+        resizeObserver.unobserve(contentRef.current)
+      }
+      window.removeEventListener('resize', updateSnapPoints)
+    }
+  }, [contentRef, videoData]) // Re-run when video data changes
+
+  const isPlaylist = videoData?.type === "playlist"
+  const contentTitle = videoData ?
+    (isPlaylist ? "Playlist" : "Video") :
+    "Content"
+
   return (
     <div className="block sm:hidden">
       <Sheet
         isOpen={isOpen}
         onClose={onClose}
-        snapPoints={[0.95, 0.65]}
+        snapPoints={snapPoints}
         initialSnap={1}
         tweenConfig={{
           ease: [0.36, 0, 0.66, 1],
@@ -46,8 +109,22 @@ export function MobileSheet({ isOpen, onClose, loading, error }: MobileSheetProp
             maxHeight: "calc(100vh - 64px)",
           }}
         >
-          <Sheet.Header className="pt-2">
+          <Sheet.Header className="pt-2 relative">
             <div className="h-1.5 w-12 rounded-full mx-auto mb-4 bg-muted-foreground/20" />
+
+            {/* Add title and close button */}
+            <div className="flex items-center justify-between px-4 mb-1">
+              <p className="text-sm font-medium">{contentTitle}</p>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="h-8 w-8 rounded-full hover:bg-muted/80"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </div>
           </Sheet.Header>
           <Sheet.Content>
             <Sheet.Scroller
@@ -73,7 +150,7 @@ export function MobileSheet({ isOpen, onClose, loading, error }: MobileSheetProp
                   background-color: hsla(var(--muted-foreground) / 0.3) !important;
                 }
               `}</style>
-              <div className="px-6 pb-6">
+              <div className="px-6 pb-6" ref={contentRef}>
                 <VideoContent loading={loading} error={error} />
               </div>
             </Sheet.Scroller>

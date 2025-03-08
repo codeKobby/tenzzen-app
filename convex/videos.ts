@@ -97,8 +97,8 @@ export const cachePlaylist = mutation({
     channelName: v.optional(v.string()),
     channelAvatar: v.optional(v.string()),
     publishDate: v.optional(v.string()),
-    videoCount: v.optional(v.float64()),
-    videos: v.optional(v.array(v.object({ // Make videos optional since we handle them separately
+    videoCount: v.optional(v.number()), // Keep as number for database
+    videos: v.optional(v.array(v.object({
       videoId: v.string(),
       position: v.number()
     })))
@@ -109,8 +109,12 @@ export const cachePlaylist = mutation({
     // Extract fields for the playlists table, handling optional videos array
     const { videos = [], ...playlistBaseData } = args;
     
+    // Ensure we have a valid number for videoCount
+    const videoCount = args.videoCount ?? (args.videos?.length ?? 0);
+    
     const playlistData = {
       ...playlistBaseData,
+      videoCount, // Use the sanitized value
       cachedAt: new Date().toISOString()
     };
     
