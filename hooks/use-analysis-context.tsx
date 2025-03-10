@@ -3,23 +3,20 @@
 import * as React from "react"
 import { createContext, useContext, useState, useCallback, ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import type { ContentDetails } from "@/types/youtube"
+import { VideoDetails, PlaylistDetails, ContentDetails } from "@/types/youtube"
 
 interface AnalysisContextType {
   width: number
   minWidth: number
   maxWidth: number
   isOpen: boolean
-  videoData: ContentDetails | null
   showAlert: boolean
+  videoData: ContentDetails | null
   setWidth: (width: number) => void
-  toggle: (value?: boolean) => void
+  toggle: (open?: boolean) => void
   setShowAlert: (show: boolean) => void
-  setVideoData: (data: ContentDetails | null) => void
   confirmBack: () => void
-  removedVideoIds: Record<string, boolean>
-  removeVideo: (videoId: string) => void
-  restoreVideo: (videoId: string) => void
+  setVideoData: (data: ContentDetails | null) => void
 }
 
 const initialState: AnalysisContextType = {
@@ -34,31 +31,35 @@ const initialState: AnalysisContextType = {
   setShowAlert: () => { },
   setVideoData: () => { },
   confirmBack: () => { },
-  removedVideoIds: {},
-  removeVideo: () => { },
-  restoreVideo: () => { },
 }
 
 const AnalysisContext = createContext<AnalysisContextType>(initialState)
 
 interface AnalysisProviderProps {
-  children: ReactNode
+  children: ReactNode;
+  initialContent?: ContentDetails | null;
 }
 
-export function AnalysisProvider({ children }: AnalysisProviderProps) {
+export function AnalysisProvider({
+  children,
+  initialContent
+}: {
+  children: React.ReactNode
+  initialContent: ContentDetails | null
+}) {
   const router = useRouter()
   const [width, setWidth] = useState(initialState.width)
   const [isOpen, setIsOpen] = useState(initialState.isOpen)
   const [showAlert, setShowAlert] = useState(initialState.showAlert)
-  const [videoData, setVideoData] = useState<ContentDetails | null>(null)
+  const [videoData, setVideoData] = useState<ContentDetails | null>(initialContent || null)
   const [removedVideoIds, setRemovedVideoIds] = useState<Record<string, boolean>>({})
 
   // Make sure toggle has stable behavior
   const toggle = useCallback((value?: boolean) => {
     if (value !== undefined) {
-      setIsOpen(value); // Directly set the state if a value is provided
+      setIsOpen(value);
     } else {
-      setIsOpen(prev => !prev); // Toggle the state if no value is provided
+      setIsOpen(prev => !prev);
     }
   }, []);
 
@@ -82,25 +83,36 @@ export function AnalysisProvider({ children }: AnalysisProviderProps) {
     router.back()
   }
 
+  // For debugging
+  React.useEffect(() => {
+    if (initialContent) {
+      console.log("Setting initial content in provider:", {
+        type: initialContent.type,
+        id: initialContent.id,
+        title: initialContent.title
+      });
+    }
+  }, [initialContent]);
+
+  const context = {
+    width,
+    minWidth: initialState.minWidth,
+    maxWidth: initialState.maxWidth,
+    isOpen,
+    videoData,
+    showAlert,
+    setWidth,
+    toggle,
+    setShowAlert,
+    setVideoData,
+    confirmBack,
+    removedVideoIds,
+    removeVideo,
+    restoreVideo,
+  }
+
   return (
-    <AnalysisContext.Provider
-      value={{
-        width,
-        minWidth: initialState.minWidth,
-        maxWidth: initialState.maxWidth,
-        isOpen,
-        videoData,
-        showAlert,
-        setWidth,
-        toggle,
-        setShowAlert,
-        setVideoData,
-        confirmBack,
-        removedVideoIds,
-        removeVideo,
-        restoreVideo,
-      }}
-    >
+    <AnalysisContext.Provider value={context}>
       {children}
     </AnalysisContext.Provider>
   )

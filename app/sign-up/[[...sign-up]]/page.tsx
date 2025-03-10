@@ -1,15 +1,11 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
-import Image from "next/image"
-import { ArrowLeft } from "lucide-react"
 import { SignUp } from "@clerk/nextjs"
-import AuthLayout from "@/app/layout-auth"
 
 export default function SignUpPage() {
   return (
-    <AuthLayout>
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-sm px-3">
         {/* Sign Up Form */}
         <SignUp
@@ -33,6 +29,6 @@ export default function SignUpPage() {
           path="/sign-up"
         />
       </div>
-    </AuthLayout>
+    </div>
   )
 }

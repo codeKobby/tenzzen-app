@@ -1,31 +1,6 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
-
 export interface Database {
   public: {
     Tables: {
-      users: {
-        Row: {
-          id: string
-          email: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          email: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          created_at?: string
-        }
-      }
       videos: {
         Row: {
           id: string
@@ -39,6 +14,7 @@ export interface Database {
           views: string | null
           likes: string | null
           publish_date: string | null
+          user_id: string | null
           created_at: string
           updated_at: string
         }
@@ -54,6 +30,7 @@ export interface Database {
           views?: string | null
           likes?: string | null
           publish_date?: string | null
+          user_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -69,45 +46,52 @@ export interface Database {
           views?: string | null
           likes?: string | null
           publish_date?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      transcripts: {
-        Row: {
-          id: number
-          video_id: string
-          timestamp: number
-          text: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: number
-          video_id: string
-          timestamp: number
-          text: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: number
-          video_id?: string
-          timestamp?: number
-          text?: string
+          user_id?: string | null
           created_at?: string
           updated_at?: string
         }
       }
     }
     Views: {
-      [_ in never]: never
+      // Add any views here if needed
     }
     Functions: {
-      [_ in never]: never
+      requesting_user_id: {
+        Args: Record<string, never>
+        Returns: string | null
+      }
+      handle_updated_at: {
+        Args: Record<string, never>
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      // Add any enums here if needed
+    }
+  }
+  clerk: {
+    Tables: {
+      // These are foreign tables, so we don't need Insert/Update types
+      users: {
+        Row: {
+          id: string
+          external_id: string | null
+          username: string | null
+          first_name: string | null
+          last_name: string | null
+          created_at: string | null
+          updated_at: string | null
+          attrs: Record<string, any> | null
+        }
+      }
+    }
+    Views: {
+      user_emails: {
+        Row: {
+          id: string
+          email: string | null
+        }
+      }
     }
   }
 }

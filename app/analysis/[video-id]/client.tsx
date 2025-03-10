@@ -1,11 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { AnalysisHeader } from "@/components/analysis/header"
-import { ResizablePanel } from "@/components/resizable-panel"
-import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context"
-import { VideoContent } from "@/components/analysis/video-content"
-import { MobileSheet } from "@/components/analysis/mobile-sheet"
+import { AnalysisHeader } from '../../../components/analysis/header'
+import { ResizablePanel } from '../../../components/resizable-panel'
+import { AnalysisProvider, useAnalysis } from '../../../hooks/use-analysis-context'
+import { VideoContent } from '../../../components/analysis/video-content'
+import { MobileSheet } from '../../../components/analysis/mobile-sheet'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,14 +15,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import type { ContentDetails } from "@/types/youtube"
-import { Sparkles } from "lucide-react"
-import { Button } from "@/components/ui/button"
+} from '../../../components/ui/alert-dialog'
+import type { ContentDetails, PlaylistDetails, VideoDetails, VideoItem } from '../../../types/youtube'
+import { Sparkles } from 'lucide-react'
+import { Button } from '../../../components/ui/button'
+import { TranscriptDisplay } from '../../../components/analysis/transcript-display'
+import { getYoutubeTranscript, TranscriptSegment } from '../../../actions/getYoutubeTranscript'
+import { Loader2 } from 'lucide-react'
 
-// Add the isPlaylist helper function
-const isPlaylist = (content: ContentDetails): content is any => {
-  return content?.type === "playlist"
+// Improve the type guard to be more specific
+const isPlaylist = (content: ContentDetails | null): content is PlaylistDetails => {
+  return content !== null && content.type === "playlist";
+}
+
+// Add a proper type guard for video content
+const isVideo = (content: ContentDetails | null): content is VideoDetails => {
+  return content !== null && content.type === "video";
 }
 
 interface ContentProps {
@@ -49,7 +57,14 @@ function Content({ initialContent, initialError }: ContentProps) {
   const [hasMounted, setHasMounted] = React.useState(false)
   const [loading, setLoading] = React.useState(initialContent === null && !initialError)
   const [error, setError] = React.useState<string | null>(initialError)
-
+  const [showingTranscript, setShowingTranscript] = React.useState(false)
+  const [transcriptLoading, setTranscriptLoading] = React.useState(false)
+  const [transcriptError, setTranscriptError] = React.useState<string | null>(null)
+  const [videoTranscript, setVideoTranscript] = React.useState<TranscriptSegment[]>([])
+  const [playlistTranscripts, setPlaylistTranscripts] = React.useState<{
+    [videoId: string]: TranscriptSegment[]
+  }>({})
+  const [currentLoadingVideoId, setCurrentLoadingVideoId] = React.useState<string | null>(null)
   // Add a ref to track whether we've already opened the sheet
   const initialOpenDoneRef = React.useRef(false);
 
@@ -95,12 +110,52 @@ function Content({ initialContent, initialError }: ContentProps) {
     }
   }, [initialContent, initialError, setVideoData])
 
-  const handleGenerateCourse = React.useCallback(() => {
-    // You would add your course generation logic here
-    console.log("Generate course from:", videoData);
-    // In the future, you might navigate to a new page
-    // or open a modal with course generation options
+  const handleGenerateCourse = React.useCallback(async () => {
+    if (!videoData) return;
+
+    setShowingTranscript(true);
+    setTranscriptLoading(true);
+    setTranscriptError(null);
+
+    try {
+      if (isPlaylist(videoData)) {
+        // Load first video transcript for playlists
+        const firstVideo = videoData.videos[0];
+        if (firstVideo) {
+          setCurrentLoadingVideoId(firstVideo.videoId);
+          try {
+            const transcript = await getYoutubeTranscript(firstVideo.videoId);
+            setPlaylistTranscripts({ [firstVideo.videoId]: transcript });
+          } catch (error) {
+            console.error(`Error fetching transcript for video ${firstVideo.videoId}:`, error);
+          }
+        }
+      } else {
+        // For single video
+        const transcript = await getYoutubeTranscript(videoData.id);
+        setVideoTranscript(transcript);
+      }
+    } catch (error) {
+      console.error('Error fetching transcript:', error);
+      setTranscriptError(error instanceof Error ? error.message : 'Failed to load transcript');
+    } finally {
+      setTranscriptLoading(false);
+      setCurrentLoadingVideoId(null);
+    }
   }, [videoData]);
+
+  // Create formatted video data for transcript display
+  const formattedPlaylistVideos = React.useMemo(() => {
+    if (!videoData || !isPlaylist(videoData)) return [];
+
+    return videoData.videos
+      .map((video: VideoItem) => ({
+        videoId: video.videoId,
+        title: video.title,
+        transcript: playlistTranscripts[video.videoId] || null,
+        loading: currentLoadingVideoId === video.videoId
+      }));
+  }, [videoData, playlistTranscripts, currentLoadingVideoId]);
 
   return (
     <>
@@ -125,38 +180,83 @@ function Content({ initialContent, initialError }: ContentProps) {
           {mounted && hasMounted && (
             <MobileSheet
               isOpen={isOpen}
-              onClose={() => toggle(false)} // Make sure we're explicitly calling toggle(false)
+              onClose={() => toggle(false)}
               loading={loading}
               error={error}
             />
           )}
 
-          {/* Main content area with course generation button */}
+          {/* Main content area with course generation button and transcript display */}
           <div className="flex-1 min-w-0">
             <div className="p-6 h-full flex flex-col items-center justify-center">
-              <div className="text-center max-w-md">
-                <h3 className="text-xl font-semibold mb-2">Ready to create a course?</h3>
-                <p className="text-muted-foreground mb-6">
-                  Generate a structured learning experience from the selected content.
-                </p>
+              {!showingTranscript ? (
+                <div className="text-center max-w-md">
+                  <h3 className="text-xl font-semibold mb-2">Ready to analyze content?</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Generate a transcript and analyze the content structure.
+                  </p>
 
-                <Button
-                  onClick={handleGenerateCourse}
-                  disabled={!videoData}
-                  size="lg"
-                  className="gap-2 px-6 py-6 h-auto text-base font-medium transition-all hover:scale-105 hover:shadow-md"
-                >
-                  <Sparkles className="h-5 w-5" />
-                  Generate Course
-                </Button>
+                  <Button
+                    onClick={handleGenerateCourse}
+                    disabled={!videoData}
+                    size="lg"
+                    className="gap-2 px-6 py-6 h-auto text-base font-medium transition-all hover:scale-105 hover:shadow-md"
+                  >
+                    <Sparkles className="h-5 w-5" />
+                    Get Transcript
+                  </Button>
 
-                <p className="text-sm text-muted-foreground mt-6">
-                  {!videoData
-                    ? "Select content from the left panel to begin"
-                    : `Using ${isPlaylist(videoData) ? "playlist" : "video"}: ${videoData.title.slice(0, 50)}${videoData.title.length > 50 ? '...' : ''}`
-                  }
-                </p>
-              </div>
+                  <p className="text-sm text-muted-foreground mt-6">
+                    {!videoData
+                      ? "Select content from the left panel to begin"
+                      : `Using ${isPlaylist(videoData) ? "playlist" : "video"}: ${videoData.title.slice(0, 50)}${videoData.title.length > 50 ? '...' : ''}`
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="w-full h-full overflow-auto">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-semibold">Transcript</h2>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowingTranscript(false)}
+                      size="sm"
+                    >
+                      Back
+                    </Button>
+                  </div>
+
+                  {transcriptLoading && videoData && !isPlaylist(videoData) ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+                      <p className="text-muted-foreground">Loading transcript...</p>
+                    </div>
+                  ) : transcriptError ? (
+                    <div className="p-6 border rounded-lg bg-destructive/10 text-center">
+                      <p className="text-destructive font-medium mb-2">Failed to load transcript</p>
+                      <p className="text-sm text-muted-foreground">{transcriptError}</p>
+                      <Button
+                        variant="outline"
+                        className="mt-4"
+                        onClick={handleGenerateCourse}
+                      >
+                        Try Again
+                      </Button>
+                    </div>
+                  ) : videoData && (
+                    <div className="border rounded-lg p-4 bg-card">
+                      <TranscriptDisplay
+                        videoId={isPlaylist(videoData) ? undefined : videoData.id}
+                        title={isPlaylist(videoData) ? undefined : videoData.title}
+                        transcript={isPlaylist(videoData) ? undefined : videoTranscript}
+                        isPlaylist={isPlaylist(videoData)}
+                        videos={isPlaylist(videoData) ? formattedPlaylistVideos : []}
+                        loading={transcriptLoading}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -188,9 +288,23 @@ interface AnalysisClientProps {
 }
 
 export function AnalysisClient({ initialContent, initialError }: AnalysisClientProps) {
+  // Debug log to see what's being passed in
+  React.useEffect(() => {
+    console.log("Initial content:", initialContent ? {
+      type: initialContent.type,
+      id: initialContent.id,
+      title: initialContent.title,
+      videoCount: initialContent.type === 'playlist' ? initialContent.videoCount : 'N/A',
+      videosLength: initialContent.type === 'playlist' ? initialContent.videos?.length : 'N/A'
+    } : null);
+    console.log("Initial error:", initialError);
+  }, [initialContent, initialError]);
+
   return (
     <div id="main" className="h-full w-full flex flex-col bg-background">
-      <AnalysisProvider>
+      {/* Remove the standalone Toaster - we're using the global one from providers.tsx */}
+
+      <AnalysisProvider initialContent={initialContent}>
         <AnalysisHeader />
         <Content initialContent={initialContent} initialError={initialError} />
       </AnalysisProvider>
