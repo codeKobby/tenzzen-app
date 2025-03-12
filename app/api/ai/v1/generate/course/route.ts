@@ -1,13 +1,27 @@
 import { NextResponse } from "next/server";
 import { generateCourse } from "@/tools/courseGenerator";
 import { getYoutubeTranscript } from "@/actions/getYoutubeTranscript";
+import { withRateLimit } from "@/lib/ai/openai";
 import type { CourseGenerationRequest } from "@/types/ai";
 
-// Set response timeout to 2 minutes since this is a long-running operation
-export const maxDuration = 120;
+// Set response timeout to 3 minutes since we're processing chunks
+export const maxDuration = 180;
+
+// Ensure proper caching headers
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 export async function POST(req: Request) {
   try {
+    // Check if request was cancelled
+    const signal = req.signal;
+    if (signal.aborted) {
+      return NextResponse.json(
+        { error: "Request cancelled" },
+        { status: 499 }
+      );
+    }
+
     // Parse request body
     const data = await req.json();
     const { videoId, videoDetails } = data as CourseGenerationRequest;
@@ -21,32 +35,56 @@ export async function POST(req: Request) {
       );
     }
 
-    // Combine transcript with video details for better context
-    const enrichedVideoDetails = {
-      ...videoDetails,
-      description: `${videoDetails.description}\n\nTranscript:\n${transcript.map(t => t.text).join(' ')}`
-    };
+    // Extract transcript text
+    const transcriptText = transcript.map(t => t.text);
 
-    // Generate course with retry logic
-    let retryCount = 0;
-    const maxRetries = 2;
+    // Generate course with chunked processing and rate limit handling
+    try {
+      const course = await generateCourse({ 
+        videoId, 
+        videoDetails,
+        transcript: transcriptText
+      });
 
-    while (retryCount <= maxRetries) {
-      try {
-        const course = await generateCourse({ 
-          videoId, 
-          videoDetails: enrichedVideoDetails
-        });
-
-        return NextResponse.json({ course });
-      } catch (error) {
-        retryCount++;
-        if (retryCount > maxRetries) {
-          throw error;
+      return NextResponse.json({ course });
+    } catch (error) {
+      if (error instanceof Error) {
+        // Handle rate limit errors with proper status and retry guidance
+        if (error.message.includes("Rate limit")) {
+          return NextResponse.json(
+            { error: "Rate limit reached. Please try again in a moment." },
+            { 
+              status: 429,
+              headers: {
+                'Retry-After': '60' // Suggest retry after 1 minute
+              }
+            }
+          );
         }
-        // Wait before retrying (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+
+        // Handle cancellation
+        if (error.name === 'AbortError' || signal.aborted) {
+          return NextResponse.json(
+            { error: "Request cancelled" },
+            { status: 499 }
+          );
+        }
+
+        // Handle token limit errors
+        if (error.message.includes("token")) {
+          return NextResponse.json(
+            { error: "Content is too long. Please try with a shorter video." },
+            { status: 413 }
+          );
+        }
+
+        return NextResponse.json(
+          { error: error.message },
+          { status: 500 }
+        );
       }
+
+      throw error; // Re-throw unknown errors
     }
 
   } catch (error) {
@@ -66,7 +104,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-// Ensure proper caching headers
-export const dynamic = 'force-dynamic';
-export const runtime = 'edge';

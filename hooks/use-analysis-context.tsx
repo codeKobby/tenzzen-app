@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useRef } from "react"
 import type { VideoDetails } from "@/types/youtube"
 import type { CourseGenerationResult } from "@/types/ai"
-import { GENERATION_PHASES, DEFAULT_PROGRESS_STATE } from "@/lib/ai/config"
+import { GENERATION_PHASES } from "@/lib/ai/config"
 
 interface AnalysisContextType {
   videoData: VideoDetails | null;
@@ -79,6 +79,8 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
 
   const simulateProgress = () => {
     resetProgress();
+    let currentPhase = 0;
+    
     progressIntervalRef.current = setInterval(() => {
       setGenerationProgress(prev => {
         const nextPhase = GENERATION_PHASES.find(phase => phase.progress > prev);
@@ -89,6 +91,12 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
           }
           return prev;
         }
+        
+        // Move to next phase when reaching current phase's progress
+        if (prev >= GENERATION_PHASES[currentPhase].progress) {
+          currentPhase++;
+        }
+        
         return prev + 1;
       });
     }, 500);
@@ -130,8 +138,6 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
         signal: abortControllerRef.current.signal
       });
 
-      setGenerationProgress(95);
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to generate course");
@@ -143,10 +149,19 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
 
     } catch (error) {
       console.error("Course generation error:", error);
-      if (error instanceof Error && error.name === 'AbortError') {
-        return; // Don't set error for user cancellation
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          return; // Don't set error for user cancellation
+        }
+        // Handle rate limit errors specifically
+        if (error.message.includes("Rate limit")) {
+          setCourseError("Rate limit reached. Please wait a moment and try again.");
+          return;
+        }
+        setCourseError(error.message);
+      } else {
+        setCourseError("Failed to generate course");
       }
-      setCourseError(error instanceof Error ? error.message : "Failed to generate course");
     } finally {
       abortControllerRef.current = null;
       setCourseGenerating(false);
