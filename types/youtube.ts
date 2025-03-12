@@ -1,84 +1,68 @@
-// Base types for cached data
-export interface CachedVideo {
-  youtubeId: string
-  title: string
-  description?: string
-  thumbnail?: string
-  duration?: string
-  channelId?: string
-  channelName?: string
-  channelAvatar?: string
-  views?: string
-  likes?: string
-  publishDate?: string
-  cachedAt: string
-}
-
-export interface CachedPlaylist {
-  youtubeId: string
-  title: string
-  thumbnail?: string
-  channelId?: string
-  channelName?: string
-  videoCount?: number
-  cachedAt: string
-}
-
-export interface PlaylistVideoRelation {
-  playlistId: string
-  videoId: string
-  position: number
-  cachedAt: string
-}
-
-// Frontend types for displaying content
-
-// Single video details
-export interface VideoDetails {
-  id: string
-  type: "video"  // Literal type to help with type narrowing
-  title: string
-  description: string
-  thumbnail: string
-  duration: string
-  channelId: string
-  channelName: string
-  channelAvatar?: string
-  views: string
-  likes: string
-  publishDate: string
-}
-
-// Video item in a playlist - make the type definition more explicit
 export interface VideoItem {
-  id: string
-  videoId: string
-  title: string
-  description: string
-  thumbnail: string
-  channelId: string
-  channelName: string
-  duration: string
-  views?: string
-  likes?: string
-  publishDate?: string
-  position: number
+  id: string;
+  type: "video";
+  title: string;
+  description: string;
+  thumbnail: string;
+  duration: string;
+  channelId: string;
+  channelName: string;
+  channelAvatar?: string;
+  views: string;
+  likes: string;
+  publishDate: string;
+  videoId?: string;
 }
 
-// Playlist details with videos
+export interface VideoDetails extends VideoItem {
+  type: "video";
+  thumbnails?: {
+    default?: { url: string };
+    high?: { url: string };
+  };
+}
+
 export interface PlaylistDetails {
-  id: string
-  type: "playlist"  // Literal type to help with type narrowing
-  title: string
-  description: string
-  thumbnail: string
-  channelId: string
-  channelName: string
-  channelAvatar?: string
-  videoCount: string  // Changed to string to match our getPlaylistDetails implementation
-  publishDate?: string
-  videos: VideoItem[]  // Array of VideoItems
+  id: string;
+  type: "playlist";
+  title: string;
+  description: string;
+  thumbnail: string;
+  channelId: string;
+  channelName: string;
+  channelAvatar?: string;
+  itemCount: number;
+  videos: VideoDetails[];
+  thumbnails?: {
+    default?: { url: string };
+    high?: { url: string };
+  };
 }
 
-// Union type for content
-export type ContentDetails = VideoDetails | PlaylistDetails
+export type ContentDetails = VideoDetails | PlaylistDetails;
+
+export interface TranscriptSegment {
+  text: string;
+  offset: number;
+  duration: number;
+}
+
+export interface SearchResult {
+  id: {
+    kind: string;
+    videoId?: string;
+    playlistId?: string;
+    channelId?: string;
+  };
+  snippet: {
+    title: string;
+    description: string;
+    channelTitle: string;
+    thumbnails: {
+      default: { url: string; width: number; height: number };
+      medium: { url: string; width: number; height: number };
+      high: { url: string; width: number; height: number };
+    };
+    publishTime: string;
+  };
+}

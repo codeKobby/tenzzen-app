@@ -1,127 +1,190 @@
 "use client"
 
-import * as React from "react"
-import { createContext, useContext, useState, useCallback, ReactNode } from "react"
-import { useRouter } from "next/navigation"
-import { VideoDetails, PlaylistDetails, ContentDetails } from "@/types/youtube"
+import React, { createContext, useContext, useState, useRef } from "react"
+import type { VideoDetails } from "@/types/youtube"
+import type { CourseGenerationResult } from "@/types/ai"
+import { GENERATION_PHASES, DEFAULT_PROGRESS_STATE } from "@/lib/ai/config"
 
 interface AnalysisContextType {
-  width: number
-  minWidth: number
-  maxWidth: number
-  isOpen: boolean
-  showAlert: boolean
-  videoData: ContentDetails | null
-  setWidth: (width: number) => void
-  toggle: (open?: boolean) => void
-  setShowAlert: (show: boolean) => void
-  confirmBack: () => void
-  setVideoData: (data: ContentDetails | null) => void
+  videoData: VideoDetails | null;
+  courseData: CourseGenerationResult | null;
+  courseError: string | null;
+  courseGenerating: boolean;
+  generationProgress: number;
+  width: number;
+  minWidth: number;
+  maxWidth: number;
+  isOpen: boolean;
+  showAlert: boolean;
+  toggle: (open?: boolean) => void;
+  setShowAlert: (show: boolean) => void;
+  confirmBack: () => void;
+  setWidth: (width: number) => void;
+  setVideoData: (data: VideoDetails | null) => void;
+  generateCourse: () => Promise<void>;
+  cancelGeneration: () => void;
 }
 
-const initialState: AnalysisContextType = {
-  width: 400,
-  minWidth: 320,
-  maxWidth: 480,
-  isOpen: false,
-  videoData: null,
-  showAlert: false,
-  setWidth: () => { },
-  toggle: () => { },
-  setShowAlert: () => { },
-  setVideoData: () => { },
-  confirmBack: () => { },
-}
-
-const AnalysisContext = createContext<AnalysisContextType>(initialState)
+const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
 
 interface AnalysisProviderProps {
-  children: ReactNode;
-  initialContent?: ContentDetails | null;
+  children: React.ReactNode;
+  initialContent?: VideoDetails | null;
 }
 
-export function AnalysisProvider({
-  children,
-  initialContent
-}: {
-  children: React.ReactNode
-  initialContent: ContentDetails | null
-}) {
-  const router = useRouter()
-  const [width, setWidth] = useState(initialState.width)
-  const [isOpen, setIsOpen] = useState(initialState.isOpen)
-  const [showAlert, setShowAlert] = useState(initialState.showAlert)
-  const [videoData, setVideoData] = useState<ContentDetails | null>(initialContent || null)
-  const [removedVideoIds, setRemovedVideoIds] = useState<Record<string, boolean>>({})
+export function AnalysisProvider({ children, initialContent = null }: AnalysisProviderProps) {
+  const [videoData, setVideoData] = useState<VideoDetails | null>(initialContent);
+  const [courseData, setCourseData] = useState<CourseGenerationResult | null>(null);
+  const [courseError, setCourseError] = useState<string | null>(null);
+  const [courseGenerating, setCourseGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  
+  // Layout state
+  const [width, setWidth] = useState(340);
+  const [isOpen, setIsOpen] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  const minWidth = 280;
+  const maxWidth = 500;
 
-  // Make sure toggle has stable behavior
-  const toggle = useCallback((value?: boolean) => {
-    if (value !== undefined) {
-      setIsOpen(value);
-    } else {
-      setIsOpen(prev => !prev);
-    }
+  // Generation control
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const toggle = React.useCallback((open?: boolean) => {
+    setIsOpen(prev => typeof open !== 'undefined' ? open : !prev);
   }, []);
 
-  const removeVideo = useCallback((videoId: string) => {
-    setRemovedVideoIds(prev => ({
-      ...prev,
-      [videoId]: true
-    }))
-  }, [])
-
-  const restoreVideo = useCallback((videoId: string) => {
-    setRemovedVideoIds(prev => {
-      const newRemoved = { ...prev }
-      delete newRemoved[videoId]
-      return newRemoved
-    })
-  }, [])
-
   const confirmBack = () => {
-    setShowAlert(false)
-    router.back()
-  }
+    setShowAlert(false);
+    window.history.back();
+  };
 
-  // For debugging
-  React.useEffect(() => {
-    if (initialContent) {
-      console.log("Setting initial content in provider:", {
-        type: initialContent.type,
-        id: initialContent.id,
-        title: initialContent.title
-      });
+  const resetProgress = () => {
+    setGenerationProgress(0);
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
     }
-  }, [initialContent]);
+  };
 
-  const context = {
-    width,
-    minWidth: initialState.minWidth,
-    maxWidth: initialState.maxWidth,
-    isOpen,
-    videoData,
-    showAlert,
-    setWidth,
-    toggle,
-    setShowAlert,
-    setVideoData,
-    confirmBack,
-    removedVideoIds,
-    removeVideo,
-    restoreVideo,
-  }
+  const cancelGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setCourseGenerating(false);
+    resetProgress();
+    setCourseError("Course generation cancelled");
+  };
+
+  const simulateProgress = () => {
+    resetProgress();
+    progressIntervalRef.current = setInterval(() => {
+      setGenerationProgress(prev => {
+        const nextPhase = GENERATION_PHASES.find(phase => phase.progress > prev);
+        if (!nextPhase || prev >= 95) {
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 500);
+  };
+
+  const generateCourse = async () => {
+    if (!videoData) return;
+
+    try {
+      // Cancel any existing generation
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Reset state
+      setCourseError(null);
+      setCourseGenerating(true);
+      setCourseData(null);
+      
+      // Create new abort controller
+      abortControllerRef.current = new AbortController();
+      
+      // Start progress simulation
+      simulateProgress();
+      
+      const response = await fetch("/api/ai/v1/generate/course", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          videoId: videoData.id,
+          videoDetails: {
+            title: videoData.title,
+            duration: videoData.duration,
+            description: videoData.description
+          }
+        }),
+        signal: abortControllerRef.current.signal
+      });
+
+      setGenerationProgress(95);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate course");
+      }
+
+      const result = await response.json();
+      setGenerationProgress(100);
+      setCourseData(result.course);
+
+    } catch (error) {
+      console.error("Course generation error:", error);
+      if (error instanceof Error && error.name === 'AbortError') {
+        return; // Don't set error for user cancellation
+      }
+      setCourseError(error instanceof Error ? error.message : "Failed to generate course");
+    } finally {
+      abortControllerRef.current = null;
+      setCourseGenerating(false);
+      resetProgress();
+    }
+  };
 
   return (
-    <AnalysisContext.Provider value={context}>
+    <AnalysisContext.Provider
+      value={{
+        videoData,
+        courseData,
+        courseError,
+        courseGenerating,
+        generationProgress,
+        width,
+        minWidth,
+        maxWidth,
+        isOpen,
+        showAlert,
+        toggle,
+        setShowAlert,
+        confirmBack,
+        setWidth,
+        setVideoData,
+        generateCourse,
+        cancelGeneration
+      }}
+    >
       {children}
     </AnalysisContext.Provider>
-  )
+  );
 }
 
-export const useAnalysis = () => {
-  const context = useContext(AnalysisContext)
-  if (!context) {
-    throw new Error("useAnalysis must be used within an AnalysisProvider")
+export function useAnalysis() {
+  const context = useContext(AnalysisContext);
+  if (context === undefined) {
+    throw new Error("useAnalysis must be used within an AnalysisProvider");
   }
-  return context
+  return context;
 }
