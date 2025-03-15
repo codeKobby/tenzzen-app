@@ -37,6 +37,7 @@ export interface PlaylistDetails {
     default?: { url: string };
     high?: { url: string };
   };
+  publishDate: string;
 }
 
 export type ContentDetails = VideoDetails | PlaylistDetails;

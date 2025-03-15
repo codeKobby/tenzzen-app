@@ -208,7 +208,7 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
       channelId: safeGet(playlist, 'snippet.channelId', ''),
       channelName: safeGet(playlist, 'snippet.channelTitle', ''),
       channelAvatar: '',
-      videoCount: String(safeGet(playlist, 'contentDetails.itemCount', '0')),
+      itemCount: Number(safeGet(playlist, 'contentDetails.itemCount', '0')),
       publishDate: playlist.snippet?.publishedAt ?
         new Date(playlist.snippet.publishedAt).toLocaleDateString('en-US', {
           year: 'numeric',

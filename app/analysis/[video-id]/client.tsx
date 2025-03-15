@@ -1,11 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { AnalysisHeader } from '@/components/analysis/header'
-import { ResizablePanel } from '@/components/resizable-panel'
-import { AnalysisProvider, useAnalysis } from '@/hooks/use-analysis-context'
-import { VideoContent } from '@/components/analysis/video-content'
-import { MobileSheet } from '@/components/analysis/mobile-sheet'
+import { AnalysisHeader } from "@/components/analysis/header"
+import { ResizablePanel } from "@/components/resizable-panel"
+import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context"
+import { VideoContent } from "@/components/analysis/video-content"
+import { MobileSheet } from "@/components/analysis/mobile-sheet"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,22 +15,19 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import type { ContentDetails, PlaylistDetails, VideoDetails } from '@/types/youtube'
-import { CourseDisplay } from '@/components/analysis/course-display'
+} from "@/components/ui/alert-dialog"
+import type { ContentDetails, PlaylistDetails } from "@/types/youtube"
+import { Sparkles } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
-// Type guards
-const isPlaylist = (content: ContentDetails | null): content is PlaylistDetails => {
-  return content !== null && content.type === "playlist";
-}
-
-const isVideo = (content: ContentDetails | null): content is VideoDetails => {
-  return content !== null && content.type === "video";
+// Add the isPlaylist helper function
+const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
+  return content?.type === "playlist"
 }
 
 interface ContentProps {
-  initialContent: ContentDetails | null;
-  initialError: string | null;
+  initialContent: ContentDetails | null
+  initialError: string | null
 }
 
 function Content({ initialContent, initialError }: ContentProps) {
@@ -45,24 +42,32 @@ function Content({ initialContent, initialError }: ContentProps) {
     setShowAlert,
     confirmBack,
     setVideoData,
+    videoData,
+    generateCourse
   } = useAnalysis()
 
   const [mounted, setMounted] = React.useState(false)
   const [hasMounted, setHasMounted] = React.useState(false)
   const [loading, setLoading] = React.useState(initialContent === null && !initialError)
   const [error, setError] = React.useState<string | null>(initialError)
+
+  // Add a ref to track whether we've already opened the sheet
   const initialOpenDoneRef = React.useRef(false);
 
   // Only open sheet on first load
   React.useEffect(() => {
-    if (initialOpenDoneRef.current) return;
+    if (initialOpenDoneRef.current) {
+      // Skip if we've already done the initial open
+      return;
+    }
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
+    // Only open on initial mount for mobile
     if (isMobile && !isOpen && mounted && hasMounted) {
       const timer = setTimeout(() => {
-        toggle(true);
-        initialOpenDoneRef.current = true;
+        toggle(true); // Open the sheet
+        initialOpenDoneRef.current = true; // Mark as done
       }, 200);
 
       return () => clearTimeout(timer);
@@ -85,21 +90,17 @@ function Content({ initialContent, initialError }: ContentProps) {
   React.useEffect(() => {
     if (initialContent) {
       setLoading(false)
-      if (isVideo(initialContent)) {
-        setVideoData(initialContent)
-      } else {
-        // Handle playlist by taking first video if available
-        if (isPlaylist(initialContent) && initialContent.videos?.length > 0) {
-          const firstVideo = initialContent.videos[0];
-          if (firstVideo && isVideo(firstVideo)) {
-            setVideoData(firstVideo);
-          }
-        }
-      }
+      setVideoData(initialContent)
     } else if (initialError) {
       setLoading(false)
     }
   }, [initialContent, initialError, setVideoData])
+
+  const handleGenerateCourse = React.useCallback(() => {
+    if (videoData) {
+      generateCourse();
+    }
+  }, [videoData, generateCourse]);
 
   return (
     <>
@@ -124,15 +125,39 @@ function Content({ initialContent, initialError }: ContentProps) {
           {mounted && hasMounted && (
             <MobileSheet
               isOpen={isOpen}
-              onClose={() => toggle(false)}
+              onClose={() => toggle(false)} // Make sure we're explicitly calling toggle(false)
               loading={loading}
               error={error}
             />
           )}
 
-          {/* Main content area */}
+          {/* Main content area with course generation button */}
           <div className="flex-1 min-w-0">
-            <CourseDisplay />
+            <div className="p-6 h-full flex flex-col items-center justify-center">
+              <div className="text-center max-w-md">
+                <h3 className="text-xl font-semibold mb-2">Ready to create a course?</h3>
+                <p className="text-muted-foreground mb-6">
+                  Generate a structured learning experience from the selected content.
+                </p>
+
+                <Button
+                  onClick={handleGenerateCourse}
+                  disabled={!videoData}
+                  size="lg"
+                  className="gap-2 px-6 py-6 h-auto text-base font-medium transition-all hover:scale-105 hover:shadow-md"
+                >
+                  <Sparkles className="h-5 w-5" />
+                  Generate Course
+                </Button>
+
+                <p className="text-sm text-muted-foreground mt-6">
+                  {!videoData
+                    ? "Select content from the left panel to begin"
+                    : `Using ${isPlaylist(videoData) ? "playlist" : "video"}: ${videoData.title.slice(0, 50)}${videoData.title.length > 50 ? '...' : ''}`
+                  }
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </main>
@@ -158,14 +183,14 @@ function Content({ initialContent, initialError }: ContentProps) {
 }
 
 interface AnalysisClientProps {
-  initialContent: ContentDetails | null;
-  initialError: string | null;
+  initialContent: ContentDetails | null
+  initialError: string | null
 }
 
 export function AnalysisClient({ initialContent, initialError }: AnalysisClientProps) {
   return (
     <div id="main" className="h-full w-full flex flex-col bg-background">
-      <AnalysisProvider initialContent={isVideo(initialContent) ? initialContent : null}>
+      <AnalysisProvider>
         <AnalysisHeader />
         <Content initialContent={initialContent} initialError={initialError} />
       </AnalysisProvider>

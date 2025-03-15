@@ -1,12 +1,12 @@
 "use client"
 
 import React, { createContext, useContext, useState, useRef } from "react"
-import type { VideoDetails } from "@/types/youtube"
+import type { ContentDetails } from "@/types/youtube"
 import type { CourseGenerationResult } from "@/types/ai"
 import { GENERATION_PHASES } from "@/lib/ai/config"
 
 interface AnalysisContextType {
-  videoData: VideoDetails | null;
+  videoData: ContentDetails | null;
   courseData: CourseGenerationResult | null;
   courseError: string | null;
   courseGenerating: boolean;
@@ -20,7 +20,7 @@ interface AnalysisContextType {
   setShowAlert: (show: boolean) => void;
   confirmBack: () => void;
   setWidth: (width: number) => void;
-  setVideoData: (data: VideoDetails | null) => void;
+  setVideoData: (data: ContentDetails | null) => void;
   generateCourse: () => Promise<void>;
   cancelGeneration: () => void;
 }
@@ -29,11 +29,11 @@ const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined
 
 interface AnalysisProviderProps {
   children: React.ReactNode;
-  initialContent?: VideoDetails | null;
+  initialContent?: ContentDetails | null;
 }
 
 export function AnalysisProvider({ children, initialContent = null }: AnalysisProviderProps) {
-  const [videoData, setVideoData] = useState<VideoDetails | null>(initialContent);
+  const [videoData, setVideoData] = useState<ContentDetails | null>(initialContent);
   const [courseData, setCourseData] = useState<CourseGenerationResult | null>(null);
   const [courseError, setCourseError] = useState<string | null>(null);
   const [courseGenerating, setCourseGenerating] = useState(false);
@@ -128,12 +128,19 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          videoId: videoData.id,
-          videoDetails: {
-            title: videoData.title,
-            duration: videoData.duration,
-            description: videoData.description
-          }
+          id: videoData.id,
+          type: videoData.type,
+          details: videoData.type === "video" 
+            ? {
+                title: videoData.title,
+                duration: videoData.duration,
+                description: videoData.description
+              }
+            : {
+                title: videoData.title,
+                description: videoData.description,
+                videos: videoData.videos
+              }
         }),
         signal: abortControllerRef.current.signal
       });

@@ -1,106 +1,75 @@
-import { NextResponse } from "next/server";
-import { generateCourse } from "@/tools/courseGenerator";
-import { getYoutubeTranscript } from "@/actions/getYoutubeTranscript";
-import { withRateLimit } from "@/lib/ai/openai";
-import type { CourseGenerationRequest } from "@/types/ai";
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { getYoutubeData } from '@/actions/getYoutubeData';
+import { getYoutubeTranscript } from '@/actions/getYoutubeTranscript';
+import { COURSE_PROMPTS } from '@/lib/ai/prompts';
+import { generateContent } from '@/lib/ai/google';
+import { logger } from '@/lib/ai/debug-logger';
+import { parseDuration } from '@/lib/youtube';
 
-// Set response timeout to 3 minutes since we're processing chunks
-export const maxDuration = 180;
+// Input validation
+const requestSchema = z.object({
+  videoId: z.string().min(1)
+});
 
-// Ensure proper caching headers
-export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
-
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Check if request was cancelled
-    const signal = req.signal;
-    if (signal.aborted) {
-      return NextResponse.json(
-        { error: "Request cancelled" },
-        { status: 499 }
-      );
+    // Parse and validate request
+    const rawBody = await request.json();
+    const { videoId } = requestSchema.parse(rawBody);
+
+    // Fetch video data and transcript in parallel
+    const [videoDataResult, transcript] = await Promise.all([
+      getYoutubeData(videoId),
+      getYoutubeTranscript(videoId)
+    ]);
+
+    if (!videoDataResult.success) {
+      throw new Error(videoDataResult.error);
     }
 
-    // Parse request body
-    const data = await req.json();
-    const { videoId, videoDetails } = data as CourseGenerationRequest;
-    
-    // Get transcript
-    const transcript = await getYoutubeTranscript(videoId);
     if (!transcript) {
-      return NextResponse.json(
-        { error: "Failed to fetch video transcript" },
-        { status: 400 }
-      );
+      throw new Error('No transcript available for this video');
     }
 
-    // Extract transcript text
-    const transcriptText = transcript.map(t => t.text);
+    const videoData = videoDataResult.data;
 
-    // Generate course with chunked processing and rate limit handling
-    try {
-      const course = await generateCourse({ 
-        videoId, 
-        videoDetails,
-        transcript: transcriptText
-      });
+    // Generate course structure
+    const { result: courseData } = await generateContent(
+      COURSE_PROMPTS.generateStructure(transcript)
+    );
 
-      return NextResponse.json({ course });
-    } catch (error) {
-      if (error instanceof Error) {
-        // Handle rate limit errors with proper status and retry guidance
-        if (error.message.includes("Rate limit")) {
-          return NextResponse.json(
-            { error: "Rate limit reached. Please try again in a moment." },
-            { 
-              status: 429,
-              headers: {
-                'Retry-After': '60' // Suggest retry after 1 minute
-              }
-            }
-          );
-        }
+    const course = JSON.parse(courseData);
 
-        // Handle cancellation
-        if (error.name === 'AbortError' || signal.aborted) {
-          return NextResponse.json(
-            { error: "Request cancelled" },
-            { status: 499 }
-          );
-        }
+    // Add video metadata
+    course.title = course.title || videoData.title;
+    course.overview.totalDuration = parseDuration(videoData.duration);
 
-        // Handle token limit errors
-        if (error.message.includes("token")) {
-          return NextResponse.json(
-            { error: "Content is too long. Please try with a shorter video." },
-            { status: 413 }
-          );
-        }
+    // Log success
+    logger.info('state', 'Generated course structure', {
+      videoId,
+      title: course.title,
+      sections: course.sections.length,
+      totalLessons: course.sections.reduce((acc, s) => acc + s.lessons.length, 0)
+    });
 
-        return NextResponse.json(
-          { error: error.message },
-          { status: 500 }
-        );
-      }
-
-      throw error; // Re-throw unknown errors
-    }
+    // Return course data
+    return new Response(JSON.stringify(course), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
-    console.error("Course generation error:", error);
-    
-    // Return appropriate error response
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.name === 'AbortError' ? 499 : 500 }
-      );
-    }
-    
-    return NextResponse.json(
-      { error: "Failed to generate course" },
-      { status: 500 }
+    // Handle errors
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    logger.error('api', 'Course generation failed', error instanceof Error ? error : new Error(errorMessage));
+
+    return new Response(
+      JSON.stringify({ error: errorMessage }), 
+      {
+        status: error instanceof z.ZodError ? 400 : 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
     );
   }
 }
