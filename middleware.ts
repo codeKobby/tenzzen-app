@@ -1,43 +1,52 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { logger } from '@/lib/ai/debug-logger';
 
-const isPublicRoute = createRouteMatcher([
-  '/', 
-  '/sign-in(.*)', 
-  '/sign-up(.*)', 
-  '/explore(.*)'
-])
-const isOnboardingRoute = createRouteMatcher(['/onboarding(.*)'])
+// Simple environment check
+function checkRequiredEnvVars() {
+  const required = [
+    'GOOGLE_GENERATIVE_AI_API_KEY',
+    'YOUTUBE_API_KEY'
+  ];
 
-export default clerkMiddleware(async (auth, req) => {
-  const { userId, sessionClaims } = await auth()
-
-  // For onboarding page, always allow access if user is signed in
-  if (isOnboardingRoute(req) && userId) {
-    return NextResponse.next()
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    const error = new Error('Missing required environment variables');
+    error.name = 'ConfigurationError';
+    logger.error('state', error.message, error);
+    return false;
   }
 
-  // If not signed in and trying to access a private route
-  if (!userId && !isPublicRoute(req)) {
-    const signInUrl = new URL('/sign-in', req.url)
-    signInUrl.searchParams.set('redirect_url', req.url)
-    return NextResponse.redirect(signInUrl)
+  return true;
+}
+
+export function middleware(request: NextRequest) {
+  // Skip validation for non-API routes
+  if (!request.url.includes('/api/')) {
+    return NextResponse.next();
   }
 
-  // If signed in but hasn't completed onboarding
-  if (userId && !sessionClaims?.metadata?.onboardingComplete && !isOnboardingRoute(req)) {
-    const onboardingUrl = new URL('/onboarding', req.url)
-    return NextResponse.redirect(onboardingUrl)
+  // Validate environment variables
+  if (!checkRequiredEnvVars()) {
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Server configuration error',
+        message: 'Missing required environment variables'
+      }),
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   }
 
-  return NextResponse.next()
-})
+  // Continue with the request
+  return NextResponse.next();
+}
 
 export const config = {
-  matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Always run for API routes
-    '/(api|trpc)(.*)'
-  ]
-}
+  matcher: ['/api/:path*']
+};

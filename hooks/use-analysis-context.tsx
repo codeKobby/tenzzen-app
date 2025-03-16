@@ -1,16 +1,20 @@
-"use client"
+"use client";
 
-import React, { createContext, useContext, useState, useRef } from "react"
-import type { ContentDetails } from "@/types/youtube"
-import type { CourseGenerationResult } from "@/types/ai"
-import { GENERATION_PHASES } from "@/lib/ai/config"
+import React, { createContext, useContext, useState, useRef, useCallback } from "react";
+import type { ContentDetails } from "@/types/youtube";
+import type { CourseGeneratorResult } from "@/tools/courseGenerator";
+import { getProgressMessage, PROGRESS_PHASES, ERROR_MESSAGES } from "@/lib/ai/config";
+import { validateCourseData, getSummary } from "@/components/analysis/course/validate";
+import { parseStreamChunk, validateStreamResult, formatErrorMessage } from "@/lib/ai/stream-parser";
+import { toast } from "sonner";
 
 interface AnalysisContextType {
   videoData: ContentDetails | null;
-  courseData: CourseGenerationResult | null;
+  courseData: CourseGeneratorResult | null;
   courseError: string | null;
   courseGenerating: boolean;
   generationProgress: number;
+  progressMessage: string;
   width: number;
   minWidth: number;
   maxWidth: number;
@@ -34,10 +38,11 @@ interface AnalysisProviderProps {
 
 export function AnalysisProvider({ children, initialContent = null }: AnalysisProviderProps) {
   const [videoData, setVideoData] = useState<ContentDetails | null>(initialContent);
-  const [courseData, setCourseData] = useState<CourseGenerationResult | null>(null);
+  const [courseData, setCourseData] = useState<CourseGeneratorResult | null>(null);
   const [courseError, setCourseError] = useState<string | null>(null);
   const [courseGenerating, setCourseGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState<string>(PROGRESS_PHASES[0].message);
   
   // Layout state
   const [width, setWidth] = useState(340);
@@ -48,9 +53,8 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
 
   // Generation control
   const abortControllerRef = useRef<AbortController | null>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const toggle = React.useCallback((open?: boolean) => {
+  const toggle = useCallback((open?: boolean) => {
     setIsOpen(prev => typeof open !== 'undefined' ? open : !prev);
   }, []);
 
@@ -59,51 +63,55 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
     window.history.back();
   };
 
-  const resetProgress = () => {
-    setGenerationProgress(0);
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
-  };
+  const updateProgress = useCallback((progress: number) => {
+    setGenerationProgress(progress);
+    const message = getProgressMessage(progress);
+    setProgressMessage(message);
+    console.log(`Progress Update: ${progress}%`, { message });
+  }, []);
 
-  const cancelGeneration = () => {
+  const cancelGeneration = useCallback(() => {
+    console.log('🛑 Cancelling course generation...');
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
     setCourseGenerating(false);
-    resetProgress();
-    setCourseError("Course generation cancelled");
-  };
+    setGenerationProgress(0);
+    setProgressMessage(PROGRESS_PHASES[0].message);
+    setCourseError(ERROR_MESSAGES.cancelled);
+    toast.error('Generation cancelled');
+  }, []);
 
-  const simulateProgress = () => {
-    resetProgress();
-    let currentPhase = 0;
-    
-    progressIntervalRef.current = setInterval(() => {
-      setGenerationProgress(prev => {
-        const nextPhase = GENERATION_PHASES.find(phase => phase.progress > prev);
-        if (!nextPhase || prev >= 95) {
-          if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-            progressIntervalRef.current = null;
-          }
-          return prev;
-        }
-        
-        // Move to next phase when reaching current phase's progress
-        if (prev >= GENERATION_PHASES[currentPhase].progress) {
-          currentPhase++;
-        }
-        
-        return prev + 1;
+  const handleCourseData = useCallback((rawData: any) => {
+    try {
+      const validatedData = validateCourseData(rawData);
+      if (!validatedData) {
+        throw new Error('Invalid course data received');
+      }
+      
+      const summary = getSummary(validatedData);
+      console.log('Course Summary:', summary);
+      
+      setCourseData(validatedData);
+      toast.success('Course generated successfully!', {
+        description: `Created ${summary.lessons} lessons with ${summary.resources} resources`
       });
-    }, 500);
-  };
 
-  const generateCourse = async () => {
-    if (!videoData) return;
+      return validatedData;
+    } catch (error) {
+      console.error('Failed to validate course data:', error);
+      toast.error('Failed to validate course data');
+      throw error;
+    }
+  }, []);
+
+  const handleGeneration = async () => {
+    if (!videoData) {
+      console.error('No video data available');
+      toast.error('No video data available');
+      return;
+    }
 
     try {
       // Cancel any existing generation
@@ -115,17 +123,19 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
       setCourseError(null);
       setCourseGenerating(true);
       setCourseData(null);
+      updateProgress(5);
       
       // Create new abort controller
       abortControllerRef.current = new AbortController();
       
-      // Start progress simulation
-      simulateProgress();
-      
-      const response = await fetch("/api/ai/v1/generate/course", {
-        method: "POST",
+      console.log('🚀 Starting course generation...', {
+        video: videoData.title
+      });
+
+      const response = await fetch('/api/ai/v1/generate/course', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           id: videoData.id,
@@ -146,33 +156,88 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate course");
+        const error = await response.json();
+        throw new Error(error.error || ERROR_MESSAGES.unknown);
       }
 
-      const result = await response.json();
-      setGenerationProgress(100);
-      setCourseData(result.course);
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response stream available');
+      }
+
+      updateProgress(10);
+      let courseResult: CourseGeneratorResult | null = null;
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          // Parse and validate stream events
+          const events = parseStreamChunk(value);
+
+          for (const event of events) {
+            try {
+              const validatedEvent = validateStreamResult(event);
+
+              switch (validatedEvent.type) {
+                case 'error':
+                  throw new Error(validatedEvent.error);
+
+                case 'tool-result':
+                  if (validatedEvent.toolName === 'generateCourse') {
+                    courseResult = handleCourseData(validatedEvent.result);
+                    updateProgress(80);
+                  }
+                  break;
+
+                case 'finish':
+                  updateProgress(100);
+                  break;
+
+                case 'progress':
+                  if (validatedEvent.progress) {
+                    updateProgress(validatedEvent.progress);
+                  }
+                  break;
+              }
+            } catch (e) {
+              console.warn('Failed to handle event:', e);
+              toast.error('Failed to process stream event');
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      if (!courseResult) {
+        throw new Error(ERROR_MESSAGES.unknown);
+      }
+
+      console.log('✅ Course generated successfully');
 
     } catch (error) {
-      console.error("Course generation error:", error);
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          return; // Don't set error for user cancellation
-        }
-        // Handle rate limit errors specifically
-        if (error.message.includes("Rate limit")) {
-          setCourseError("Rate limit reached. Please wait a moment and try again.");
-          return;
-        }
-        setCourseError(error.message);
-      } else {
-        setCourseError("Failed to generate course");
+      console.error('Course generation error:', error);
+      
+      // Handle user cancellation
+      if (error instanceof Error && error.name === 'AbortError') {
+        setCourseError(ERROR_MESSAGES.cancelled);
+        return;
       }
+
+      // Set user-friendly error message
+      const message = formatErrorMessage(error);
+      setCourseError(message);
+      toast.error('Generation failed', {
+        description: message
+      });
+
     } finally {
       abortControllerRef.current = null;
       setCourseGenerating(false);
-      resetProgress();
+      setProgressMessage(PROGRESS_PHASES[0].message);
     }
   };
 
@@ -184,6 +249,7 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
         courseError,
         courseGenerating,
         generationProgress,
+        progressMessage,
         width,
         minWidth,
         maxWidth,
@@ -194,7 +260,7 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
         confirmBack,
         setWidth,
         setVideoData,
-        generateCourse,
+        generateCourse: handleGeneration,
         cancelGeneration
       }}
     >

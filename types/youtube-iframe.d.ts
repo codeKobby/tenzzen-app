@@ -1,57 +1,65 @@
-declare interface YT {
-  Player: {
-    new (
-      container: HTMLElement | string,
-      options: {
-        videoId?: string;
-        playerVars?: {
-          autoplay?: 0 | 1;
-          controls?: 0 | 1;
-          modestbranding?: 0 | 1;
-          rel?: 0 | 1;
-          start?: number;
-          end?: number;
-          enablejsapi?: 0 | 1;
-          origin?: string;
-          playsinline?: 0 | 1;
-        };
-        events?: {
-          onReady?: (event: { target: YTPlayer }) => void;
-          onStateChange?: (event: { data: number }) => void;
-          onError?: (event: { data: number }) => void;
-        };
-        height?: string | number;
-        width?: string | number;
-      }
-    ): YTPlayer;
-  };
-  PlayerState: {
-    UNSTARTED: -1;
-    ENDED: 0;
-    PLAYING: 1;
-    PAUSED: 2;
-    BUFFERING: 3;
-    CUED: 5;
-  };
+export interface YouTubeEvent {
+  data: number;
+  target: YT.Player;
 }
 
-declare interface YTPlayer {
-  playVideo(): void;
-  pauseVideo(): void;
-  stopVideo(): void;
-  seekTo(seconds: number, allowSeekAhead: boolean): void;
-  getCurrentTime(): number;
-  getDuration(): number;
-  getPlayerState(): number;
-  addEventListener(event: string, listener: (event: any) => void): void;
-  removeEventListener(event: string, listener: (event: any) => void): void;
+export interface YouTubePlayerVars {
+  autoplay?: 0 | 1;
+  cc_lang_pref?: string;
+  cc_load_policy?: 0 | 1;
+  color?: 'red' | 'white';
+  controls?: 0 | 1;
+  disablekb?: 0 | 1;
+  enablejsapi?: 0 | 1;
+  end?: number;
+  fs?: 0 | 1;
+  hl?: string;
+  iv_load_policy?: 1 | 3;
+  list?: string;
+  listType?: 'playlist' | 'user_uploads';
+  loop?: 0 | 1;
+  modestbranding?: 0 | 1;
+  origin?: string;
+  playlist?: string;
+  playsinline?: 0 | 1;
+  rel?: 0 | 1;
+  start?: number;
+  widget_referrer?: string;
+}
+
+export interface YouTubePlayer {
+  videoId: string;
+  playerVars?: YouTubePlayerVars;
+  events?: {
+    onReady?: (event: YouTubeEvent) => void;
+    onStateChange?: (event: YouTubeEvent) => void;
+    onError?: (event: YouTubeEvent) => void;
+    onPlaybackQualityChange?: (event: YouTubeEvent) => void;
+    onPlaybackRateChange?: (event: YouTubeEvent) => void;
+    onApiChange?: (event: YouTubeEvent) => void;
+  };
+  width?: string | number;
+  height?: string | number;
 }
 
 declare global {
   interface Window {
-    YT?: YT;
+    YT?: {
+      Player: new (
+        element: string | HTMLElement,
+        config: YouTubePlayer
+      ) => void;
+      PlayerState: {
+        UNSTARTED: -1;
+        ENDED: 0;
+        PLAYING: 1;
+        PAUSED: 2;
+        BUFFERING: 3;
+        CUED: 5;
+      };
+    };
     onYouTubeIframeAPIReady?: () => void;
   }
 }
 
-export type { YT, YTPlayer };
+export {};

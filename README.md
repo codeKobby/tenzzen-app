@@ -1,88 +1,131 @@
-# Tenzzen - AI-Powered Course Generation Platform
+# Tenzzen App
 
-Transform YouTube videos into structured learning experiences with AI.
+A Next.js application that converts video content into structured courses using AI.
 
-## Getting Started
+## Setup
 
-### Prerequisites
+1. Clone the repository
+```bash
+git clone https://github.com/yourusername/tenzzen-app.git
+cd tenzzen-app
+```
 
-- Node.js 18+ and pnpm
-- Supabase account
-- Google OAuth credentials (for Google sign-in)
-
-### Setup
-
-1. Install dependencies:
+2. Install dependencies
 ```bash
 pnpm install
 ```
 
-2. Create a `.env` file in the root directory with your Supabase credentials:
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+3. Configure environment variables
+```bash
+# Copy the example environment file
+cp .env.example .env
 ```
 
-3. Configure Supabase Authentication:
-   - Go to your Supabase project dashboard
-   - Navigate to Authentication > Providers
-   - Enable Email/Password provider
-   - Enable Google provider and add your OAuth credentials
-   - Add your app's URL to the redirect URLs (e.g., `http://localhost:3000/auth/callback`)
+4. Set up Google Cloud and Vertex AI:
 
-4. Start the development server:
+a. Create a Google Cloud Project
+- Go to [Google Cloud Console](https://console.cloud.google.com)
+- Create a new project or select an existing one
+- Note down your project ID
+
+b. Enable required APIs
+- Vertex AI API
+- YouTube Data API v3
+
+c. Create a Service Account
+- Go to IAM & Admin > Service Accounts
+- Create a new service account
+- Grant it the following roles:
+  - `Vertex AI User`
+  - `Service Account User`
+- Create and download a JSON key
+- Copy the values from the JSON key to your .env file:
+  - `client_email` → GOOGLE_CLIENT_EMAIL
+  - `private_key` → GOOGLE_PRIVATE_KEY
+  - `private_key_id` → GOOGLE_PRIVATE_KEY_ID
+
+d. Set project and location
+```env
+GOOGLE_VERTEX_PROJECT=your-project-id
+GOOGLE_VERTEX_LOCATION=us-central1
+```
+
+5. Run the setup script
+```bash
+pnpm setup
+```
+
+The script will verify your environment configuration and guide you through any missing steps.
+
+6. Start the development server
 ```bash
 pnpm dev
 ```
 
-Visit `http://localhost:3000` to see the application.
+## Features
 
-### Authentication Features
+- Video content analysis
+- AI-powered course generation
+- Structured learning paths
+- Interactive progress tracking
+- Resource curation
 
-- Email/Password authentication
-- Google OAuth sign-in
-- Password strength validation
-- Protected routes
-- Authentication state management
-- Loading states
-- Form validation
+## Architecture
 
-### Theme Support
-
-- Light/Dark mode support
-- System theme detection
-- Theme persistence
-
-### Project Structure
-
-```
-tenzzen/
-├── app/
-│   ├── (app)/          # Protected routes
-│   ├── (auth)/         # Authentication routes
-│   └── layout.tsx      # Root layout
-├── components/         # Reusable components
-├── lib/               # Utilities and providers
-│   ├── supabase/      # Supabase client and auth
-│   └── utils.ts       # Helper functions
-└── public/            # Static assets
-```
+The application uses:
+- Next.js 14 with App Router
+- Vertex AI for course generation
+- YouTube API for video data
+- Edge Runtime for optimal performance
+- TypeScript for type safety
+- Tailwind CSS for styling
+- Radix UI for components
 
 ## Development
 
+### Project Structure
+```
+├── actions/          # Server actions
+├── app/             # Next.js app router
+├── components/      # React components
+├── hooks/           # Custom hooks
+├── lib/            # Utilities and services
+├── public/         # Static assets
+├── scripts/        # Setup and utility scripts
+├── types/          # TypeScript definitions
+└── tools/          # Generation tools
+```
+
 ### Key Features
+- Course Generation using Vertex AI
+- Video Content Analysis
+- Progress Tracking
+- Resource Management
 
-- Course generation from YouTube videos
-- Progress tracking
-- Interactive learning paths
-- Responsive design
-- Mobile-first approach
+## Environment Variables
 
-### Built With
+Required environment variables:
 
-- Next.js 13+ (App Router)
-- React
-- TypeScript
-- Tailwind CSS
-- Supabase
-- shadcn/ui
+```env
+# Google Vertex AI
+GOOGLE_VERTEX_PROJECT=your-project-id
+GOOGLE_VERTEX_LOCATION=us-central1
+GOOGLE_CLIENT_EMAIL=your-service-account@your-project.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour Key Here\n-----END PRIVATE KEY-----"
+GOOGLE_PRIVATE_KEY_ID=your-key-id
+
+# YouTube API
+YOUTUBE_API_KEY=your-youtube-api-key
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
