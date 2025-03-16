@@ -1,52 +1,64 @@
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { logger } from '@/lib/ai/debug-logger';
 
-// Simple environment check
-function checkRequiredEnvVars() {
-  const required = [
-    'GOOGLE_GENERATIVE_AI_API_KEY',
-    'YOUTUBE_API_KEY'
-  ];
+const isOnboardingRoute = createRouteMatcher(['/onboarding']);
+const isPublicRoute = createRouteMatcher(['/', '/sign-in', '/sign-up', '/explore']);
+const isAnalysisRoute = createRouteMatcher([
+  '/analysis/:videoId',
+  '/api/ai/v1/generate/course',
+  '/api/ai/v1/segments',
+  '/api/ai/v1/course'
+]);
 
-  const missing = required.filter(key => !process.env[key]);
-  
-  if (missing.length > 0) {
-    const error = new Error('Missing required environment variables');
-    error.name = 'ConfigurationError';
-    logger.error('state', error.message, error);
-    return false;
+export default clerkMiddleware(async (auth, req) => {
+  const { userId, sessionClaims } = await auth();
+
+  // For analysis routes, require authentication but skip onboarding check
+  if (isAnalysisRoute(req)) {
+    if (!userId) {
+      const signInUrl = new URL('/sign-in', req.url);
+      signInUrl.searchParams.set('redirect_url', req.url);
+      return NextResponse.redirect(signInUrl);
+    }
+    return NextResponse.next({
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+      },
+    });
   }
 
-  return true;
-}
-
-export function middleware(request: NextRequest) {
-  // Skip validation for non-API routes
-  if (!request.url.includes('/api/')) {
+  // For users on the onboarding page, don't redirect
+  if (userId && isOnboardingRoute(req)) {
     return NextResponse.next();
   }
 
-  // Validate environment variables
-  if (!checkRequiredEnvVars()) {
-    return new NextResponse(
-      JSON.stringify({
-        error: 'Server configuration error',
-        message: 'Missing required environment variables'
-      }),
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+  // If the user isn't signed in and the route is private, redirect to sign-in
+  if (!userId && !isPublicRoute(req)) {
+    const signInUrl = new URL('/sign-in', req.url);
+    signInUrl.searchParams.set('redirect_url', req.url);
+    return NextResponse.redirect(signInUrl);
   }
 
-  // Continue with the request
+  // For users who just signed in, redirect to dashboard if they've completed onboarding
+  if (userId && sessionClaims?.metadata?.onboardingComplete && (req.nextUrl.pathname === '/sign-in' || req.nextUrl.pathname === '/')) {
+    const dashboardUrl = new URL('/dashboard', req.url);
+    return NextResponse.redirect(dashboardUrl);
+  }
+
+  // Redirect users who haven't completed onboarding to the onboarding page
+  if (userId && !sessionClaims?.metadata?.onboardingComplete && !isOnboardingRoute(req)) {
+    const onboardingUrl = new URL('/onboarding', req.url);
+    return NextResponse.redirect(onboardingUrl);
+  }
+
   return NextResponse.next();
-}
+});
 
 export const config = {
-  matcher: ['/api/:path*']
+  matcher: [
+    // Skip Next.js internals and all static files
+    '/((?!_next|[^?]*\\.[^?]*$).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)'
+  ],
 };

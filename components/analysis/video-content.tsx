@@ -9,7 +9,7 @@ import { getVideoDetails } from "@/actions/getYoutubeData"
 import type { VideoDetails, PlaylistDetails, VideoItem, ContentDetails } from "@/types/youtube"
 import { startUrl } from "@/lib/utils"
 import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton"
-import { Toaster, toast, type ToastT } from "sonner"
+import { Toaster, toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
@@ -30,7 +30,7 @@ const isValidContentDetails = (data: any): data is ContentDetails => {
   );
 };
 
-const createVideoKey = (video: VideoItem, index: number): string => {
+const createVideoKey = (video: VideoDetails, index: number): string => {
   return `${video.id}-${index}`;
 };
 
@@ -46,7 +46,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
     return false
   })
   const [showFullDescription, setShowFullDescription] = useState(false)
-  const [removedVideos, setRemovedVideos] = useState<Record<string, VideoItem>>({})
+  const [removedVideos, setRemovedVideos] = useState<Record<string, VideoDetails>>({})
   const [activeCancelId, setActiveCancelId] = useState<string | null>(null)
 
   const activeVideoCount = useMemo(() => {
@@ -139,7 +139,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
     setShowFullDescription(prev => !prev)
   }, [])
 
-  const handleRemoveVideo = useCallback((video: VideoItem, event: React.MouseEvent) => {
+  const handleRemoveVideo = useCallback((video: VideoDetails, event: React.MouseEvent) => {
     event.stopPropagation();
     setRemovedVideos(prev => ({
       ...prev,
@@ -150,7 +150,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
 
     const toastId = `remove-${video.id}`; 
     
-    toast(({ id }) => (
+    toast.custom((id: string | number) => (
       <div className={cn(
         "flex flex-col gap-2 rounded-lg border bg-background p-4 shadow-lg",
       )}>
@@ -388,10 +388,25 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                           <h4 className="font-medium text-sm leading-snug text-foreground line-clamp-2">
                             {video.title}
                           </h4>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-xs text-muted-foreground/80 truncate">
-                              {video.channelName}
-                            </span>
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="h-6 w-6 rounded-full bg-secondary overflow-hidden flex-shrink-0">
+                                {video.channelAvatar ? (
+                                  <img
+                                    src={video.channelAvatar}
+                                    alt={video.channelName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                    {(video.channelName || 'U').charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground/80 truncate">
+                                {video.channelName}
+                              </span>
+                            </div>
                             <Button
                               onClick={() => toggleVideoExpand(video.id)}
                               variant="ghost"
@@ -430,6 +445,8 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                           <div className="relative z-10 px-2 pb-4 mt-2">
                             <div className="mt-1 space-y-4">
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70 pb-3 border-b">
+                                <span>{video.views} views</span>
+                                <span>{video.likes} likes</span>
                                 <span>{video.publishDate}</span>
                               </div>
                               <div className="text-xs leading-relaxed text-foreground/90 whitespace-pre-wrap break-words overflow-x-hidden">

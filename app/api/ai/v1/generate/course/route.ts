@@ -1,4 +1,3 @@
-import { createDataStream, streamText } from 'ai';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getVideoDetails } from '@/actions/getYoutubeData';
@@ -6,19 +5,28 @@ import { getYoutubeTranscript } from '@/actions/getYoutubeTranscript';
 import { generateCourseFromVideo } from '@/tools/course-generator';
 import { logger } from '@/lib/ai/debug-logger';
 import { rateLimiter } from '@/lib/ai/rate-limiter';
-import { GoogleAIAdapter } from '@/lib/ai/google-adapter';
-import type { ToolCallEvent, ToolResultEvent } from 'ai';
+import { createGoogleProvider, streamGoogleText } from '@/lib/ai/google-adapter';
+import type { Message, ToolSet } from 'ai';
+import { createDataStreamResponse } from 'ai';
 
-// Configure runtime
-export const runtime = 'edge';
+// Handle edge runtime compilation of node modules
+export const preferredRegion = 'auto';
 export const dynamic = 'force-dynamic';
 
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
   throw new Error('Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable');
 }
 
-// Initialize model with adapter
-const model = new GoogleAIAdapter(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+// Initialize provider
+const provider = createGoogleProvider(process.env.GOOGLE_GENERATIVE_AI_API_KEY, {
+  temperature: 0.7,
+  maxOutputTokens: 2048
+});
+
+// Define course generation tools
+const courseTools = {
+  generateCourse: generateCourseFromVideo
+} as const satisfies ToolSet;
 
 // Request validation
 const requestSchema = z.object({
@@ -26,12 +34,9 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  // Create data stream
-  const { stream, writer } = createDataStream();
-
   try {
     // Parse and validate request
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { videoId } = requestSchema.parse(body);
 
     // Fetch video data and transcript in parallel
@@ -80,90 +85,104 @@ export async function POST(request: NextRequest) {
       estimatedTokens: tokenEstimate
     });
 
-    // Create stream
-    const result = streamText({
-      model,
-      maxSteps: 3,
-      tools: {
-        generateCourse: generateCourseFromVideo
+    // Set up messages for course generation
+    const messages: Message[] = [
+      {
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: 'You are a professional course creator and instructor. Generate a comprehensive course structure from the provided video content.',
+        createdAt: new Date()
       },
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a professional course creator and instructor. Generate a comprehensive course structure from the provided video content.'
-        },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `Create a detailed course structure from this video content:\n\n` +
-                `Title: ${videoData.title}\n` +
-                `Description: ${videoData.description}\n` +
-                `Duration: ${videoData.duration}\n` +
-                `Transcript:\n${transcript}\n\n` +
-                `Please analyze the content and create a well-structured course with clear learning objectives, ` +
-                `prerequisites, and a logical progression of lessons. Ensure each section has a clear purpose ` +
-                `and builds on previous knowledge.`
-            }
-          ]
-        }
-      ],
-      onToolCall: (event: ToolCallEvent) => {
-        writer.write({
-          type: 'tool-status',
-          toolCallId: event.toolCallId,
-          status: 'in-progress'
-        });
-      },
-      onToolResult: (event: ToolResultEvent) => {
-        writer.write({
-          type: 'tool-status',
-          toolCallId: event.toolCallId,
-          status: 'complete'
-        });
-      },
-      onError: (error: Error) => {
-        logger.error('state', 'Stream error', error);
+      {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: `Create a detailed course structure from this video content:\n\n` +
+          `Title: ${videoData.title}\n` +
+          `Description: ${videoData.description}\n` +
+          `Duration: ${videoData.duration}\n` +
+          `Transcript:\n${transcript}\n\n` +
+          `Please analyze the content and create a well-structured course with clear learning objectives, ` +
+          `prerequisites, and a logical progression of lessons. Ensure each section has a clear purpose ` +
+          `and builds on previous knowledge.`,
+        createdAt: new Date()
       }
-    });
+    ];
 
     // Create response headers
     const headers = {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      'Connection': 'keep-alive',
       'X-RateLimit-Remaining': limits.remainingRequests.toString(),
       'X-RateLimit-Reset': Math.ceil(limits.resetIn / 1000).toString()
     };
 
-    // Return stream response
-    return new Response(
-      new ReadableStream({
-        async start(controller) {
-          try {
-            for await (const chunk of result.fullStream) {
-              if ('error' in chunk) {
-                controller.enqueue(
-                  `data: ${JSON.stringify({ 
-                    error: chunk.error instanceof Error ? chunk.error.message : 'An error occurred' 
-                  })}\n\n`
-                );
-                continue;
-              }
-              controller.enqueue(`data: ${JSON.stringify(chunk)}\n\n`);
+    // Return streaming response
+    return createDataStreamResponse({
+      headers,
+      execute: async (dataStream) => {
+        try {
+          // Write initial status
+          dataStream.writeData({ status: 'initializing' });
+
+          // Create stream
+          const result = await streamGoogleText(provider, {
+            messages,
+            tools: courseTools,
+            maxTokens: 2048,
+            temperature: 0.7,
+            systemPrompt: 'You are a professional course creator and instructor'
+          });
+
+          // Write generation started status
+          dataStream.writeData({ status: 'generating' });
+
+          // Process the full stream to handle all types of events
+          for await (const chunk of result.fullStream) {
+            switch (chunk.type) {
+              case 'text-delta':
+                dataStream.writeData({ 
+                  status: 'generating',
+                  text: chunk.textDelta 
+                });
+                break;
+
+              case 'tool-call':
+                dataStream.writeData({ 
+                  status: 'using-tool',
+                  toolCall: {
+                    id: chunk.toolCallId,
+                    name: chunk.toolName,
+                    args: chunk.args
+                  }
+                });
+                break;
+
+              case 'tool-result':
+                dataStream.writeData({ 
+                  status: 'tool-result',
+                  toolResult: chunk.result
+                });
+                break;
+
+              case 'error':
+                throw chunk.error;
             }
-            controller.close();
-          } catch (error) {
-            controller.error(error);
           }
-        },
-        cancel() {
-          writer.close();
+
+          // Write completion status
+          dataStream.writeData({ status: 'complete' });
+
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          logger.error('state', 'Course generation error', err);
+          throw err;
         }
-      }),
-      { headers }
-    );
+      },
+      onError: (error) => {
+        // Convert error to string message for client
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error('state', 'Course generation error response', err);
+        return err.message;
+      }
+    });
 
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Course generation failed');
@@ -179,7 +198,5 @@ export async function POST(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' }
       }
     );
-  } finally {
-    writer.close();
   }
 }
