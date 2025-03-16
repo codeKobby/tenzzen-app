@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useRef, useCallback } from "react";
+import React, { createContext, useContext, useState, useRef, useCallback, useTransition } from "react";
 import type { ContentDetails } from "@/types/youtube";
 import type { CourseGeneratorResult } from "@/tools/courseGenerator";
 import { getProgressMessage, PROGRESS_PHASES, ERROR_MESSAGES } from "@/lib/ai/config";
@@ -37,6 +37,7 @@ interface AnalysisProviderProps {
 }
 
 export function AnalysisProvider({ children, initialContent = null }: AnalysisProviderProps) {
+  const [isPending, startTransition] = useTransition();
   const [videoData, setVideoData] = useState<ContentDetails | null>(initialContent);
   const [courseData, setCourseData] = useState<CourseGeneratorResult | null>(null);
   const [courseError, setCourseError] = useState<string | null>(null);
@@ -64,11 +65,15 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
   };
 
   const updateProgress = useCallback((progress: number) => {
-    setGenerationProgress(progress);
-    const message = getProgressMessage(progress);
-    setProgressMessage(message);
-    console.log(`Progress Update: ${progress}%`, { message });
-  }, []);
+    if (progress > generationProgress) {
+      const message = getProgressMessage(progress);
+      startTransition(() => {
+        setGenerationProgress(progress);
+        setProgressMessage(message);
+      });
+      console.log(`Progress Update: ${progress}%`, { message });
+    }
+  }, [generationProgress]);
 
   const cancelGeneration = useCallback(() => {
     console.log('🛑 Cancelling course generation...');
@@ -76,11 +81,17 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    setCourseGenerating(false);
-    setGenerationProgress(0);
-    setProgressMessage(PROGRESS_PHASES[0].message);
-    setCourseError(ERROR_MESSAGES.cancelled);
-    toast.error('Generation cancelled');
+
+    startTransition(() => {
+      setCourseGenerating(false);
+      setGenerationProgress(0);
+      setProgressMessage(PROGRESS_PHASES[0].message);
+      setCourseError(ERROR_MESSAGES.cancelled);
+    });
+
+    setTimeout(() => {
+      toast.error('Generation cancelled');
+    }, 0);
   }, []);
 
   const handleCourseData = useCallback((rawData: any) => {
@@ -92,16 +103,23 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
       
       const summary = getSummary(validatedData);
       console.log('Course Summary:', summary);
-      
-      setCourseData(validatedData);
-      toast.success('Course generated successfully!', {
-        description: `Created ${summary.lessons} lessons with ${summary.resources} resources`
+
+      startTransition(() => {
+        setCourseData(validatedData);
       });
+
+      setTimeout(() => {
+        toast.success('Course generated successfully!', {
+          description: `Created ${summary.lessons} lessons with ${summary.resources} resources`
+        });
+      }, 0);
 
       return validatedData;
     } catch (error) {
       console.error('Failed to validate course data:', error);
-      toast.error('Failed to validate course data');
+      setTimeout(() => {
+        toast.error('Failed to validate course data');
+      }, 0);
       throw error;
     }
   }, []);
@@ -109,24 +127,34 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
   const handleGeneration = async () => {
     if (!videoData) {
       console.error('No video data available');
-      toast.error('No video data available');
+      setTimeout(() => {
+        toast.error('No video data available');
+      }, 0);
       return;
     }
 
-    try {
-      // Cancel any existing generation
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+    // First, ensure we're not already generating
+    if (courseGenerating) {
+      console.warn('Course generation already in progress');
+      return;
+    }
 
-      // Reset state
-      setCourseError(null);
-      setCourseGenerating(true);
-      setCourseData(null);
-      updateProgress(5);
-      
-      // Create new abort controller
-      abortControllerRef.current = new AbortController();
+    // Reset state before starting
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+
+    try {
+      // Initialize state
+      startTransition(() => {
+        setCourseError(null);
+        setCourseGenerating(true);
+        setCourseData(null);
+        setGenerationProgress(5);
+        setProgressMessage(PROGRESS_PHASES[0].message);
+      });
+
+      // Ensure state updates are applied
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       console.log('🚀 Starting course generation...', {
         video: videoData.title
@@ -156,7 +184,7 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({ error: ERROR_MESSAGES.unknown }));
         throw new Error(error.error || ERROR_MESSAGES.unknown);
       }
 
@@ -174,37 +202,38 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
           const { done, value } = await reader.read();
           if (done) break;
 
-          // Parse and validate stream events
           const events = parseStreamChunk(value);
-
           for (const event of events) {
             try {
-              const validatedEvent = validateStreamResult(event);
-
-              switch (validatedEvent.type) {
+              const part = validateStreamResult(event);
+              switch (part.type) {
                 case 'error':
-                  throw new Error(validatedEvent.error);
+                  throw new Error(part.error);
+                
+                case 'progress':
+                  updateProgress(part.progress);
+                  break;
 
                 case 'tool-result':
-                  if (validatedEvent.toolName === 'generateCourse') {
-                    courseResult = handleCourseData(validatedEvent.result);
-                    updateProgress(80);
+                  if (part.toolName === 'generateCourse') {
+                    courseResult = await handleCourseData(part.result);
+                    startTransition(() => {
+                      setCourseData(courseResult);
+                      setGenerationProgress(80);
+                    });
                   }
                   break;
 
                 case 'finish':
-                  updateProgress(100);
-                  break;
-
-                case 'progress':
-                  if (validatedEvent.progress) {
-                    updateProgress(validatedEvent.progress);
-                  }
+                  startTransition(() => {
+                    setGenerationProgress(100);
+                  });
                   break;
               }
-            } catch (e) {
-              console.warn('Failed to handle event:', e);
+            } catch (streamError) {
+              console.warn('Failed to process stream event:', streamError);
               toast.error('Failed to process stream event');
+              // Continue processing other events
             }
           }
         }
@@ -221,23 +250,28 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
     } catch (error) {
       console.error('Course generation error:', error);
       
-      // Handle user cancellation
-      if (error instanceof Error && error.name === 'AbortError') {
-        setCourseError(ERROR_MESSAGES.cancelled);
-        return;
-      }
+      const errorMessage = error instanceof Error && error.name === 'AbortError' 
+        ? ERROR_MESSAGES.cancelled 
+        : formatErrorMessage(error);
 
-      // Set user-friendly error message
-      const message = formatErrorMessage(error);
-      setCourseError(message);
-      toast.error('Generation failed', {
-        description: message
+      startTransition(() => {
+        setCourseError(errorMessage);
       });
+
+      if (errorMessage !== ERROR_MESSAGES.cancelled) {
+        setTimeout(() => {
+          toast.error('Generation failed', {
+            description: errorMessage
+          });
+        }, 0);
+      }
 
     } finally {
       abortControllerRef.current = null;
-      setCourseGenerating(false);
-      setProgressMessage(PROGRESS_PHASES[0].message);
+      startTransition(() => {
+        setCourseGenerating(false);
+        setProgressMessage(PROGRESS_PHASES[0].message);
+      });
     }
   };
 

@@ -12,28 +12,41 @@ import { SkeletonTransition, ContentTransition } from "./skeleton-transition";
 export function TabContent() {
   const { courseData, courseError, courseGenerating } = useAnalysis();
 
-  if (courseError) {
+  const showEmptyState = !courseData && !courseGenerating && !courseError;
+  const showContent = !courseGenerating && !!courseData;
+
+  // Handle error state separately to prevent flicker
+  if (courseError && !courseGenerating) {
     return null;
   }
-
-  if (!courseData && !courseGenerating) {
-    return (
-      <div className="flex h-full items-center justify-center p-8 text-center text-sm text-muted-foreground">
-        Generate a course to see its structure and content
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="relative">
-      <SkeletonTransition show={courseGenerating} />
-      <ContentTransition 
-        show={!courseGenerating && !!courseData}
+    <div className="relative min-h-[200px]">
+      {/* Empty state */}
+      {showEmptyState && (
+        <div className="absolute inset-0 flex items-center justify-center p-8 text-center text-sm text-muted-foreground">
+          Generate a course to see its structure and content
+        </div>
+      )}
+
+      {/* Loading state */}
+      <SkeletonTransition 
+        show={courseGenerating} 
         className={cn(
-          "transition-opacity duration-300",
-          courseGenerating && "pointer-events-none opacity-0"
+          "absolute inset-0 z-10",
+          !courseGenerating && "pointer-events-none"
+        )}
+      />
+
+      {/* Content */}
+      <ContentTransition 
+        show={showContent}
+        className={cn(
+          "transition-all duration-300",
+          (!showContent || courseGenerating) && "pointer-events-none opacity-0"
         )}
       >
+
         <Tabs defaultValue="overview" className="w-full space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>

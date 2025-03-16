@@ -9,7 +9,7 @@ import { getVideoDetails } from "@/actions/getYoutubeData"
 import type { VideoDetails, PlaylistDetails, VideoItem, ContentDetails } from "@/types/youtube"
 import { startUrl } from "@/lib/utils"
 import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton"
-import { Toaster, toast } from "sonner"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
@@ -229,7 +229,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
 
   return (
     <>
-      <Toaster position="bottom-right" closeButton richColors />
       <div className="space-y-4 pb-2 p-4">
         {!isPlaylist(videoData) ? (
           <div className="space-y-4">

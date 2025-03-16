@@ -76,7 +76,7 @@ export function DebugProvider({ children }: DebugProviderProps) {
     <>
       {children}
       {process.env.NODE_ENV === 'development' && <DebugDrawer />}
-      <Toaster richColors closeButton position="top-center" />
+      <Toaster richColors closeButton position="bottom-right" theme="system" />
     </>
   );
 }
