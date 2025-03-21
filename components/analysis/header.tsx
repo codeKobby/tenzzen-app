@@ -1,10 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { Bell, ArrowLeft, Menu } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import { useAnalysis } from "@/hooks/use-analysis-context"
+import { mockCourseData } from "@/lib/mock/course-data"
+import { Button } from "@/components/ui/button"
+import { ChevronLeft, Bell, ArrowLeft, Menu, ArrowUp } from "lucide-react"
+import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,22 +38,42 @@ function getBreadcrumbFromPath(path: string): BreadcrumbItem[] {
 }
 
 export function AnalysisHeader() {
-  const router = useRouter()
-  const { setShowAlert, toggle } = useAnalysis()
+  const { showAlert, setShowAlert, courseData, courseGenerating, toggle } = useAnalysis()
   const { user } = useUser()
+  const router = useRouter()
   const [scrolled, setScrolled] = React.useState(false)
+  const [showScrollTop, setShowScrollTop] = React.useState(false)
   const breadcrumbs = getBreadcrumbFromPath("/analysis")
 
+  // Get course title from context or mock data
+  const courseMockData = mockCourseData
+  const courseTitle = courseData || courseGenerating ? courseMockData.title : ""
+
+  // Handle back button navigation
   const handleBack = () => {
-    setShowAlert(true)
+    if (courseData) {
+      setShowAlert(true)
+      return
+    }
+    window.history.back()
   }
 
   React.useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 0)
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 0)
+      setShowScrollTop(window.scrollY > 300) // Show scroll button after scrolling down 300px
+    }
     handleScroll()
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  }
 
   return (
     <header className={cn(
@@ -60,7 +82,7 @@ export function AnalysisHeader() {
     )}>
       <div className={cn(
         "mx-auto w-[95%] lg:w-[90%] flex h-16 items-center justify-between",
-        `transition-all duration-&lsqb;300ms&rsqb; ease-in-out`
+        `transition-all duration-300 ease-in-out`
       )}>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
@@ -79,11 +101,12 @@ export function AnalysisHeader() {
             variant="ghost"
             size="icon"
             className="h-9 w-9 hover:bg-transparent sm:hidden"
-            onClick={() => toggle()}
+            onClick={() => toggle?.(true)} 
           >
             <Menu className="h-4 w-4 transition-colors hover:text-primary" />
           </Button>
 
+          {/* Hide "Course Generation" on small screens when a course title is displayed */}
           <nav className="flex items-center gap-2 text-sm sm:ml-6">
             {breadcrumbs.map((item, index) => (
               <React.Fragment key={item.href}>
@@ -95,7 +118,9 @@ export function AnalysisHeader() {
                     "transition-colors hover:text-foreground",
                     index === breadcrumbs.length - 1
                       ? "text-foreground font-medium"
-                      : "text-muted-foreground"
+                      : "text-muted-foreground",
+                    // Hide "Course Generation" on small screens when course title is shown
+                    (courseTitle && item.label === "Course Generation") ? "hidden sm:inline" : ""
                   )}
                 >
                   {item.label}
@@ -104,6 +129,13 @@ export function AnalysisHeader() {
             ))}
           </nav>
         </div>
+
+        {/* Centered title - only show when course exists */}
+        {courseTitle && (
+          <div className="flex-1 text-center font-semibold text-lg truncate max-w-xs sm:max-w-md md:max-w-lg">
+            {courseTitle}
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           <DropdownMenu>
@@ -180,6 +212,18 @@ export function AnalysisHeader() {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Scroll to top button - positioned on the bottom right */}
+      {showScrollTop && (
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 h-10 w-10 rounded-full shadow-lg z-50 animate-in fade-in"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </Button>
+      )}
     </header>
   )
 }

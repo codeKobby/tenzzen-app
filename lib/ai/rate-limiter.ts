@@ -1,3 +1,5 @@
+import { logger } from './debug-logger';
+
 // Gemini rate limits (documented limits with safety margin)
 export const RATE_LIMITS = {
   // Model limits
@@ -28,26 +30,54 @@ export interface ErrorTracking {
   lastError: Error;
 }
 
+interface RateLimits {
+  remainingRequests: number;
+  remainingTokens: number;
+  resetIn: number; // milliseconds
+}
+
 export class RateLimiter {
   private requestCount: number = 0;
   private tokenCount: number = 0;
   private lastReset: number = Date.now();
   private errorTracker: Map<string, ErrorTracking> = new Map();
-
-  constructor(private readonly limits = RATE_LIMITS) {
+  private resetIntervalId: NodeJS.Timeout | null = null;
+  
+  constructor(
+    private readonly requestLimit = RATE_LIMITS.RPM,
+    private readonly tokenLimit = RATE_LIMITS.TPM,
+    private readonly resetInterval = 60000, // 1 minute default
+    private readonly limits = RATE_LIMITS
+  ) {
     this.resetCounts = this.resetCounts.bind(this);
-    // Reset counts every minute
-    setInterval(this.resetCounts, 60000);
+    
+    // Initialize reset interval
+    if (typeof window === 'undefined') {
+      // Only set interval on server
+      this.resetIntervalId = setInterval(this.resetCounts, this.resetInterval);
+    }
+  }
+
+  // Clean up when no longer needed
+  public dispose(): void {
+    if (this.resetIntervalId) {
+      clearInterval(this.resetIntervalId);
+      this.resetIntervalId = null;
+    }
   }
 
   private resetCounts(): void {
     const now = Date.now();
-    if (now - this.lastReset >= 60000) {
+    if (now - this.lastReset >= this.resetInterval) {
       this.requestCount = 0;
       this.tokenCount = 0;
       this.lastReset = now;
       // Clear old error entries
       this.errorTracker.clear();
+      
+      logger.debug('api', 'Rate limits reset', {
+        time: new Date().toISOString()
+      });
     }
   }
 
@@ -62,8 +92,8 @@ export class RateLimiter {
     // Check rate limits
     if (this.requestCount >= this.limits.RPM || 
         this.tokenCount + tokenEstimate >= this.limits.TPM) {
-      const waitTime = 60000 - (Date.now() - this.lastReset) + 1000; // Add 1s buffer
-      console.log(`Rate limit reached. Waiting ${waitTime}ms before retry...`, {
+      const waitTime = this.resetInterval - (Date.now() - this.lastReset) + 1000; // Add 1s buffer
+      logger.info('api', `Rate limit reached. Waiting ${waitTime}ms before retry...`, {
         requestCount: this.requestCount,
         tokenCount: this.tokenCount,
         tokenEstimate,
@@ -100,7 +130,7 @@ export class RateLimiter {
         await this.rateLimit(tokenEstimate);
         
         // Log attempt
-        console.log(`Attempt ${attempt}/${this.limits.MAX_RETRIES} for operation ${operationId}`);
+        logger.info('api', `Attempt ${attempt}/${this.limits.MAX_RETRIES} for operation ${operationId}`);
         
         // Execute operation
         const result = await operation();
@@ -120,13 +150,13 @@ export class RateLimiter {
         this.errorTracker.set(operationId, errorData);
         
         // Log error
-        console.error(`Attempt ${attempt} failed:`, error);
+        logger.error('api', `Attempt ${attempt} failed:`, currentError);
         
         // Check if we should retry
         if (this.shouldRetry(error)) {
           if (attempt < this.limits.MAX_RETRIES) {
             const backoffTime = this.calculateBackoff(attempt);
-            console.log(`Retrying after ${backoffTime}ms (attempt ${attempt}/${this.limits.MAX_RETRIES})`);
+            logger.info('api', `Retrying after ${backoffTime}ms (attempt ${attempt}/${this.limits.MAX_RETRIES})`);
             await new Promise(resolve => setTimeout(resolve, backoffTime));
             continue;
           }
@@ -145,11 +175,7 @@ export class RateLimiter {
       stack: currentError.stack
     } : 'Unknown error';
 
-    console.error('All retry attempts failed:', {
-      operationId,
-      duration: totalTime,
-      error: errorInfo
-    });
+    logger.error('api', 'All retry attempts failed:', errorInfo);
 
     if (!currentError) {
       currentError = new Error('Operation failed after all retries');
@@ -190,7 +216,7 @@ export class RateLimiter {
       tokenCount: this.tokenCount,
       remainingRequests: Math.max(0, this.limits.RPM - this.requestCount),
       remainingTokens: Math.max(0, this.limits.TPM - this.tokenCount),
-      resetIn: Math.max(0, 60000 - (Date.now() - this.lastReset)),
+      resetIn: Math.max(0, this.resetInterval - (Date.now() - this.lastReset)),
       limits: this.limits
     };
   }

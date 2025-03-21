@@ -6,6 +6,7 @@ import { ResizablePanel } from "@/components/resizable-panel"
 import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context"
 import { VideoContent } from "@/components/analysis/video-content"
 import { MobileSheet } from "@/components/analysis/mobile-sheet"
+import { CoursePanel } from "@/components/analysis/course-panel"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +44,9 @@ function Content({ initialContent, initialError }: ContentProps) {
     confirmBack,
     setVideoData,
     videoData,
-    generateCourse
+    generateCourse,
+    courseGenerating,
+    courseData,
   } = useAnalysis()
 
   const [mounted, setMounted] = React.useState(false)
@@ -54,7 +57,7 @@ function Content({ initialContent, initialError }: ContentProps) {
   // Add a ref to track whether we've already opened the sheet
   const initialOpenDoneRef = React.useRef(false);
 
-  // Only open sheet on first load
+  // Only open sheet on first load - using the correct pattern from the working example
   React.useEffect(() => {
     if (initialOpenDoneRef.current) {
       // Skip if we've already done the initial open
@@ -96,6 +99,7 @@ function Content({ initialContent, initialError }: ContentProps) {
     }
   }, [initialContent, initialError, setVideoData])
 
+  // Use the generateCourse function from context
   const handleGenerateCourse = React.useCallback(() => {
     if (videoData) {
       generateCourse();
@@ -104,8 +108,8 @@ function Content({ initialContent, initialError }: ContentProps) {
 
   return (
     <>
-      <main className="flex-1 relative">
-        <div className="flex h-[calc(100vh-64px)]">
+      <main className="flex-1 relative overflow-hidden">
+        <div className="flex h-[calc(100vh-64px)] overflow-hidden">
           {/* Left panel - converts to bottom sheet on small screens */}
           <div className="hidden sm:block relative border-r bg-background">
             <ResizablePanel
@@ -121,7 +125,7 @@ function Content({ initialContent, initialError }: ContentProps) {
             </ResizablePanel>
           </div>
 
-          {/* Mobile bottom sheet */}
+          {/* Mobile bottom sheet - only render when mounted and after initial animation */}
           {mounted && hasMounted && (
             <MobileSheet
               isOpen={isOpen}
@@ -131,34 +135,38 @@ function Content({ initialContent, initialError }: ContentProps) {
             />
           )}
 
-          {/* Main content area with course generation button */}
-          <div className="flex-1 min-w-0">
-            <div className="p-6 h-full flex flex-col items-center justify-center">
-              <div className="text-center max-w-md">
-                <h3 className="text-xl font-semibold mb-2">Ready to create a course?</h3>
-                <p className="text-muted-foreground mb-6">
-                  Generate a structured learning experience from the selected content.
-                </p>
+          {/* Right side - Either course panel or generate button */}
+          {courseData || courseGenerating ? (
+            <CoursePanel className="flex-1 z-10" />
+          ) : (
+            <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+              <div className="h-full overflow-auto hover:scrollbar scrollbar-thin p-6 flex flex-col items-center justify-center">
+                <div className="text-center max-w-md">
+                  <h3 className="text-xl font-semibold mb-2">Ready to create a course?</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Generate a structured learning experience from the selected content.
+                  </p>
 
-                <Button
-                  onClick={handleGenerateCourse}
-                  disabled={!videoData}
-                  size="lg"
-                  className="gap-2 px-6 py-6 h-auto text-base font-medium transition-all hover:scale-105 hover:shadow-md"
-                >
-                  <Sparkles className="h-5 w-5" />
-                  Generate Course
-                </Button>
+                  <Button
+                    onClick={handleGenerateCourse}
+                    disabled={!videoData}
+                    size="lg"
+                    className="gap-2 px-6 py-6 h-auto text-base font-medium transition-all hover:scale-105 hover:shadow-md"
+                  >
+                    <Sparkles className="h-5 w-5" />
+                    Generate Course
+                  </Button>
 
-                <p className="text-sm text-muted-foreground mt-6">
-                  {!videoData
-                    ? "Select content from the left panel to begin"
-                    : `Using ${isPlaylist(videoData) ? "playlist" : "video"}: ${videoData.title.slice(0, 50)}${videoData.title.length > 50 ? '...' : ''}`
-                  }
-                </p>
+                  <p className="text-sm text-muted-foreground mt-6">
+                    {!videoData
+                      ? "Select content from the left panel to begin"
+                      : `Using ${isPlaylist(videoData) ? "playlist" : "video"}: ${videoData.title.slice(0, 50)}${videoData.title.length > 50 ? '...' : ''}`
+                    }
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
 
@@ -188,9 +196,22 @@ interface AnalysisClientProps {
 }
 
 export function AnalysisClient({ initialContent, initialError }: AnalysisClientProps) {
+  // Apply overflow hidden to the html and body for this page
+  React.useEffect(() => {
+    // Add the overflow-hidden class to the html and body elements
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
+    // Clean up function to remove the class when component unmounts
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   return (
-    <div id="main" className="h-full w-full flex flex-col bg-background">
-      <AnalysisProvider>
+    <div id="main" className="h-full w-full flex flex-col bg-background overflow-hidden">
+      <AnalysisProvider initialContent={initialContent}>
         <AnalysisHeader />
         <Content initialContent={initialContent} initialError={initialError} />
       </AnalysisProvider>

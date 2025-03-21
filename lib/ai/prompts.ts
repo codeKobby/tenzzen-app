@@ -1,135 +1,154 @@
-// Structured prompt templates for consistent AI responses
+export interface CourseGeneratorPrompt {
+  systemPrompt: string;
+  examples?: string;
+}
+
+interface GeneratePromptOptions {
+  type: 'video' | 'playlist';
+  context: {
+    title: string;
+    description: string;
+    duration?: string;
+    videos?: Array<{
+      title: string;
+      duration: string;
+      description: string;
+    }>;
+  };
+}
+
+interface VideoSegmentPromptParams {
+  title: string;
+  description: string;
+  startTime: number;
+  endTime: number;
+  transcript: string;
+}
+
 export const COURSE_PROMPTS = {
-  generateStructure: (transcript: string) => `
-As an expert course creator, analyze this video transcript and create a natural, content-driven course structure.
-Follow these guidelines while maintaining flexibility based on the content:
+  generateVideoSegments: (params: VideoSegmentPromptParams): string => {
+    return `Analyze this video section and create learning segments.
+Title: ${params.title}
+Description: ${params.description}
+Time Range: ${params.startTime} - ${params.endTime}
 
-1. Initial Analysis:
-- Identify main topics and concepts
-- Note key timestamps where topics change
-- Understand the natural flow and progression
-- Assess the depth of each topic
+Transcript:
+${params.transcript}
 
-2. Course Overview:
-- Create a title and subtitle that reflect the actual content
-- Write a description focusing on real value points
-- Identify the actual target audience based on content complexity
-- List concrete learning outcomes based on covered material
+Generate logical learning segments that:
+1. Break down the content into digestible parts
+2. Include clear titles and descriptions
+3. Have appropriate timestamps within the given range
+4. Include relevant resources
+5. Maintain content flow and dependencies
 
-3. Content Organization:
-- Structure sections based on natural topic boundaries
-- Keep lessons focused on single, complete concepts
-- Identify practical examples and demonstrations
-- Note timestamps for each lesson segment
-- Let the content determine the number of sections and lessons
+Return result in this JSON format:
+[{
+  "title": "string",
+  "description": "string",
+  "startTime": number,
+  "endTime": number,
+  "content": "string",
+  "resources": [{
+    "title": "string",
+    "type": "string",
+    "url": "string",
+    "description": "string"
+  }]
+}]`;
+  }
+};
 
-4. For Each Section:
-- Title should reflect its core concept
-- Description should explain its role in the overall learning
-- Include relevant timestamps from the video
-- Identify hands-on components or examples
-- Note any prerequisites for the section
+const VIDEO_PROMPT = `You are an expert course creator tasked with converting video content into structured learning experiences. 
+Generate a comprehensive course structure following these requirements:
 
-5. For Each Lesson:
-- Add start and end timestamps
-- Focus on a single clear concept
-- Include any visual demonstrations or examples
-- Note practical applications shown
-- Add relevant external resources
+1. Create logical sections based on the content
+2. Break sections into short, focused lessons
+3. Include practical assessments
+4. Add relevant resources for each lesson
+5. Ensure clear learning objectives
+6. Maintain consistent difficulty progression
 
-Analyze the following transcript and maintain all original timestamps:
-${transcript}
-
-Format the response as a valid JSON object matching this structure:
+Expected JSON Response Format:
 {
-  "title": string,
-  "subtitle": string,
+  "title": "string",
+  "subtitle": "string",
   "overview": {
-    "description": string,
-    "prerequisites": Array<{ title: string, description: string, level: string }>,
-    "learningOutcomes": Array<{ title: string, description: string, category: string }>,
-    "totalDuration": string,
-    "difficultyLevel": string,
-    "skills": string[],
-    "tools": string[]
+    "description": "string",
+    "prerequisites": [{ "title": "string", "description": "string", "level": "beginner" | "intermediate" | "advanced" }],
+    "learningOutcomes": [{ "title": "string", "description": "string", "category": "skill" | "knowledge" | "tool" }],
+    "totalDuration": "string",
+    "difficultyLevel": "beginner" | "intermediate" | "advanced",
+    "skills": ["string"],
+    "tools": ["string"]
   },
-  "sections": Array<{
-    "title": string,
-    "description": string,
-    "duration": string,
-    "startTime": number, // timestamp in seconds
-    "endTime": number,   // timestamp in seconds
-    "lessons": Array<{
-      "title": string,
-      "duration": string,
-      "description": string,
-      "content": string,
-      "startTime": number, // timestamp in seconds
-      "endTime": number,   // timestamp in seconds
-      "resources": Array<{
-        "title": string,
-        "type": string,
-        "url": string,
-        "description": string
-      }>
-    }>
-  }>
-}`.trim(),
-
-  generateVideoSegments: (courseStructure: any) => `
-Analyze the provided course structure and create optimal video segments.
-The goal is to break down the main video into focused, logical segments 
-that align with the course lessons.
-
-Course Structure:
-${JSON.stringify(courseStructure, null, 2)}
-
-For each lesson:
-1. Review the content and timestamps
-2. Identify natural break points
-3. Ensure each segment is:
-   - Complete and self-contained
-   - Focused on a single concept
-   - Neither too short nor too long
-4. Preserve important visual demonstrations
-5. Include brief context from previous segment if needed
-
-Return the segments as a JSON array:
-{
-  "segments": Array<{
-    "lessonId": string,
-    "title": string,
+  "sections": [{
+    "title": "string",
+    "description": "string",
+    "duration": "string",
     "startTime": number,
     "endTime": number,
-    "description": string,
-    "keywords": string[],
-    "context": string
-  }>
-}`.trim(),
+    "lessons": [{
+      "title": "string",
+      "description": "string",
+      "content": "string",
+      "duration": "string",
+      "startTime": number,
+      "endTime": number,
+      "resources": [{
+        "title": "string",
+        "type": "article" | "video" | "code" | "document",
+        "url": "string",
+        "description": "string"
+      }]
+    }],
+    "assessments": [{
+      "type": "test" | "assignment" | "project",
+      "title": "string",
+      "description": "string",
+      "position": number,
+      "estimatedDuration": "string",
+      "requiredSkills": ["string"]
+    }]
+  }]
+}`;
 
-  enhanceSegment: (segmentContent: string, context: string) => `
-Review this video segment content and enhance it with additional context.
+const PLAYLIST_PROMPT = `${VIDEO_PROMPT}
 
-Content: ${segmentContent}
-Previous Context: ${context}
+Additional guidelines for playlists:
+1. Analyze all videos for content progression
+2. Create a coherent course flow across videos
+3. Link related concepts between videos
+4. Suggest additional materials for gaps
+5. Design inter-video assessments
 
-Analyze and provide:
-1. Key concepts covered
-2. Important terminology
-3. Prerequisites needed
-4. Related concepts
-5. Practical applications
-6. Common misconceptions
-7. Learning tips
+Use the same JSON format as individual videos, but ensure cross-video cohesion.`;
 
-Format as JSON:
+export function getPromptForType(
+  type: 'video' | 'playlist',
+  context: string
+): CourseGeneratorPrompt {
+  const basePrompt = type === 'video' ? VIDEO_PROMPT : PLAYLIST_PROMPT;
+
+  return {
+    systemPrompt: `${basePrompt}
+
+Content to analyze:
+${context}
+
+Generate a structured course following the format above.`,
+    examples: type === 'video' ? VIDEO_EXAMPLES : PLAYLIST_EXAMPLES
+  };
+}
+
+const VIDEO_EXAMPLES = `Example video course structure:
 {
-  "concepts": string[],
-  "terminology": Array<{ term: string, definition: string }>,
-  "prerequisites": string[],
-  "relatedTopics": string[],
-  "applications": string[],
-  "misconceptions": string[],
-  "tips": string[]
-}`.trim()
-};
+  "title": "Introduction to React Hooks",
+  // ... rest of structure
+}`;
+
+const PLAYLIST_EXAMPLES = `Example playlist course structure:
+{
+  "title": "Complete Web Development Bootcamp",
+  // ... rest of structure
+}`;

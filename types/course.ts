@@ -1,11 +1,16 @@
+import { Id } from "@/convex/_generated/dataModel";
+
+export type ResourceType = "article" | "video" | "code" | "document" | "link";
+
 export interface Resource {
   title: string;
-  type: string;
+  type: ResourceType;
   url: string;
   description: string;
 }
 
 export interface Lesson {
+  id: string;
   title: string;
   duration: string;
   description: string;
@@ -15,87 +20,100 @@ export interface Lesson {
   resources: Resource[];
 }
 
+// Base assessment without content
+export interface AssessmentBase {
+  id: string;
+  type: "test" | "assignment" | "project";
+  title: string;
+  description: string;
+  position: number;
+  isLocked: boolean;
+  requiredSkills: string[];
+  estimatedDuration: string;
+  contentGenerated: boolean;
+}
+
+// Assessment with content
+export interface TestContent extends AssessmentBase {
+  type: "test";
+  questions: Array<{
+    question: string;
+    type: "multiple-choice" | "written";
+    options?: string[];
+    correctAnswer: string;
+    explanation: string;
+  }>;
+}
+
+export interface AssignmentContent extends AssessmentBase {
+  type: "assignment";
+  tasks: Array<{
+    title: string;
+    description: string;
+    acceptance: string[];
+    hint?: string;
+  }>;
+}
+
+export interface ProjectContent extends AssessmentBase {
+  type: "project";
+  guidelines: string;
+  submissionFormats: Array<"file upload" | "git repo link">;
+  deadline: string;
+}
+
+export type AssessmentContent = TestContent | AssignmentContent | ProjectContent;
+
 export interface Section {
+  id: string;
   title: string;
   description: string;
   duration: string;
   startTime: number;
   endTime: number;
   lessons: Lesson[];
-}
-
-export interface PreRequisite {
-  title: string;
-  description: string;
-  level: string;
-}
-
-export interface LearningOutcome {
-  title: string;
-  description: string;
-  category: string;
+  assessments: Array<AssessmentBase | AssessmentContent>;
 }
 
 export interface Course {
+  _id?: Id<"courses">;
   title: string;
   subtitle: string;
   overview: {
     description: string;
-    prerequisites: PreRequisite[];
-    learningOutcomes: LearningOutcome[];
+    prerequisites: Array<{
+      title: string;
+      description: string;
+      level: "beginner" | "intermediate" | "advanced";
+    }>;
+    learningOutcomes: Array<{
+      title: string;
+      description: string;
+      category: "skill" | "knowledge" | "tool";
+    }>;
     totalDuration: string;
-    difficultyLevel: 'beginner' | 'intermediate' | 'advanced';
+    difficultyLevel: "beginner" | "intermediate" | "advanced";
     skills: string[];
     tools: string[];
   };
   sections: Section[];
+  createdAt?: number;
+  updatedAt?: number;
 }
 
-// Helper functions
-export function findCurrentLesson(course: Course, lessonIndex: number): Lesson | null {
-  let currentIndex = 0;
-  for (const section of course.sections) {
-    for (const lesson of section.lessons) {
-      if (currentIndex === lessonIndex) {
-        return lesson;
-      }
-      currentIndex++;
-    }
-  }
-  return null;
+// Type guards
+export function isTestContent(assessment: AssessmentBase | AssessmentContent): assessment is TestContent {
+  return assessment.type === "test" && "questions" in assessment;
 }
 
-export function getTotalLessons(course: Course): number {
-  return course.sections.reduce((acc, section) => acc + section.lessons.length, 0);
+export function isAssignmentContent(assessment: AssessmentBase | AssessmentContent): assessment is AssignmentContent {
+  return assessment.type === "assignment" && "tasks" in assessment;
 }
 
-export function getLessonGlobalIndex(course: Course, sectionIndex: number, lessonIndex: number): number {
-  return course.sections
-    .slice(0, sectionIndex)
-    .reduce((acc, section) => acc + section.lessons.length, 0) + lessonIndex;
+export function isProjectContent(assessment: AssessmentBase | AssessmentContent): assessment is ProjectContent {
+  return assessment.type === "project" && "guidelines" in assessment;
 }
 
-export function getSectionForLesson(course: Course, lessonIndex: number): { 
-  section: Section; 
-  sectionIndex: number; 
-  lessonLocalIndex: number; 
-} | null {
-  let currentIndex = 0;
-  
-  for (let sectionIndex = 0; sectionIndex < course.sections.length; sectionIndex++) {
-    const section = course.sections[sectionIndex];
-    const sectionLength = section.lessons.length;
-    
-    if (currentIndex + sectionLength > lessonIndex) {
-      return {
-        section,
-        sectionIndex,
-        lessonLocalIndex: lessonIndex - currentIndex
-      };
-    }
-    
-    currentIndex += sectionLength;
-  }
-  
-  return null;
+export function hasContent(assessment: AssessmentBase | AssessmentContent): assessment is AssessmentContent {
+  return assessment.contentGenerated;
 }

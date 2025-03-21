@@ -4,59 +4,101 @@ import { logger } from '@/lib/ai/debug-logger';
 import type { Metadata } from 'next';
 import type { VideoDetails, PlaylistDetails } from '@/types/youtube';
 
-interface PageProps {
-  params: { [key: string]: string | string[] | undefined };
+interface StaticParams {
+  'video-id': string;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const videoId = params['video-id'];
-  if (!videoId || Array.isArray(videoId)) {
+interface PageProps {
+  params: StaticParams;
+  searchParams: { [key: string]: string | string[] | undefined };
+}
+
+// Helper to determine content type from ID
+function determineContentType(id: string) {
+  if (
+    id.startsWith('PL') ||
+    id.startsWith('RD') ||
+    id.startsWith('UU') ||
+    id.startsWith('FL') ||
+    id.startsWith('LL') ||
+    id.startsWith('WL') ||
+    id.includes('list=')
+  ) {
+    return 'playlist';
+  }
+  return 'video';
+}
+
+export async function generateMetadata(
+  { params }: PageProps,
+  parent: Promise<Metadata>
+): Promise<Metadata> {
+  // Wait for any parent metadata
+  const parentMetadata = await parent;
+  
+  try {
+    const id = await Promise.resolve(params['video-id']);
+    if (!id) {
+      return {
+        title: 'Analysis - No Content',
+        description: 'No content selected for analysis.'
+      };
+    }
+
+    // Get details based on content type
+    const type = determineContentType(id);
+    const fetchFn = type === 'playlist' ? getPlaylistDetails : getVideoDetails;
+    const data = await fetchFn(id).catch(() => null);
+
+    if (!data) {
+      return {
+        title: 'Analysis - Content Not Found',
+        description: 'The requested content could not be found.'
+      };
+    }
+
     return {
-      title: 'Analysis - No Content',
-      description: 'No content selected for analysis.'
+      title: `Analysis - ${data.title}`,
+      description: data.description
+    };
+  } catch (error) {
+    return {
+      title: 'Analysis - Error',
+      description: 'An error occurred while loading the content.'
     };
   }
-
-  const data = await getVideoDetails(videoId).catch(() => null);
-  if (!data) {
-    return {
-      title: 'Analysis - Content Not Found',
-      description: 'The requested content could not be found.'
-    };
-  }
-
-  return {
-    title: `Analysis - ${data.title}`,
-    description: data.description
-  };
 }
 
 export default async function AnalysisPage({ params }: PageProps) {
-  const videoId = params['video-id'];
-  logger.info('state', 'Analysis page received ID', { id: videoId });
+  try {
+    const id = params['video-id'];
+    logger.info('state', 'Analysis page received ID', { id });
 
-  if (!videoId || Array.isArray(videoId)) {
-    return <AnalysisClient initialContent={null} initialError="No content ID provided" />;
+    if (!id) {
+      return <AnalysisClient initialContent={null} initialError="No content ID provided" />;
+    }
+
+    // Determine content type and fetch accordingly
+    const type = determineContentType(id);
+    const fetchFn = type === 'playlist' ? getPlaylistDetails : getVideoDetails;
+    
+    logger.info('state', `Fetching as ${type}`, { id });
+    const data = await fetchFn(id).catch(() => null);
+
+    if (data) {
+      return <AnalysisClient initialContent={data} initialError={null} />;
+    }
+
+    // Log error if fetch failed
+    const error = new Error(`${type} content not found`);
+    logger.error('state', `${type} fetch failed`, error);
+    
+    return <AnalysisClient 
+      initialContent={null} 
+      initialError={`Could not load ${type} content`} 
+    />;
+  } catch (error) {
+    logger.error('state', 'Analysis page error', error);
+    return <AnalysisClient initialContent={null} initialError="An unexpected error occurred" />;
   }
-
-  // Try to fetch as playlist first
-  logger.info('state', 'Fetching as playlist first', { id: videoId });
-  const playlistData = await getPlaylistDetails(videoId).catch(() => null);
-  if (playlistData) {
-    // TODO: Handle playlist analysis
-    return <AnalysisClient initialContent={playlistData} initialError={null} />;
-  }
-
-  // If not a playlist, try as video
-  logger.info('state', 'Playlist fetch failed, trying as video', { id: videoId });
-  const videoData = await getVideoDetails(videoId).catch(() => null);
-  if (videoData) {
-    return <AnalysisClient initialContent={videoData} initialError={null} />;
-  }
-
-  // Log error with proper error object
-  const error = new Error('PLAYLIST_ID_PROVIDED');
-  logger.error('state', 'Both video and playlist fetch failed', error);
-  
-  return <AnalysisClient initialContent={null} initialError="Content not found" />;
 }

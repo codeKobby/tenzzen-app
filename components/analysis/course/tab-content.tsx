@@ -5,12 +5,17 @@ import { OverviewTab } from "./overview-tab";
 import { LessonsTab } from "./lessons-tab";
 import { ResourcesTab } from "./resources-tab";
 import { TestsTab } from "./tests-tab";
+import { CourseDialog } from "./course-dialog";
 import { useAnalysis } from "@/hooks/use-analysis-context";
 import { cn } from "@/lib/utils";
 import { SkeletonTransition, ContentTransition } from "./skeleton-transition";
+import { Icons } from "@/components/ui/icons";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 export function TabContent() {
   const { courseData, courseError, courseGenerating } = useAnalysis();
+  const [showPreview, setShowPreview] = useState(false);
 
   const showEmptyState = !courseData && !courseGenerating && !courseError;
   const showContent = !courseGenerating && !!courseData;
@@ -46,6 +51,17 @@ export function TabContent() {
           (!showContent || courseGenerating) && "pointer-events-none opacity-0"
         )}
       >
+        <div className="mb-4 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPreview(true)}
+            className="gap-2"
+          >
+            <Icons.eye className="h-4 w-4" />
+            Preview
+          </Button>
+        </div>
 
         <Tabs defaultValue="overview" className="w-full space-y-6">
           <TabsList className="grid w-full grid-cols-4">
@@ -73,6 +89,11 @@ export function TabContent() {
             </TabsContent>
           </div>
         </Tabs>
+
+        <CourseDialog
+          open={showPreview}
+          onOpenChange={setShowPreview}
+        />
       </ContentTransition>
     </div>
   );

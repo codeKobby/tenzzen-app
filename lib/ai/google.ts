@@ -1,10 +1,23 @@
-import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createDataStreamResponse, streamText } from 'ai';
+import { AI_CONFIG } from './config';
 import { logger } from './debug-logger';
-import { GENERATION_CONFIG } from './config';
+import { rateLimiter } from './rate-limiter';
+import type { StreamEvent } from '@/lib/ai/types/stream';
 
-// Initialize the model with safety settings
-const baseModel = google('gemini-1.5-pro-latest', {
+interface GenerateOptions {
+  abortSignal?: AbortSignal;
+  stream?: boolean;
+  onProgress?: (event: {
+    type: 'start' | 'progress' | 'done';
+    progress?: number;
+    data?: any;
+  }) => Promise<void>;
+}
+
+// Initialize Google AI model with Vercel AI SDK
+const model = google('gemini-1.5-pro-latest', {
   safetySettings: [
     {
       category: 'HARM_CATEGORY_HATE_SPEECH',
@@ -13,69 +26,112 @@ const baseModel = google('gemini-1.5-pro-latest', {
     {
       category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
       threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-    },
-    {
-      category: 'HARM_CATEGORY_HARASSMENT',
-      threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-    },
-    {
-      category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-      threshold: 'BLOCK_MEDIUM_AND_ABOVE'
     }
   ]
 });
 
-// Model with search grounding enabled
-const groundedModel = google('gemini-1.5-pro-latest', {
-  useSearchGrounding: true,
-  dynamicRetrievalConfig: {
-    mode: 'MODE_DYNAMIC',
-    dynamicThreshold: 0.8
-  }
-});
-
-export interface GenerateContentOptions {
-  useGrounding?: boolean;
-  abortSignal?: AbortSignal;
-}
-
+// Helper for content generation
 export async function generateContent(
   prompt: string,
-  options: GenerateContentOptions = {}
-) {
-  try {
-    logger.debug('api', 'Generating content', { prompt, options });
+  options: GenerateOptions = {}
+): Promise<Response> {
+  const { abortSignal, stream = false, onProgress } = options;
+  const tokenEstimate = rateLimiter.estimateTokens(prompt);
 
-    // Select model based on options
-    const model = options.useGrounding ? groundedModel : baseModel;
+  const performGeneration = async () => {
+    try {
+      if (stream) {
+        return createDataStreamResponse({
+          async execute(dataStream) {
+            try {
+              // Initialize generation
+              dataStream.writeData({ status: 'initializing' });
+              if (onProgress) {
+                await onProgress({ type: 'start', progress: 0 });
+              }
 
-    // Generate content using AI SDK's generateText
-    const { text, providerMetadata } = await generateText({
-      model,
-      prompt,
-      maxTokens: GENERATION_CONFIG.maxOutputTokens,
-      temperature: GENERATION_CONFIG.temperature,
-      topP: GENERATION_CONFIG.topP,
-      topK: GENERATION_CONFIG.topK,
-      abortSignal: options.abortSignal
-    });
+              // Set up streaming with Vercel AI SDK
+              const result = await streamText({
+                model,
+                messages: [{ role: 'user', content: prompt }],
+                temperature: AI_CONFIG.temperature,
+                maxTokens: AI_CONFIG.maxTokens,
+                topP: AI_CONFIG.topP,
+                onChunk: async (chunk) => {
+                  if (abortSignal?.aborted) {
+                    throw new Error('Generation cancelled');
+                  }
 
-    // Log metadata if available
-    if (providerMetadata?.google) {
-      logger.debug('api', 'Generation metadata', {
-        groundingMetadata: providerMetadata.google.groundingMetadata,
-        safetyRatings: providerMetadata.google.safetyRatings
+                  const text = chunk.content || '';
+                  const progress = Math.min(Math.round((text.length / 1000) * 90), 90);
+
+                  dataStream.writeMessageAnnotation({
+                    progress,
+                    chunk: text
+                  });
+
+                  if (onProgress) {
+                    await onProgress({
+                      type: 'progress',
+                      progress,
+                      data: text
+                    });
+                  }
+                }
+              });
+
+              // Merge AI stream into data stream
+              result.mergeIntoDataStream(dataStream);
+
+              // Write completion data
+              dataStream.writeData({
+                status: 'completed',
+                progress: 100
+              });
+
+              if (onProgress) {
+                await onProgress({
+                  type: 'done',
+                  progress: 100
+                });
+              }
+
+            } catch (error) {
+              logger.error('google', 'Generation error:', error);
+              const message = error instanceof Error ? error.message : 'Unknown error occurred';
+              dataStream.writeData({ error: message });
+              throw error;
+            }
+          },
+          onError(error) {
+            return error instanceof Error ? error.message : 'Generation failed';
+          },
+        });
+      }
+
+      // For non-streaming responses, use streamText but wait for completion
+      const result = await streamText({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: AI_CONFIG.temperature,
+        maxTokens: AI_CONFIG.maxTokens,
+        topP: AI_CONFIG.topP,
       });
+
+      const text = await result.text();
+      return new Response(text, {
+        headers: { 'Content-Type': 'text/plain' },
+      });
+
+    } catch (error) {
+      logger.error('google', 'Generation error:', error);
+      throw error;
     }
+  };
 
-    return { result: text };
-
-  } catch (error) {
-    // Log and rethrow error
-    logger.error('api', 'Generation failed', error instanceof Error ? error : new Error('Unknown error'));
-    throw error;
-  }
+  return rateLimiter.withRetry(
+    performGeneration,
+    tokenEstimate,
+    'generate-content'
+  );
 }
-
-// Export configured models
-export { baseModel as model, groundedModel };

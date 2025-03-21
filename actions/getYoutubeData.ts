@@ -4,6 +4,7 @@ import type { VideoDetails, PlaylistDetails, VideoItem } from '@/types/youtube'
 import { ConvexHttpClient } from 'convex/browser'
 import { api } from '@/convex/_generated/api'
 import { config } from '@/lib/config'
+import { identifyYoutubeIdType } from '@/lib/utils/youtube'
 
 // Create Convex client for server-side operations
 let convex: ConvexHttpClient;
@@ -70,19 +71,6 @@ const safeGet = (obj: any, path: string, defaultValue: any = undefined) => {
     return defaultValue;
   }
 };
-
-function identifyYoutubeIdType(id: string): 'video' | 'playlist' | 'unknown' {
-  if (/^[A-Za-z0-9_-]{11}$/.test(id)) {
-    return 'video';
-  }
-  if (/^(PL|FL|UU|LL|RD|OL|TL|UL|OLAK5uy_)[A-Za-z0-9_-]{10,}$/.test(id)) {
-    return 'playlist';
-  }
-  if (id.length > 11) {
-    return 'playlist';
-  }
-  return 'unknown';
-}
 
 export async function getVideoDetails(videoId: string): Promise<VideoDetails> {
   try {

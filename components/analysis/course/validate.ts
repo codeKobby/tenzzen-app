@@ -1,112 +1,114 @@
+import { z } from "zod";
 import type { CourseGeneratorResult } from "@/tools/courseGenerator";
 
-type Section = CourseGeneratorResult['sections'][0];
-type Lesson = Section['lessons'][0];
+// Validation schema
+const resourceSchema = z.object({
+  title: z.string(),
+  type: z.enum(["article", "video", "code", "document", "link"]),
+  url: z.string().url(),
+  description: z.string()
+});
 
-export function validateCourseData(data: any): CourseGeneratorResult | null {
+const lessonSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  content: z.string(),
+  duration: z.string(),
+  startTime: z.number(),
+  endTime: z.number(),
+  resources: z.array(resourceSchema)
+});
+
+const assessmentSchema = z.object({
+  id: z.string(),
+  type: z.enum(["test", "assignment", "project"]),
+  title: z.string(),
+  description: z.string(),
+  position: z.number(),
+  isLocked: z.boolean(),
+  requiredSkills: z.array(z.string()),
+  estimatedDuration: z.string(),
+  contentGenerated: z.boolean()
+});
+
+const sectionSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  duration: z.string(),
+  startTime: z.number(),
+  endTime: z.number(),
+  lessons: z.array(lessonSchema),
+  assessments: z.array(assessmentSchema)
+});
+
+const prerequisiteSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  level: z.enum(["beginner", "intermediate", "advanced"])
+});
+
+const learningOutcomeSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  category: z.enum(["skill", "knowledge", "tool"])
+});
+
+const overviewSchema = z.object({
+  description: z.string(),
+  prerequisites: z.array(prerequisiteSchema),
+  learningOutcomes: z.array(learningOutcomeSchema),
+  totalDuration: z.string(),
+  difficultyLevel: z.enum(["beginner", "intermediate", "advanced"]),
+  skills: z.array(z.string()),
+  tools: z.array(z.string())
+});
+
+const courseSchema = z.object({
+  title: z.string(),
+  subtitle: z.string(),
+  overview: overviewSchema,
+  sections: z.array(sectionSchema)
+});
+
+export function validateCourseData(data: unknown): CourseGeneratorResult | null {
   try {
-    // Basic structural validation
-    if (!data || typeof data !== 'object') {
-      console.error('Invalid course data: not an object', data);
-      return null;
-    }
-
-    // Required top-level fields
-    const requiredFields = ['title', 'subtitle', 'overview', 'sections'];
-    for (const field of requiredFields) {
-      if (!(field in data)) {
-        console.error(`Invalid course data: missing ${field}`, data);
-        return null;
-      }
-    }
-
-    // Overview validation
-    const requiredOverviewFields = [
-      'description',
-      'prerequisites',
-      'learningOutcomes',
-      'totalDuration',
-      'difficultyLevel',
-      'skills',
-      'tools'
-    ];
-
-    for (const field of requiredOverviewFields) {
-      if (!(field in data.overview)) {
-        console.error(`Invalid course data: missing overview.${field}`, data);
-        return null;
-      }
-    }
-
-    // Sections validation
-    if (!Array.isArray(data.sections)) {
-      console.error('Invalid course data: sections is not an array', data);
-      return null;
-    }
-
-    // Process each section
-    data.sections = data.sections.map((section: Partial<Section>, index: number) => ({
-      ...section,
-      id: section.id || `s${index + 1}`,
-      lessons: Array.isArray(section.lessons) ? section.lessons.map((lesson: Partial<Lesson>, lessonIndex: number) => ({
-        ...lesson,
-        id: lesson.id || `l${index + 1}.${lessonIndex + 1}`,
-        isLocked: lesson.isLocked ?? false,
-        resources: Array.isArray(lesson.resources) ? lesson.resources : [],
-        test: lesson.test ? {
-          ...lesson.test,
-          id: lesson.test.id || `t${index + 1}.${lessonIndex + 1}`,
-          isLocked: lesson.test.isLocked ?? true
-        } : null
-      })) : []
-    }));
-
-    console.log('Course data validated successfully:', {
-      title: data.title,
-      sectionsCount: data.sections.length,
-      lessonsCount: data.sections.reduce(
-        (acc: number, section: Section) => acc + section.lessons.length,
-        0
-      )
-    });
-
-    return data as CourseGeneratorResult;
+    const result = courseSchema.parse(data);
+    console.log('Course data validation successful');
+    return result;
   } catch (error) {
-    console.error('Error validating course data:', error);
+    console.error('Course data validation failed:', error);
     return null;
   }
 }
 
-export function getSummary(data: CourseGeneratorResult) {
-  const lessonsCount = data.sections.reduce(
-    (acc: number, section: Section) => acc + section.lessons.length,
+export function getSummary(course: CourseGeneratorResult) {
+  const sections = course.sections.length;
+  const lessons = course.sections.reduce(
+    (acc, section) => acc + section.lessons.length, 
     0
   );
-  
-  const testsCount = data.sections.reduce(
-    (acc: number, section: Section) => 
-      acc + section.lessons.reduce(
-        (lacc: number, lesson: Lesson) => lacc + (lesson.test ? 1 : 0),
-        0
-      ),
+  const resources = course.sections.reduce(
+    (acc, section) => acc + section.lessons.reduce(
+      (lessonAcc, lesson) => lessonAcc + lesson.resources.length,
+      0
+    ),
     0
   );
-
-  const resourcesCount = data.sections.reduce(
-    (acc: number, section: Section) => 
-      acc + section.lessons.reduce(
-        (lacc: number, lesson: Lesson) => lacc + lesson.resources.length,
-        0
-      ),
+  const assessments = course.sections.reduce(
+    (acc, section) => acc + section.assessments.length,
     0
   );
 
   return {
-    sections: data.sections.length,
-    lessons: lessonsCount,
-    tests: testsCount,
-    resources: resourcesCount,
-    difficulty: data.overview.difficultyLevel,
-    duration: data.overview.totalDuration
+    sections,
+    lessons,
+    resources,
+    assessments,
+    prerequisites: course.overview.prerequisites.length,
+    outcomes: course.overview.learningOutcomes.length,
+    skills: course.overview.skills.length,
+    tools: course.overview.tools.length,
+    totalDuration: course.overview.totalDuration,
+    difficulty: course.overview.difficultyLevel
   };
 }

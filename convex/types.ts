@@ -1,57 +1,57 @@
-// API Error types
-export type ApiErrorType = 
-  | "NOT_FOUND"
-  | "UNAUTHORIZED"
-  | "INTERNAL_ERROR"
-  | "BAD_REQUEST"
+import { Id } from "./_generated/dataModel";
 
-export interface ApiError extends Error {
-  type: ApiErrorType
-  details?: Record<string, any>
+// Content-specific types without base assessment fields
+export interface TestQuestions {
+  question: string;
+  type: "multiple-choice" | "written";
+  options?: string[];
+  correctAnswer: string;
+  explanation: string;
 }
 
-export function createApiError(
-  type: ApiErrorType,
-  message: string,
-  details?: Record<string, any>
-): ApiError {
-  const error = new Error(message) as ApiError
-  error.type = type
-  error.details = details
-  return error
+export interface AssignmentTask {
+  title: string;
+  description: string;
+  acceptance: string[];
+  hint?: string;
 }
 
-// Video types
-export interface VideoData {
-  id: string
-  title: string
-  description?: string
-  thumbnail?: string
-  duration?: string
-  channel_id?: string
-  channel_name?: string
-  channel_avatar?: string
-  views?: string
-  likes?: string
-  publish_date?: string
-  userId: string
-  created_at: string
-  updated_at: string
+// Content types for database
+export interface TestContent {
+  title: string;
+  description: string;
+  questions: TestQuestions[];
 }
 
-// Transcript types
-export interface TranscriptSegment {
-  text: string
-  duration: number
-  offset: number
+export interface AssignmentContent {
+  title: string;
+  description: string;
+  tasks: AssignmentTask[];
 }
 
-// Search types
-export interface SearchOptions {
-  fuzzy?: boolean
-  language?: string
-  timeRange?: {
-    start: number
-    end: number
-  }
+export interface ProjectContent {
+  title: string;
+  description: string;
+  guidelines: string;
+  submissionFormats: Array<"file upload" | "git repo link">;
+  deadline: string;
+}
+
+export type AssessmentContent = 
+  | ({ type: "test" } & TestContent)
+  | ({ type: "assignment" } & AssignmentContent)
+  | ({ type: "project" } & ProjectContent);
+
+// Database types
+export interface DbAssessment {
+  _id: Id<"assessments">;
+  courseId: Id<"courses">;
+  sectionId: string;
+  assessmentId: string;
+  type: "test" | "assignment" | "project";
+  content: AssessmentContent;
+  isLocked: boolean;
+  contentGenerated: boolean;
+  createdAt: number;
+  updatedAt: number;
 }

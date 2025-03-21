@@ -2,31 +2,41 @@
 
 import React, { createContext, useContext, useState, useRef, useCallback, useTransition } from "react";
 import type { ContentDetails } from "@/types/youtube";
-import type { CourseGeneratorResult } from "@/tools/courseGenerator";
-import { getProgressMessage, PROGRESS_PHASES, ERROR_MESSAGES } from "@/lib/ai/config";
-import { validateCourseData, getSummary } from "@/components/analysis/course/validate";
+import type { Course } from "@/types/course";
+import type { StreamEvent } from "@/lib/ai/types/stream";
+import type { VideoInput, PlaylistInput } from "@/lib/ai/types/api";
+import { logger } from "@/lib/ai/debug-logger";
 import { parseStreamChunk, validateStreamResult, formatErrorMessage } from "@/lib/ai/stream-parser";
 import { toast } from "sonner";
+import { isProgressEvent, isToolResultEvent, isErrorEvent } from "@/lib/ai/types/stream";
 
 interface AnalysisContextType {
+  // Video content state
   videoData: ContentDetails | null;
-  courseData: CourseGeneratorResult | null;
+  setVideoData: (data: ContentDetails | null) => void;
+
+  // Course generation state
+  courseData: Course | null;
   courseError: string | null;
   courseGenerating: boolean;
   generationProgress: number;
   progressMessage: string;
+  generateCourse: () => Promise<void>;
+  setCourseData: (data: Course | null) => void;
+  cancelGeneration: () => void;
+
+  // Panel state
   width: number;
   minWidth: number;
   maxWidth: number;
+  setWidth: (width: number) => void;
+
+  // Navigation state
   isOpen: boolean;
   showAlert: boolean;
   toggle: (open?: boolean) => void;
   setShowAlert: (show: boolean) => void;
   confirmBack: () => void;
-  setWidth: (width: number) => void;
-  setVideoData: (data: ContentDetails | null) => void;
-  generateCourse: () => Promise<void>;
-  cancelGeneration: () => void;
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
@@ -39,13 +49,13 @@ interface AnalysisProviderProps {
 export function AnalysisProvider({ children, initialContent = null }: AnalysisProviderProps) {
   const [isPending, startTransition] = useTransition();
   const [videoData, setVideoData] = useState<ContentDetails | null>(initialContent);
-  const [courseData, setCourseData] = useState<CourseGeneratorResult | null>(null);
+  const [courseData, setCourseData] = useState<Course | null>(null);
   const [courseError, setCourseError] = useState<string | null>(null);
   const [courseGenerating, setCourseGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [progressMessage, setProgressMessage] = useState<string>(PROGRESS_PHASES[0].message);
-  
-  // Layout state
+  const [progressMessage, setProgressMessage] = useState("Initializing...");
+
+  // Panel state
   const [width, setWidth] = useState(340);
   const [isOpen, setIsOpen] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
@@ -55,247 +65,165 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
   // Generation control
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // The toggle function needs to work predictably
   const toggle = useCallback((open?: boolean) => {
-    setIsOpen(prev => typeof open !== 'undefined' ? open : !prev);
+    setIsOpen(prev => typeof open !== "undefined" ? open : !prev);
   }, []);
 
-  const confirmBack = () => {
+  const confirmBack = useCallback(() => {
     setShowAlert(false);
     window.history.back();
-  };
-
-  const updateProgress = useCallback((progress: number) => {
-    if (progress > generationProgress) {
-      const message = getProgressMessage(progress);
-      startTransition(() => {
-        setGenerationProgress(progress);
-        setProgressMessage(message);
-      });
-      console.log(`Progress Update: ${progress}%`, { message });
-    }
-  }, [generationProgress]);
+  }, []);
 
   const cancelGeneration = useCallback(() => {
-    console.log('🛑 Cancelling course generation...');
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    setCourseGenerating(false);
+    setGenerationProgress(0);
+    setProgressMessage("Generation cancelled");
+    setCourseError("Generation cancelled by user");
+  }, []);
 
+  const handleStreamEvent = useCallback((part: StreamEvent) => {
+    if (isErrorEvent(part) && part.error) {
+      throw new Error(part.error);
+    }
+
+    if (isProgressEvent(part)) {
+      startTransition(() => {
+        setGenerationProgress(part.progress || 0);
+        setProgressMessage(part.text || "Generating course...");
+      });
+      return;
+    }
+
+    if (isToolResultEvent(part) && part.toolName === "generateCourse" && part.result) {
+      const courseData = JSON.parse(part.result);
+      startTransition(() => {
+        setCourseData(courseData);
+      });
+      return;
+    }
+
+    if (part.type === "finish") {
+      startTransition(() => {
+        setGenerationProgress(100);
+        setProgressMessage("Course generation complete!");
+      });
+    }
+  }, []);
+
+  // Modified generateCourse function to use mock data with simulated loading
+  const generateCourse = useCallback(async () => {
+    if (!videoData) {
+      toast.error("No video data available");
+      return;
+    }
+
+    if (courseGenerating) {
+      console.warn("Course generation already in progress");
+      return;
+    }
+
+    // Reset state
     startTransition(() => {
-      setCourseGenerating(false);
-      setGenerationProgress(0);
-      setProgressMessage(PROGRESS_PHASES[0].message);
-      setCourseError(ERROR_MESSAGES.cancelled);
+      setCourseError(null);
+      setCourseGenerating(true);
+      setCourseData(null);
+      setGenerationProgress(5);
+      setProgressMessage("Starting course generation...");
     });
 
-    setTimeout(() => {
-      toast.error('Generation cancelled');
-    }, 0);
-  }, []);
-
-  const handleCourseData = useCallback((rawData: any) => {
     try {
-      const validatedData = validateCourseData(rawData);
-      if (!validatedData) {
-        throw new Error('Invalid course data received');
-      }
-      
-      const summary = getSummary(validatedData);
-      console.log('Course Summary:', summary);
-
-      startTransition(() => {
-        setCourseData(validatedData);
-      });
-
-      setTimeout(() => {
-        toast.success('Course generated successfully!', {
-          description: `Created ${summary.lessons} lessons with ${summary.resources} resources`
-        });
-      }, 0);
-
-      return validatedData;
-    } catch (error) {
-      console.error('Failed to validate course data:', error);
-      setTimeout(() => {
-        toast.error('Failed to validate course data');
-      }, 0);
-      throw error;
-    }
-  }, []);
-
-  const handleGeneration = async () => {
-    if (!videoData) {
-      console.error('No video data available');
-      setTimeout(() => {
-        toast.error('No video data available');
-      }, 0);
-      return;
-    }
-
-    // First, ensure we're not already generating
-    if (courseGenerating) {
-      console.warn('Course generation already in progress');
-      return;
-    }
-
-    // Reset state before starting
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-
-    try {
-      // Initialize state
-      startTransition(() => {
-        setCourseError(null);
-        setCourseGenerating(true);
-        setCourseData(null);
-        setGenerationProgress(5);
-        setProgressMessage(PROGRESS_PHASES[0].message);
-      });
-
-      // Ensure state updates are applied
-      await new Promise(resolve => setTimeout(resolve, 0));
-      
-      console.log('🚀 Starting course generation...', {
-        video: videoData.title
-      });
-
-      const response = await fetch('/api/ai/v1/generate/course', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: videoData.id,
-          type: videoData.type,
-          details: videoData.type === "video" 
-            ? {
-                title: videoData.title,
-                duration: videoData.duration,
-                description: videoData.description
-              }
-            : {
-                title: videoData.title,
-                description: videoData.description,
-                videos: videoData.videos
-              }
-        }),
-        signal: abortControllerRef.current.signal
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: ERROR_MESSAGES.unknown }));
-        throw new Error(error.error || ERROR_MESSAGES.unknown);
-      }
-
-      // Handle streaming response
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response stream available');
-      }
-
-      updateProgress(10);
-      let courseResult: CourseGeneratorResult | null = null;
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const events = parseStreamChunk(value);
-          for (const event of events) {
-            try {
-              const part = validateStreamResult(event);
-              switch (part.type) {
-                case 'error':
-                  throw new Error(part.error);
-                
-                case 'progress':
-                  updateProgress(part.progress);
-                  break;
-
-                case 'tool-result':
-                  if (part.toolName === 'generateCourse') {
-                    courseResult = await handleCourseData(part.result);
-                    startTransition(() => {
-                      setCourseData(courseResult);
-                      setGenerationProgress(80);
-                    });
-                  }
-                  break;
-
-                case 'finish':
-                  startTransition(() => {
-                    setGenerationProgress(100);
-                  });
-                  break;
-              }
-            } catch (streamError) {
-              console.warn('Failed to process stream event:', streamError);
-              toast.error('Failed to process stream event');
-              // Continue processing other events
-            }
+      // Simulate generation process with intervals
+      let progress = 5;
+      const interval = setInterval(() => {
+        progress += 15;
+        startTransition(() => {
+          if (progress <= 90) {
+            setGenerationProgress(progress);
+            setProgressMessage(`Generating course... ${progress}%`);
+          } else {
+            clearInterval(interval);
           }
-        }
-      } finally {
-        reader.releaseLock();
-      }
+        });
+      }, 800);
 
-      if (!courseResult) {
-        throw new Error(ERROR_MESSAGES.unknown);
-      }
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 4000));
 
-      console.log('✅ Course generated successfully');
+      // Import mock data dynamically to simulate final result
+      const { mockCourseData } = await import("@/lib/mock/course-data");
+
+      // Final update
+      clearInterval(interval);
+      startTransition(() => {
+        setGenerationProgress(100);
+        setProgressMessage("Course generation complete!");
+        setCourseData(mockCourseData);
+        setCourseGenerating(false);
+      });
+
+      toast.success("Course successfully generated!");
 
     } catch (error) {
-      console.error('Course generation error:', error);
-      
-      const errorMessage = error instanceof Error && error.name === 'AbortError' 
-        ? ERROR_MESSAGES.cancelled 
-        : formatErrorMessage(error);
+      logger.error("state", "Course generation error", error);
+
+      const errorMessage = formatErrorMessage(error);
 
       startTransition(() => {
         setCourseError(errorMessage);
+        setCourseGenerating(false);
       });
 
-      if (errorMessage !== ERROR_MESSAGES.cancelled) {
-        setTimeout(() => {
-          toast.error('Generation failed', {
-            description: errorMessage
-          });
-        }, 0);
-      }
-
-    } finally {
-      abortControllerRef.current = null;
-      startTransition(() => {
-        setCourseGenerating(false);
-        setProgressMessage(PROGRESS_PHASES[0].message);
+      toast.error("Generation failed", {
+        description: errorMessage
       });
     }
-  };
+  }, [videoData]);
+
+  // Safe way to set course data directly if needed
+  const setCourseDataSafe = useCallback((data: Course | null) => {
+    startTransition(() => {
+      setCourseData(data);
+      if (data) {
+        setGenerationProgress(100);
+        setProgressMessage("Course loaded");
+      }
+    });
+  }, []);
 
   return (
     <AnalysisContext.Provider
       value={{
+        // Video content state
         videoData,
+        setVideoData,
+
+        // Course generation state
         courseData,
         courseError,
         courseGenerating,
         generationProgress,
         progressMessage,
+        generateCourse,
+        setCourseData: setCourseDataSafe,
+        cancelGeneration,
+
+        // Panel state
         width,
         minWidth,
         maxWidth,
+        setWidth,
+
+        // Navigation state
         isOpen,
         showAlert,
         toggle,
         setShowAlert,
         confirmBack,
-        setWidth,
-        setVideoData,
-        generateCourse: handleGeneration,
-        cancelGeneration
       }}
     >
       {children}

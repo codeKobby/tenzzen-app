@@ -1,135 +1,121 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-type LogCategory = 'api' | 'stream' | 'validation' | 'state' | 'ui';
+type LogCategory = 'state' | 'api' | 'google' | 'stream' | 'ui';
 
-interface LogEntry {
-  timestamp: string;
+interface LogOptions {
   level: LogLevel;
+  timestamp: Date;
   category: LogCategory;
   message: string;
   data?: any;
-  error?: Error;
 }
 
-class DebugLogger {
-  private static instance: DebugLogger;
-  private logs: LogEntry[] = [];
-  private maxLogs = 1000;
-  private isEnabled: boolean;
-
-  private constructor() {
-    this.isEnabled = process.env.NODE_ENV === 'development';
-    if (this.isEnabled && typeof window !== 'undefined') {
-      (window as any).__courseDebug = this;
+class Logger {
+  private isProduction: boolean;
+  
+  constructor() {
+    this.isProduction = process.env.NODE_ENV === 'production';
+  }
+  
+  private log({ level, category, message, data, timestamp }: LogOptions) {
+    // Always log errors regardless of environment
+    if (level === 'error' || !this.isProduction) {
+      const time = timestamp.toISOString();
+      const prefix = `[${time}] [${level.toUpperCase()}] [${category}]`;
+      
+      if (level === 'error') {
+        if (data instanceof Error) {
+          console.error(`${prefix} ${message}`, {
+            error: {
+              message: data.message,
+              stack: data.stack,
+              name: data.name
+            }
+          });
+        } else {
+          console.error(`${prefix} ${message}`, data);
+        }
+      } else if (level === 'warn') {
+        console.warn(`${prefix} ${message}`, data);
+      } else if (level === 'info') {
+        console.info(`${prefix} ${message}`, data);
+      } else {
+        console.debug(`${prefix} ${message}`, data);
+      }
     }
   }
 
-  static getInstance(): DebugLogger {
-    if (!DebugLogger.instance) {
-      DebugLogger.instance = new DebugLogger();
+  logObject(level: LogLevel, category: LogCategory, message: string, obj: any) {
+    try {
+      // Safely stringify complex objects
+      const safeObj = this.safeStringify(obj);
+      this.log({
+        level,
+        category,
+        message: `${message} - ${safeObj}`,
+        timestamp: new Date()
+      });
+    } catch (e) {
+      this.error(category, `Failed to log object: ${message}`, e);
     }
-    return DebugLogger.instance;
   }
 
-  private addLog(
-    level: LogLevel,
-    category: LogCategory,
-    message: string,
-    data?: any,
-    error?: Error
-  ) {
-    if (!this.isEnabled) return;
-
-    const entry: LogEntry = {
-      timestamp: new Date().toISOString(),
-      level,
+  private safeStringify(obj: any, indent: number = 2): string {
+    try {
+      // Handle circular references in objects
+      const cache: any[] = [];
+      return JSON.stringify(obj, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (cache.includes(value)) {
+            return '[Circular Reference]';
+          }
+          cache.push(value);
+        }
+        return value;
+      }, indent);
+    } catch (e) {
+      return `[Object cannot be stringified: ${e instanceof Error ? e.message : String(e)}]`;
+    }
+  }
+  
+  debug(category: LogCategory, message: string, data?: any) {
+    this.log({
+      level: 'debug',
       category,
       message,
-      ...(data && { data }),
-      ...(error && { error })
-    };
-
-    this.logs.unshift(entry);
-
-    // Trim logs if they exceed max size
-    if (this.logs.length > this.maxLogs) {
-      this.logs = this.logs.slice(0, this.maxLogs);
-    }
-
-    // Log to console in development
-    if (process.env.NODE_ENV === 'development') {
-      const logFn = console[level] || console.log;
-      logFn(
-        `[${entry.timestamp}] [${entry.category.toUpperCase()}] ${entry.message}`,
-        ...[
-          data && { data },
-          error && { error }
-        ].filter(Boolean)
-      );
-    }
+      data,
+      timestamp: new Date()
+    });
   }
-
-  debug(category: LogCategory, message: string, data?: any) {
-    this.addLog('debug', category, message, data);
-  }
-
+  
   info(category: LogCategory, message: string, data?: any) {
-    this.addLog('info', category, message, data);
+    this.log({
+      level: 'info',
+      category,
+      message,
+      data,
+      timestamp: new Date()
+    });
   }
-
-  warn(category: LogCategory, message: string, data?: any, error?: Error) {
-    this.addLog('warn', category, message, data, error);
+  
+  warn(category: LogCategory, message: string, data?: any) {
+    this.log({
+      level: 'warn',
+      category,
+      message,
+      data,
+      timestamp: new Date()
+    });
   }
-
-  error(category: LogCategory, message: string, error?: Error, data?: any) {
-    this.addLog('error', category, message, data, error);
-  }
-
-  getLogs(
-    options: {
-      level?: LogLevel;
-      category?: LogCategory;
-      limit?: number;
-    } = {}
-  ): LogEntry[] {
-    const { level, category, limit } = options;
-    
-    let filtered = this.logs;
-
-    if (level) {
-      filtered = filtered.filter(log => log.level === level);
-    }
-
-    if (category) {
-      filtered = filtered.filter(log => log.category === category);
-    }
-
-    if (limit) {
-      filtered = filtered.slice(0, limit);
-    }
-
-    return filtered;
-  }
-
-  clearLogs() {
-    this.logs = [];
-  }
-
-  exportLogs(): string {
-    return JSON.stringify({
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV,
-      logs: this.logs
-    }, null, 2);
+  
+  error(category: LogCategory, message: string, error: any) {
+    this.log({
+      level: 'error',
+      category,
+      message,
+      data: error,
+      timestamp: new Date()
+    });
   }
 }
 
-// Export singleton instance
-export const logger = DebugLogger.getInstance();
-
-// Export helper hook for React components
-export function useLogger() {
-  return logger;
-}
-
-// Export type for type checking
-export type { LogEntry, LogLevel, LogCategory };
+export const logger = new Logger();
