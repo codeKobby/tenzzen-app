@@ -35,9 +35,10 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   // Wait for any parent metadata
   const parentMetadata = await parent;
-  
+
   try {
-    const id = await Promise.resolve(params['video-id']);
+    // Await the params to access the video-id property
+    const id = params['video-id'];
     if (!id) {
       return {
         title: 'Analysis - No Content',
@@ -71,6 +72,7 @@ export async function generateMetadata(
 
 export default async function AnalysisPage({ params }: PageProps) {
   try {
+    // Access the params directly since they're already properly typed
     const id = params['video-id'];
     logger.info('state', 'Analysis page received ID', { id });
 
@@ -81,7 +83,7 @@ export default async function AnalysisPage({ params }: PageProps) {
     // Determine content type and fetch accordingly
     const type = determineContentType(id);
     const fetchFn = type === 'playlist' ? getPlaylistDetails : getVideoDetails;
-    
+
     logger.info('state', `Fetching as ${type}`, { id });
     const data = await fetchFn(id).catch(() => null);
 
@@ -92,10 +94,10 @@ export default async function AnalysisPage({ params }: PageProps) {
     // Log error if fetch failed
     const error = new Error(`${type} content not found`);
     logger.error('state', `${type} fetch failed`, error);
-    
-    return <AnalysisClient 
-      initialContent={null} 
-      initialError={`Could not load ${type} content`} 
+
+    return <AnalysisClient
+      initialContent={null}
+      initialError={`Could not load ${type} content`}
     />;
   } catch (error) {
     logger.error('state', 'Analysis page error', error);

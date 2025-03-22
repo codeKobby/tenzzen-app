@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "../ui/button"
 import {
   X, Play, Bookmark, GraduationCap, Clock, BookOpen, FileText, TestTube2,
-  XCircle, Tag, ChevronDown, Lock, FileQuestion, Code, Briefcase, CheckCircle2
+  XCircle, Tag, ChevronDown, Lock, FileQuestion, Code, Briefcase, CheckCircle2,
+  ArrowUp, Loader2
 } from "lucide-react"
 import { YouTubeEmbed } from "@/components/youtube-embed"
 import {
@@ -16,34 +17,217 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from "@/components/ui/collapsible"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@clerk/nextjs";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
-interface CoursePanelProps {
-  className?: string
+// Mock sources data for the course
+const mockSources = [
+  {
+    name: "YouTube",
+    type: "video",
+    avatar: "https://www.youtube.com/favicon.ico",
+    url: "https://youtube.com"
+  },
+  {
+    name: "MDN Web Docs",
+    type: "documentation",
+    avatar: "https://developer.mozilla.org/favicon-48x48.png",
+    url: "https://developer.mozilla.org"
+  },
+  {
+    name: "W3Schools",
+    type: "tutorial",
+    avatar: "https://www.w3schools.com/favicon.ico",
+    url: "https://www.w3schools.com"
+  },
+  {
+    name: "CSS Tricks",
+    type: "blog",
+    avatar: "https://css-tricks.com/favicon.ico",
+    url: "https://css-tricks.com"
+  }
+];
+
+// Update mock course data to include all required fields for UI
+function enrichCourseData(courseData: any) {
+  // Make sure the course has all required fields for database and UI
+  return {
+    ...courseData,
+    metadata: {
+      ...courseData.metadata,
+      category: courseData.metadata?.category || "Programming",
+      difficulty: courseData.metadata?.difficulty || "Beginner",
+      duration: courseData.metadata?.duration || "6 weeks",
+      sources: mockSources
+    },
+    // Make sure each section has the required fields
+    sections: courseData.sections?.map((section: any, sectionIndex: number) => ({
+      ...section,
+      id: section.id || `section-${sectionIndex + 1}`,
+      lessons: section.lessons?.map((lesson: any, lessonIndex: number) => ({
+        ...lesson,
+        id: lesson.id || `lesson-${sectionIndex + 1}-${lessonIndex + 1}`,
+      }))
+    })) || []
+  };
 }
 
 // Action Buttons component that can be rendered in multiple places
 function ActionButtons({ className }: { className?: string }) {
-  const isSmall = className?.includes("sm");
+  const router = useRouter()
+  const isSmall = className?.includes("sm")
+  const [isEnrolling, setIsEnrolling] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const { courseData } = useAnalysis();
+
+  // Get the user ID from Clerk
+  const { userId } = useAuth();
+
+  // Convex mutation to enroll user
+  const enrollUser = useMutation(api.courses.enrollUserInCourse);
+
+  // Enrollment handler
+  const handleEnroll = async () => {
+    try {
+      // Start loading state
+      setIsEnrolling(true)
+
+      // Use course data from context or fallback to mock data
+      const courseToEnroll = courseData || mockCourseData;
+
+      // Make sure we have a user ID
+      if (!userId) {
+        toast.error("Please sign in to enroll in courses", {
+          description: "You need to be logged in to enroll in courses"
+        });
+        setIsEnrolling(false);
+        return;
+      }
+
+      // Enrich course data to ensure it has all required fields
+      const enrichedCourse = enrichCourseData(courseToEnroll);
+
+      // Prepare course data for enrollment
+      const courseDataForEnrollment = {
+        title: enrichedCourse.title,
+        description: enrichedCourse.description || "",
+        videoId: enrichedCourse.videoId || "W6NZfCO5SIk", // default if not available
+        thumbnail: `/course-thumbnails/course-${Math.floor(Math.random() * 5) + 1}.jpg`,
+        metadata: {
+          difficulty: enrichedCourse.metadata?.difficulty,
+          duration: enrichedCourse.metadata?.duration,
+          prerequisites: enrichedCourse.metadata?.prerequisites || [],
+          objectives: enrichedCourse.metadata?.objectives || [],
+          category: enrichedCourse.metadata?.category || "Programming",
+          sources: mockSources
+        },
+        sections: enrichedCourse.sections
+      };
+
+      // Call the Convex mutation to enroll the user
+      const result = await enrollUser({
+        courseData: courseDataForEnrollment,
+        userId
+      });
+
+      // Success notification
+      toast.success(result.newEnrollment
+        ? "Successfully enrolled in course"
+        : "Course access restored", {
+        description: "You can now access all course materials"
+      });
+
+      // Navigate to courses page
+      router.push("/courses");
+    } catch (error) {
+      console.error("Enrollment error:", error);
+      // Error notification
+      toast.error("Failed to enroll in course", {
+        description: "Please try again later"
+      });
+
+      // Reset loading state
+      setIsEnrolling(false);
+    }
+  };
 
   return (
-    <div className={cn("flex gap-2", className)}>
-      <Button className="gap-1.5" size={isSmall ? "sm" : "default"}>
-        <GraduationCap className="h-4 w-4" />
-        {isSmall ? "" : "Enroll Now"}
-      </Button>
-      <Button
-        variant="outline"
-        className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-        size={isSmall ? "sm" : "default"}
-      >
-        <XCircle className="h-4 w-4" />
-        {isSmall ? "" : "Cancel"}
-      </Button>
-    </div>
+    <>
+      <div className={cn("flex gap-2", className)}>
+        <Button
+          className="gap-1.5"
+          size={isSmall ? "sm" : "default"}
+          onClick={handleEnroll}
+          disabled={isEnrolling}
+        >
+          {isEnrolling ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <GraduationCap className="h-4 w-4" />
+          )}
+          {isSmall ? "" : isEnrolling ? "Enrolling..." : "Enroll Now"}
+        </Button>
+        <Button
+          variant="outline"
+          className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+          size={isSmall ? "sm" : "default"}
+          onClick={() => setShowCancelConfirm(true)}
+        >
+          <XCircle className="h-4 w-4" />
+          {isSmall ? "" : "Cancel"}
+        </Button>
+      </div>
+
+      {/* Cancel confirmation modal */}
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent className="rounded-lg border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel course generation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will discard the current course. You'll need to generate it again if you want to access it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Course</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                // Return to video analysis
+                toast.info("Course generation cancelled")
+                // We could add the actual logic to discard the course here
+                router.push("/analysis")
+              }}
+            >
+              Discard Course
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
-// Course Summary section
+// Updated Course Summary section
 function CourseSummary({ course }: { course: any }) {
   // Calculate total lessons count
   const totalLessons = course.sections?.reduce(
@@ -51,9 +235,13 @@ function CourseSummary({ course }: { course: any }) {
     0
   ) || 0;
 
-  // Use mock data for assignments and tests since they don't exist in the current data structure
+  // Use mock data for assignments and tests 
   const assignmentsCount = 6; // Mock data
   const testsCount = 3; // Mock data
+
+  // Define course category and subcategory/tag
+  const courseCategory = "Programming";
+  const courseTag = "Web Development";
 
   return (
     <div className="flex flex-col gap-4">
@@ -65,10 +253,15 @@ function CourseSummary({ course }: { course: any }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {/* Course category badge */}
+        {/* Main Course category badge */}
+        <div className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-800 ring-1 ring-inset ring-indigo-700/10 dark:bg-indigo-900/30 dark:text-indigo-200 dark:ring-indigo-700/30">
+          {courseCategory}
+        </div>
+
+        {/* Course tag/subcategory badge */}
         <div className="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 dark:bg-purple-900/30 dark:text-purple-200 dark:ring-purple-700/30 gap-1">
           <Tag className="h-3 w-3" />
-          Web Development
+          {courseTag}
         </div>
 
         {/* Difficulty badge */}
@@ -99,6 +292,51 @@ function CourseSummary({ course }: { course: any }) {
           <TestTube2 className="h-3.5 w-3.5" />
           <span>{testsCount} Tests</span>
         </div>
+      </div>
+
+      {/* Sources section with overlapping avatars and tooltips */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Sources</span>
+          <span className="text-xs text-muted-foreground">{mockSources.length} total</span>
+        </div>
+
+        <TooltipProvider delayDuration={300}>
+          <div className="flex -space-x-2">
+            {mockSources.map((source, index) => (
+              <Tooltip key={index}>
+                <TooltipTrigger asChild>
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="transition-transform hover:scale-110 hover:z-10"
+                  >
+                    <Avatar className={cn(
+                      "h-7 w-7 border-2 border-background",
+                      index > 3 && "opacity-80"
+                    )}>
+                      <AvatarImage src={source.avatar} alt={source.name} />
+                      <AvatarFallback className="text-[10px] font-medium bg-primary/10 text-primary">
+                        {source.name.substring(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  <div className="font-medium">{source.name}</div>
+                  <div className="text-muted-foreground capitalize">{source.type}</div>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+
+            {mockSources.length > 4 && (
+              <Avatar className="h-7 w-7 border-2 border-background bg-muted">
+                <AvatarFallback>+{mockSources.length - 4}</AvatarFallback>
+              </Avatar>
+            )}
+          </div>
+        </TooltipProvider>
       </div>
 
       <ActionButtons className="flex-1 mt-2" />
@@ -230,8 +468,13 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
   }
 
   if (tab === "content") {
-    // Generate mock completion state for lessons
-    const mockCompletionState = {
+    // Type the mock completion state properly
+    interface SectionCompletionState {
+      lessonsDone: number;
+      totalLessons: number;
+    }
+
+    const mockCompletionState: Record<number, SectionCompletionState> = {
       0: { lessonsDone: 2, totalLessons: 2 },
       1: { lessonsDone: 0, totalLessons: 2 },
       2: { lessonsDone: 0, totalLessons: 2 }
@@ -390,33 +633,60 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
   }
 
   if (tab === "resources") {
-    // Collect all resources from all sections and lessons
-    const allResources: any[] = []
+    // Generate realistic mock video resources with proper typing
+    const videoResources: CourseResource[] = [
+      {
+        title: "MDN Web Docs - HTML Documentation",
+        url: "https://developer.mozilla.org/en-US/docs/Web/HTML",
+        description: "Comprehensive HTML reference and guides",
+        sourceType: "official"
+      },
+      {
+        title: "CSS Tricks - A Complete Guide to Flexbox",
+        url: "https://css-tricks.com/snippets/css/a-guide-to-flexbox/",
+        description: "Visual guide to understanding the Flexbox layout model",
+        sourceType: "official"
+      },
+      {
+        title: "JavaScript.info - The Modern JavaScript Tutorial",
+        url: "https://javascript.info/",
+        description: "From basics to advanced topics with simple explanations",
+        sourceType: "official"
+      }
+    ];
+
+    // Collect all resources from course sections and lessons
+    const courseResources: CourseResource[] = [];
 
     course.sections?.forEach((section: any) => {
       section.lessons?.forEach((lesson: any) => {
         if (lesson.resources?.length) {
           lesson.resources.forEach((resource: any) => {
-            allResources.push({
+            courseResources.push({
               ...resource,
               lesson: lesson.title,
               section: section.title,
+              sourceType: "course"
             })
           })
         }
       })
     })
 
+    // Combine resources with video resources first
+    const allResources = [...videoResources, ...courseResources];
+
     return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Learning Resources</h3>
-        <p className="text-muted-foreground">Additional materials to support your learning</p>
-        <div className="space-y-3 mt-4">
-          {allResources.length === 0 ? (
-            <p className="text-muted-foreground">No resources available for this course.</p>
-          ) : (
-            allResources.map((resource, index) => (
-              <div key={index} className="border rounded-lg p-3">
+      <div className="space-y-6">
+        {/* Video source resources section */}
+        <div>
+          <h3 className="text-lg font-medium">Source Resources</h3>
+          <p className="text-muted-foreground mb-4">
+            Official documentation and references cited in the video content
+          </p>
+          <div className="space-y-3">
+            {videoResources.map((resource, index) => (
+              <div key={index} className="border rounded-lg p-3 bg-muted/10">
                 <a
                   href={resource.url}
                   target="_blank"
@@ -425,12 +695,78 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
                 >
                   {resource.title}
                 </a>
-                <p className="text-xs text-muted-foreground mt-1">
-                  From: {resource.section} - {resource.lesson}
+                <p className="text-sm text-muted-foreground mt-1">
+                  {resource.description}
                 </p>
+                <div className="mt-2">
+                  <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+                    Official Resource
+                  </span>
+                </div>
               </div>
-            ))
-          )}
+            ))}
+          </div>
+        </div>
+
+        {/* Course supplementary resources */}
+        <div>
+          <h3 className="text-lg font-medium">Supplementary Resources</h3>
+          <p className="text-muted-foreground mb-4">Additional learning materials for each lesson</p>
+          <div className="space-y-3">
+            {courseResources.length === 0 ? (
+              <p className="text-muted-foreground">No additional resources available for this course.</p>
+            ) : (
+              courseResources.map((resource, index) => (
+                <div key={index} className="border rounded-lg p-3">
+                  <a
+                    href={resource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                  >
+                    {resource.title}
+                  </a>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    From: {resource.section} - {resource.lesson}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Practice resources */}
+        <div>
+          <h3 className="text-lg font-medium">Practice Resources</h3>
+          <p className="text-muted-foreground mb-4">Interactive platforms to practice your skills</p>
+          <div className="space-y-3">
+            <div className="border rounded-lg p-3">
+              <a
+                href="https://codepen.io/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+              >
+                CodePen - Front-end Development Playground
+              </a>
+              <p className="text-sm text-muted-foreground mt-1">
+                Create, test, and share HTML, CSS, and JavaScript code snippets
+              </p>
+            </div>
+            <div className="border rounded-lg p-3">
+              <a
+                href="https://www.freecodecamp.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+              >
+                freeCodeCamp - Web Development Curriculum
+              </a>
+              <p className="text-sm text-muted-foreground mt-1">
+                Interactive coding challenges and projects with certification
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -451,6 +787,21 @@ function ProgressBar({ value = 0 }: { value?: number }) {
   )
 }
 
+// Define CourseResource interface to fix TypeScript errors
+interface CourseResource {
+  title: string;
+  url: string;
+  description?: string;
+  sourceType?: string;
+  lesson?: string;
+  section?: string;
+}
+
+// Define CoursePanelProps to fix TypeScript errors
+interface CoursePanelProps {
+  className?: string;
+}
+
 export function CoursePanel({ className }: CoursePanelProps) {
   const {
     courseGenerating,
@@ -461,8 +812,8 @@ export function CoursePanel({ className }: CoursePanelProps) {
     courseData: contextCourseData
   } = useAnalysis()
 
-  // Always use mock data instead of context data
-  const courseData = mockCourseData
+  // Use context data if available, otherwise use mock data
+  const courseData = contextCourseData || mockCourseData
 
   // Track if panel should be visible
   const [isVisible, setIsVisible] = React.useState(false)
@@ -473,8 +824,12 @@ export function CoursePanel({ className }: CoursePanelProps) {
   // Track if summary section is visible
   const [isSummaryVisible, setIsSummaryVisible] = React.useState(true)
 
-  // Reference to the summary section
+  // Track scroll position for the scroll-to-top button
+  const [showScrollTop, setShowScrollTop] = React.useState(false)
+
+  // References to DOM elements
   const summaryRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Show panel when course data exists or is generating
   React.useEffect(() => {
@@ -489,19 +844,46 @@ export function CoursePanel({ className }: CoursePanelProps) {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        console.log("Summary visibility changed:", entry.isIntersecting);
         setIsSummaryVisible(entry.isIntersecting);
       },
       {
-        threshold: 0.1, // Consider visible if at least 10% is visible
-        rootMargin: "-10px 0px 0px 0px" // Trigger slightly before it's fully out of view
+        threshold: 0.1,
+        rootMargin: "-10px 0px 0px 0px"
       }
     );
 
     observer.observe(summaryRef.current);
-
     return () => observer.disconnect();
   }, []);
+
+  // Handle scroll events to show/hide the scroll-to-top button
+  const handleScroll = React.useCallback(() => {
+    if (scrollContainerRef.current) {
+      const shouldShow = scrollContainerRef.current.scrollTop > 300;
+      setShowScrollTop(shouldShow);
+    }
+  }, []);
+
+  // Add scroll event listener
+  React.useEffect(() => {
+    const scrollElement = scrollContainerRef.current;
+    if (scrollElement) {
+      scrollElement.addEventListener('scroll', handleScroll);
+      return () => {
+        scrollElement.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, [handleScroll]);
+
+  // Function to scroll to top
+  const scrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   if (!isVisible) {
     return null
@@ -513,7 +895,7 @@ export function CoursePanel({ className }: CoursePanelProps) {
   return (
     <div
       className={cn(
-        "bg-background flex flex-col w-full sm:w-full h-full overflow-hidden transition-all duration-300 ease-in-out",
+        "bg-background flex flex-col w-full sm:w-full h-full overflow-hidden transition-all duration-300 ease-in-out relative",
         className
       )}
     >
@@ -554,7 +936,11 @@ export function CoursePanel({ className }: CoursePanelProps) {
       {courseData && !courseGenerating && !courseError && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* This is now the main scroll container for everything */}
-          <div className="flex-1 overflow-y-auto hover:scrollbar scrollbar-thin">
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto hover:scrollbar scrollbar-thin"
+            onScroll={handleScroll}
+          >
             {/* Course preview and summary section */}
             <div className="p-4 border-b" ref={summaryRef}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -629,6 +1015,19 @@ export function CoursePanel({ className }: CoursePanelProps) {
               </TabsContent>
             </Tabs>
           </div>
+
+          {/* Scroll to top button - ensure it's visible and on top of content */}
+          {showScrollTop && (
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={scrollToTop}
+              className="fixed bottom-6 right-6 h-10 w-10 rounded-full shadow-lg z-50 animate-in fade-in"
+              aria-label="Scroll to top"
+            >
+              <ArrowUp className="h-5 w-5" />
+            </Button>
+          )}
         </div>
       )}
     </div>

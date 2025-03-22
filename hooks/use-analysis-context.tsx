@@ -3,12 +3,32 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useTransition } from "react";
 import type { ContentDetails } from "@/types/youtube";
 import type { Course } from "@/types/course";
-import type { StreamEvent } from "@/lib/ai/types/stream";
-import type { VideoInput, PlaylistInput } from "@/lib/ai/types/api";
 import { logger } from "@/lib/ai/debug-logger";
-import { parseStreamChunk, validateStreamResult, formatErrorMessage } from "@/lib/ai/stream-parser";
+import { formatErrorMessage } from "@/lib/ai/stream-parser";
 import { toast } from "sonner";
-import { isProgressEvent, isToolResultEvent, isErrorEvent } from "@/lib/ai/types/stream";
+
+// Define the StreamEvent type since it appears to be missing from imports
+interface StreamEvent {
+  type: 'progress' | 'error' | 'tool' | 'finish';
+  progress?: number;
+  text?: string;
+  error?: string;
+  toolName?: string;
+  result?: string;
+}
+
+// Event type checking functions
+const isProgressEvent = (event: StreamEvent): boolean => {
+  return event.type === 'progress';
+};
+
+const isErrorEvent = (event: StreamEvent): boolean => {
+  return event.type === 'error';
+};
+
+const isToolResultEvent = (event: StreamEvent): boolean => {
+  return event.type === 'tool' && event.toolName === 'generateCourse' && !!event.result;
+};
 
 interface AnalysisContextType {
   // Video content state
@@ -99,7 +119,7 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
       return;
     }
 
-    if (isToolResultEvent(part) && part.toolName === "generateCourse" && part.result) {
+    if (isToolResultEvent(part) && part.result) {
       const courseData = JSON.parse(part.result);
       startTransition(() => {
         setCourseData(courseData);
@@ -238,3 +258,6 @@ export function useAnalysis() {
   }
   return context;
 }
+
+// Export the event checker functions for use in other files
+export { isProgressEvent, isErrorEvent, isToolResultEvent };

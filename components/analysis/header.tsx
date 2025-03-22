@@ -27,9 +27,6 @@ interface BreadcrumbItem {
 function getBreadcrumbFromPath(path: string): BreadcrumbItem[] {
   if (path === "/") return []
   const segments = path.split("/").filter(Boolean)
-  const mappedSegments = segments.map(segment =>
-    segment === "analysis" ? "Course Generation" : segment
-  );
 
   return segments.map((segment, index) => ({
     label: segment === "analysis" ? "Course Generation" : segment.charAt(0).toUpperCase() + segment.slice(1),
@@ -101,7 +98,7 @@ export function AnalysisHeader() {
             variant="ghost"
             size="icon"
             className="h-9 w-9 hover:bg-transparent sm:hidden"
-            onClick={() => toggle?.(true)} 
+            onClick={() => toggle?.(true)}
           >
             <Menu className="h-4 w-4 transition-colors hover:text-primary" />
           </Button>

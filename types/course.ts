@@ -101,6 +101,34 @@ export interface Course {
   updatedAt?: number;
 }
 
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  image: string;
+  progress: number;
+  lessonsCompleted?: number;
+  totalLessons?: number;
+  lastAccessed?: number | string | Date;
+  videoId?: string;
+  isNew?: boolean;
+  isEnrolled?: boolean;
+  metadata?: {
+    difficulty?: string;
+    duration?: string;
+    category?: string;
+    prerequisites?: string[];
+    objectives?: string[];
+    targetAudience?: string[];
+    sources?: any[];
+  };
+  sections?: any[];
+}
+
+export type CourseFilter = "all" | "in-progress" | "completed" | "not-started";
+export type CourseCategory = "all" | "programming" | "design" | "business" | "marketing" | "productivity" | string;
+
 // Type guards
 export function isTestContent(assessment: AssessmentBase | AssessmentContent): assessment is TestContent {
   return assessment.type === "test" && "questions" in assessment;
