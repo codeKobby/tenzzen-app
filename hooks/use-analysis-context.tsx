@@ -1,11 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useRef, useCallback, useTransition } from "react";
+import React, { createContext, useContext, useState, useCallback, useTransition } from "react";
 import type { ContentDetails } from "@/types/youtube";
 import type { Course } from "@/types/course";
 import { logger } from "@/lib/ai/debug-logger";
 import { formatErrorMessage } from "@/lib/ai/stream-parser";
 import { toast } from "sonner";
+import { useCourseGeneration } from '@/hooks/use-course-generation';
 
 // Define the StreamEvent type since it appears to be missing from imports
 interface StreamEvent {
@@ -66,14 +67,15 @@ interface AnalysisProviderProps {
   initialContent?: ContentDetails | null;
 }
 
+interface CourseGenerationProgress {
+  step: 'initializing' | 'fetching_transcript' | 'analyzing' | 'generating' | 'structuring' | 'finalizing' | 'completed';
+  progress: number; // 0-100
+  message: string;
+}
+
 export function AnalysisProvider({ children, initialContent = null }: AnalysisProviderProps) {
   const [isPending, startTransition] = useTransition();
   const [videoData, setVideoData] = useState<ContentDetails | null>(initialContent);
-  const [courseData, setCourseData] = useState<Course | null>(null);
-  const [courseError, setCourseError] = useState<string | null>(null);
-  const [courseGenerating, setCourseGenerating] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState(0);
-  const [progressMessage, setProgressMessage] = useState("Initializing...");
 
   // Panel state
   const [width, setWidth] = useState(340);
@@ -81,9 +83,6 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
   const [showAlert, setShowAlert] = useState(false);
   const minWidth = 280;
   const maxWidth = 500;
-
-  // Generation control
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   // The toggle function needs to work predictably
   const toggle = useCallback((open?: boolean) => {
@@ -95,126 +94,27 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
     window.history.back();
   }, []);
 
-  const cancelGeneration = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    setCourseGenerating(false);
-    setGenerationProgress(0);
-    setProgressMessage("Generation cancelled");
-    setCourseError("Generation cancelled by user");
-  }, []);
+  // Use course generation context - with renamed variables to avoid conflicts
+  const {
+    isGenerating,
+    progress,
+    progressMessage,
+    generationError,
+    courseData: generatedCourseData,
+    generateCourse: startCourseGeneration,
+    cancelGeneration
+  } = useCourseGeneration();
 
-  const handleStreamEvent = useCallback((part: StreamEvent) => {
-    if (isErrorEvent(part) && part.error) {
-      throw new Error(part.error);
-    }
+  // Generate course from current video
+  const generateCourse = useCallback(() => {
+    if (!videoData) return;
 
-    if (isProgressEvent(part)) {
-      startTransition(() => {
-        setGenerationProgress(part.progress || 0);
-        setProgressMessage(part.text || "Generating course...");
-      });
-      return;
-    }
+    // Get the video URL from the current video data
+    const videoUrl = `https://youtube.com/watch?v=${videoData.id}`;
+    startCourseGeneration(videoUrl);
+  }, [videoData, startCourseGeneration]);
 
-    if (isToolResultEvent(part) && part.result) {
-      const courseData = JSON.parse(part.result);
-      startTransition(() => {
-        setCourseData(courseData);
-      });
-      return;
-    }
-
-    if (part.type === "finish") {
-      startTransition(() => {
-        setGenerationProgress(100);
-        setProgressMessage("Course generation complete!");
-      });
-    }
-  }, []);
-
-  // Modified generateCourse function to use mock data with simulated loading
-  const generateCourse = useCallback(async () => {
-    if (!videoData) {
-      toast.error("No video data available");
-      return;
-    }
-
-    if (courseGenerating) {
-      console.warn("Course generation already in progress");
-      return;
-    }
-
-    // Reset state
-    startTransition(() => {
-      setCourseError(null);
-      setCourseGenerating(true);
-      setCourseData(null);
-      setGenerationProgress(5);
-      setProgressMessage("Starting course generation...");
-    });
-
-    try {
-      // Simulate generation process with intervals
-      let progress = 5;
-      const interval = setInterval(() => {
-        progress += 15;
-        startTransition(() => {
-          if (progress <= 90) {
-            setGenerationProgress(progress);
-            setProgressMessage(`Generating course... ${progress}%`);
-          } else {
-            clearInterval(interval);
-          }
-        });
-      }, 800);
-
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 4000));
-
-      // Import mock data dynamically to simulate final result
-      const { mockCourseData } = await import("@/lib/mock/course-data");
-
-      // Final update
-      clearInterval(interval);
-      startTransition(() => {
-        setGenerationProgress(100);
-        setProgressMessage("Course generation complete!");
-        setCourseData(mockCourseData);
-        setCourseGenerating(false);
-      });
-
-      toast.success("Course successfully generated!");
-
-    } catch (error) {
-      logger.error("state", "Course generation error", error);
-
-      const errorMessage = formatErrorMessage(error);
-
-      startTransition(() => {
-        setCourseError(errorMessage);
-        setCourseGenerating(false);
-      });
-
-      toast.error("Generation failed", {
-        description: errorMessage
-      });
-    }
-  }, [videoData]);
-
-  // Safe way to set course data directly if needed
-  const setCourseDataSafe = useCallback((data: Course | null) => {
-    startTransition(() => {
-      setCourseData(data);
-      if (data) {
-        setGenerationProgress(100);
-        setProgressMessage("Course loaded");
-      }
-    });
-  }, []);
-
+  // Update context value to use the variables from useCourseGeneration
   return (
     <AnalysisContext.Provider
       value={{
@@ -222,14 +122,15 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
         videoData,
         setVideoData,
 
-        // Course generation state
-        courseData,
-        courseError,
-        courseGenerating,
-        generationProgress,
+        // Course generation state - now coming from useCourseGeneration
+        courseData: generatedCourseData,
+        courseError: generationError,
+        courseGenerating: isGenerating,
+        generationProgress: progress,
         progressMessage,
         generateCourse,
-        setCourseData: setCourseDataSafe,
+        // Update to use new method name
+        setCourseData: () => { }, // This is now a no-op as course data is managed by useCourseGeneration
         cancelGeneration,
 
         // Panel state

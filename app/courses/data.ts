@@ -5,7 +5,7 @@ export const sampleCourses: Course[] = [
     id: "1",
     title: "Advanced JavaScript: From Fundamentals to Full Stack Development",
     description: "Master modern JavaScript with practical projects and real-world applications",
-    duration: "24h 30m",
+    duration: "24h 30m", // Hours and minutes format
     progress: 65,
     category: "Programming",
     lastAccessed: "2 days ago",
@@ -33,7 +33,7 @@ export const sampleCourses: Course[] = [
     id: "2",
     title: "UI/UX Design: Creating User-Centered Experiences",
     description: "Learn to design beautiful and functional user interfaces",
-    duration: "18h 15m",
+    duration: "18h 15m", // Hours and minutes format
     progress: 25,
     category: "Design",
     lastAccessed: "1 week ago",
@@ -61,7 +61,7 @@ export const sampleCourses: Course[] = [
     id: "3",
     title: "My Python Learning Path",
     description: "Custom curated Python tutorials and resources",
-    duration: "32h 45m",
+    duration: "32h 45m", // Hours and minutes format
     progress: 0,
     category: "Programming",
     thumbnail: "https://images.unsplash.com/photo-1527430253228-e93688616381?w=800&auto=format&fit=crop&q=60",
@@ -90,7 +90,7 @@ export const sampleCourses: Course[] = [
     id: "4",
     title: "Digital Marketing Mastery",
     description: "Comprehensive guide to modern digital marketing strategies",
-    duration: "16h 20m",
+    duration: "16h 20m", // Hours and minutes format
     progress: 100,
     category: "Business",
     lastAccessed: "1 month ago",
@@ -114,7 +114,7 @@ export const sampleCourses: Course[] = [
     id: "5",
     title: "React Native Development Notes",
     description: "Personal collection of React Native tutorials",
-    duration: "28h 45m",
+    duration: "28h 45m", // Hours and minutes format
     progress: 45,
     category: "Programming",
     lastAccessed: "3 days ago",
@@ -140,7 +140,7 @@ export const sampleCourses: Course[] = [
     id: "6",
     title: "Data Visualization and Analytics",
     description: "Learn to create impactful data visualizations",
-    duration: "20h 15m",
+    duration: "20h 15m", // Hours and minutes format
     progress: 15,
     category: "Design",
     lastAccessed: "5 days ago",

@@ -1,147 +1,26 @@
 import type { Course } from "@/types/course";
+import { mockSources } from "./sources";
 
 export const mockCourseData: Course = {
   title: "Introduction to Web Development: HTML, CSS & JavaScript",
+  subtitle: "A comprehensive introduction to front-end web technologies",
   description: "A comprehensive course covering the fundamentals of web development, from structuring content with HTML to styling with CSS and adding interactivity with JavaScript.",
   videoId: "W6NZfCO5SIk", // Default YouTube video ID
   thumbnail: "/course-thumbnails/course-1.jpg", // Default thumbnail image
-  sections: [
-    {
-      id: "section-1",
-      title: "Getting Started with HTML",
-      description: "Learn the basics of HTML and how to structure web content",
-      lessons: [
-        {
-          id: "lesson-1-1",
-          title: "Understanding HTML Document Structure",
-          description: "Learn about the basic structure of HTML documents, including doctype declarations, head and body sections, and essential HTML tags.",
-          keyPoints: [
-            "DOCTYPE declarations and their purpose",
-            "HTML, HEAD, and BODY tags",
-            "Semantic structure of web documents",
-            "Creating proper page titles and metadata"
-          ],
-          duration: 15, // in minutes
-          resources: [
-            {
-              title: "HTML5 Documentation",
-              url: "https://developer.mozilla.org/en-US/docs/Web/HTML",
-              type: "documentation"
-            }
-          ]
-        },
-        {
-          id: "lesson-1-2",
-          title: "Working with HTML Elements",
-          description: "Explore common HTML elements like headings, paragraphs, lists, and links to create structured content for web pages.",
-          keyPoints: [
-            "Heading levels (h1-h6) and their proper usage",
-            "Paragraph and text formatting tags",
-            "Creating ordered and unordered lists",
-            "Adding links with the anchor tag"
-          ],
-          duration: 20, // in minutes
-          resources: [
-            {
-              title: "HTML Elements Reference",
-              url: "https://developer.mozilla.org/en-US/docs/Web/HTML/Element",
-              type: "reference"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: "section-2",
-      title: "CSS Fundamentals",
-      description: "Master the basics of CSS to style and layout your web pages",
-      lessons: [
-        {
-          id: "lesson-2-1",
-          title: "CSS Selectors and Properties",
-          description: "Learn how to select HTML elements and apply various styling properties to change their appearance.",
-          keyPoints: [
-            "Different types of CSS selectors (element, class, ID)",
-            "Common CSS properties for text, colors, and spacing",
-            "The CSS box model explained",
-            "CSS specificity and inheritance"
-          ],
-          duration: 25, // in minutes
-          resources: [
-            {
-              title: "CSS Reference",
-              url: "https://developer.mozilla.org/en-US/docs/Web/CSS/Reference",
-              type: "reference"
-            }
-          ]
-        },
-        {
-          id: "lesson-2-2",
-          title: "CSS Layout Techniques",
-          description: "Explore various ways to position and arrange elements on your web pages for responsive designs.",
-          keyPoints: [
-            "Using Flexbox for one-dimensional layouts",
-            "CSS Grid for two-dimensional layouts",
-            "Positioning elements (relative, absolute, fixed)",
-            "Creating responsive designs with media queries"
-          ],
-          duration: 30, // in minutes
-          resources: [
-            {
-              title: "Learn CSS Layout",
-              url: "https://learnlayout.com/",
-              type: "tutorial"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: "section-3",
-      title: "JavaScript Essentials",
-      description: "Learn the core concepts of JavaScript programming for interactive web applications",
-      lessons: [
-        {
-          id: "lesson-3-1",
-          title: "JavaScript Syntax and Data Types",
-          description: "Understand the fundamental syntax and data structures in JavaScript.",
-          keyPoints: [
-            "Variables, constants, and data types",
-            "Operators and expressions",
-            "Arrays and objects",
-            "Understanding scope and hoisting"
-          ],
-          duration: 35, // in minutes
-          resources: [
-            {
-              title: "JavaScript Guide",
-              url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide",
-              type: "guide"
-            }
-          ]
-        },
-        {
-          id: "lesson-3-2",
-          title: "DOM Manipulation with JavaScript",
-          description: "Learn how to interact with HTML elements using JavaScript to create dynamic web pages.",
-          keyPoints: [
-            "Selecting elements using querySelector and getElementById",
-            "Changing element content and attributes",
-            "Event handling (click, submit, load)",
-            "Creating and removing HTML elements dynamically"
-          ],
-          duration: 40, // in minutes
-          resources: [
-            {
-              title: "DOM API Reference",
-              url: "https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model",
-              type: "reference"
-            }
-          ]
-        }
-      ]
-    }
-  ],
+  overview: {
+    description: "This course provides a thorough introduction to the core technologies of web development. You'll learn how to structure content with HTML, style it with CSS, and add interactivity with JavaScript. By the end, you'll be able to build responsive websites from scratch.",
+    prerequisites: ["Basic computer skills", "Text editor installed", "Interest in web development"],
+    learningOutcomes: [
+      "Build and style web pages using HTML and CSS",
+      "Create interactive elements with JavaScript",
+      "Understand fundamental web development concepts",
+      "Create a simple portfolio website from scratch"
+    ],
+    totalDuration: "6 weeks",
+    difficultyLevel: "Beginner",
+    skills: ["HTML", "CSS", "JavaScript", "Responsive Design", "Web Development"],
+    tools: ["VS Code", "Chrome DevTools", "GitHub"]
+  },
   metadata: {
     difficulty: "Beginner",
     duration: "6 weeks",
@@ -159,31 +38,36 @@ export const mockCourseData: Course = {
       "Designers looking to code their own designs",
       "Students interested in front-end development"
     ],
-    sources: [
-      {
-        name: "YouTube",
-        type: "video",
-        avatar: "https://www.youtube.com/favicon.ico",
-        url: "https://youtube.com"
-      },
-      {
-        name: "MDN Web Docs",
-        type: "documentation",
-        avatar: "https://developer.mozilla.org/favicon-48x48.png",
-        url: "https://developer.mozilla.org"
-      },
-      {
-        name: "W3Schools",
-        type: "tutorial",
-        avatar: "https://www.w3schools.com/favicon.ico",
-        url: "https://www.w3schools.com"
-      },
-      {
-        name: "CSS Tricks",
-        type: "blog",
-        avatar: "https://css-tricks.com/favicon.ico",
-        url: "https://css-tricks.com"
-      }
-    ]
-  }
-};
+    sources: mockSources
+  },
+  sections: [
+    {
+      id: "section-1",
+      title: "Getting Started with HTML",
+      description: "Learn the basics of HTML and how to structure web content",
+      lessons: [
+        {
+          id: "lesson-1-1",
+          title: "Understanding HTML Document Structure",
+          description: "Learn about the basic structure of HTML documents, including doctype declarations, head and body sections, and essential HTML tags.",
+          content: "# HTML Document Structure\n\nIn this lesson, we'll explore the fundamental structure of HTML documents. HTML (HyperText Markup Language) is the standard markup language for creating web pages.\n\n## Document Type Declaration\nEvery HTML document begins with a doctype declaration. For HTML5, this is simply:\n```html\n<!DOCTYPE html>\n```\n\n## The HTML Element\nAfter the doctype, we have the `<html>` element which is the root element of an HTML page:\n```html\n<html lang=\"en\">\n  <!-- content goes here -->\n</html>\n```\n\n## Head and Body Sections\nHTML documents are divided into two main sections:\n\n1. **Head Section**: Contains meta-information about the document\n```html\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Page Title</title>\n</head>\n```\n\n2. **Body Section**: Contains the actual content of the page\n```html\n<body>\n  <h1>Welcome to my website</h1>\n  <p>This is a paragraph of text.</p>\n</body>\n```\n\n## Putting It All Together\nHere's a complete basic HTML document:\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>My First HTML Page</title>\n</head>\n<body>\n  <h1>Hello, World!</h1>\n  <p>Welcome to my first HTML page.</p>\n</body>\n</html>\n```",
+          keyPoints: [
+            "DOCTYPE declarations and their purpose",
+            "HTML, HEAD, and BODY tags",
+            "Semantic structure of web documents",
+            "Creating proper page titles and metadata"
+          ],
+          duration: "15m",
+          resources: [
+            {
+              title: "HTML5 Documentation",
+              url: "https://developer.mozilla.org/en-US/docs/Web/HTML",
+              type: "documentation"
+            }
+          ]
+        },
+        {
+          id: "lesson-1-2",
+          title: "Working with HTML Elements",
+          description: "Explore common HTML elements like headings, paragraphs, lists, and links to create structured content for web pages.",
+          content: "# Working with HTML Elements\n\nHTML provides various elements to structure and format content. In this lesson, we'll learn about the most commonly used HTML elements.\n\n## Headings\nHTML offers six levels of headings, from `<h1>` (most important) to `<h6>` (least important).\n\n```html\n<h1>Main Heading</h1>\n<h2>Subheading</h2>\n<h3>Section heading</h3>\n```\n\n## Paragraphs\nText content is typically placed within paragraph tags:\n\n```html\n<p>This is a paragraph of text. It can contain multiple sentences and will automatically wrap based on the width of its container.</p>\n```\n\n## Lists\nHTML offers two main types of lists:\n\n1. **Unordered Lists** - for items with no particular order:\n```html\n<ul>\n  <li>Item one</li>\n  <li>Item two</li>\n  <li>Item three</li>\n</ul>\n```\n\n2. **Ordered Lists** - for sequential items:\n```html\n<ol>\n  <li>First step</li>\n  <li>Second step</li>\n  <li>Third step</li>\n</ol>\n```\n

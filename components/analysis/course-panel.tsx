@@ -3,7 +3,8 @@
 import React, { useRef, useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { useAnalysis } from "@/hooks/use-analysis-context"
-import { mockCourseData } from "@/lib/mock/course-data"
+// Remove the import for mockCourseData
+// import { mockCourseData } from "@/lib/mock/course-data"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "../ui/button"
 import {
@@ -39,6 +40,8 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { safelyEnrollInCourse } from "@/lib/api-wrapper"
+import { mockSources } from "@/lib/mock/sources"
 
 // Mock sources data for the course
 const mockSources = [
@@ -92,6 +95,81 @@ function enrichCourseData(courseData: any) {
   };
 }
 
+// Add a local mock data structure to replace the imported one
+const mockCourseData = {
+  title: "Introduction to Web Development",
+  description: "Learn the fundamentals of web development including HTML, CSS, and JavaScript",
+  videoId: "W6NZfCO5SIk",
+  image: "https://i.ytimg.com/vi/W6NZfCO5SIk/maxresdefault.jpg",
+  metadata: {
+    title: "Introduction to Web Development",
+    description: "Learn the fundamentals of web development including HTML, CSS, and JavaScript",
+    objectives: [
+      "Understand HTML structure and semantics",
+      "Learn CSS styling techniques",
+      "Build interactive elements with JavaScript"
+    ],
+    prerequisites: ["Basic computer skills", "No prior coding experience required"],
+    duration: "3 hours",
+    category: "Programming",
+    difficulty: "Beginner"
+  },
+  sections: [
+    {
+      id: "section-1",
+      title: "Introduction",
+      description: "Getting started with web development",
+      lessons: [
+        {
+          id: "lesson-1-1",
+          title: "Web Development Overview",
+          description: "Introduction to web development concepts",
+          duration: "15 minutes",
+          keyPoints: ["Web development basics", "How websites work"]
+        },
+        {
+          id: "lesson-1-2",
+          title: "Setting Up Your Environment",
+          description: "Configuring your development tools",
+          duration: "10 minutes",
+          keyPoints: ["Code editors", "Browser tools"]
+        }
+      ],
+      duration: "25 minutes"
+    },
+    {
+      id: "section-2",
+      title: "HTML Fundamentals",
+      description: "Learn the building blocks of web pages",
+      lessons: [
+        {
+          id: "lesson-2-1",
+          title: "HTML Basics",
+          description: "Understanding HTML structure",
+          duration: "20 minutes",
+          keyPoints: ["HTML tags", "Document structure"]
+        },
+        {
+          id: "lesson-2-2",
+          title: "Common HTML Elements",
+          description: "Working with text, links, and images",
+          duration: "25 minutes",
+          keyPoints: ["Text formatting", "Links and images"]
+        }
+      ],
+      duration: "45 minutes"
+    }
+  ],
+  assessments: [
+    {
+      type: "quiz",
+      title: "HTML Fundamentals Quiz",
+      description: "Test your understanding of HTML basics",
+      placeholder: true
+    }
+  ]
+};
+
 // Action Buttons component that can be rendered in multiple places
 function ActionButtons({ className }: { className?: string }) {
   const router = useRouter()
@@ -103,10 +181,7 @@ function ActionButtons({ className }: { className?: string }) {
   // Get the user ID from Clerk
   const { userId } = useAuth();
 
-  // Convex mutation to enroll user
-  const enrollUser = useMutation(api.courses.enrollUserInCourse);
-
-  // Enrollment handler
+  // Handle enrollment - using localStorage fallback
   const handleEnroll = async () => {
     try {
       // Start loading state
@@ -132,7 +207,7 @@ function ActionButtons({ className }: { className?: string }) {
         title: enrichedCourse.title,
         description: enrichedCourse.description || "",
         videoId: enrichedCourse.videoId || "W6NZfCO5SIk", // default if not available
-        thumbnail: `/course-thumbnails/course-${Math.floor(Math.random() * 5) + 1}.jpg`,
+        thumbnail: enrichedCourse.image || `/course-thumbnails/course-${Math.floor(Math.random() * 5) + 1}.jpg`,
         metadata: {
           difficulty: enrichedCourse.metadata?.difficulty,
           duration: enrichedCourse.metadata?.duration,
@@ -144,10 +219,11 @@ function ActionButtons({ className }: { className?: string }) {
         sections: enrichedCourse.sections
       };
 
-      // Call the Convex mutation to enroll the user
-      const result = await enrollUser({
+      // Use the safe enrollment wrapper
+      const result = await safelyEnrollInCourse({
         courseData: courseDataForEnrollment,
-        userId
+        userId,
+        useConvex: false // Force localStorage in development for now
       });
 
       // Success notification
@@ -945,7 +1021,7 @@ export function CoursePanel({ className }: CoursePanelProps) {
             <div className="p-4 border-b" ref={summaryRef}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <YouTubeEmbed
-                  videoId={coursePreviewVideoId}
+                  videoId={courseData.videoId || "W6NZfCO5SIk"}
                   title="Course Preview"
                   enablePiP
                 />

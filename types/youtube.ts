@@ -1,69 +1,71 @@
-export interface VideoItem {
+/**
+ * Types for YouTube API responses and data structures
+ */
+
+// YouTube channel information
+export interface ChannelInfo {
   id: string;
-  type: "video";
-  title: string;
-  description: string;
+  name: string;
   thumbnail: string;
-  duration: string;
-  channelId: string;
-  channelName: string;
-  channelAvatar?: string;
-  views: string;
-  likes: string;
-  publishDate: string;
-  videoId?: string;
+  url?: string;
+  subscriberCount?: string;
 }
 
-export interface VideoDetails extends VideoItem {
-  type: "video";
-  thumbnails?: {
-    default?: { url: string };
-    high?: { url: string };
-  };
+// Base content details shared by videos and playlists
+export interface ContentDetails {
+  id: string;
+  type: 'video' | 'playlist';
+  title: string;
+  description?: string;
+  thumbnail?: string;
+  duration?: string;
+  channel?: ChannelInfo;
+  videos?: VideoDetails[];
+  viewCount?: string;
+  likeCount?: string;
+  publishedAt?: string;
 }
 
-export interface PlaylistDetails {
-  id: string;
-  type: "playlist";
-  title: string;
-  description: string;
-  thumbnail: string;
-  channelId: string;
-  channelName: string;
-  channelAvatar?: string;
-  itemCount: number;
+// Specific video details
+export interface VideoDetails extends ContentDetails {
+  type: 'video';
+  tags?: string[];
+  isLiveContent?: boolean;
+}
+
+// Specific playlist details
+export interface PlaylistDetails extends ContentDetails {
+  type: 'playlist';
+  itemCount?: number;
   videos: VideoDetails[];
-  thumbnails?: {
-    default?: { url: string };
-    high?: { url: string };
-  };
-  publishDate: string;
 }
 
-export type ContentDetails = VideoDetails | PlaylistDetails;
-
+// YouTube transcript segment
 export interface TranscriptSegment {
   text: string;
-  offset: number;
+  start: number;
   duration: number;
 }
 
+// YouTube search result
 export interface SearchResult {
-  id: {
-    kind: string;
-    videoId?: string;
-    playlistId?: string;
-    channelId?: string;
-  };
-  snippet: {
-    title: string;
-    description: string;
-    channelTitle: string;
-    thumbnails: {
-      default: { url: string; width: number; height: number };
-      medium: { url: string; width: number; height: number };
-      high: { url: string; width: number; height: number };
-    };
-    publishTime: string;
-  };
+  id: string;
+  type: 'video' | 'playlist' | 'channel';
+  title: string;
+  thumbnail: string;
+  description?: string;
+  channel?: ChannelInfo;
+  publishedAt?: string;
+  viewCount?: string;
+}
+
+// YouTube API error
+export interface YouTubeApiError {
+  message: string;
+  code: string;
+  errors?: {
+    message: string;
+    domain: string;
+    reason: string;
+  }[];
 }

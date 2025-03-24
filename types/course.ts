@@ -145,3 +145,119 @@ export function isProjectContent(assessment: AssessmentBase | AssessmentContent)
 export function hasContent(assessment: AssessmentBase | AssessmentContent): assessment is AssessmentContent {
   return assessment.contentGenerated;
 }
+
+/**
+ * Types for course data structures
+ */
+
+// Course resource item
+export interface CourseResource {
+  title: string;
+  url: string;
+  description?: string;
+  type?: string;
+}
+
+// Course lesson
+export interface CourseLesson {
+  id: string;
+  title: string;
+  description: string;
+  content?: string;
+  duration?: string;
+  keyPoints?: string[];
+  resources?: CourseResource[];
+}
+
+// Course assessment
+export interface CourseAssessment {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  position: number;
+  estimatedDuration?: string;
+  requiredSkills?: string[];
+  questions?: CourseQuestion[];
+  isCompleted?: boolean;
+  isLocked?: boolean;
+}
+
+// Question for assessments
+export interface CourseQuestion {
+  id: string;
+  question: string;
+  options?: string[];
+  correctAnswer?: string | number | string[];
+  explanation?: string;
+  type?: string;
+}
+
+// Course section
+export interface CourseSection {
+  id: string;
+  title: string;
+  description: string;
+  lessons: CourseLesson[];
+  assessments?: CourseAssessment[];
+}
+
+// Course overview details
+export interface CourseOverview {
+  description: string;
+  prerequisites: string[];
+  learningOutcomes: string[];
+  totalDuration: string;
+  difficultyLevel: string;
+  skills: string[];
+  tools?: string[];
+}
+
+// Course metadata
+export interface CourseMetadata {
+  category?: string;
+  subcategory?: string;
+  difficulty: string;
+  duration: string;
+  objectives?: string[];
+  prerequisites?: string[];
+  targetAudience?: string[];
+  sources?: CourseSource[];
+}
+
+// Course source reference
+export interface CourseSource {
+  name: string;
+  type: string;
+  avatar: string;
+  url: string;
+}
+
+// Complete course structure
+export interface Course {
+  id?: string;
+  title: string;
+  subtitle?: string;
+  description: string;
+  videoId?: string;
+  thumbnail?: string;
+  image?: string;
+  overview: CourseOverview;
+  metadata: CourseMetadata;
+  sections: CourseSection[];
+  progress?: number;
+  lessonsCompleted?: number;
+  totalLessons?: number;
+  lastAccessed?: number;
+  enrolledAt?: number;
+  isNew?: boolean;
+  isEnrolled?: boolean;
+  rating?: number;
+  enrolledCount?: number;
+  topics?: {
+    current: number;
+    total: number;
+    currentTitle?: string;
+  };
+  sources?: CourseSource[];
+}

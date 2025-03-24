@@ -1,231 +1,167 @@
+/**
+ * Rate limiting utility for AI API calls
+ */
 import { logger } from './debug-logger';
 
-// Gemini rate limits (documented limits with safety margin)
-export const RATE_LIMITS = {
-  // Model limits
-  RPM: 20,                  // Keep under 23 RPM limit for safety
-  TPM: 30000,              // Keep under 32k TPM limit for safety
-  TPR: 4000,               // Keep under 4096 tokens per request for safety
-  
-  // Retry configuration
-  MAX_RETRIES: 5,          // Maximum retry attempts
-  MIN_BACKOFF: 2000,       // Initial backoff in ms
-  MAX_BACKOFF: 32000,      // Maximum backoff in ms
-  
-  // Token estimation
-  CHARS_PER_TOKEN: 4       // Approximate characters per token
-} as const;
-
-export interface RateLimitInfo {
-  requestCount: number;
-  tokenCount: number;
-  remainingRequests: number;
-  remainingTokens: number;
-  resetIn: number;
-  limits: typeof RATE_LIMITS;
+interface RequestMetadata {
+  timestamp: number;
+  tokens: number;
 }
 
-export interface ErrorTracking {
-  count: number;
-  lastError: Error;
+interface RetryOptions {
+  maxRetries?: number;
+  backoffFactor?: number;
+  initialDelay?: number;
 }
 
-interface RateLimits {
-  remainingRequests: number;
-  remainingTokens: number;
-  resetIn: number; // milliseconds
-}
+class RateLimiter {
+  private recentRequests: RequestMetadata[] = [];
+  private maxRequestsPerMinute: number = 10;
+  private maxTokensPerMinute: number = 100_000;
+  private waitQueue: Array<{
+    resolve: () => void;
+    tokens: number;
+  }> = [];
+  private processingQueue: boolean = false;
+  private windowSize: number = 60 * 1000; // 1 minute in milliseconds
 
-export class RateLimiter {
-  private requestCount: number = 0;
-  private tokenCount: number = 0;
-  private lastReset: number = Date.now();
-  private errorTracker: Map<string, ErrorTracking> = new Map();
-  private resetIntervalId: NodeJS.Timeout | null = null;
-  
-  constructor(
-    private readonly requestLimit = RATE_LIMITS.RPM,
-    private readonly tokenLimit = RATE_LIMITS.TPM,
-    private readonly resetInterval = 60000, // 1 minute default
-    private readonly limits = RATE_LIMITS
-  ) {
-    this.resetCounts = this.resetCounts.bind(this);
-    
-    // Initialize reset interval
-    if (typeof window === 'undefined') {
-      // Only set interval on server
-      this.resetIntervalId = setInterval(this.resetCounts, this.resetInterval);
-    }
+  constructor() {
+    // Clean up old requests periodically
+    setInterval(() => this.cleanupOldRequests(), 10000);
   }
 
-  // Clean up when no longer needed
-  public dispose(): void {
-    if (this.resetIntervalId) {
-      clearInterval(this.resetIntervalId);
-      this.resetIntervalId = null;
-    }
-  }
-
-  private resetCounts(): void {
+  private cleanupOldRequests(): void {
     const now = Date.now();
-    if (now - this.lastReset >= this.resetInterval) {
-      this.requestCount = 0;
-      this.tokenCount = 0;
-      this.lastReset = now;
-      // Clear old error entries
-      this.errorTracker.clear();
-      
-      logger.debug('api', 'Rate limits reset', {
-        time: new Date().toISOString()
-      });
-    }
+    const cutoff = now - this.windowSize;
+    this.recentRequests = this.recentRequests.filter(req => req.timestamp > cutoff);
   }
 
-  private async rateLimit(tokenEstimate: number = 1000): Promise<void> {
-    this.resetCounts();
-
-    // Check token per request limit
-    if (tokenEstimate > this.limits.TPR) {
-      throw new Error(`Token limit exceeded: ${tokenEstimate} tokens requested, maximum is ${this.limits.TPR}`);
-    }
-
-    // Check rate limits
-    if (this.requestCount >= this.limits.RPM || 
-        this.tokenCount + tokenEstimate >= this.limits.TPM) {
-      const waitTime = this.resetInterval - (Date.now() - this.lastReset) + 1000; // Add 1s buffer
-      logger.info('api', `Rate limit reached. Waiting ${waitTime}ms before retry...`, {
-        requestCount: this.requestCount,
-        tokenCount: this.tokenCount,
-        tokenEstimate,
-        limits: this.limits
-      });
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-      this.resetCounts();
-    }
-
-    this.requestCount++;
-    this.tokenCount += tokenEstimate;
-
-    // Add small delay between requests for better distribution
-    await new Promise(resolve => setTimeout(resolve, 100));
+  private getCurrentTokenUsage(): number {
+    this.cleanupOldRequests();
+    return this.recentRequests.reduce((sum, req) => sum + req.tokens, 0);
   }
 
-  private getRequestId(operationId: string, attempt: number): string {
-    return `${operationId}-${attempt}-${Date.now()}`;
+  private getCurrentRequestCount(): number {
+    this.cleanupOldRequests();
+    return this.recentRequests.length;
   }
 
-  async withRetry<T>(
-    operation: () => Promise<T>,
-    tokenEstimate: number = 1000,
-    operationId: string = 'default'
+  private async processQueue(): Promise<void> {
+    if (this.processingQueue) return;
+    this.processingQueue = true;
+
+    while (this.waitQueue.length > 0) {
+      const requestCount = this.getCurrentRequestCount();
+      const tokenCount = this.getCurrentTokenUsage();
+
+      if (
+        requestCount < this.maxRequestsPerMinute &&
+        tokenCount < this.maxTokensPerMinute
+      ) {
+        const nextRequest = this.waitQueue.shift();
+        if (nextRequest) {
+          nextRequest.resolve();
+          // Add a small delay to prevent race conditions
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      } else {
+        // Wait and check again
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    this.processingQueue = false;
+  }
+
+  public async waitForAvailability(tokens: number): Promise<void> {
+    return new Promise<void>(resolve => {
+      const requestCount = this.getCurrentRequestCount();
+      const tokenCount = this.getCurrentTokenUsage();
+
+      if (
+        requestCount < this.maxRequestsPerMinute &&
+        tokenCount + tokens < this.maxTokensPerMinute
+      ) {
+        // Can process immediately
+        resolve();
+      } else {
+        // Need to wait
+        logger.debug('rate-limiter', `Rate limit hit, waiting in queue for ${tokens} tokens`);
+        this.waitQueue.push({ resolve, tokens });
+        this.processQueue();
+      }
+    });
+  }
+
+  public recordRequest(tokens: number): void {
+    this.recentRequests.push({
+      timestamp: Date.now(),
+      tokens
+    });
+  }
+
+  // Helper to estimate tokens from text length (rough approximation)
+  public estimateTokens(text: string): number {
+    if (!text) return 0;
+    // Simple estimation: ~1 token per 4 characters
+    return Math.ceil(text.length / 4);
+  }
+
+  // Combined function to wait and record
+  public async withRateLimit<T>(
+    fn: () => Promise<T>,
+    estimatedTokens: number
   ): Promise<T> {
-    const startTime = Date.now();
-    let currentError: Error | null = null;
+    await this.waitForAvailability(estimatedTokens);
+    try {
+      const result = await fn();
+      this.recordRequest(estimatedTokens);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
 
-    for (let attempt = 1; attempt <= this.limits.MAX_RETRIES; attempt++) {
-      const requestId = this.getRequestId(operationId, attempt);
-      
+  // Retry with exponential backoff
+  public async withRetry<T>(
+    fn: () => Promise<T>,
+    estimatedTokens: number,
+    context: string = 'unknown',
+    options: RetryOptions = {}
+  ): Promise<T> {
+    const {
+      maxRetries = 3,
+      backoffFactor = 2,
+      initialDelay = 1000
+    } = options;
+
+    let retries = 0;
+    let lastError: any = null;
+
+    while (retries <= maxRetries) {
       try {
-        // Check rate limits first
-        await this.rateLimit(tokenEstimate);
-        
-        // Log attempt
-        logger.info('api', `Attempt ${attempt}/${this.limits.MAX_RETRIES} for operation ${operationId}`);
-        
-        // Execute operation
-        const result = await operation();
+        if (retries > 0) {
+          logger.info('rate-limiter', `Retry ${retries}/${maxRetries} for ${context}`);
+        }
 
-        // Clear error history on success
-        this.errorTracker.delete(operationId);
-
-        return result;
-
+        return await this.withRateLimit(fn, estimatedTokens);
       } catch (error) {
-        currentError = error instanceof Error ? error : new Error(String(error));
-        
-        // Track error
-        const errorData = this.errorTracker.get(operationId) || { count: 0, lastError: currentError };
-        errorData.count++;
-        errorData.lastError = currentError;
-        this.errorTracker.set(operationId, errorData);
-        
-        // Log error
-        logger.error('api', `Attempt ${attempt} failed:`, currentError);
-        
-        // Check if we should retry
-        if (this.shouldRetry(error)) {
-          if (attempt < this.limits.MAX_RETRIES) {
-            const backoffTime = this.calculateBackoff(attempt);
-            logger.info('api', `Retrying after ${backoffTime}ms (attempt ${attempt}/${this.limits.MAX_RETRIES})`);
-            await new Promise(resolve => setTimeout(resolve, backoffTime));
-            continue;
-          }
-        } else {
-          // Non-retryable error
-          break;
+        lastError = error;
+        retries++;
+
+        if (retries <= maxRetries) {
+          const delay = initialDelay * Math.pow(backoffFactor, retries - 1);
+          logger.warn('rate-limiter', `Request failed, retrying in ${delay}ms`, { error, context, retry: retries });
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     }
 
-    // If we get here, all retries failed
-    const totalTime = Date.now() - startTime;
-    const errorInfo = currentError ? {
-      message: currentError.message,
-      name: currentError.name,
-      stack: currentError.stack
-    } : 'Unknown error';
-
-    logger.error('api', 'All retry attempts failed:', errorInfo);
-
-    if (!currentError) {
-      currentError = new Error('Operation failed after all retries');
-    }
-
-    throw currentError;
-  }
-
-  private shouldRetry(error: unknown): boolean {
-    if (error instanceof Error) {
-      const message = error.message.toLowerCase();
-      return message.includes('rate') || 
-             message.includes('quota') ||
-             message.includes('timeout') ||
-             message.includes('busy') ||
-             message.includes('503') ||
-             message.includes('429');
-    }
-    return false;
-  }
-
-  private calculateBackoff(retryCount: number): number {
-    // Exponential backoff with full jitter
-    const baseDelay = Math.min(
-      this.limits.MAX_BACKOFF,
-      this.limits.MIN_BACKOFF * Math.pow(2, retryCount - 1)
-    );
-    
-    // Add jitter to prevent thundering herd
-    const jitter = Math.floor(Math.random() * baseDelay * 0.1);
-    return Math.min(this.limits.MAX_BACKOFF, baseDelay + jitter);
-  }
-
-  getCurrentLimits(): RateLimitInfo {
-    this.resetCounts();
-    return {
-      requestCount: this.requestCount,
-      tokenCount: this.tokenCount,
-      remainingRequests: Math.max(0, this.limits.RPM - this.requestCount),
-      remainingTokens: Math.max(0, this.limits.TPM - this.tokenCount),
-      resetIn: Math.max(0, this.resetInterval - (Date.now() - this.lastReset)),
-      limits: this.limits
-    };
-  }
-
-  // Estimate tokens from text
-  estimateTokens(text: string): number {
-    return Math.ceil(text.length / this.limits.CHARS_PER_TOKEN);
+    logger.error('rate-limiter', `All retries failed for ${context}`, lastError);
+    throw lastError;
   }
 }
 
-// Export singleton instance
 export const rateLimiter = new RateLimiter();
+
+export default rateLimiter;

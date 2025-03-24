@@ -7,6 +7,8 @@ import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context"
 import { VideoContent } from "@/components/analysis/video-content"
 import { MobileSheet } from "@/components/analysis/mobile-sheet"
 import { CoursePanel } from "@/components/analysis/course-panel"
+import { CourseGeneration } from "@/components/analysis/course-generation"
+import { CourseGenerationProvider } from '@/hooks/use-course-generation'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -135,35 +137,13 @@ function Content({ initialContent, initialError }: ContentProps) {
             />
           )}
 
-          {/* Right side - Either course panel or generate button */}
+          {/* Right side - Either course panel, generation UI, or generate button */}
           {courseData || courseGenerating ? (
             <CoursePanel className="flex-1 z-10" />
           ) : (
             <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-              <div className="h-full overflow-auto hover:scrollbar scrollbar-thin p-6 flex flex-col items-center justify-center">
-                <div className="text-center max-w-md">
-                  <h3 className="text-xl font-semibold mb-2">Ready to create a course?</h3>
-                  <p className="text-muted-foreground mb-6">
-                    Generate a structured learning experience from the selected content.
-                  </p>
-
-                  <Button
-                    onClick={handleGenerateCourse}
-                    disabled={!videoData}
-                    size="lg"
-                    className="gap-2 px-6 py-6 h-auto text-base font-medium transition-all hover:scale-105 hover:shadow-md"
-                  >
-                    <Sparkles className="h-5 w-5" />
-                    Generate Course
-                  </Button>
-
-                  <p className="text-sm text-muted-foreground mt-6">
-                    {!videoData
-                      ? "Select content from the left panel to begin"
-                      : `Using ${isPlaylist(videoData) ? "playlist" : "video"}: ${videoData.title.slice(0, 50)}${videoData.title.length > 50 ? '...' : ''}`
-                    }
-                  </p>
-                </div>
+              <div className="h-full overflow-auto hover:scrollbar scrollbar-thin">
+                <CourseGeneration />
               </div>
             </div>
           )}
@@ -211,10 +191,12 @@ export function AnalysisClient({ initialContent, initialError }: AnalysisClientP
 
   return (
     <div id="main" className="h-full w-full flex flex-col bg-background overflow-hidden">
-      <AnalysisProvider initialContent={initialContent}>
-        <AnalysisHeader />
-        <Content initialContent={initialContent} initialError={initialError} />
-      </AnalysisProvider>
+      <CourseGenerationProvider>
+        <AnalysisProvider initialContent={initialContent}>
+          <AnalysisHeader />
+          <Content initialContent={initialContent} initialError={initialError} />
+        </AnalysisProvider>
+      </CourseGenerationProvider>
     </div>
   )
 }

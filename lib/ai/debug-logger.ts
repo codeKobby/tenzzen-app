@@ -1,121 +1,44 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-type LogCategory = 'state' | 'api' | 'google' | 'stream' | 'ui';
+type LogCategory = 'api' | 'state' | 'ai' | 'transcript' | 'course-generation' | 'quiz-generation' | 'project-generation';
 
-interface LogOptions {
-  level: LogLevel;
-  timestamp: Date;
-  category: LogCategory;
-  message: string;
-  data?: any;
+interface LogData {
+  [key: string]: any;
 }
 
-class Logger {
-  private isProduction: boolean;
+// Simple debug logger for AI operations
+export const logger = {
+  debug: (category: LogCategory, message: string, data?: LogData) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug(`[DEBUG:${category}] ${message}`, data || '');
+    }
+  },
   
-  constructor() {
-    this.isProduction = process.env.NODE_ENV === 'production';
-  }
+  info: (category: LogCategory, message: string, data?: LogData) => {
+    console.info(`[INFO:${category}] ${message}`, data || '');
+  },
   
-  private log({ level, category, message, data, timestamp }: LogOptions) {
-    // Always log errors regardless of environment
-    if (level === 'error' || !this.isProduction) {
-      const time = timestamp.toISOString();
-      const prefix = `[${time}] [${level.toUpperCase()}] [${category}]`;
-      
-      if (level === 'error') {
-        if (data instanceof Error) {
-          console.error(`${prefix} ${message}`, {
-            error: {
-              message: data.message,
-              stack: data.stack,
-              name: data.name
-            }
+  warn: (category: LogCategory, message: string, data?: LogData) => {
+    console.warn(`[WARN:${category}] ${message}`, data || '');
+  },
+  
+  error: (category: LogCategory, message: string, data?: LogData) => {
+    console.error(`[ERROR:${category}] ${message}`, data || '');
+    
+    // In production, you might want to send errors to a monitoring service
+    if (process.env.NODE_ENV === 'production') {
+      // Send to error monitoring service (if configured)
+      try {
+        if (typeof window !== 'undefined' && (window as any).sentryCapture) {
+          (window as any).sentryCapture({
+            level: 'error',
+            category,
+            message,
+            data
           });
-        } else {
-          console.error(`${prefix} ${message}`, data);
         }
-      } else if (level === 'warn') {
-        console.warn(`${prefix} ${message}`, data);
-      } else if (level === 'info') {
-        console.info(`${prefix} ${message}`, data);
-      } else {
-        console.debug(`${prefix} ${message}`, data);
+      } catch (e) {
+        // Ignore errors in error reporting
       }
     }
   }
-
-  logObject(level: LogLevel, category: LogCategory, message: string, obj: any) {
-    try {
-      // Safely stringify complex objects
-      const safeObj = this.safeStringify(obj);
-      this.log({
-        level,
-        category,
-        message: `${message} - ${safeObj}`,
-        timestamp: new Date()
-      });
-    } catch (e) {
-      this.error(category, `Failed to log object: ${message}`, e);
-    }
-  }
-
-  private safeStringify(obj: any, indent: number = 2): string {
-    try {
-      // Handle circular references in objects
-      const cache: any[] = [];
-      return JSON.stringify(obj, (key, value) => {
-        if (typeof value === 'object' && value !== null) {
-          if (cache.includes(value)) {
-            return '[Circular Reference]';
-          }
-          cache.push(value);
-        }
-        return value;
-      }, indent);
-    } catch (e) {
-      return `[Object cannot be stringified: ${e instanceof Error ? e.message : String(e)}]`;
-    }
-  }
-  
-  debug(category: LogCategory, message: string, data?: any) {
-    this.log({
-      level: 'debug',
-      category,
-      message,
-      data,
-      timestamp: new Date()
-    });
-  }
-  
-  info(category: LogCategory, message: string, data?: any) {
-    this.log({
-      level: 'info',
-      category,
-      message,
-      data,
-      timestamp: new Date()
-    });
-  }
-  
-  warn(category: LogCategory, message: string, data?: any) {
-    this.log({
-      level: 'warn',
-      category,
-      message,
-      data,
-      timestamp: new Date()
-    });
-  }
-  
-  error(category: LogCategory, message: string, error: any) {
-    this.log({
-      level: 'error',
-      category,
-      message,
-      data: error,
-      timestamp: new Date()
-    });
-  }
-}
-
-export const logger = new Logger();
+};

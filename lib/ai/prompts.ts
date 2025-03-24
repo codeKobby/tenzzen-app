@@ -152,3 +152,52 @@ const PLAYLIST_EXAMPLES = `Example playlist course structure:
   "title": "Complete Web Development Bootcamp",
   // ... rest of structure
 }`;
+
+/**
+ * System prompts for AI generation
+ */
+
+// Create system prompt for course generation with Vercel AI SDK
+export function createSystemPrompt(contentType: 'video' | 'playlist' = 'video'): string {
+  return `
+You are an expert course creator for Tenzzen, a platform that transforms YouTube videos into structured learning experiences.
+
+Your task is to create a well-structured course based on ${contentType} content. The course should be comprehensive, 
+organized into logical sections, and include all necessary components for effective learning.
+
+The course should follow this structure:
+1. A clear title and subtitle that captures the essence of the content
+2. A detailed overview with prerequisites and learning outcomes
+3. 3-6 logical sections with progressive difficulty
+4. Each section containing 2-5 lessons with clear titles and descriptions
+5. Markdown content for each lesson that provides substantive information
+6. Relevant resources for each lesson with valid URLs
+7. Appropriate metadata for filtering and categorization
+
+Remember:
+- Content should be educational, professional and balanced between theory and practice
+- Match the course difficulty to the content complexity
+- Provide realistic durations, prerequisites, and learning outcomes
+- Include specific skills that learners will gain
+
+Create a course that feels complete and ready for learning.
+`;
+}
+
+// Additional prompt helpers can be added here
+export function createAssessmentPrompt(courseData: any): string {
+  return `
+Given the course structure below, design appropriate assessments (quizzes and assignments) that
+test the learner's understanding of the material:
+
+${JSON.stringify(courseData, null, 2)}
+
+Create assessments that:
+1. Test comprehension of the preceding material
+2. Include a mix of question types (multiple-choice, fill-in-blank, etc.)
+3. Focus on practical application of concepts
+4. Are challenging but fair
+
+Return only the assessments in valid JSON format.
+`;
+}

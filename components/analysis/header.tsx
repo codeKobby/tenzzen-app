@@ -3,7 +3,6 @@
 import * as React from "react"
 import Link from "next/link"
 import { useAnalysis } from "@/hooks/use-analysis-context"
-import { mockCourseData } from "@/lib/mock/course-data"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, Bell, ArrowLeft, Menu, ArrowUp } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -43,8 +42,7 @@ export function AnalysisHeader() {
   const breadcrumbs = getBreadcrumbFromPath("/analysis")
 
   // Get course title from context or mock data
-  const courseMockData = mockCourseData
-  const courseTitle = courseData || courseGenerating ? courseMockData.title : ""
+  const courseTitle = courseData || courseGenerating ? "Course Title" : ""
 
   // Handle back button navigation
   const handleBack = () => {

@@ -22,10 +22,22 @@ interface CourseDialogProps {
   course: Course | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onCourseDeleted?: () => void  // Add this new prop
 }
 
-export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) {
+export function CourseDialog({ course, open, onOpenChange, onCourseDeleted }: CourseDialogProps) {
   if (!course) return null
+
+  // Function to handle course deletion
+  const handleDelete = () => {
+    if (!course || !onCourseDeleted) return;
+
+    // Call the onCourseDeleted callback
+    onCourseDeleted();
+
+    // Close the dialog
+    onOpenChange(false);
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -37,7 +49,7 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
       )}>
         {/* Course Image */}
         <div className="relative aspect-video w-full">
-          <Image 
+          <Image
             src={course.thumbnail || "/placeholders/course-thumbnail.jpg"}
             alt={course.title}
             fill
@@ -119,7 +131,7 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
                       <Tooltip>
                         <PopoverTrigger asChild>
                           <TooltipTrigger asChild>
-                            <button 
+                            <button
                               className="relative h-8 w-8 rounded-full overflow-hidden ring-2 ring-background hover:ring-primary transition-colors"
                               aria-label={`View details for ${source.name}`}
                             >
