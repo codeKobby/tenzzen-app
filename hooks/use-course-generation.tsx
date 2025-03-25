@@ -5,6 +5,7 @@ import { CourseData } from '@/tools/tools';
 import { logger } from '@/lib/ai/debug-logger';
 import { toast } from 'sonner';
 import useSWR from 'swr';
+import { safeToast } from '@/lib/toast-manager';
 
 // Define the context structure
 interface CourseGenerationContextType {
@@ -61,38 +62,32 @@ export function CourseGenerationProvider({ children }: CourseGenerationProviderP
                 setProgress(data.progress);
                 setProgressMessage(data.message);
 
-                // Handle completion - Fix: use setTimeout to prevent React update during render
+                // Handle completion - Using safeToast instead of setTimeout
                 if (data.progress === 100 && data.result) {
                     setIsGenerating(false);
                     setCourseData(data.result);
                     setTrackingId(null);
-                    // Fix: wrap toast in setTimeout to avoid React updates during render
-                    setTimeout(() => {
-                        toast.success('Course generated successfully');
-                    }, 0);
+                    // Use safe toast manager instead of setTimeout
+                    safeToast.success('Course generated successfully');
                 }
 
-                // Handle errors - Fix: use setTimeout for toast
+                // Handle errors - Using safeToast instead of setTimeout
                 if (data.progress === -1) {
                     setIsGenerating(false);
                     setGenerationError(data.error || 'Failed to generate course');
                     setTrackingId(null);
-                    // Fix: wrap toast in setTimeout to avoid React updates during render
-                    setTimeout(() => {
-                        toast.error('Failed to generate course', {
-                            description: data.error || 'An unexpected error occurred'
-                        });
-                    }, 0);
+                    // Use safe toast manager instead of setTimeout
+                    safeToast.error('Failed to generate course', {
+                        description: data.error || 'An unexpected error occurred'
+                    });
                 }
             },
             onError: (err) => {
                 setIsGenerating(false);
                 setGenerationError(err.message);
                 setTrackingId(null);
-                // Fix: wrap toast in setTimeout
-                setTimeout(() => {
-                    toast.error('Error checking generation progress');
-                }, 0);
+                // Use safe toast manager instead of setTimeout
+                safeToast.error('Error checking generation progress');
             }
         }
     );
@@ -130,12 +125,11 @@ export function CourseGenerationProvider({ children }: CourseGenerationProviderP
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             setGenerationError(errorMessage);
             logger.error('course-generation', 'Failed to start course generation', { error: errorMessage });
-            // Fix: wrap toast in setTimeout
-            setTimeout(() => {
-                toast.error('Failed to start course generation', {
-                    description: errorMessage
-                });
-            }, 0);
+
+            // Use safe toast manager instead of setTimeout
+            safeToast.error('Failed to start course generation', {
+                description: errorMessage
+            });
         }
     }, []);
 
@@ -143,10 +137,9 @@ export function CourseGenerationProvider({ children }: CourseGenerationProviderP
     const cancelGeneration = useCallback(() => {
         setIsGenerating(false);
         setTrackingId(null);
-        // Fix: wrap toast in setTimeout
-        setTimeout(() => {
-            toast.info('Course generation cancelled');
-        }, 0);
+
+        // Use safe toast manager instead of setTimeout
+        safeToast.info('Course generation cancelled');
     }, []);
 
     // Reset generation state

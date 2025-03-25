@@ -175,11 +175,11 @@ export const fetchResourcesFromVideo = tool({
         type: 'video'
       });
       
-      // Add channel as a resource if available - with proper null/undefined check
-      if (videoDetails.channel && videoDetails.channel.id) {
+      // Add channel as a resource if available - with proper property names
+      if (videoDetails.channelId && videoDetails.channelName) {
         resources.push({
-          title: `${videoDetails.channel.name} YouTube Channel`,
-          url: `https://youtube.com/channel/${videoDetails.channel.id}`,
+          title: `${videoDetails.channelName} YouTube Channel`,
+          url: `https://youtube.com/channel/${videoDetails.channelId}`,
           description: 'Channel that produced this content',
           type: 'video'
         });

@@ -215,5 +215,39 @@ export default defineSchema({
     updatedAt: v.optional(v.number()),
     isHidden: v.optional(v.boolean()),
     helpfulCount: v.optional(v.number()),
+  }),
+
+  // Add transcripts table
+  transcripts: defineTable({
+    youtubeId: v.string(),
+    language: v.string(),
+    segments: v.array(
+      v.object({
+        text: v.string(),
+        duration: v.number(),
+        offset: v.number(),
+      })
+    ),
+    cachedAt: v.string(),
   })
+    .index("by_youtube_id_and_language", ["youtubeId", "language"])
+    .index("by_cached_at", ["cachedAt"]),
+
+  // Add videos table for caching YouTube video details
+  videos: defineTable({
+    youtubeId: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    thumbnail: v.optional(v.string()),
+    duration: v.optional(v.string()),
+    channelId: v.optional(v.string()),
+    channelName: v.optional(v.string()),
+    channelAvatar: v.optional(v.string()),
+    views: v.optional(v.string()),
+    likes: v.optional(v.string()),
+    publishDate: v.optional(v.string()),
+    cachedAt: v.string(),
+  })
+    .index("by_youtube_id", ["youtubeId"])
+    .index("by_cached_at", ["cachedAt"]),
 });

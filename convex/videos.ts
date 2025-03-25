@@ -1,17 +1,57 @@
-import { mutation, query } from "./_generated/server"
-import { v } from "convex/values"
-import type { DbVideo, DbPlaylist } from "./youtubeTypes"
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
+import type { DbVideo, DbPlaylist } from "./youtubeTypes";
 
-// Get cached video data if it exists
+// Cache video details
+export const cacheVideo = mutation({
+  args: {
+    youtubeId: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    thumbnail: v.optional(v.string()),
+    duration: v.optional(v.string()),
+    channelId: v.optional(v.string()),
+    channelName: v.optional(v.string()),
+    channelAvatar: v.optional(v.string()),
+    views: v.optional(v.string()),
+    likes: v.optional(v.string()),
+    publishDate: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Check if video already exists
+    const existing = await ctx.db
+      .query("videos")
+      .withIndex("by_youtube_id", (q) => q.eq("youtubeId", args.youtubeId))
+      .first();
+
+    // If video exists, update it
+    if (existing) {
+      return await ctx.db.patch(existing._id, {
+        ...args,
+        cachedAt: new Date().toISOString()
+      });
+    }
+
+    // Otherwise create a new record
+    return await ctx.db.insert("videos", {
+      ...args,
+      cachedAt: new Date().toISOString()
+    });
+  },
+});
+
+// Retrieve cached video details
 export const getCachedVideo = query({
-  args: { youtubeId: v.string() },
-  handler: async (ctx, args): Promise<DbVideo | null> => {
+  args: {
+    youtubeId: v.string(),
+  },
+  handler: async (ctx, args) => {
     return await ctx.db
       .query("videos")
       .withIndex("by_youtube_id", (q) => q.eq("youtubeId", args.youtubeId))
-      .unique()
-  }
-})
+      .first();
+  },
+});
 
 // Get cached playlist data if it exists
 export const getCachedPlaylist = query({
@@ -43,46 +83,6 @@ export const getCachedPlaylist = query({
       ...playlist,
       videos
     };
-  }
-})
-
-// Cache video data
-export const cacheVideo = mutation({
-  args: {
-    youtubeId: v.string(),
-    title: v.string(),
-    description: v.optional(v.string()),
-    thumbnail: v.optional(v.string()),
-    duration: v.optional(v.string()),
-    channelId: v.optional(v.string()),
-    channelName: v.optional(v.string()),
-    channelAvatar: v.optional(v.string()),
-    views: v.optional(v.string()),
-    likes: v.optional(v.string()),
-    publishDate: v.optional(v.string())
-  },
-  handler: async (ctx, args): Promise<string> => {
-    // Check if video already exists
-    const existing = await ctx.db
-      .query("videos")
-      .withIndex("by_youtube_id", (q) => q.eq("youtubeId", args.youtubeId))
-      .unique()
-
-    const now = new Date().toISOString()
-
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        ...args,
-        cachedAt: now
-      })
-      return existing._id
-    }
-
-    // Add new video
-    return await ctx.db.insert("videos", {
-      ...args,
-      cachedAt: now
-    })
   }
 })
 

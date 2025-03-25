@@ -189,6 +189,7 @@ export function AnalysisClient({ initialContent, initialError }: AnalysisClientP
     };
   }, []);
 
+  // Ensure CourseGenerationProvider wraps AnalysisProvider
   return (
     <div id="main" className="h-full w-full flex flex-col bg-background overflow-hidden">
       <CourseGenerationProvider>

@@ -3,6 +3,9 @@ import { generateText, generateObject, type GenerateObjectResult } from 'ai';
 import { generateCourseFromVideo, fetchResourcesFromVideo, type CourseData, type Resource } from '@/tools/tools';
 import { logger } from '@/lib/ai/debug-logger';
 import { z } from 'zod';
+import { getVideoDetails } from '@/actions/getYoutubeData';
+import { identifyYoutubeIdType } from '@/lib/utils/youtube';
+import { VideoDetails } from '@/types/youtube';
 
 // Define the progress update callback type
 export type ProgressCallback = (progress: number, message?: string) => void;
@@ -26,6 +29,7 @@ export async function generateCourseFromYoutubeVideo({
     // First, generate the course structure using our custom tool
     onProgress?.(10, "Analyzing video content");
     
+    // Generate course from video URL using our tool
     const courseResponse = await generateText({
       model: googleModel,
       temperature: 0.5,
@@ -36,7 +40,8 @@ export async function generateCourseFromYoutubeVideo({
         },
         {
           role: 'user',
-          content: `Generate a structured course from the following YouTube video: ${videoUrl}`
+          content: `Generate a structured course from the following YouTube video: ${videoUrl}. 
+          Please ensure the course follows our standard curriculum format with clear sections, lessons, and learning objectives.`
         }
       ],
       tools: {
@@ -48,31 +53,107 @@ export async function generateCourseFromYoutubeVideo({
       }
     });
     
-    // Fix: Properly type and extract the course data from tool calls
+    // Validate tool response
     if (!courseResponse.toolCalls || courseResponse.toolCalls.length === 0) {
-      throw new Error('No tool calls returned from course generation');
+      logger.error('course-generation', 'No tool calls returned', { courseResponse });
+      throw new Error('Course generation failed: No tool calls returned');
     }
     
-    // First extract the args from the tool call and force type to unknown
-    const rawCourseResult = courseResponse.toolCalls[0].args as unknown;
+    // Extract course data from tool call results
+    const courseCallArgs = courseResponse.toolCalls[0].args;
     
-    // Validate the course data structure
-    if (
-      !rawCourseResult || 
-      typeof rawCourseResult !== 'object' || 
-      !('title' in rawCourseResult) || 
-      !('sections' in rawCourseResult)
-    ) {
-      throw new Error('Invalid course data returned');
-    }
-    
-    // Now safely cast to CourseData after validation
-    const courseData = rawCourseResult as CourseData;
-    
-    onProgress?.(50, "Course structure generated");
-    logger.info('course-generation', 'Course structure generated', { 
-      courseTitle: courseData.title || 'Unknown'
+    // Print debug information about what we received
+    logger.debug('course-generation', 'Course data received', { 
+      toolCallName: courseResponse.toolCalls[0].name,
+      argsType: typeof courseCallArgs,
+      hasTitle: courseCallArgs && typeof courseCallArgs === 'object' && 'title' in courseCallArgs,
+      hasSections: courseCallArgs && typeof courseCallArgs === 'object' && 'sections' in courseCallArgs
     });
+    
+    // Get the video ID for backup metadata
+    const { id } = await identifyYoutubeIdType(videoUrl);
+    let videoDetails;
+    
+    try {
+      // Fetch video details for fallback data
+      videoDetails = id ? await getVideoDetails(id) : null;
+      logger.info('course-generation', 'Successfully fetched video details for fallbacks', { 
+        videoId: id
+      });
+    } catch (videoError) {
+      logger.warn('course-generation', 'Failed to fetch video details for fallbacks', { 
+        error: videoError instanceof Error ? videoError.message : 'Unknown error'
+      });
+      videoDetails = null;
+    }
+    
+    // Simple validation
+    if (!courseCallArgs || typeof courseCallArgs !== 'object') {
+      logger.error('course-generation', 'Invalid course data - not an object', {
+        dataType: typeof courseCallArgs
+      });
+      
+      // Create fallback course if we have video details
+      if (videoDetails && id) {
+        logger.info('course-generation', 'Creating fallback course from video details');
+        return createFallbackCourse(videoDetails, id);
+      }
+      
+      throw new Error('Invalid course data returned: Missing or non-object result');
+    }
+    
+    // Cast to course data format but with safety
+    const courseData = courseCallArgs as Partial<CourseData>;
+    
+    // If title is missing but we have video details, use the video title
+    if (!courseData.title && videoDetails) {
+      courseData.title = videoDetails.title;
+      logger.info('course-generation', 'Using video title as fallback for course title');
+    } else if (!courseData.title) {
+      courseData.title = 'Generated Course';
+      logger.warn('course-generation', 'Using default title "Generated Course" as fallback');
+    }
+    
+    // Ensure sections array exists
+    if (!courseData.sections || !Array.isArray(courseData.sections) || courseData.sections.length === 0) {
+      logger.warn('course-generation', 'Missing sections, creating default section');
+      courseData.sections = [{
+        id: 'section-1',
+        title: 'Course Content',
+        description: `Content from ${courseData.title || 'video'}`,
+        duration: videoDetails?.duration || '30 minutes',
+        lessons: [{
+          id: 'lesson-1-1',
+          title: 'Main Concepts',
+          description: `Learn about ${courseData.title || 'main concepts'}`,
+          duration: videoDetails?.duration || '30 minutes',
+          keyPoints: ['Key concepts from the video']
+        }]
+      }];
+    }
+    
+    // Ensure other required fields exist
+    courseData.description = courseData.description || (videoDetails ? videoDetails.description : `A course about ${courseData.title}`);
+    courseData.videoId = courseData.videoId || id || '';
+    courseData.image = courseData.image || (videoDetails ? videoDetails.thumbnail : '');
+    
+    // Ensure we have metadata
+    if (!courseData.metadata) {
+      courseData.metadata = {
+        title: courseData.title,
+        description: courseData.description || `Learn about ${courseData.title}`,
+        objectives: ['Understand the concepts presented in the video'],
+        prerequisites: ['Basic understanding of the topic'],
+        duration: videoDetails?.duration || '30 minutes',
+        category: 'General',
+        difficulty: 'Intermediate',
+      };
+    }
+    
+    // Ensure all properties of CourseData are present for type safety
+    const validatedCourse = courseData as CourseData;
+    
+    onProgress?.(50, "Course structure validated");
     
     // Now fetch additional resources for this course
     onProgress?.(70, "Finding relevant resources");
@@ -99,26 +180,24 @@ export async function generateCourseFromYoutubeVideo({
       }
     });
     
-    // Fix: Properly type and extract resources
+    // Extract resources from the tool response
     let resources: Resource[] = [];
     if (resourcesResponse.toolCalls && resourcesResponse.toolCalls.length > 0) {
       const resourcesResult = resourcesResponse.toolCalls[0].args;
-      // Check if the result is an array of Resource objects
+      
+      // Add resources if they were returned correctly
       if (Array.isArray(resourcesResult)) {
         resources = resourcesResult as Resource[];
       }
     }
     
     onProgress?.(90, "Resources collected");
-    logger.info('course-generation', 'Resources fetched', { 
-      resourceCount: resources.length
-    });
     
     // Add resources to the course data
     const courseWithResources: CourseData = {
-      ...courseData,
+      ...validatedCourse,
       metadata: {
-        ...courseData.metadata,
+        ...validatedCourse.metadata,
         sources: resources
       }
     };
@@ -134,6 +213,56 @@ export async function generateCourseFromYoutubeVideo({
     });
     throw err;
   }
+}
+
+/**
+ * Creates a fallback course when AI generation fails
+ */
+function createFallbackCourse(videoDetails: VideoDetails, videoId: string): CourseData {
+  // Create a minimal valid course structure
+  return {
+    title: videoDetails.title,
+    description: videoDetails.description || `A course based on ${videoDetails.title}`,
+    videoId: videoId,
+    image: videoDetails.thumbnail,
+    metadata: {
+      title: videoDetails.title,
+      description: videoDetails.description || `Learn about ${videoDetails.title}`,
+      objectives: ['Understand the main concepts from this video'],
+      prerequisites: ['Basic understanding of the topic'],
+      duration: videoDetails.duration || '30 minutes',
+      category: 'General',
+      difficulty: 'Intermediate',
+      sources: [{
+        title: videoDetails.title,
+        url: `https://youtube.com/watch?v=${videoId}`,
+        description: 'Original video source',
+        type: 'video'
+      }]
+    },
+    sections: [{
+      id: 'section-1',
+      title: 'Introduction',
+      description: `Introduction to ${videoDetails.title}`,
+      duration: videoDetails.duration || '30 minutes',
+      lessons: [{
+        id: 'lesson-1-1',
+        title: 'Key Concepts',
+        description: `Learn about the main topics in ${videoDetails.title}`,
+        duration: videoDetails.duration || '30 minutes',
+        keyPoints: [
+          'Understanding fundamentals',
+          'Practical applications'
+        ]
+      }]
+    }],
+    assessments: [{
+      type: 'quiz',
+      title: 'Knowledge Check',
+      description: 'Test your understanding of the core concepts',
+      placeholder: true
+    }]
+  };
 }
 
 // Define the quiz question schema
@@ -166,10 +295,10 @@ export async function generateQuizQuestions({
       sectionTitle,
       questionCount
     });
-
+    
     // Define schema for quiz questions
     const quizSchema = z.array(quizQuestionSchema).max(questionCount);
-
+    
     // Generate quiz questions using AI
     const result = await generateObject({
       model: googleModel,
@@ -287,8 +416,11 @@ Create a comprehensive project with step-by-step instructions.`
       ]
     });
     
-    // Fix: More explicit two-step casting through unknown
-    const result = (resultObj as unknown) as ProjectAssignment;
+    // Fix: More robust typing for the project assignment result
+    const result = resultObj as unknown as ProjectAssignment;
+    if (!result || typeof result !== 'object' || !('title' in result)) {
+      throw new Error('Invalid project assignment data returned');
+    }
 
     logger.info('project-generation', 'Project assignment generated', {
       courseTitle,

@@ -18,26 +18,60 @@ export interface ContentDetails {
   title: string;
   description?: string;
   thumbnail?: string;
+  channelId?: string; // Added channelId at the base level for consistency
+  channelName?: string; // Added channelName at the base level for consistency
+  channelAvatar?: string; // Added channelAvatar for consistency
   duration?: string;
-  channel?: ChannelInfo;
-  videos?: VideoDetails[];
+  videos?: VideoItem[] | VideoDetails[]; // Made this more flexible to accept either type
   viewCount?: string;
   likeCount?: string;
   publishedAt?: string;
+  publishDate?: string; // Add publishDate here as an alternative to publishedAt for consistency
 }
 
-// Specific video details
-export interface VideoDetails extends ContentDetails {
+/**
+ * Video details from YouTube API
+ */
+export interface VideoDetails {
+  id: string;
   type: 'video';
-  tags?: string[];
-  isLiveContent?: boolean;
+  title: string;
+  description: string;
+  thumbnail: string;
+  channelId: string;
+  channelName: string;
+  channelAvatar?: string;
+  duration: string;
+  views: string;
+  likes?: string;
+  publishDate?: string; // Keep consistent with implementation
+}
+
+/**
+ * Video item in a playlist
+ */
+export interface VideoItem {
+  id: string;
+  videoId: string;
+  title: string;
+  description: string;
+  thumbnail: string;
+  channelId: string;
+  channelName: string;
+  duration: string;
+  position: number;
+  publishDate?: string; // Keep consistent with implementation
 }
 
 // Specific playlist details
 export interface PlaylistDetails extends ContentDetails {
   type: 'playlist';
   itemCount?: number;
-  videos: VideoDetails[];
+  channelId: string; // Added channelId explicitly here to match the usage
+  channelName: string; // Added channelName explicitly here to match the usage
+  channelAvatar?: string; // Added channelAvatar for consistency
+  videos: VideoItem[]; // Changed to VideoItem[] since that's what's used in getPlaylistDetails
+  publishDate?: string; // Add publishDate to match implementation
 }
 
 // YouTube transcript segment

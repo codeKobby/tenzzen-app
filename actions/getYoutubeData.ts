@@ -78,7 +78,8 @@ export async function getVideoDetails(videoId: string): Promise<VideoDetails> {
       throw new Error('Invalid video ID: Empty ID provided');
     }
 
-    const idType = identifyYoutubeIdType(videoId);
+    // Fix: Wait for the result from identifyYoutubeIdType
+    const { type: idType, id } = await identifyYoutubeIdType(videoId);
     if (idType !== 'video') {
       if (idType === 'playlist') {
         throw new Error('PLAYLIST_ID_PROVIDED');
@@ -86,24 +87,27 @@ export async function getVideoDetails(videoId: string): Promise<VideoDetails> {
     }
 
     try {
-      const cachedVideo = await getConvexClient().query(api.videos.getCachedVideo, { youtubeId: videoId })
-      if (cachedVideo) {
-        const { youtubeId, cachedAt, _id, _creationTime, ...videoData } = cachedVideo
-        const typedResponse: VideoDetails = {
-          id: videoId,
-          type: "video" as const,
-          title: videoData.title || "Untitled",
-          description: videoData.description || "",
-          thumbnail: videoData.thumbnail || "",
-          duration: videoData.duration || "",
-          channelId: videoData.channelId || "",
-          channelName: videoData.channelName || "",
-          channelAvatar: videoData.channelAvatar,
-          views: videoData.views || "0",
-          likes: videoData.likes || "0",
-          publishDate: videoData.publishDate || ""
+      // Fix: Check if videos API exists before trying to use it
+      if (api.videos?.getCachedVideo) {
+        const cachedVideo = await getConvexClient().query(api.videos.getCachedVideo, { youtubeId: videoId })
+        if (cachedVideo) {
+          const { youtubeId, cachedAt, _id, _creationTime, ...videoData } = cachedVideo
+          const typedResponse: VideoDetails = {
+            id: videoId,
+            type: "video" as const,
+            title: videoData.title || "Untitled",
+            description: videoData.description || "",
+            thumbnail: videoData.thumbnail || "",
+            duration: videoData.duration || "",
+            channelId: videoData.channelId || "",
+            channelName: videoData.channelName || "",
+            channelAvatar: videoData.channelAvatar,
+            views: videoData.views || "0",
+            likes: videoData.likes || "0",
+            publishDate: videoData.publishDate || ""
+          }
+          return typedResponse
         }
-        return typedResponse
       }
     } catch (cacheError) {
       console.warn('Failed to retrieve from cache:', cacheError)
@@ -149,10 +153,13 @@ export async function getVideoDetails(videoId: string): Promise<VideoDetails> {
 
     // Cache the video data
     try {
-      await getConvexClient().mutation(api.videos.cacheVideo, {
-        youtubeId: videoId,
-        ...videoDetails
-      })
+      // Fix: Check if videos API exists before trying to use it
+      if (api.videos?.cacheVideo) {
+        await getConvexClient().mutation(api.videos.cacheVideo, {
+          youtubeId: videoId,
+          ...videoDetails
+        })
+      }
     } catch (cacheError) {
       console.warn('Failed to cache video:', cacheError)
     }
@@ -203,7 +210,8 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
           month: 'long',
           day: 'numeric'
         }) : '',
-      videos: []
+      publishedAt: playlist.snippet?.publishedAt || '',  // Include both for compatibility
+      videos: [] // This will be populated with VideoItem[]
     }
 
     if (fetchVideoDetails) {

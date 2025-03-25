@@ -91,14 +91,17 @@ export async function getYoutubeTranscript(
   try {
     // First try to get cached transcript from database
     try {
-      const cachedTranscript = await getConvexClient().query(api.transcripts.getCachedTranscript, { 
-        youtubeId: videoId,
-        language: language || 'en'
-      });
-      
-      if (cachedTranscript && cachedTranscript.segments) {
-        console.log('Using cached transcript for video:', videoId);
-        return cachedTranscript.segments as TranscriptSegment[];
+      // Check if transcripts API exists, otherwise skip cache lookup
+      if (api.transcripts?.getCachedTranscript) {
+        const cachedTranscript = await getConvexClient().query(api.transcripts.getCachedTranscript, { 
+          youtubeId: videoId,
+          language: language || 'en'
+        });
+        
+        if (cachedTranscript && cachedTranscript.segments) {
+          console.log('Using cached transcript for video:', videoId);
+          return cachedTranscript.segments as TranscriptSegment[];
+        }
       }
     } catch (cacheError) {
       console.warn('Failed to retrieve transcript from cache:', cacheError);
@@ -159,13 +162,16 @@ export async function getYoutubeTranscript(
 
     // Cache the transcript in the database
     try {
-      await getConvexClient().mutation(api.transcripts.cacheTranscript, {
-        youtubeId: videoId,
-        language: language || 'en',
-        segments: transcript,
-        cachedAt: new Date().toISOString()
-      });
-      console.log('Transcript cached for video:', videoId);
+      // Check if transcripts API exists, otherwise skip caching
+      if (api.transcripts?.cacheTranscript) {
+        await getConvexClient().mutation(api.transcripts.cacheTranscript, {
+          youtubeId: videoId,
+          language: language || 'en',
+          segments: transcript,
+          cachedAt: new Date().toISOString()
+        });
+        console.log('Transcript cached for video:', videoId);
+      }
     } catch (cacheError) {
       console.warn('Failed to cache transcript:', cacheError);
     }

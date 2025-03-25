@@ -203,143 +203,77 @@ export const generateCourseFromVideo = tool({
       // Fetch video transcript
       const transcript = await getYoutubeTranscript(id);
       
-      if (!transcript || transcript.length === 0) {
-        // Better error handling for missing transcripts
-        logger.warn('state', 'No transcript available, generating simplified course structure', { videoId: id });
-        
-        // Create a basic course structure even without transcript
-        return {
-          title: videoDetails.title,
-          description: videoDetails.description || `A course about ${videoDetails.title}`,
-          videoId: id,
-          image: videoDetails.thumbnail,
-          metadata: {
-            title: videoDetails.title,
-            description: videoDetails.description || `Learn about ${videoDetails.title}`,
-            objectives: ['Understand the concepts presented in the video'],
-            prerequisites: ['Basic understanding of the topic'],
-            duration: videoDetails.duration || '30 minutes',
-            category: 'General',
-            difficulty: 'Intermediate',
-            sources: [{
-              title: videoDetails.title,
-              url: `https://youtube.com/watch?v=${id}`,
-              description: 'Original video source',
-              type: 'video'
-            }]
-          },
-          sections: [{
-            id: 'section-1',
-            title: 'Video Content',
-            description: `Content from ${videoDetails.title}`,
-            lessons: [{
-              id: 'lesson-1-1',
-              title: 'Main Concepts',
-              description: `Learn about ${videoDetails.title}`,
-              duration: videoDetails.duration || '30 minutes',
-              keyPoints: ['Key concepts from the video'],
-              resources: []
-            }],
-            duration: videoDetails.duration || '30 minutes'
-          }],
-          assessments: [{
-            type: 'quiz',
-            title: 'Knowledge Check',
-            description: 'Test your understanding',
-            placeholder: true
-          }]
-        };
-      }
-      
-      // Process transcript to extract course structure
-      const { sections, objectives, category, difficulty } = await processTranscript(
-        transcript, 
-        videoDetails.title
-      );
-      
-      // Calculate total duration from transcript
-      const totalDurationSeconds = transcript.reduce((sum, segment) => sum + segment.duration, 0);
-      const totalDurationMinutes = Math.ceil(totalDurationSeconds / 60);
-      const hours = Math.floor(totalDurationMinutes / 60);
-      const minutes = totalDurationMinutes % 60;
-      const formattedDuration = hours > 0 
-        ? `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''}`
-        : `${minutes} minute${minutes > 1 ? 's' : ''}`;
-      
-      // Prepare default prerequisites (would be AI-determined in production)
-      const prerequisites = [
-        'Basic understanding of the subject',
-        'Access to a computer with internet connection'
-      ];
-      
-      // Sample sources - in production, this would come from the fetchResources tool
-      const defaultSources = [
-        {
-          title: 'YouTube Video',
-          url: `https://youtube.com/watch?v=${id}`,
-          description: 'Original video used for this course',
-          type: 'video' as const
-        }
-      ];
-      
-      // Only add channel source if channel info is available
-      if (videoDetails.channel && videoDetails.channel.id) {
-        defaultSources.push({
-          title: videoDetails.channel.name,
-          url: `https://youtube.com/channel/${videoDetails.channel.id}`,
-          description: 'Channel that created the original content',
-          type: 'video' as const
-        });
-      }
-      
-      // Create course assessments (placeholders)
-      const assessments = [
-        {
-          type: 'quiz' as const,
-          title: 'Knowledge Check',
-          description: 'Test your understanding of the course content',
-          sectionId: sections[0]?.id,
-          placeholder: true
-        },
-        {
-          type: 'project' as const,
-          title: 'Apply Your Knowledge',
-          description: 'Create a project applying what you learned in this course',
-          placeholder: true
-        },
-        {
-          type: 'test' as const,
-          title: 'Final Assessment',
-          description: 'Comprehensive test covering all course material',
-          placeholder: true
-        }
-      ];
-      
-      // Construct the final course object
+      // Create a standard course structure that conforms to our schema
       const course: CourseData = {
         title: videoDetails.title,
-        description: videoDetails.description || `A comprehensive course on ${videoDetails.title}`,
+        description: videoDetails.description || `A course based on ${videoDetails.title}`,
         videoId: id,
         image: videoDetails.thumbnail,
         metadata: {
           title: videoDetails.title,
-          description: videoDetails.description || `Learn about ${videoDetails.title} with this comprehensive course.`,
-          objectives,
-          prerequisites,
-          duration: formattedDuration,
-          category,
-          difficulty,
-          sources: defaultSources
+          description: videoDetails.description || `Learn from ${videoDetails.title}`,
+          objectives: ['Understand the main concepts covered in the video'],
+          prerequisites: [],
+          duration: videoDetails.duration || '30 minutes',
+          category: 'General',
+          difficulty: 'Intermediate',
+          // Add an overview text that will be shown in the course panel
+          overviewText: `This course is created from ${videoDetails.title} by ${videoDetails.channelName || 'a content creator'}. It covers essential concepts and practical applications that will help you master the subject.`
         },
-        sections,
-        assessments
+        sections: [], // Will be populated based on transcript
       };
-
-      logger.info('state', 'Course generation completed', { 
-        title: course.title,
-        sections: course.sections.length 
-      });
-
+      
+      // Process transcript if available to generate sections and lessons
+      if (transcript && transcript.length > 0) {
+        // Process transcript into meaningful sections
+        const { sections, objectives, category, difficulty } = await processTranscript(transcript, videoDetails.title);
+        
+        // Update course with processed data
+        course.sections = sections;
+        course.metadata.objectives = objectives;
+        course.metadata.category = category;
+        course.metadata.difficulty = difficulty;
+        
+        // Create some default prerequisites based on difficulty
+        if (difficulty === 'Beginner') {
+          course.metadata.prerequisites = ['No prior experience required'];
+        } else if (difficulty === 'Intermediate') {
+          course.metadata.prerequisites = ['Basic understanding of the subject', 'Familiarity with core concepts'];
+        } else {
+          course.metadata.prerequisites = ['Strong foundation in the subject', 'Prior experience with related topics'];
+        }
+        
+        // Generate course overview text based on transcript content
+        const transcriptText = transcript.map(segment => segment.text).join(' ');
+        
+        // Use the first 200 characters of transcript as additional context for the overview
+        const previewText = transcriptText.slice(0, 200);
+        course.metadata.overviewText = generateOverviewText(videoDetails, previewText, difficulty, category);
+      } else {
+        // Fallback if no transcript is available - use default sections
+        course.sections = [{
+          id: 'section-1',
+          title: 'Course Content',
+          description: `Content from ${videoDetails.title}`,
+          lessons: [{
+            id: 'lesson-1-1',
+            title: 'Main Concepts',
+            description: `Learn about ${videoDetails.title}`,
+            duration: '30 minutes',
+            keyPoints: ['Key concepts from the video'],
+          }],
+          duration: videoDetails.duration || '30 minutes'
+        }];
+      }
+      
+      // Add assessments
+      course.assessments = [{
+        type: 'quiz',
+        title: 'Knowledge Check',
+        description: 'Test your understanding',
+        placeholder: true
+      }];
+      
       return course;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -348,6 +282,69 @@ export const generateCourseFromVideo = tool({
     }
   }
 });
+
+/**
+ * Generate a more detailed overview text based on video details and transcript
+ */
+function generateOverviewText(
+  videoDetails: VideoDetails, 
+  previewText: string, 
+  difficulty: string, 
+  category: string
+): string {
+  // Combine video information with transcript preview to create a detailed overview
+  const overview = 
+    `This comprehensive course based on "${videoDetails.title}" by ${videoDetails.channelName || 'a content creator'} ` +
+    `is designed for ${difficulty.toLowerCase()} level students interested in ${category}. ` +
+    `You'll gain practical knowledge and skills through a structured learning path ` +
+    `that breaks down complex topics into manageable lessons. ` +
+    `The course covers topics such as ${extractTopicsFromText(previewText)} ` +
+    `and provides hands-on exercises to reinforce your learning.`;
+    
+  return overview;
+}
+
+/**
+ * Extract likely topic keywords from text
+ */
+function extractTopicsFromText(text: string): string {
+  // This is a simplified implementation
+  // In a production environment, this would use NLP techniques
+  
+  // Remove common words and keep only potentially relevant terms
+  const lowercaseText = text.toLowerCase();
+  const words = lowercaseText.split(/\s+/);
+  
+  // Filter out common words and very short words
+  const filteredWords = words.filter(word => {
+    const cleaned = word.replace(/[^a-zA-Z]/g, '');
+    return cleaned.length > 4 && !commonWords.includes(cleaned);
+  });
+  
+  // Get unique words
+  const uniqueWords = Array.from(new Set(filteredWords));
+  
+  // Take up to 5 words
+  const topicWords = uniqueWords.slice(0, 5);
+  
+  // If we have fewer than 3 words, add some generic topics
+  if (topicWords.length < 3) {
+    topicWords.push('core concepts', 'practical applications', 'fundamental principles');
+  }
+  
+  return topicWords.join(', ');
+}
+
+// Common words to filter out when extracting topics
+const commonWords = [
+  'about', 'above', 'after', 'again', 'against', 'all', 'and', 'any', 'are', 'because',
+  'been', 'before', 'being', 'below', 'between', 'both', 'but', 'could', 'did', 'does',
+  'doing', 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', 'has', 'have',
+  'having', 'here', 'how', 'into', 'itself', 'just', 'more', 'most', 'other', 'our', 'out',
+  'over', 'same', 'should', 'some', 'such', 'than', 'that', 'the', 'their', 'them', 'then',
+  'there', 'these', 'they', 'this', 'those', 'through', 'under', 'until', 'very', 'was', 
+  'were', 'what', 'when', 'where', 'which', 'while', 'who', 'with', 'would', 'you', 'your'
+];
 
 // Additional tool for generating course content from a playlist
 export const generateCourseFromPlaylist = tool({

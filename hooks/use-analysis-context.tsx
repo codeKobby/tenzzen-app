@@ -1,12 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useTransition } from "react";
+import React, { createContext, useContext, useState, useCallback, useTransition, useRef, useEffect } from "react";
 import type { ContentDetails } from "@/types/youtube";
 import type { Course } from "@/types/course";
 import { logger } from "@/lib/ai/debug-logger";
 import { formatErrorMessage } from "@/lib/ai/stream-parser";
 import { toast } from "sonner";
 import { useCourseGeneration } from '@/hooks/use-course-generation';
+import { safeToast } from '@/lib/toast-manager';
 
 // Define the StreamEvent type since it appears to be missing from imports
 interface StreamEvent {
@@ -102,16 +103,30 @@ export function AnalysisProvider({ children, initialContent = null }: AnalysisPr
     generationError,
     courseData: generatedCourseData,
     generateCourse: startCourseGeneration,
-    cancelGeneration
+    cancelGeneration: originalCancelGeneration
   } = useCourseGeneration();
 
-  // Generate course from current video
-  const generateCourse = useCallback(() => {
-    if (!videoData) return;
+  // Safe wrapper for cancelGeneration to prevent render-time state updates
+  const cancelGeneration = useCallback(() => {
+    requestAnimationFrame(() => {
+      originalCancelGeneration();
+    });
+  }, [originalCancelGeneration]);
 
-    // Get the video URL from the current video data
-    const videoUrl = `https://youtube.com/watch?v=${videoData.id}`;
-    startCourseGeneration(videoUrl);
+  // Generate course from current video - with safe toast handling
+  const generateCourse = useCallback(async () => {
+    if (!videoData) return Promise.resolve();
+
+    try {
+      // Get the video URL from the current video data
+      const videoUrl = `https://youtube.com/watch?v=${videoData.id}`;
+      return startCourseGeneration(videoUrl);
+    } catch (error) {
+      logger.error('course-generation', 'Error starting course generation', { error });
+      // Use safeToast instead of pendingToastsRef
+      safeToast.error('Failed to start course generation');
+      return Promise.reject(error);
+    }
   }, [videoData, startCourseGeneration]);
 
   // Update context value to use the variables from useCourseGeneration

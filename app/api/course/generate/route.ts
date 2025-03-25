@@ -65,6 +65,12 @@ export async function POST(req: NextRequest) {
           }
         });
         
+        // Log the course structure for debugging
+        logger.info('api', 'Course generation successful', {
+          title: course.title || 'Untitled Course', 
+          sectionCount: course.sections?.length || 0
+        });
+        
         // Store result in tracking map with 100% progress
         const existing = progressTracker.get(trackingId);
         if (existing) {
@@ -84,13 +90,16 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         
+        // Add more detailed logging for troubleshooting
+        console.error('Course generation error:', error);
+        
         // Store error in tracking map
         const existing = progressTracker.get(trackingId);
         if (existing) {
           progressTracker.set(trackingId, {
             ...existing,
             progress: -1,
-            message: `Error: ${errorMessage}`,
+            message: `Error: ${errorMessage.substring(0, 100)}`, // Truncate very long error messages
             error: errorMessage
           });
         }

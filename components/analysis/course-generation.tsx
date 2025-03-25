@@ -1,9 +1,10 @@
 "use client"
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useAnalysis } from '@/hooks/use-analysis-context';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2, X } from 'lucide-react';
+import { Sparkles, Loader2, X, AlertCircle } from 'lucide-react';
+import { safeToast } from '@/lib/toast-manager';
 
 export function CourseGeneration() {
   const {
@@ -16,17 +17,36 @@ export function CourseGeneration() {
     cancelGeneration
   } = useAnalysis();
 
-  // Fix: Use useCallback to prevent state updates during render
+  // Add local error state to capture and display detailed errors
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+
+  // Fix: Use useCallback with improved error handling
   const handleGenerateCourse = useCallback(() => {
     if (videoData && !courseGenerating) {
-      generateCourse();
+      // Clear any previous errors
+      setErrorDetails(null);
+
+      // Use requestAnimationFrame to defer the state update to next frame
+      requestAnimationFrame(() => {
+        generateCourse().catch(error => {
+          console.error("Error generating course:", error);
+          // Capture detailed error information
+          setErrorDetails(error instanceof Error ? error.message : "An unexpected error occurred");
+          // Use safeToast for error notification
+          safeToast.error("Failed to generate course", {
+            description: error instanceof Error ? error.message : "An unexpected error occurred"
+          });
+        });
+      });
     }
   }, [videoData, courseGenerating, generateCourse]);
 
-  // Fix: Use useCallback for cancel handler
+  // Fix: Use useCallback for cancel handler with requestAnimationFrame
   const handleCancel = useCallback(() => {
     if (cancelGeneration) {
-      cancelGeneration();
+      requestAnimationFrame(() => {
+        cancelGeneration();
+      });
     }
   }, [cancelGeneration]);
 
@@ -62,9 +82,32 @@ export function CourseGeneration() {
           </div>
         ) : (
           <>
-            {courseError && (
-              <div className="text-red-500 mb-4 p-3 bg-red-50 dark:bg-red-950/30 rounded-md">
-                {courseError}
+            {(courseError || errorDetails) && (
+              <div className="text-red-500 mb-4 p-3 bg-red-50 dark:bg-red-950/30 rounded-md flex flex-col gap-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>{courseError || "Failed to generate course"}</span>
+                </div>
+
+                {errorDetails && errorDetails !== courseError && (
+                  <div className="text-xs mt-1 text-left">
+                    <details>
+                      <summary className="cursor-pointer">Technical details</summary>
+                      <p className="mt-1 break-words">{errorDetails}</p>
+                    </details>
+                  </div>
+                )}
+
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-0"
+                  onClick={() => {
+                    window.open(`https://status.tenzzen.com`, '_blank');
+                  }}
+                >
+                  Check System Status
+                </Button>
               </div>
             )}
             <Button

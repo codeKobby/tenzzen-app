@@ -3,8 +3,6 @@
 import React, { useRef, useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { useAnalysis } from "@/hooks/use-analysis-context"
-// Remove the import for mockCourseData
-// import { mockCourseData } from "@/lib/mock/course-data"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "../ui/button"
 import {
@@ -35,140 +33,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { toast } from "sonner"
+import { toast } from "@/components/custom-toast"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { safelyEnrollInCourse } from "@/lib/api-wrapper"
-import { mockSources } from "@/lib/mock/sources"
-
-// Mock sources data for the course
-const mockSources = [
-  {
-    name: "YouTube",
-    type: "video",
-    avatar: "https://www.youtube.com/favicon.ico",
-    url: "https://youtube.com"
-  },
-  {
-    name: "MDN Web Docs",
-    type: "documentation",
-    avatar: "https://developer.mozilla.org/favicon-48x48.png",
-    url: "https://developer.mozilla.org"
-  },
-  {
-    name: "W3Schools",
-    type: "tutorial",
-    avatar: "https://www.w3schools.com/favicon.ico",
-    url: "https://www.w3schools.com"
-  },
-  {
-    name: "CSS Tricks",
-    type: "blog",
-    avatar: "https://css-tricks.com/favicon.ico",
-    url: "https://css-tricks.com"
-  }
-];
-
-// Update mock course data to include all required fields for UI
-function enrichCourseData(courseData: any) {
-  // Make sure the course has all required fields for database and UI
-  return {
-    ...courseData,
-    metadata: {
-      ...courseData.metadata,
-      category: courseData.metadata?.category || "Programming",
-      difficulty: courseData.metadata?.difficulty || "Beginner",
-      duration: courseData.metadata?.duration || "6 weeks",
-      sources: mockSources
-    },
-    // Make sure each section has the required fields
-    sections: courseData.sections?.map((section: any, sectionIndex: number) => ({
-      ...section,
-      id: section.id || `section-${sectionIndex + 1}`,
-      lessons: section.lessons?.map((lesson: any, lessonIndex: number) => ({
-        ...lesson,
-        id: lesson.id || `lesson-${sectionIndex + 1}-${lessonIndex + 1}`,
-      }))
-    })) || []
-  };
-}
-
-// Add a local mock data structure to replace the imported one
-const mockCourseData = {
-  title: "Introduction to Web Development",
-  description: "Learn the fundamentals of web development including HTML, CSS, and JavaScript",
-  videoId: "W6NZfCO5SIk",
-  image: "https://i.ytimg.com/vi/W6NZfCO5SIk/maxresdefault.jpg",
-  metadata: {
-    title: "Introduction to Web Development",
-    description: "Learn the fundamentals of web development including HTML, CSS, and JavaScript",
-    objectives: [
-      "Understand HTML structure and semantics",
-      "Learn CSS styling techniques",
-      "Build interactive elements with JavaScript"
-    ],
-    prerequisites: ["Basic computer skills", "No prior coding experience required"],
-    duration: "3 hours",
-    category: "Programming",
-    difficulty: "Beginner"
-  },
-  sections: [
-    {
-      id: "section-1",
-      title: "Introduction",
-      description: "Getting started with web development",
-      lessons: [
-        {
-          id: "lesson-1-1",
-          title: "Web Development Overview",
-          description: "Introduction to web development concepts",
-          duration: "15 minutes",
-          keyPoints: ["Web development basics", "How websites work"]
-        },
-        {
-          id: "lesson-1-2",
-          title: "Setting Up Your Environment",
-          description: "Configuring your development tools",
-          duration: "10 minutes",
-          keyPoints: ["Code editors", "Browser tools"]
-        }
-      ],
-      duration: "25 minutes"
-    },
-    {
-      id: "section-2",
-      title: "HTML Fundamentals",
-      description: "Learn the building blocks of web pages",
-      lessons: [
-        {
-          id: "lesson-2-1",
-          title: "HTML Basics",
-          description: "Understanding HTML structure",
-          duration: "20 minutes",
-          keyPoints: ["HTML tags", "Document structure"]
-        },
-        {
-          id: "lesson-2-2",
-          title: "Common HTML Elements",
-          description: "Working with text, links, and images",
-          duration: "25 minutes",
-          keyPoints: ["Text formatting", "Links and images"]
-        }
-      ],
-      duration: "45 minutes"
-    }
-  ],
-  assessments: [
-    {
-      type: "quiz",
-      title: "HTML Fundamentals Quiz",
-      description: "Test your understanding of HTML basics",
-      placeholder: true
-    }
-  ]
-};
 
 // Action Buttons component that can be rendered in multiple places
 function ActionButtons({ className }: { className?: string }) {
@@ -187,10 +57,15 @@ function ActionButtons({ className }: { className?: string }) {
       // Start loading state
       setIsEnrolling(true)
 
-      // Use course data from context or fallback to mock data
-      const courseToEnroll = courseData || mockCourseData;
+      // Make sure we have course data and a user ID
+      if (!courseData) {
+        toast.error("No course data available", {
+          description: "Please generate a course first"
+        });
+        setIsEnrolling(false);
+        return;
+      }
 
-      // Make sure we have a user ID
       if (!userId) {
         toast.error("Please sign in to enroll in courses", {
           description: "You need to be logged in to enroll in courses"
@@ -199,24 +74,21 @@ function ActionButtons({ className }: { className?: string }) {
         return;
       }
 
-      // Enrich course data to ensure it has all required fields
-      const enrichedCourse = enrichCourseData(courseToEnroll);
-
-      // Prepare course data for enrollment
+      // Prepare course data for enrollment - using actual AI-generated content
       const courseDataForEnrollment = {
-        title: enrichedCourse.title,
-        description: enrichedCourse.description || "",
-        videoId: enrichedCourse.videoId || "W6NZfCO5SIk", // default if not available
-        thumbnail: enrichedCourse.image || `/course-thumbnails/course-${Math.floor(Math.random() * 5) + 1}.jpg`,
+        title: courseData.title,
+        description: courseData.description || "",
+        videoId: courseData.videoId || "",
+        thumbnail: courseData.image || `/course-thumbnails/course-${Math.floor(Math.random() * 5) + 1}.jpg`,
         metadata: {
-          difficulty: enrichedCourse.metadata?.difficulty,
-          duration: enrichedCourse.metadata?.duration,
-          prerequisites: enrichedCourse.metadata?.prerequisites || [],
-          objectives: enrichedCourse.metadata?.objectives || [],
-          category: enrichedCourse.metadata?.category || "Programming",
-          sources: mockSources
+          difficulty: courseData.metadata?.difficulty,
+          duration: courseData.metadata?.duration,
+          prerequisites: courseData.metadata?.prerequisites || [],
+          objectives: courseData.metadata?.objectives || [],
+          category: courseData.metadata?.category || "General",
+          sources: courseData.metadata?.sources || []
         },
-        sections: enrichedCourse.sections
+        sections: courseData.sections
       };
 
       // Use the safe enrollment wrapper
@@ -303,186 +175,172 @@ function ActionButtons({ className }: { className?: string }) {
   );
 }
 
-// Updated Course Summary section
+// Updated Course Summary section to use AI-generated content
 function CourseSummary({ course }: { course: any }) {
-  // Calculate total lessons count
+  // Calculate total lessons count from actual course data
   const totalLessons = course.sections?.reduce(
     (acc: number, section: any) => acc + (section.lessons?.length || 0),
     0
   ) || 0;
 
-  // Use mock data for assignments and tests 
-  const assignmentsCount = 6; // Mock data
-  const testsCount = 3; // Mock data
-
-  // Define course category and subcategory/tag
-  const courseCategory = "Programming";
-  const courseTag = "Web Development";
+  // Calculate assessments count from the actual course data
+  const assessmentsCount = course.assessments?.length || 0;
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h3 className="font-semibold text-lg">About this course</h3>
         <p className="text-muted-foreground text-sm mt-1 line-clamp-3">
-          {course.description}
+          {course.description || "Transform this video into a structured learning experience."}
         </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {/* Main Course category badge */}
+        {/* Category badge - use actual course category if available */}
         <div className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-800 ring-1 ring-inset ring-indigo-700/10 dark:bg-indigo-900/30 dark:text-indigo-200 dark:ring-indigo-700/30">
-          {courseCategory}
+          {course.metadata?.category || "General"}
         </div>
 
-        {/* Course tag/subcategory badge */}
-        <div className="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 dark:bg-purple-900/30 dark:text-purple-200 dark:ring-purple-700/30 gap-1">
-          <Tag className="h-3 w-3" />
-          {courseTag}
-        </div>
-
-        {/* Difficulty badge */}
+        {/* Difficulty badge - use actual course difficulty */}
         {course.metadata?.difficulty && (
           <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 dark:bg-blue-900/30 dark:text-blue-200 dark:ring-blue-700/30">
             {course.metadata.difficulty}
           </span>
         )}
 
-        {/* Duration badge - showing hours instead of weeks */}
+        {/* Duration badge - using actual course duration */}
         <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-900/30 dark:text-green-200 dark:ring-green-700/30 gap-1">
           <Clock className="h-3 w-3" />
-          24 hours
+          {course.metadata?.duration || "Variable duration"}
         </span>
       </div>
 
-      {/* Course stats */}
+      {/* Course stats using actual numbers */}
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
           <BookOpen className="h-3.5 w-3.5" />
-          <span>{totalLessons} Lessons</span>
+          <span>{totalLessons} Lesson{totalLessons !== 1 ? 's' : ''}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <FileText className="h-3.5 w-3.5" />
-          <span>{assignmentsCount} Assignments</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <TestTube2 className="h-3.5 w-3.5" />
-          <span>{testsCount} Tests</span>
-        </div>
-      </div>
-
-      {/* Sources section with overlapping avatars and tooltips */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">Sources</span>
-          <span className="text-xs text-muted-foreground">{mockSources.length} total</span>
-        </div>
-
-        <TooltipProvider delayDuration={300}>
-          <div className="flex -space-x-2">
-            {mockSources.map((source, index) => (
-              <Tooltip key={index}>
-                <TooltipTrigger asChild>
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="transition-transform hover:scale-110 hover:z-10"
-                  >
-                    <Avatar className={cn(
-                      "h-7 w-7 border-2 border-background",
-                      index > 3 && "opacity-80"
-                    )}>
-                      <AvatarImage src={source.avatar} alt={source.name} />
-                      <AvatarFallback className="text-[10px] font-medium bg-primary/10 text-primary">
-                        {source.name.substring(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">
-                  <div className="font-medium">{source.name}</div>
-                  <div className="text-muted-foreground capitalize">{source.type}</div>
-                </TooltipContent>
-              </Tooltip>
-            ))}
-
-            {mockSources.length > 4 && (
-              <Avatar className="h-7 w-7 border-2 border-background bg-muted">
-                <AvatarFallback>+{mockSources.length - 4}</AvatarFallback>
-              </Avatar>
-            )}
+        {assessmentsCount > 0 && (
+          <div className="flex items-center gap-1">
+            <TestTube2 className="h-3.5 w-3.5" />
+            <span>{assessmentsCount} Assessment{assessmentsCount !== 1 ? 's' : ''}</span>
           </div>
-        </TooltipProvider>
+        )}
       </div>
+
+      {/* Sources section with actual sources from AI */}
+      {course.metadata?.sources && course.metadata.sources.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Sources</span>
+            <span className="text-xs text-muted-foreground">{course.metadata.sources.length} total</span>
+          </div>
+
+          <TooltipProvider delayDuration={300}>
+            <div className="flex -space-x-2">
+              {course.metadata.sources.slice(0, 5).map((source: any, index: number) => {
+                // Generate avatar fallback from source title or type
+                const avatarText = source.title ? source.title.substring(0, 2).toUpperCase() : source.type?.substring(0, 2).toUpperCase() || "SRC";
+
+                // Create a simple color mapping for source types
+                const getColorForType = (type?: string) => {
+                  const colorMap: Record<string, string> = {
+                    'video': 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+                    'documentation': 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+                    'tutorial': 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
+                    'article': 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+                    'code': 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400',
+                    'blog': 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400',
+                  };
+                  return colorMap[type?.toLowerCase() || ''] || 'bg-primary/10 text-primary';
+                };
+
+                return (
+                  <Tooltip key={index}>
+                    <TooltipTrigger asChild>
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="transition-transform hover:scale-110 hover:z-10"
+                      >
+                        <Avatar className={cn(
+                          "h-7 w-7 border-2 border-background",
+                          index > 4 && "opacity-80"
+                        )}>
+                          <AvatarFallback className={cn("text-[10px] font-medium", getColorForType(source.type))}>
+                            {avatarText}
+                          </AvatarFallback>
+                        </Avatar>
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      <div className="font-medium">{source.title}</div>
+                      <div className="text-muted-foreground capitalize">{source.type || "Resource"}</div>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+
+              {/* Show +X more if there are additional sources */}
+              {course.metadata.sources.length > 5 && (
+                <Avatar className="h-7 w-7 border-2 border-background bg-muted">
+                  <AvatarFallback>+{course.metadata.sources.length - 5}</AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+          </TooltipProvider>
+        </div>
+      )}
 
       <ActionButtons className="flex-1 mt-2" />
     </div>
   )
 }
 
-// Simple TabContent component
+// Enhanced TabContent component to use AI-generated content
 function TabContent({ tab, course }: { tab: string; course: any }) {
   if (tab === "overview") {
-    // Enhanced overview tab with more detailed information about skills gained
     return (
       <div className="space-y-6">
-        {/* About this course */}
+        {/* About this course - using actual course description and AI-generated overview */}
         <div>
           <h3 className="text-lg font-medium">About this course</h3>
           <p className="text-muted-foreground mt-1">
             {course.description}
           </p>
-          <p className="text-muted-foreground mt-2">
-            This comprehensive introduction to web development will take you from the very fundamentals
-            of HTML structure to creating interactive web applications with JavaScript.
-            You'll learn industry best practices, responsive design techniques, and how to combine
-            these technologies to build modern websites.
-          </p>
+          {course.metadata?.overviewText && (
+            <p className="text-muted-foreground mt-3">
+              {course.metadata.overviewText}
+            </p>
+          )}
         </div>
 
-        {/* What you'll learn - Skills and knowledge section */}
+        {/* What you'll learn - Skills and knowledge section with AI-generated objectives */}
         <div className="border rounded-lg p-4 bg-slate-50 dark:bg-slate-900/50">
           <h3 className="text-lg font-medium mb-3">What you'll learn</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 dark:text-green-500" />
-              <span className="text-sm">Structure web content semantically with HTML5</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 dark:text-green-500" />
-              <span className="text-sm">Style web pages with CSS layouts and animations</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 dark:text-green-500" />
-              <span className="text-sm">Create responsive designs that work on all devices</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 dark:text-green-500" />
-              <span className="text-sm">Implement interactive features with JavaScript</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 dark:text-green-500" />
-              <span className="text-sm">Build and debug forms with client-side validation</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 dark:text-green-500" />
-              <span className="text-sm">Manipulate the DOM to create dynamic content</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 dark:text-green-500" />
-              <span className="text-sm">Apply web accessibility best practices</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 dark:text-green-500" />
-              <span className="text-sm">Deploy a complete portfolio website</span>
-            </div>
+            {course.metadata?.objectives && course.metadata.objectives.length > 0 ? (
+              course.metadata.objectives.map((objective: string, i: number) => (
+                <div key={i} className="flex items-start gap-2">
+                  <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 dark:text-green-500 shrink-0" />
+                  <span className="text-sm">{objective}</span>
+                </div>
+              ))
+            ) : (
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 dark:text-green-500" />
+                <span className="text-sm">Understand key concepts from the video content</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Learning objectives and Prerequisites side by side */}
+        {/* Learning objectives and Prerequisites side by side - using AI content */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Learning objectives - Left side on desktop */}
-          {course.metadata?.objectives && (
+          {course.metadata?.objectives && course.metadata.objectives.length > 0 && (
             <div>
               <h3 className="text-lg font-medium">Learning objectives</h3>
               <ul className="mt-2 space-y-1 list-disc pl-5">
@@ -494,7 +352,7 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
           )}
 
           {/* Prerequisites - Right side on desktop */}
-          {course.metadata?.prerequisites && (
+          {course.metadata?.prerequisites && course.metadata.prerequisites.length > 0 && (
             <div>
               <h3 className="text-lg font-medium">Prerequisites</h3>
               <ul className="mt-2 space-y-1 list-disc pl-5">
@@ -506,61 +364,51 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
           )}
         </div>
 
-        {/* Career and skill outcomes */}
-        <div>
-          <h3 className="text-lg font-medium">Career outcomes</h3>
-          <p className="text-muted-foreground mt-1">
-            The skills you'll develop in this course are foundational for roles such as:
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-            <div className="border rounded-md p-3">
-              <h4 className="font-medium text-sm">Front-End Developer</h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                Build and implement visual elements that users see and interact with
-              </p>
-            </div>
-            <div className="border rounded-md p-3">
-              <h4 className="font-medium text-sm">Web Designer</h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                Create attractive, functional layouts for websites and web applications
-              </p>
-            </div>
-            <div className="border rounded-md p-3">
-              <h4 className="font-medium text-sm">UI Developer</h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                Focus on implementing user interfaces with HTML, CSS, and JavaScript
-              </p>
-            </div>
-            <div className="border rounded-md p-3">
-              <h4 className="font-medium text-sm">Freelance Web Developer</h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                Create websites and web applications for clients as an independent contractor
-              </p>
+        {/* Career outcomes section - show only if difficulty is provided */}
+        {course.metadata?.difficulty && (
+          <div>
+            <h3 className="text-lg font-medium">Career outcomes</h3>
+            <p className="text-muted-foreground mt-1">
+              Skills you'll develop with this {course.metadata.difficulty.toLowerCase()} level course:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+              {generateCareerOutcomes(course.metadata?.category || 'General', course.metadata.difficulty).map(
+                (outcome, index) => (
+                  <div key={index} className="border rounded-md p-3">
+                    <h4 className="font-medium text-sm">{outcome.title}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {outcome.description}
+                    </p>
+                  </div>
+                )
+              )}
             </div>
           </div>
-        </div>
+        )}
       </div>
     )
   }
 
   if (tab === "content") {
-    // Type the mock completion state properly
-    interface SectionCompletionState {
-      lessonsDone: number;
-      totalLessons: number;
-    }
+    // Simple mock completion state to show UI capabilities
+    // In a real scenario, this would come from the user's progress data
+    const mockCompletionState: Record<number, { lessonsDone: number; totalLessons: number }> = {};
 
-    const mockCompletionState: Record<number, SectionCompletionState> = {
-      0: { lessonsDone: 2, totalLessons: 2 },
-      1: { lessonsDone: 0, totalLessons: 2 },
-      2: { lessonsDone: 0, totalLessons: 2 }
-    };
+    // Initialize the mockCompletionState based on actual course sections
+    if (course.sections) {
+      course.sections.forEach((section: any, idx: number) => {
+        mockCompletionState[idx] = {
+          lessonsDone: 0,
+          totalLessons: section.lessons?.length || 0
+        };
+      });
+    }
 
     return (
       <div className="space-y-6">
-        {/* Collapsible course sections */}
+        {/* Collapsible course sections using actual AI-generated sections */}
         {course.sections?.map((section: any, sectionIndex: number) => {
-          const sectionState = mockCompletionState[sectionIndex as keyof typeof mockCompletionState] ||
+          const sectionState = mockCompletionState[sectionIndex] ||
             { lessonsDone: 0, totalLessons: section.lessons?.length || 0 };
 
           return (
@@ -583,20 +431,15 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="border-t px-4 py-2 space-y-1">
-                  {/* Regular lessons - all lessons are accessible */}
+                  {/* Regular lessons from AI-generated data */}
                   {section.lessons?.map((lesson: any, lessonIndex: number) => (
                     <div
                       key={lessonIndex}
                       className="flex items-center justify-between py-2 px-2 hover:bg-muted/40 rounded-md transition-colors cursor-pointer group"
                     >
                       <div className="flex gap-3 items-center">
-                        <div className={cn(
-                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px]",
-                          lessonIndex < sectionState.lessonsDone
-                            ? "bg-primary/10 text-primary"
-                            : "border"
-                        )}>
-                          {lessonIndex < sectionState.lessonsDone ? <CheckCircle2 className="h-3 w-3" /> : lessonIndex + 1}
+                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px]">
+                          {lessonIndex + 1}
                         </div>
                         <span className="text-sm font-medium">{lesson.title}</span>
                       </div>
@@ -604,196 +447,54 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
                     </div>
                   ))}
 
-                  {/* Add a test after specific sections, but only if lessons completed */}
-                  {sectionIndex === 0 && (
-                    <div
-                      className={cn(
-                        "flex items-center justify-between py-2 px-2 rounded-md",
-                        "mt-2 transition-colors",
-                        sectionState.lessonsDone === sectionState.totalLessons
-                          ? "hover:bg-muted/40 cursor-pointer group"
-                          : "opacity-60 cursor-not-allowed"
-                      )}
-                    >
-                      <div className="flex gap-3 items-center">
-                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30 text-[10px]">
-                          <FileQuestion className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                  {/* Add assessments for this section if they exist */}
+                  {course.assessments?.filter((assessment: any) => assessment.sectionId === section.id)
+                    .map((assessment: any, index: number) => (
+                      <div
+                        key={`assessment-${index}`}
+                        className="flex items-center justify-between py-2 px-2 mt-2 hover:bg-muted/40 rounded-md transition-colors cursor-pointer group"
+                      >
+                        <div className="flex gap-3 items-center">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30 text-[10px]">
+                            <FileQuestion className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">{assessment.title}</span>
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">Test: HTML Fundamentals</span>
-                          {sectionState.lessonsDone < sectionState.totalLessons && (
-                            <span className="text-xs text-muted-foreground">
-                              Complete all lessons to unlock
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {sectionState.lessonsDone === sectionState.totalLessons && (
                         <div className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                           Available
                         </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Add an assignment to the second section, but only if lessons completed */}
-                  {sectionIndex === 1 && (
-                    <div
-                      className={cn(
-                        "flex items-center justify-between py-2 px-2 rounded-md",
-                        "mt-2 transition-colors",
-                        sectionState.lessonsDone === sectionState.totalLessons
-                          ? "hover:bg-muted/40 cursor-pointer group"
-                          : "opacity-60 cursor-not-allowed"
-                      )}
-                    >
-                      <div className="flex gap-3 items-center">
-                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-[10px]">
-                          <Code className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">Assignment: Create a CSS Layout</span>
-                          {sectionState.lessonsDone < sectionState.totalLessons && (
-                            <span className="text-xs text-muted-foreground">
-                              Complete all lessons to unlock
-                            </span>
-                          )}
-                        </div>
                       </div>
-
-                      {sectionState.lessonsDone === sectionState.totalLessons && (
-                        <div className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                          Available
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    ))
+                  }
                 </div>
               </CollapsibleContent>
             </Collapsible>
           );
         })}
-
-        {/* Final project section - locked until all sections are complete */}
-        <Collapsible className="border rounded-lg overflow-hidden">
-          <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/40 transition-colors">
-            <div className="flex items-start gap-3 text-left">
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted/60 text-xs font-semibold">
-                <Lock className="h-3 w-3" />
-              </div>
-              <div>
-                <h3 className="font-medium">Final Project</h3>
-                <p className="text-sm text-muted-foreground">
-                  Build a complete portfolio website
-                  <span className="block text-xs mt-1">Complete all sections to unlock</span>
-                </p>
-              </div>
-            </div>
-            <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="border-t p-4">
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <Lock className="h-8 w-8 text-muted-foreground mb-2" />
-                <h4 className="text-sm font-medium">Project is locked</h4>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Complete all lessons, tests, and assignments first
-                </p>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
       </div>
     )
   }
 
   if (tab === "resources") {
-    // Generate realistic mock video resources with proper typing
-    const videoResources: CourseResource[] = [
-      {
-        title: "MDN Web Docs - HTML Documentation",
-        url: "https://developer.mozilla.org/en-US/docs/Web/HTML",
-        description: "Comprehensive HTML reference and guides",
-        sourceType: "official"
-      },
-      {
-        title: "CSS Tricks - A Complete Guide to Flexbox",
-        url: "https://css-tricks.com/snippets/css/a-guide-to-flexbox/",
-        description: "Visual guide to understanding the Flexbox layout model",
-        sourceType: "official"
-      },
-      {
-        title: "JavaScript.info - The Modern JavaScript Tutorial",
-        url: "https://javascript.info/",
-        description: "From basics to advanced topics with simple explanations",
-        sourceType: "official"
-      }
-    ];
-
-    // Collect all resources from course sections and lessons
-    const courseResources: CourseResource[] = [];
-
-    course.sections?.forEach((section: any) => {
-      section.lessons?.forEach((lesson: any) => {
-        if (lesson.resources?.length) {
-          lesson.resources.forEach((resource: any) => {
-            courseResources.push({
-              ...resource,
-              lesson: lesson.title,
-              section: section.title,
-              sourceType: "course"
-            })
-          })
-        }
-      })
-    })
-
-    // Combine resources with video resources first
-    const allResources = [...videoResources, ...courseResources];
+    // Get actual resources from the course metadata
+    const resources = course.metadata?.sources || [];
 
     return (
       <div className="space-y-6">
-        {/* Video source resources section */}
+        {/* Resources section - using AI-generated resources */}
         <div>
-          <h3 className="text-lg font-medium">Source Resources</h3>
+          <h3 className="text-lg font-medium">Learning Resources</h3>
           <p className="text-muted-foreground mb-4">
-            Official documentation and references cited in the video content
+            Additional materials to support your learning journey
           </p>
           <div className="space-y-3">
-            {videoResources.map((resource, index) => (
-              <div key={index} className="border rounded-lg p-3 bg-muted/10">
-                <a
-                  href={resource.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
-                >
-                  {resource.title}
-                </a>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {resource.description}
-                </p>
-                <div className="mt-2">
-                  <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
-                    Official Resource
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Course supplementary resources */}
-        <div>
-          <h3 className="text-lg font-medium">Supplementary Resources</h3>
-          <p className="text-muted-foreground mb-4">Additional learning materials for each lesson</p>
-          <div className="space-y-3">
-            {courseResources.length === 0 ? (
+            {resources.length === 0 ? (
               <p className="text-muted-foreground">No additional resources available for this course.</p>
             ) : (
-              courseResources.map((resource, index) => (
-                <div key={index} className="border rounded-lg p-3">
+              resources.map((resource: any, index: number) => (
+                <div key={index} className="border rounded-lg p-3 bg-muted/10">
                   <a
                     href={resource.url}
                     target="_blank"
@@ -802,46 +503,25 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
                   >
                     {resource.title}
                   </a>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    From: {resource.section} - {resource.lesson}
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {resource.description}
                   </p>
+                  <div className="mt-2">
+                    <span className={cn(
+                      "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium",
+                      resource.type === 'documentation' && "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200",
+                      resource.type === 'tutorial' && "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-200",
+                      resource.type === 'video' && "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-200",
+                      resource.type === 'article' && "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200",
+                      resource.type === 'blog' && "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200",
+                      resource.type === 'code' && "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200",
+                    )}>
+                      {resource.type ? resource.type.charAt(0).toUpperCase() + resource.type.slice(1) : 'Resource'}
+                    </span>
+                  </div>
                 </div>
               ))
             )}
-          </div>
-        </div>
-
-        {/* Practice resources */}
-        <div>
-          <h3 className="text-lg font-medium">Practice Resources</h3>
-          <p className="text-muted-foreground mb-4">Interactive platforms to practice your skills</p>
-          <div className="space-y-3">
-            <div className="border rounded-lg p-3">
-              <a
-                href="https://codepen.io/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
-              >
-                CodePen - Front-end Development Playground
-              </a>
-              <p className="text-sm text-muted-foreground mt-1">
-                Create, test, and share HTML, CSS, and JavaScript code snippets
-              </p>
-            </div>
-            <div className="border rounded-lg p-3">
-              <a
-                href="https://www.freecodecamp.org/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
-              >
-                freeCodeCamp - Web Development Curriculum
-              </a>
-              <p className="text-sm text-muted-foreground mt-1">
-                Interactive coding challenges and projects with certification
-              </p>
-            </div>
           </div>
         </div>
       </div>
@@ -851,16 +531,77 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
   return null
 }
 
-// Simple ProgressBar component
-function ProgressBar({ value = 0 }: { value?: number }) {
-  return (
-    <div className="w-full max-w-xs bg-secondary rounded-full h-2.5 dark:bg-secondary/20">
-      <div
-        className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-in-out"
-        style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
-      />
-    </div>
-  )
+/**
+ * Generate career outcomes based on course category and difficulty
+ */
+function generateCareerOutcomes(category: string, difficulty: string): Array<{ title: string; description: string }> {
+  // Default outcomes that apply to most categories
+  const defaultOutcomes = [
+    {
+      title: "Problem Solving",
+      description: "Develop analytical thinking and problem-solving skills applicable across domains"
+    },
+    {
+      title: "Technical Knowledge",
+      description: "Build expertise in specialized tools, methodologies and practices"
+    }
+  ];
+
+  // Category-specific outcomes
+  const categoryOutcomes: Record<string, Array<{ title: string; description: string }>> = {
+    'Programming': [
+      {
+        title: "Software Development",
+        description: "Build and implement software solutions across various platforms"
+      },
+      {
+        title: "Code Optimization",
+        description: "Write efficient, maintainable code following best practices"
+      }
+    ],
+    'Design': [
+      {
+        title: "UI/UX Design",
+        description: "Create intuitive interfaces that enhance user experience"
+      },
+      {
+        title: "Visual Communication",
+        description: "Effectively communicate ideas through visual elements"
+      }
+    ],
+    'Business': [
+      {
+        title: "Strategic Planning",
+        description: "Develop and implement business strategies for growth"
+      },
+      {
+        title: "Market Analysis",
+        description: "Analyze market trends and identify opportunities"
+      }
+    ],
+    'Data Science': [
+      {
+        title: "Data Analysis",
+        description: "Extract meaningful insights from complex datasets"
+      },
+      {
+        title: "Predictive Modeling",
+        description: "Build models that forecast trends and behaviors"
+      }
+    ]
+  };
+
+  // Select appropriate outcomes
+  let outcomes = [...defaultOutcomes];
+
+  // Add category-specific outcomes if available
+  const specificOutcomes = categoryOutcomes[category];
+  if (specificOutcomes) {
+    outcomes = [...specificOutcomes, ...defaultOutcomes];
+  }
+
+  // Limit to 4 items
+  return outcomes.slice(0, 4);
 }
 
 // Define CourseResource interface to fix TypeScript errors
@@ -868,9 +609,7 @@ interface CourseResource {
   title: string;
   url: string;
   description?: string;
-  sourceType?: string;
-  lesson?: string;
-  section?: string;
+  type?: string;
 }
 
 // Define CoursePanelProps to fix TypeScript errors
@@ -885,11 +624,8 @@ export function CoursePanel({ className }: CoursePanelProps) {
     generationProgress,
     courseError,
     cancelGeneration,
-    courseData: contextCourseData
+    courseData
   } = useAnalysis()
-
-  // Use context data if available, otherwise use mock data
-  const courseData = contextCourseData || mockCourseData
 
   // Track if panel should be visible
   const [isVisible, setIsVisible] = React.useState(false)
@@ -965,9 +701,6 @@ export function CoursePanel({ className }: CoursePanelProps) {
     return null
   }
 
-  // Use a fixed video ID for the course preview
-  const coursePreviewVideoId = "W6NZfCO5SIk"
-
   return (
     <div
       className={cn(
@@ -978,7 +711,12 @@ export function CoursePanel({ className }: CoursePanelProps) {
       {/* Loading state */}
       {courseGenerating && (
         <div className="flex flex-col flex-1 items-center justify-center p-6 overflow-auto hover:scrollbar scrollbar-thin">
-          <ProgressBar value={generationProgress} />
+          <div className="w-full max-w-md bg-secondary rounded-full h-2.5 dark:bg-secondary/20">
+            <div
+              className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-in-out"
+              style={{ width: `${Math.min(Math.max(generationProgress, 0), 100)}%` }}
+            />
+          </div>
           <p className="text-center mt-4 text-muted-foreground">
             {progressMessage || "Generating course content..."}
           </p>
@@ -1021,7 +759,7 @@ export function CoursePanel({ className }: CoursePanelProps) {
             <div className="p-4 border-b" ref={summaryRef}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <YouTubeEmbed
-                  videoId={courseData.videoId || "W6NZfCO5SIk"}
+                  videoId={courseData.videoId || ""}
                   title="Course Preview"
                   enablePiP
                 />
