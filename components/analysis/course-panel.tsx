@@ -710,19 +710,29 @@ export function CoursePanel({ className }: CoursePanelProps) {
     >
       {/* Loading state */}
       {courseGenerating && (
-        <div className="flex flex-col flex-1 items-center justify-center p-6 overflow-auto hover:scrollbar scrollbar-thin">
-          <div className="w-full max-w-md bg-secondary rounded-full h-2.5 dark:bg-secondary/20">
+        <div className="flex flex-col flex-1 items-center justify-center p-6 overflow-auto hover:scrollbar scrollbar-thin animate-fade-in">
+          <div className="w-full max-w-md bg-secondary rounded-full h-3 dark:bg-secondary/20 relative mb-6">
             <div
-              className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-in-out"
+              className="bg-gradient-to-r from-primary to-blue-500 h-3 rounded-full transition-all duration-500 ease-in-out shadow-lg"
               style={{ width: `${Math.min(Math.max(generationProgress, 0), 100)}%` }}
             />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs text-muted-foreground font-medium tracking-wide animate-pulse">
+                {progressMessage || "Generating course content..."}
+              </span>
+            </div>
           </div>
-          <p className="text-center mt-4 text-muted-foreground">
-            {progressMessage || "Generating course content..."}
-          </p>
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-10 w-10 animate-spin text-primary mb-2" />
+            <ul className="text-xs text-muted-foreground space-y-1 text-center max-w-xs">
+              <li>• This may take up to a minute for long videos</li>
+              <li>• Please keep this tab open, you can browse other tabs</li>
+              <li>• Your course will be ready soon!</li>
+            </ul>
+          </div>
           <Button
             variant="outline"
-            className="mt-4"
+            className="mt-6"
             onClick={cancelGeneration}
           >
             Cancel

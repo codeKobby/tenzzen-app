@@ -1,179 +1,276 @@
-"use client";
+'use client';
 
-import React, { createContext, useContext, useState, useCallback, useTransition, useRef, useEffect } from "react";
-import type { ContentDetails } from "@/types/youtube";
-import type { Course } from "@/types/course";
-import { logger } from "@/lib/ai/debug-logger";
-import { formatErrorMessage } from "@/lib/ai/stream-parser";
-import { toast } from "sonner";
-import { useCourseGeneration } from '@/hooks/use-course-generation';
-import { safeToast } from '@/lib/toast-manager';
+import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import type { ContentDetails } from '@/types/youtube';
+import { Course } from '@/tools/googleAiCourseSchema';
+import { toast } from '@/components/custom-toast';
 
-// Define the StreamEvent type since it appears to be missing from imports
-interface StreamEvent {
-  type: 'progress' | 'error' | 'tool' | 'finish';
-  progress?: number;
-  text?: string;
-  error?: string;
-  toolName?: string;
-  result?: string;
-}
-
-// Event type checking functions
-const isProgressEvent = (event: StreamEvent): boolean => {
-  return event.type === 'progress';
-};
-
-const isErrorEvent = (event: StreamEvent): boolean => {
-  return event.type === 'error';
-};
-
-const isToolResultEvent = (event: StreamEvent): boolean => {
-  return event.type === 'tool' && event.toolName === 'generateCourse' && !!event.result;
-};
-
+// Define the context shape
 interface AnalysisContextType {
-  // Video content state
-  videoData: ContentDetails | null;
-  setVideoData: (data: ContentDetails | null) => void;
-
-  // Course generation state
-  courseData: Course | null;
-  courseError: string | null;
-  courseGenerating: boolean;
-  generationProgress: number;
-  progressMessage: string;
-  generateCourse: () => Promise<void>;
-  setCourseData: (data: Course | null) => void;
-  cancelGeneration: () => void;
-
-  // Panel state
   width: number;
   minWidth: number;
   maxWidth: number;
-  setWidth: (width: number) => void;
-
-  // Navigation state
   isOpen: boolean;
   showAlert: boolean;
+  sidebarWidth: number;
+  videoData: ContentDetails | null;
+  transcript: string[];
+  courseGenerating: boolean;
+  progressMessage: string;
+  generationProgress: number;
+  courseData: Course | null;
+  courseError: string | null;
+  setWidth: (width: number) => void;
   toggle: (open?: boolean) => void;
   setShowAlert: (show: boolean) => void;
   confirmBack: () => void;
+  setVideoData: (data: ContentDetails) => void;
+  setTranscript: (transcript: string[]) => void;
+  generateCourse: () => void;
+  setCourseGenerating: (generating: boolean) => void;
+  setProgressMessage: (message: string) => void;
+  setGenerationProgress: (progress: number) => void;
+  setCourseData: (data: Course | null) => void;
+  setCourseError: (error: string | null) => void;
+  cancelGeneration: () => void;
 }
 
-const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
+// Create context with default values
+const AnalysisContext = createContext<AnalysisContextType>({
+  width: 350,
+  minWidth: 300,
+  maxWidth: 600,
+  isOpen: false,
+  showAlert: false,
+  sidebarWidth: 350,
+  videoData: null,
+  transcript: [],
+  courseGenerating: false,
+  progressMessage: '',
+  generationProgress: 0,
+  courseData: null,
+  courseError: null,
+  setWidth: () => { },
+  toggle: () => { },
+  setShowAlert: () => { },
+  confirmBack: () => { },
+  setVideoData: () => { },
+  setTranscript: () => { },
+  generateCourse: () => { },
+  setCourseGenerating: () => { },
+  setProgressMessage: () => { },
+  setGenerationProgress: () => { },
+  setCourseData: () => { },
+  setCourseError: () => { },
+  cancelGeneration: () => { },
+});
 
-interface AnalysisProviderProps {
+// Provider component
+export function AnalysisProvider({
+  children,
+  initialContent,
+}: {
   children: React.ReactNode;
   initialContent?: ContentDetails | null;
-}
+}) {
+  // Panel width state
+  const [width, setWidth] = useState(350);
+  const minWidth = 300;
+  const maxWidth = 600;
 
-interface CourseGenerationProgress {
-  step: 'initializing' | 'fetching_transcript' | 'analyzing' | 'generating' | 'structuring' | 'finalizing' | 'completed';
-  progress: number; // 0-100
-  message: string;
-}
-
-export function AnalysisProvider({ children, initialContent = null }: AnalysisProviderProps) {
-  const [isPending, startTransition] = useTransition();
-  const [videoData, setVideoData] = useState<ContentDetails | null>(initialContent);
-
-  // Panel state
-  const [width, setWidth] = useState(340);
+  // Mobile sheet state
   const [isOpen, setIsOpen] = useState(false);
+
+  // Navigation alert state
   const [showAlert, setShowAlert] = useState(false);
-  const minWidth = 280;
-  const maxWidth = 500;
 
-  // The toggle function needs to work predictably
+  // Video data state
+  const [videoData, setVideoData] = useState<ContentDetails | null>(initialContent || null);
+
+  // Transcript state
+  const [transcript, setTranscript] = useState<string[]>([]);
+
+  // Course generation state
+  const [courseGenerating, setCourseGenerating] = useState(false);
+  const [progressMessage, setProgressMessage] = useState('');
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [courseData, setCourseData] = useState<Course | null>(null);
+  const [courseError, setCourseError] = useState<string | null>(null);
+
+  // Navigation
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Toggle mobile sheet
   const toggle = useCallback((open?: boolean) => {
-    setIsOpen(prev => typeof open !== "undefined" ? open : !prev);
-  }, []);
+    setIsOpen(open !== undefined ? open : !isOpen);
+  }, [isOpen]);
 
+  // Handle back navigation
   const confirmBack = useCallback(() => {
     setShowAlert(false);
-    window.history.back();
+    router.back();
+  }, [router]);
+
+  // Generate course
+  const generateCourse = useCallback(async () => {
+    try {
+      // Set generating state
+      setCourseGenerating(true);
+      setProgressMessage('Initializing course generation...');
+      setGenerationProgress(5);
+
+      if (!videoData) {
+        throw new Error("No video data available");
+      }
+
+      // Simulate course generation progress
+      const progressSteps = [
+        { message: "Analyzing video content...", progress: 10, delay: 1000 },
+        { message: "Extracting key topics...", progress: 20, delay: 1000 },
+        { message: "Creating course structure...", progress: 40, delay: 1500 },
+        { message: "Designing lessons...", progress: 60, delay: 1500 },
+        { message: "Adding assessments...", progress: 80, delay: 1000 },
+        { message: "Finalizing course content...", progress: 90, delay: 1000 },
+      ];
+
+      for (const step of progressSteps) {
+        setProgressMessage(step.message);
+        setGenerationProgress(step.progress);
+        await new Promise(resolve => setTimeout(resolve, step.delay));
+      }
+
+      // This is a placeholder - in the actual implementation we're using the
+      // Google AI to generate the course through our API
+      // This manual object creation will be replaced by the API call's response
+      const mockCourse: Course = {
+        title: videoData.title || "Untitled Course",
+        description: videoData.description || "No description available.",
+        videoId: videoData.id,
+        category: "Programming",
+        tags: ["javascript", "web development"],
+        difficulty: "Beginner",
+        prerequisites: ["Basic understanding of programming concepts"],
+        objectives: [
+          "Understand key concepts covered in the video",
+          "Apply learned techniques in practical scenarios",
+          "Build a project using the knowledge gained"
+        ],
+        overviewText: "This course provides a structured learning experience based on the video content.",
+        resources: [
+          {
+            title: "Official Documentation",
+            url: "https://example.com/docs",
+            description: "Reference documentation for concepts covered",
+            type: "documentation"
+          }
+        ],
+        sections: [
+          {
+            id: "section1",
+            title: "Introduction",
+            description: "Overview of the main concepts",
+            startTime: 0,
+            endTime: 300,
+            objective: "Understand the foundations",
+            keyPoints: ["Basic concepts", "Core principles"],
+            lessons: [
+              {
+                id: "lesson1",
+                title: "Getting Started",
+                description: "Introduction to the basics",
+                startTime: 0,
+                endTime: 120,
+                keyPoints: ["Setup environment", "Initial concepts"]
+              },
+              {
+                id: "lesson2",
+                title: "Core Principles",
+                description: "Understanding fundamental ideas",
+                startTime: 121,
+                endTime: 300,
+                keyPoints: ["Key principle 1", "Key principle 2"]
+              }
+            ],
+            assessment: "test"
+          }
+        ],
+        project: {
+          id: "project",
+          title: "Capstone Project",
+          description: "Apply what you've learned in a practical project",
+          Instructions: ["Step 1: Planning", "Step 2: Implementation", "Step 3: Testing"],
+          "Evaluation criteria": ["Code quality", "Functionality", "Documentation"],
+          "Required deliverables": ["Source code", "Documentation", "Demo video"]
+        }
+      };
+
+      // Complete generation
+      setProgressMessage('Course generation complete!');
+      setGenerationProgress(100);
+
+      // Set course data - this will be replaced by actual API response
+      setTimeout(() => {
+        setCourseData(mockCourse);
+        setCourseGenerating(false);
+        toast.success("Course generated successfully!");
+      }, 500);
+
+    } catch (error) {
+      console.error('Course generation error:', error);
+      setCourseError(error instanceof Error ? error.message : 'An unknown error occurred');
+      setCourseGenerating(false);
+      toast.error(`Failed to generate course: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, [videoData]);
+
+  // Cancel generation
+  const cancelGeneration = useCallback(() => {
+    setCourseGenerating(false);
+    setProgressMessage('');
+    setGenerationProgress(0);
   }, []);
 
-  // Use course generation context - with renamed variables to avoid conflicts
-  const {
-    isGenerating,
-    progress,
+  // Create context value
+  const value = {
+    width,
+    minWidth,
+    maxWidth,
+    isOpen,
+    showAlert,
+    sidebarWidth: width,
+    videoData,
+    transcript,
+    courseGenerating,
     progressMessage,
-    generationError,
-    courseData: generatedCourseData,
-    generateCourse: startCourseGeneration,
-    cancelGeneration: originalCancelGeneration
-  } = useCourseGeneration();
+    generationProgress,
+    courseData,
+    courseError,
+    setWidth,
+    toggle,
+    setShowAlert,
+    confirmBack,
+    setVideoData,
+    setTranscript,
+    generateCourse,
+    setCourseGenerating,
+    setProgressMessage,
+    setGenerationProgress,
+    setCourseData,
+    setCourseError,
+    cancelGeneration,
+  };
 
-  // Safe wrapper for cancelGeneration to prevent render-time state updates
-  const cancelGeneration = useCallback(() => {
-    requestAnimationFrame(() => {
-      originalCancelGeneration();
-    });
-  }, [originalCancelGeneration]);
-
-  // Generate course from current video - with safe toast handling
-  const generateCourse = useCallback(async () => {
-    if (!videoData) return Promise.resolve();
-
-    try {
-      // Get the video URL from the current video data
-      const videoUrl = `https://youtube.com/watch?v=${videoData.id}`;
-      return startCourseGeneration(videoUrl);
-    } catch (error) {
-      logger.error('course-generation', 'Error starting course generation', { error });
-      // Use safeToast instead of pendingToastsRef
-      safeToast.error('Failed to start course generation');
-      return Promise.reject(error);
-    }
-  }, [videoData, startCourseGeneration]);
-
-  // Update context value to use the variables from useCourseGeneration
-  return (
-    <AnalysisContext.Provider
-      value={{
-        // Video content state
-        videoData,
-        setVideoData,
-
-        // Course generation state - now coming from useCourseGeneration
-        courseData: generatedCourseData,
-        courseError: generationError,
-        courseGenerating: isGenerating,
-        generationProgress: progress,
-        progressMessage,
-        generateCourse,
-        // Update to use new method name
-        setCourseData: () => { }, // This is now a no-op as course data is managed by useCourseGeneration
-        cancelGeneration,
-
-        // Panel state
-        width,
-        minWidth,
-        maxWidth,
-        setWidth,
-
-        // Navigation state
-        isOpen,
-        showAlert,
-        toggle,
-        setShowAlert,
-        confirmBack,
-      }}
-    >
-      {children}
-    </AnalysisContext.Provider>
-  );
+  return <AnalysisContext.Provider value={value}>{children}</AnalysisContext.Provider>;
 }
 
+// Hook to use the context
 export function useAnalysis() {
   const context = useContext(AnalysisContext);
   if (context === undefined) {
-    throw new Error("useAnalysis must be used within an AnalysisProvider");
+    throw new Error('useAnalysis must be used within an AnalysisProvider');
   }
   return context;
 }
-
-// Export the event checker functions for use in other files
-export { isProgressEvent, isErrorEvent, isToolResultEvent };

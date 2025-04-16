@@ -16,5 +16,8 @@ export const config = {
   },
   convex: {
     url: getEnvVar('NEXT_PUBLIC_CONVEX_URL')
+  },
+  google: {
+    aiKey: getEnvVar('GOOGLE_GENERATIVE_AI_API_KEY')
   }
 } as const

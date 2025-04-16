@@ -1,236 +1,118 @@
-import { Innertube } from 'youtubei.js'
-import { ConvexHttpClient } from 'convex/browser'
-import { api } from '@/convex/_generated/api'
-import { config } from '@/lib/config'
+'use server';
 
-export interface TranscriptSegment {
-  text: string
-  duration: number
-  offset: number
+import { ConvexHttpClient } from "convex/browser";
+import { Innertube } from 'youtubei.js';
+import { createAILogger } from "@/lib/ai/debug-logger";
+
+// Define the TranscriptSegment type directly in this file to avoid import issues
+interface TranscriptSegment {
+  text: string;
+  start: number;
+  duration: number;
 }
 
-interface YouTubeCaptionTrack {
-  base_url: string
-  language_code: string
-  name: {
-    text: string
-  }
-  vss_id: string
-}
+// Initialize logger
+const logger = createAILogger("youtube-transcript");
 
-// Helper function to format time
-export const formatTranscriptTime = (seconds: number): string => {
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = Math.floor(seconds % 60)
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
-}
-
-// Helper function to get text segment at specific time
-export const findTranscriptSegment = (
-  transcript: TranscriptSegment[],
-  timeInSeconds: number
-): TranscriptSegment | undefined => {
-  return transcript.find(segment => {
-    const start = segment.offset
-    const end = start + segment.duration
-    return timeInSeconds >= start && timeInSeconds < end
-  })
-}
-
-// Helper to get a range of transcript segments
-export const getTranscriptRange = (
-  transcript: TranscriptSegment[],
-  startTime: number,
-  endTime: number
-): TranscriptSegment[] => {
-  return transcript.filter(segment => {
-    const segmentStart = segment.offset
-    const segmentEnd = segmentStart + segment.duration
-    return (segmentStart >= startTime && segmentStart < endTime) ||
-           (segmentEnd > startTime && segmentEnd <= endTime) ||
-           (segmentStart <= startTime && segmentEnd >= endTime)
-  })
-}
-
-// Helper to search transcript segments
-export const searchTranscript = (
-  transcript: TranscriptSegment[],
-  query: string,
-  fuzzy = false
-): TranscriptSegment[] => {
-  const searchTerm = query.toLowerCase()
-  
-  if (fuzzy) {
-    // Fuzzy search implementation
-    return transcript.filter(segment => {
-      const words = searchTerm.split(' ')
-      const text = segment.text.toLowerCase()
-      return words.every(word => text.includes(word))
-    })
-  }
-  
-  // Exact match search
-  return transcript.filter(segment => 
-    segment.text.toLowerCase().includes(searchTerm)
-  )
-}
-
-// Create Convex client for server-side operations
-let convex: ConvexHttpClient;
+// Initialize Convex client
+let convexClient: ConvexHttpClient | null = null;
 const getConvexClient = () => {
-  if (!convex) {
-    convex = new ConvexHttpClient(config.convex.url);
+  if (!convexClient && process.env.NEXT_PUBLIC_CONVEX_URL) {
+    convexClient = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
   }
-  return convex;
-}
+  return convexClient;
+};
 
 export async function getYoutubeTranscript(
   videoId: string,
-  language?: string
+  language: string = "en"
 ): Promise<TranscriptSegment[]> {
   try {
-    // First try to get cached transcript from database
+    logger.debug('Fetching transcript directly from YouTube (skipping cache check)');
+
+    // Fetch from YouTube
+    logger.debug('Fetching transcript from YouTube');
     try {
-      // Check if transcripts API exists, otherwise skip cache lookup
-      if (api.transcripts?.getCachedTranscript) {
-        const cachedTranscript = await getConvexClient().query(api.transcripts.getCachedTranscript, { 
-          youtubeId: videoId,
-          language: language || 'en'
-        });
-        
-        if (cachedTranscript && cachedTranscript.segments) {
-          console.log('Using cached transcript for video:', videoId);
-          return cachedTranscript.segments as TranscriptSegment[];
-        }
+      const youtube = await Innertube.create({
+        generate_session_locally: true,
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)
+      });
+
+      const video = await youtube.getInfo(videoId);
+      if (!video.captions) {
+        logger.warn('No captions available for this video');
+        return [];
       }
-    } catch (cacheError) {
-      console.warn('Failed to retrieve transcript from cache:', cacheError);
-    }
 
-    // If no cached transcript found, fetch from YouTube
-    // Initialize YouTube client
-    const youtube = await Innertube.create({
-      generate_session_locally: true,
-      fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)
-    })
-
-    // Get video info
-    const video = await youtube.getInfo(videoId)
-    
-    if (!video.captions) {
-      throw new Error('No captions available for this video')
-    }
-
-    // Get all captions
-    const tracks = video.captions.caption_tracks as YouTubeCaptionTrack[]
-    if (!tracks || tracks.length === 0) {
-      throw new Error('No caption tracks found')
-    }
-
-    // Select caption track based on language
-    const selectedTrack = language
-      ? tracks.find(track => {
-          const trackLang = track.language_code?.toLowerCase()
-          const trackName = track.name?.text?.toLowerCase()
-          const targetLang = language.toLowerCase()
-          return trackLang === targetLang || trackName === targetLang
-        })
-      : tracks[0]
-
-    if (!selectedTrack) {
-      throw new Error(
-        language 
-          ? `No captions available in language: ${language}` 
-          : 'No caption track available'
-      )
-    }
-
-    // Use the track base URL to fetch captions
-    const captionResponse = await fetch(selectedTrack.base_url)
-    if (!captionResponse.ok) {
-      throw new Error('Failed to fetch captions')
-    }
-
-    const captionXml = await captionResponse.text()
-    const segments = parseCaptionXml(captionXml)
-
-    const transcript = segments.map(segment => ({
-      text: segment.text.trim(),
-      duration: Number(segment.dur) / 1000,
-      offset: Number(segment.start) / 1000
-    }))
-
-    // Cache the transcript in the database
-    try {
-      // Check if transcripts API exists, otherwise skip caching
-      if (api.transcripts?.cacheTranscript) {
-        await getConvexClient().mutation(api.transcripts.cacheTranscript, {
-          youtubeId: videoId,
-          language: language || 'en',
-          segments: transcript,
-          cachedAt: new Date().toISOString()
-        });
-        console.log('Transcript cached for video:', videoId);
+      const tracks = video.captions.caption_tracks;
+      if (!tracks || tracks.length === 0) {
+        logger.warn('No caption tracks found');
+        return [];
       }
-    } catch (cacheError) {
-      console.warn('Failed to cache transcript:', cacheError);
+
+      // Select track based on language
+      const selectedTrack = language
+        ? tracks.find(track => {
+            const trackLang = track.language_code?.toLowerCase();
+            const trackName = track.name?.text?.toLowerCase();
+            const targetLang = language.toLowerCase();
+            return trackLang === targetLang || trackName?.includes(targetLang);
+          })
+        : tracks[0];
+
+      if (!selectedTrack || !selectedTrack.base_url) {
+        logger.warn(
+          language 
+            ? `No captions available in language: ${language}` 
+            : 'No caption track available'
+        );
+        return [];
+      }
+
+      // Fetch and parse transcript
+      const response = await fetch(selectedTrack.base_url);
+      if (!response.ok) {
+        logger.warn('Failed to fetch transcript data');
+        return [];
+      }
+
+      const transcriptXml = await response.text();
+      const segments = parseTranscriptXml(transcriptXml);
+
+      // Don't try to cache - skip it to avoid errors
+      logger.debug('Skipping transcript caching to avoid potential errors');
+
+      return segments;
+    } catch (youtubeError) {
+      logger.error('Error fetching from YouTube:', youtubeError);
+      return [];
     }
-
-    return transcript;
-
   } catch (error) {
-    console.error('Error in getYoutubeTranscript:', error)
-    throw new Error(
-      error instanceof Error 
-        ? error.message 
-        : 'Failed to fetch transcript'
-    )
+    logger.error('Error fetching transcript:', error);
+    return [];
   }
 }
 
-// Helper to parse caption XML
-const parseCaptionXml = (xml: string): Array<{text: string; dur: string; start: string}> => {
-  // Fix: Check if running in browser or server environment and handle accordingly
-  if (typeof window === 'undefined') {
-    // Server-side: Use a minimal XML parser approach
-    const segments: Array<{text: string; dur: string; start: string}> = [];
-    
-    // Simple regex-based XML parsing (for server environment)
-    const textTagRegex = /<text\s+([^>]*)>([\s\S]*?)<\/text>/g;
-    let match;
-    
-    while ((match = textTagRegex.exec(xml)) !== null) {
-      const attributesString = match[1];
-      const text = match[2].trim();
-      
-      // Extract attributes
-      const startMatch = /start="([^"]+)"/.exec(attributesString);
-      const durMatch = /dur="([^"]+)"/.exec(attributesString);
-      
-      segments.push({
-        text: text,
-        start: startMatch ? startMatch[1] : '0',
-        dur: durMatch ? durMatch[1] : '0'
-      });
-    }
-    
-    return segments;
-  } else {
-    // Browser-side: Use the DOM parser
-    const segments: Array<{text: string; dur: string; start: string}> = [];
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xml, 'text/xml');
-    const textNodes = doc.getElementsByTagName('text');
+function parseTranscriptXml(xml: string): TranscriptSegment[] {
+  const segments: TranscriptSegment[] = [];
+  const regex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/g;
 
-    for (let i = 0; i < textNodes.length; i++) {
-      const node = textNodes[i];
-      segments.push({
-        text: node.textContent || '',
-        dur: node.getAttribute('dur') || '0',
-        start: node.getAttribute('start') || '0'
-      });
-    }
-
-    return segments;
+  let match;
+  while ((match = regex.exec(xml)) !== null) {
+    const [_, start, duration, text] = match;
+    segments.push({
+      text: text
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/<[^>]*>/g, '')
+        .trim(),
+      start: Number(start),
+      duration: Number(duration)
+    });
   }
+
+  return segments;
 }

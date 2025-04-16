@@ -1,59 +1,112 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { query, mutation } from "./_generated/server";
+import { TranscriptSegment, TranscriptDoc } from "./schema";
+import { Id } from "./_generated/dataModel";
 
-// Create a cached transcript in the database
+// Get cached transcript
+export const getCachedTranscript = query({
+  args: { 
+    youtubeId: v.string(),
+    language: v.string()
+  },
+  handler: async (ctx, args) => {
+    const results = await ctx.db
+      .query("transcripts")
+      .filter(q => 
+        q.and(
+          q.eq(q.field("youtubeId"), args.youtubeId),
+          q.eq(q.field("language"), args.language)
+        )
+      )
+      .collect();
+
+    const transcript = results[0];
+    if (!transcript) {
+      return null;
+    }
+
+    const oneHourAgo = new Date();
+    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+    const cachedAt = new Date(transcript.cachedAt);
+
+    // Return null if cache is older than 1 hour
+    if (cachedAt < oneHourAgo) {
+      return { _id: transcript._id, expired: true };
+    }
+
+    return transcript;
+  }
+});
+
+// Delete expired transcript
+export const deleteTranscript = mutation({
+  args: {
+    id: v.id("transcripts")
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id);
+  }
+});
+
+// Save transcript to cache
 export const cacheTranscript = mutation({
   args: {
     youtubeId: v.string(),
     language: v.string(),
-    segments: v.array(
-      v.object({
-        text: v.string(),
-        duration: v.number(),
-        offset: v.number(),
-      })
-    ),
-    cachedAt: v.string(),
+    segments: v.array(v.object({
+      text: v.string(),
+      start: v.number(),
+      duration: v.number()
+    })),
+    cachedAt: v.string()
   },
   handler: async (ctx, args) => {
-    // Check if transcript already exists
-    const existing = await ctx.db
+    // Get existing transcript
+    const results = await ctx.db
       .query("transcripts")
-      .withIndex("by_youtube_id_and_language", (q) =>
-        q.eq("youtubeId", args.youtubeId).eq("language", args.language)
+      .filter(q => 
+        q.and(
+          q.eq(q.field("youtubeId"), args.youtubeId),
+          q.eq(q.field("language"), args.language)
+        )
       )
-      .first();
+      .collect();
 
-    // If transcript exists, update it
+    const existing = results[0];
     if (existing) {
-      return await ctx.db.patch(existing._id, {
-        segments: args.segments,
-        cachedAt: args.cachedAt,
-      });
+      await ctx.db.delete(existing._id);
     }
 
-    // Otherwise create a new record
+    // Insert new transcript
     return await ctx.db.insert("transcripts", {
       youtubeId: args.youtubeId,
       language: args.language,
       segments: args.segments,
-      cachedAt: args.cachedAt,
+      cachedAt: args.cachedAt
     });
-  },
+  }
 });
 
-// Retrieve a cached transcript from the database
-export const getCachedTranscript = query({
-  args: {
-    youtubeId: v.string(),
-    language: v.string(),
-  },
-  handler: async (ctx, args) => {
-    return await ctx.db
+// Clean up old transcripts
+export const clearOldTranscripts = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const oneHourAgo = new Date();
+    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+    
+    const oldTranscripts = await ctx.db
       .query("transcripts")
-      .withIndex("by_youtube_id_and_language", (q) =>
-        q.eq("youtubeId", args.youtubeId).eq("language", args.language)
-      )
-      .first();
-  },
+      .collect();
+
+    let deletedCount = 0;
+    for (const transcript of oldTranscripts) {
+      const cachedAt = new Date(transcript.cachedAt);
+      if (cachedAt < oneHourAgo) {
+        await ctx.db.delete(transcript._id);
+        deletedCount++;
+      }
+    }
+
+    return deletedCount;
+  }
 });

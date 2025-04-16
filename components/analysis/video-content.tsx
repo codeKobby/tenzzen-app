@@ -1,24 +1,33 @@
-"use client"
+"use client";
 
-import { useState, useCallback, useMemo } from "react"
-import { useAnalysis } from "@/hooks/use-analysis-context"
-import { Button } from "@/components/ui/button"
-import { Loader2, ChevronDown, ChevronUp, AlertCircle, MinusCircle, Sparkles } from "lucide-react"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { getVideoDetails } from "@/actions/getYoutubeData"
-import type { VideoDetails, PlaylistDetails, VideoItem, ContentDetails } from "@/types/youtube"
-import { startUrl } from "@/lib/utils"
-import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton"
-import { toast } from "sonner"
-import { cn } from "@/lib/utils"
+import { useState, useCallback, useMemo } from "react";
+import { useAnalysis } from "@/hooks/use-analysis-context";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp, AlertCircle, MinusCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+import { getVideoDetails } from "@/actions/getYoutubeData";
+import type { VideoDetails, PlaylistDetails, PlaylistVideo, ContentDetails } from "@/types/youtube";
+import { startUrl } from "@/lib/utils";
+import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
-  return content.type === "playlist"
-}
+  return content.type === "playlist";
+};
 
 interface VideoContentProps {
-  loading?: boolean
-  error?: string | null
+  loading?: boolean;
+  error?: string | null;
 }
 
 const isValidContentDetails = (data: any): data is ContentDetails => {
@@ -30,24 +39,28 @@ const isValidContentDetails = (data: any): data is ContentDetails => {
   );
 };
 
-const createVideoKey = (video: VideoDetails, index: number): string => {
+const createVideoKey = (video: VideoDetails | PlaylistVideo, index: number): string => {
   return `${video.id}-${index}`;
 };
 
+const openInNewTab = (url: string): void => {
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
 export function VideoContent({ loading, error }: VideoContentProps) {
-  const { videoData, setVideoData } = useAnalysis()
-  const [expandedVideoIds, setExpandedVideoIds] = useState<Set<string>>(new Set())
-  const [showVideoOpenDialog, setShowVideoOpenDialog] = useState(false)
-  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null)
+  const { videoData, setVideoData } = useAnalysis();
+  const [expandedVideoIds, setExpandedVideoIds] = useState<Set<string>>(new Set());
+  const [showVideoOpenDialog, setShowVideoOpenDialog] = useState(false);
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
   const [dontShowVideoDialog, setDontShowVideoDialog] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('dontShowVideoDialog') === 'true'
+      return localStorage.getItem('dontShowVideoDialog') === 'true';
     }
-    return false
-  })
-  const [showFullDescription, setShowFullDescription] = useState(false)
-  const [removedVideos, setRemovedVideos] = useState<Record<string, VideoDetails>>({})
-  const [activeCancelId, setActiveCancelId] = useState<string | null>(null)
+    return false;
+  });
+  const [showFullDescription, setShowFullDescription] = useState(false);
+  const [removedVideos, setRemovedVideos] = useState<Record<string, PlaylistVideo>>({});
+  const [activeCancelId, setActiveCancelId] = useState<string | null>(null);
 
   const activeVideoCount = useMemo(() => {
     if (videoData && isPlaylist(videoData)) {
@@ -58,88 +71,74 @@ export function VideoContent({ loading, error }: VideoContentProps) {
 
   const updateVideoData = useCallback((data: unknown) => {
     if (!data) {
-      setVideoData(null)
-      return
+      setVideoData(null);
+      return;
     }
     if (isValidContentDetails(data)) {
-      setVideoData(data)
+      setVideoData(data);
     } else {
-      console.error('Invalid content type:', data)
-      setVideoData(null)
+      console.error('Invalid content type:', data);
+      setVideoData(null);
     }
-  }, [setVideoData])
+  }, [setVideoData]);
 
   const handleVideoClick = useCallback(async (videoId: string): Promise<void> => {
     if (videoData && isPlaylist(videoData)) {
       try {
-        const details = await getVideoDetails(videoId)
+        const details = await getVideoDetails(videoId);
         if (!details) {
-          console.error('No video details returned')
-          return
+          console.error('No video details returned');
+          return;
         }
         if (isValidContentDetails(details) && details.type === 'video') {
-          updateVideoData(details)
+          updateVideoData(details);
         }
       } catch (error) {
-        console.error('Error fetching video details:', error)
-        const playlistVideo = videoData.videos.find((v) => v.id === videoId)
+        console.error('Error fetching video details:', error);
+        const playlistVideo = videoData.videos.find((v) => v.id === videoId);
         if (playlistVideo) {
-          const fallbackVideo: VideoDetails = {
-            id: videoId,
-            type: "video",
-            title: playlistVideo.title || "Untitled Video",
-            description: playlistVideo.description || "",
-            thumbnail: playlistVideo.thumbnail || "",
-            duration: playlistVideo.duration || "",
-            channelId: playlistVideo.channelId || "",
-            channelName: playlistVideo.channelName || "Unknown Channel",
-            channelAvatar: undefined,
-            views: "0",
-            likes: "0",
-            publishDate: playlistVideo.publishDate || ""
-          }
-          updateVideoData(fallbackVideo)
+          updateVideoData(playlistVideo);
         }
       }
-      return
+      return;
     }
 
-    const url = `https://youtube.com/watch?v=${videoId}`
+    const url = `https://youtube.com/watch?v=${videoId}`;
     if (dontShowVideoDialog) {
-      startUrl(url, '_blank', 'noopener,noreferrer')
+      openInNewTab(url);
     } else {
-      setSelectedVideoUrl(url)
-      setShowVideoOpenDialog(true)
+      setSelectedVideoUrl(url);
+      setShowVideoOpenDialog(true);
     }
-  }, [videoData, updateVideoData, dontShowVideoDialog])
+  }, [videoData, updateVideoData, dontShowVideoDialog]);
 
   const handlePlaylistClick = useCallback((playlistId: string): void => {
-    const url = `https://youtube.com/playlist?list=${playlistId}`
+    const url = `https://youtube.com/playlist?list=${playlistId}`;
     if (dontShowVideoDialog) {
-      startUrl(url, '_blank', 'noopener,noreferrer')
+      openInNewTab(url);
     } else {
-      setSelectedVideoUrl(url)
-      setShowVideoOpenDialog(true)
+      setSelectedVideoUrl(url);
+      setShowVideoOpenDialog(true);
     }
-  }, [dontShowVideoDialog])
+  }, [dontShowVideoDialog]);
 
   const toggleVideoExpand = useCallback((videoId: string): void => {
     setExpandedVideoIds(prev => {
-      const newSet = new Set(prev)
+      const newSet = new Set(prev);
       if (prev.has(videoId)) {
-        newSet.delete(videoId)
+        newSet.delete(videoId);
       } else {
-        newSet.add(videoId)
+        newSet.add(videoId);
       }
-      return newSet
-    })
-  }, [])
+      return newSet;
+    });
+  }, []);
 
   const toggleDescription = useCallback((): void => {
-    setShowFullDescription(prev => !prev)
-  }, [])
+    setShowFullDescription(prev => !prev);
+  }, []);
 
-  const handleRemoveVideo = useCallback((video: VideoDetails, event: React.MouseEvent) => {
+  const handleRemoveVideo = useCallback((video: PlaylistVideo, event: React.MouseEvent) => {
     event.stopPropagation();
     setRemovedVideos(prev => ({
       ...prev,
@@ -148,7 +147,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
 
     setActiveCancelId(video.id);
 
-    const toastId = `remove-${video.id}`; 
+    const toastId = `remove-${video.id}`;
     
     toast.custom((id: string | number) => (
       <div className={cn(
@@ -166,9 +165,9 @@ export function VideoContent({ loading, error }: VideoContentProps) {
             size="sm"
             onClick={() => {
               setRemovedVideos(prev => {
-                const newRemoved = { ...prev }
-                delete newRemoved[video.id]
-                return newRemoved
+                const newRemoved = { ...prev };
+                delete newRemoved[video.id];
+                return newRemoved;
               });
               setActiveCancelId(null);
               toast.dismiss(id);
@@ -196,10 +195,10 @@ export function VideoContent({ loading, error }: VideoContentProps) {
         setActiveCancelId(null);
       }
     });
-  }, [])
+  }, []);
 
   if (loading) {
-    return <VideoContentSkeleton />
+    return <VideoContentSkeleton />;
   }
 
   if (error) {
@@ -216,7 +215,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
           Try Again
         </Button>
       </div>
-    )
+    );
   }
 
   if (!videoData) {
@@ -224,7 +223,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
       <div className="flex flex-col items-center justify-center py-16">
         <p className="text-muted-foreground">No content selected</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -343,7 +342,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
             <div className="space-y-4 pt-2 relative z-0">
               {videoData.videos
                 .filter(video => !removedVideos[video.id])
-                .map((video: VideoDetails, index: number) => (
+                .map((video, index) => (
                   <div key={createVideoKey(video, index)} className="group -mx-4 px-4">
                     <div className={`hover:bg-secondary/50 rounded-lg ${expandedVideoIds.has(video.id) ? "bg-secondary/30" : ""}`}>
                       <div className="flex gap-3 p-2">
@@ -479,8 +478,8 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                 className="rounded border-input h-4 w-4"
                 checked={dontShowVideoDialog}
                 onChange={(e) => {
-                  setDontShowVideoDialog(e.target.checked)
-                  localStorage.setItem('dontShowVideoDialog', e.target.checked.toString())
+                  setDontShowVideoDialog(e.target.checked);
+                  localStorage.setItem('dontShowVideoDialog', e.target.checked.toString());
                 }}
               />
               <label htmlFor="dontShowAgain" className="text-sm text-muted-foreground">
@@ -493,9 +492,9 @@ export function VideoContent({ loading, error }: VideoContentProps) {
               </AlertDialogCancel>
               <AlertDialogAction onClick={() => {
                 if (selectedVideoUrl) {
-                  startUrl(selectedVideoUrl, '_blank', 'noopener,noreferrer')
+                  openInNewTab(selectedVideoUrl);
                 }
-                setShowVideoOpenDialog(false)
+                setShowVideoOpenDialog(false);
               }}>
                 Open Video
               </AlertDialogAction>
@@ -504,5 +503,5 @@ export function VideoContent({ loading, error }: VideoContentProps) {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }

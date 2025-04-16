@@ -1,14 +1,13 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { AnalysisHeader } from "@/components/analysis/header"
-import { ResizablePanel } from "@/components/resizable-panel"
-import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context"
-import { VideoContent } from "@/components/analysis/video-content"
-import { MobileSheet } from "@/components/analysis/mobile-sheet"
-import { CoursePanel } from "@/components/analysis/course-panel"
-import { CourseGeneration } from "@/components/analysis/course-generation"
-import { CourseGenerationProvider } from '@/hooks/use-course-generation'
+import { CoursePanel } from "@/components/analysis/course-panel";
+import { CourseGeneration } from "@/components/analysis/course-generation";
+import { VideoContent } from "@/components/analysis/video-content";
+import { ResizablePanel } from "@/components/resizable-panel";
+import { MobileSheet } from "@/components/analysis/mobile-sheet";
+import { AnalysisHeader } from "@/components/analysis/header";
+import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context";
+import { CourseGenerationProvider } from "@/hooks/use-course-generation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,21 +16,12 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import type { ContentDetails, PlaylistDetails } from "@/types/youtube"
-import { Sparkles } from "lucide-react"
-import { Button } from "@/components/ui/button"
-
-// Add the isPlaylist helper function
-const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
-  return content?.type === "playlist"
-}
-
-interface ContentProps {
-  initialContent: ContentDetails | null
-  initialError: string | null
-}
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { useEffect, useState, useRef } from "react";
+import { getYoutubeData } from "@/actions/getYoutubeData";
+import type { ContentDetails } from "@/types/youtube";
 
 function Content({ initialContent, initialError }: ContentProps) {
   const {
@@ -49,30 +39,24 @@ function Content({ initialContent, initialError }: ContentProps) {
     generateCourse,
     courseGenerating,
     courseData,
-  } = useAnalysis()
+  } = useAnalysis();
 
-  const [mounted, setMounted] = React.useState(false)
-  const [hasMounted, setHasMounted] = React.useState(false)
-  const [loading, setLoading] = React.useState(initialContent === null && !initialError)
-  const [error, setError] = React.useState<string | null>(initialError)
+  const [mounted, setMounted] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+  const [loading, setLoading] = useState(initialContent === null && !initialError);
+  const [error, setError] = useState<string | null>(initialError);
+  const initialOpenDoneRef = useRef(false);
 
-  // Add a ref to track whether we've already opened the sheet
-  const initialOpenDoneRef = React.useRef(false);
-
-  // Only open sheet on first load - using the correct pattern from the working example
-  React.useEffect(() => {
-    if (initialOpenDoneRef.current) {
-      // Skip if we've already done the initial open
-      return;
-    }
+  // Only open sheet on first load for mobile
+  useEffect(() => {
+    if (initialOpenDoneRef.current) return;
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
-    // Only open on initial mount for mobile
     if (isMobile && !isOpen && mounted && hasMounted) {
       const timer = setTimeout(() => {
-        toggle(true); // Open the sheet
-        initialOpenDoneRef.current = true; // Mark as done
+        toggle(true);
+        initialOpenDoneRef.current = true;
       }, 200);
 
       return () => clearTimeout(timer);
@@ -80,33 +64,27 @@ function Content({ initialContent, initialError }: ContentProps) {
   }, [isOpen, mounted, hasMounted, toggle]);
 
   // Regular mounting logic
-  React.useEffect(() => {
-    setMounted(true)
+  useEffect(() => {
+    setMounted(true);
     const timer = setTimeout(() => {
-      setHasMounted(true)
-    }, 100)
+      setHasMounted(true);
+    }, 100);
     return () => {
-      clearTimeout(timer)
-      setMounted(false)
-      setHasMounted(false)
-    }
-  }, [])
+      clearTimeout(timer);
+      setMounted(false);
+      setHasMounted(false);
+    };
+  }, []);
 
-  React.useEffect(() => {
+  // Set video data when initialContent changes
+  useEffect(() => {
     if (initialContent) {
-      setLoading(false)
-      setVideoData(initialContent)
+      setLoading(false);
+      setVideoData(initialContent);
     } else if (initialError) {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [initialContent, initialError, setVideoData])
-
-  // Use the generateCourse function from context
-  const handleGenerateCourse = React.useCallback(() => {
-    if (videoData) {
-      generateCourse();
-    }
-  }, [videoData, generateCourse]);
+  }, [initialContent, initialError, setVideoData]);
 
   return (
     <>
@@ -127,11 +105,11 @@ function Content({ initialContent, initialError }: ContentProps) {
             </ResizablePanel>
           </div>
 
-          {/* Mobile bottom sheet - only render when mounted and after initial animation */}
+          {/* Mobile bottom sheet */}
           {mounted && hasMounted && (
             <MobileSheet
               isOpen={isOpen}
-              onClose={() => toggle(false)} // Make sure we're explicitly calling toggle(false)
+              onClose={() => toggle(false)}
               loading={loading}
               error={error}
             />
@@ -167,37 +145,76 @@ function Content({ initialContent, initialError }: ContentProps) {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
+}
+
+interface ContentProps {
+  initialContent: ContentDetails | null;
+  initialError: string | null;
 }
 
 interface AnalysisClientProps {
-  initialContent: ContentDetails | null
-  initialError: string | null
+  videoId: string;
 }
 
-export function AnalysisClient({ initialContent, initialError }: AnalysisClientProps) {
+export function AnalysisClient({ videoId }: AnalysisClientProps) {
+  const [initialContent, setInitialContent] = useState<ContentDetails | null>(null);
+  const [initialError, setInitialError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getYoutubeData(videoId);
+
+        // Ensure the data has a valid id
+        if (data) {
+          const contentWithId = {
+            ...data,
+            id: videoId || data.id,
+          };
+          setInitialContent(contentWithId);
+        } else {
+          setInitialError("Could not load video data");
+        }
+      } catch (err) {
+        setInitialError(err instanceof Error ? err.message : "Failed to load video");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (videoId) {
+      loadData();
+    }
+  }, [videoId]);
+
   // Apply overflow hidden to the html and body for this page
-  React.useEffect(() => {
-    // Add the overflow-hidden class to the html and body elements
+  useEffect(() => {
     document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
 
-    // Clean up function to remove the class when component unmounts
     return () => {
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
     };
   }, []);
 
-  // Ensure CourseGenerationProvider wraps AnalysisProvider
   return (
     <div id="main" className="h-full w-full flex flex-col bg-background overflow-hidden">
       <CourseGenerationProvider>
         <AnalysisProvider initialContent={initialContent}>
           <AnalysisHeader />
-          <Content initialContent={initialContent} initialError={initialError} />
+          {isLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-muted-foreground">Loading video data...</p>
+            </div>
+          ) : (
+            <Content initialContent={initialContent} initialError={initialError} />
+          )}
         </AnalysisProvider>
       </CourseGenerationProvider>
     </div>
-  )
+  );
 }

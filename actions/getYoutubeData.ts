@@ -1,136 +1,116 @@
-'use server'
+'use server';
 
-import type { VideoDetails, PlaylistDetails, VideoItem } from '@/types/youtube'
-import { ConvexHttpClient } from 'convex/browser'
-import { api } from '@/convex/_generated/api'
-import { config } from '@/lib/config'
-import { identifyYoutubeIdType } from '@/lib/utils/youtube'
+import { VideoDetails, PlaylistDetails } from "@/types/youtube";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
+import { config } from "@/lib/config";
+import { identifyYoutubeIdType, getFetchOptions } from "@/lib/utils/youtube-server";
+import { formatViews, formatDuration } from "@/lib/utils/format";
+import { createAILogger } from "@/lib/ai/debug-logger";
 
-// Create Convex client for server-side operations
+const logger = createAILogger("youtube-data");
+
+// Server-side implementation of safeGet function
+function safeGet(obj: any, path: string, defaultValue: any = undefined) {
+  try {
+    const keys = path.split('.');
+    let result = obj;
+    for (const key of keys) {
+      if (result === undefined || result === null) return defaultValue;
+      result = result[key];
+    }
+    return result !== undefined && result !== null ? result : defaultValue;
+  } catch (error) {
+    return defaultValue;
+  }
+}
+
+// Initialize Convex client
 let convex: ConvexHttpClient;
 const getConvexClient = () => {
   if (!convex) {
     convex = new ConvexHttpClient(config.convex.url);
   }
   return convex;
-}
-
-// Server-side only fetch options
-const fetchOptions = {
-  headers: {
-    'Accept': 'application/json',
-    'User-Agent': 'Tenzzen/1.0',
-    'Origin': 'http://localhost:3000',
-    'Referer': 'http://localhost:3000/'
-  },
-  cache: 'no-store' as const
-}
-
-// Helper function to parse ISO 8601 duration
-const formatDuration = (duration: string): string => {
-  if (!duration) return "0:00"
-
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-  if (!match) return "0:00"
-
-  const hours = match[1] ? parseInt(match[1]) : 0
-  const minutes = match[2] ? parseInt(match[2]) : 0
-  const seconds = match[3] ? parseInt(match[3]) : 0
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
-  }
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`
-}
-
-const formatViews = (viewCount: string | undefined): string => {
-  if (!viewCount) return "0"
-  const views = parseInt(viewCount)
-  if (isNaN(views)) return "0"
-  if (views >= 1000000) {
-    return `${(views / 1000000).toFixed(1)}M`
-  }
-  if (views >= 1000) {
-    return `${(views / 1000).toFixed(1)}K`
-  }
-  return viewCount
-}
-
-const safeGet = (obj: any, path: string, defaultValue: any = undefined) => {
-  try {
-    const keys = path.split('.');
-    let current = obj;
-    for (const key of keys) {
-      if (current === undefined || current === null || typeof current !== 'object') {
-        return defaultValue;
-      }
-      current = current[key];
-    }
-    return current === undefined ? defaultValue : current;
-  } catch (e) {
-    return defaultValue;
-  }
 };
 
-export async function getVideoDetails(videoId: string): Promise<VideoDetails> {
+// Fetch channel details including avatar
+async function getChannelAvatar(channelId: string): Promise<string> {
   try {
-    if (!videoId || videoId.trim() === '') {
-      throw new Error('Invalid video ID: Empty ID provided');
+    const response = await fetch(
+      `${config.youtube.apiUrl}/channels?part=snippet&id=${channelId}&key=${config.youtube.apiKey}`,
+      await getFetchOptions()
+    );
+
+    if (!response.ok) {
+      return '';
     }
 
-    // Fix: Wait for the result from identifyYoutubeIdType
-    const { type: idType, id } = await identifyYoutubeIdType(videoId);
-    if (idType !== 'video') {
-      if (idType === 'playlist') {
-        throw new Error('PLAYLIST_ID_PROVIDED');
-      }
-    }
+    const data = await response.json();
+    return safeGet(data, 'items.0.snippet.thumbnails.default.url', '');
+  } catch (error) {
+    logger.error('Failed to fetch channel avatar:', error);
+    return '';
+  }
+}
 
+async function getFullVideoDetails(videoId: string): Promise<VideoDetails> {
+  try {
+    // Check cache first
     try {
-      // Fix: Check if videos API exists before trying to use it
-      if (api.videos?.getCachedVideo) {
-        const cachedVideo = await getConvexClient().query(api.videos.getCachedVideo, { youtubeId: videoId })
-        if (cachedVideo) {
-          const { youtubeId, cachedAt, _id, _creationTime, ...videoData } = cachedVideo
-          const typedResponse: VideoDetails = {
-            id: videoId,
-            type: "video" as const,
-            title: videoData.title || "Untitled",
-            description: videoData.description || "",
-            thumbnail: videoData.thumbnail || "",
-            duration: videoData.duration || "",
-            channelId: videoData.channelId || "",
-            channelName: videoData.channelName || "",
-            channelAvatar: videoData.channelAvatar,
-            views: videoData.views || "0",
-            likes: videoData.likes || "0",
-            publishDate: videoData.publishDate || ""
-          }
-          return typedResponse
-        }
+      const cachedVideo = await getConvexClient().query(api.videos.getCachedVideo, { youtubeId: videoId });
+      // Add checks for valid cache data and title
+      if (cachedVideo && !('expired' in cachedVideo) && cachedVideo.details && cachedVideo.details.title) {
+        logger.debug(`Cache hit for videoId: ${videoId}`);
+        // Return the minimal structure as before, assuming downstream code handles it
+        // OR: Consider reconstructing the full VideoDetails if needed everywhere
+        return {
+          id: videoId,
+          type: "video",
+          title: cachedVideo.details.title, // Already checked this exists
+          description: cachedVideo.details.description || '', // Add fallback
+          thumbnail: cachedVideo.details.thumbnail || '', // Add fallback
+          duration: formatDuration(cachedVideo.details.duration || ''), // Add fallback
+          // These fields are missing from cache, return empty/defaults
+          channelId: '',
+          channelName: '',
+          channelAvatar: '',
+          views: '0',
+          likes: '0',
+          publishDate: ''
+        };
+      } else if (cachedVideo) {
+          logger.warn(`Invalid cache data for videoId: ${videoId}. Missing details or title. Refetching.`);
+      } else {
+          logger.debug(`Cache miss for videoId: ${videoId}. Fetching from API.`);
       }
     } catch (cacheError) {
-      console.warn('Failed to retrieve from cache:', cacheError)
+      logger.warn(`Error retrieving from cache for videoId ${videoId}:`, cacheError);
     }
 
+    // Fetch from YouTube API
+    logger.debug(`Fetching details from YouTube API for videoId: ${videoId}`);
     const apiResponse = await fetch(
       `${config.youtube.apiUrl}/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${config.youtube.apiKey}`,
-      fetchOptions
-    )
+      await getFetchOptions()
+    );
 
     if (!apiResponse.ok) {
       throw new Error(`YouTube API error: ${apiResponse.status}`);
     }
 
-    const data = await apiResponse.json()
+    const data = await apiResponse.json();
     if (!data.items?.[0]) {
-      throw new Error('Video not found')
+      throw new Error('Video not found');
     }
 
-    const video = data.items[0]
+    const video = data.items[0];
+    const channelId = safeGet(video, 'snippet.channelId', '');
+    const channelAvatar = await getChannelAvatar(channelId);
+
     const videoDetails: VideoDetails = {
       id: videoId,
-      type: "video" as const,
+      type: "video",
       title: safeGet(video, 'snippet.title', 'Unknown title'),
       description: safeGet(video, 'snippet.description', ''),
       thumbnail: safeGet(video, 'snippet.thumbnails.maxres.url') ||
@@ -138,9 +118,9 @@ export async function getVideoDetails(videoId: string): Promise<VideoDetails> {
                 safeGet(video, 'snippet.thumbnails.standard.url') ||
                 '',
       duration: formatDuration(video.contentDetails?.duration || ""),
-      channelId: safeGet(video, 'snippet.channelId', ''),
+      channelId: channelId,
       channelName: safeGet(video, 'snippet.channelTitle', ''),
-      channelAvatar: '',
+      channelAvatar: channelAvatar,
       views: formatViews(safeGet(video, 'statistics.viewCount', '0')),
       likes: formatViews(safeGet(video, 'statistics.likeCount', '0')),
       publishDate: video.snippet?.publishedAt ? 
@@ -149,125 +129,152 @@ export async function getVideoDetails(videoId: string): Promise<VideoDetails> {
           month: 'long',
           day: 'numeric'
         }) : ''
-    }
+    };
 
-    // Cache the video data
-    try {
-      // Fix: Check if videos API exists before trying to use it
-      if (api.videos?.cacheVideo) {
-        await getConvexClient().mutation(api.videos.cacheVideo, {
+    // Cache the video data only if the title is valid
+    if (videoDetails.title && videoDetails.title !== 'Unknown title') {
+      try {
+        const cacheData = {
           youtubeId: videoId,
-          ...videoDetails
-        })
+        cachedAt: new Date().toISOString(),
+          details: {
+            // Ensure all fields expected by the cache schema are present
+            id: videoId,
+            type: "video",
+            title: videoDetails.title, // We know this is valid here
+            description: videoDetails.description,
+            thumbnail: videoDetails.thumbnail,
+            duration: video.contentDetails?.duration || ""
+            // Add other fields if the cache schema requires them
+          }
+        };
+
+        logger.debug(`Attempting to cache videoId: ${videoId}`);
+        await getConvexClient().mutation(api.videos.cacheVideo, cacheData);
+        logger.debug(`Successfully cached videoId: ${videoId}`);
+      } catch (cacheError) {
+        // Log specific Convex validation errors if possible
+        logger.warn(`Failed to cache videoId ${videoId}:`, cacheError);
       }
-    } catch (cacheError) {
-      console.warn('Failed to cache video:', cacheError)
+    } else {
+        logger.warn(`Skipping cache for videoId ${videoId} due to missing or invalid title.`);
     }
 
-    return videoDetails
+    return videoDetails;
   } catch (error) {
-    throw error instanceof Error ? error : new Error(String(error))
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }
 
-export async function getPlaylistDetails(playlistId: string, fetchVideoDetails = true): Promise<PlaylistDetails> {
+export const getVideoDetails = getYoutubeData;
+export async function getYoutubeData(id: string): Promise<VideoDetails | PlaylistDetails> {
   try {
-    if (!playlistId?.trim()) {
-      throw new Error('Playlist ID is required')
+    if (!id || id.trim() === '') {
+      throw new Error('Invalid ID: Empty ID provided');
     }
 
-    const apiResponse = await fetch(
+    const idType = await identifyYoutubeIdType(id);
+    
+    if (idType === 'video') {
+      return await getFullVideoDetails(id);
+    } else if (idType === 'playlist') {
+      return await getPlaylistById(id);
+    } else {
+      throw new Error('UNKNOWN_ID_TYPE');
+    }
+
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+}
+
+async function getPlaylistById(playlistId: string): Promise<PlaylistDetails> {
+  try {
+    // Fetch playlist details from YouTube API
+    const playlistResponse = await fetch(
       `${config.youtube.apiUrl}/playlists?part=snippet,contentDetails&id=${playlistId}&key=${config.youtube.apiKey}`,
-      fetchOptions
-    )
+      await getFetchOptions()
+    );
 
-    if (!apiResponse.ok) {
-      throw new Error(`YouTube API error: ${apiResponse.status}`)
+    if (!playlistResponse.ok) {
+      throw new Error(`YouTube API error: ${playlistResponse.status}`);
     }
 
-    const data = await apiResponse.json()
-    if (!data.items?.[0]) {
-      throw new Error('Playlist not found')
+    const playlistData = await playlistResponse.json();
+    if (!playlistData.items?.[0]) {
+      throw new Error('Playlist not found');
     }
 
-    const playlist = data.items[0]
+    const playlist = playlistData.items[0];
+    const channelId = safeGet(playlist, 'snippet.channelId', '');
+    const channelAvatar = await getChannelAvatar(channelId);
+    
+    // Get first few videos from the playlist
+    const playlistItemsResponse = await fetch(
+      `${config.youtube.apiUrl}/playlistItems?part=snippet,contentDetails&maxResults=10&playlistId=${playlistId}&key=${config.youtube.apiKey}`,
+      await getFetchOptions()
+    );
+
+    if (!playlistItemsResponse.ok) {
+      throw new Error(`YouTube API error: ${playlistItemsResponse.status}`);
+    }
+
+    const playlistItemsData = await playlistItemsResponse.json();
+    const playlistItems = playlistItemsData.items || [];
+
+    // Fetch full details for each video
+    const videoPromises = playlistItems.map(async (item: any) => {
+      const videoId = safeGet(item, 'contentDetails.videoId', '');
+      const position = safeGet(item, 'snippet.position', 0);
+      
+      try {
+        const videoDetails = await getFullVideoDetails(videoId);
+        return {
+          ...videoDetails,
+          position
+        };
+      } catch (error) {
+        // Fallback to basic details if full fetch fails
+        return {
+          id: videoId,
+          type: "video" as const,
+          position,
+          title: safeGet(item, 'snippet.title', 'Unknown video'),
+          description: safeGet(item, 'snippet.description', ''),
+          thumbnail: safeGet(item, 'snippet.thumbnails.high.url') || 
+                    safeGet(item, 'snippet.thumbnails.medium.url') || 
+                    safeGet(item, 'snippet.thumbnails.default.url') || '',
+          duration: '00:00',
+          channelId: channelId,
+          channelName: safeGet(item, 'snippet.channelTitle', ''),
+          channelAvatar: channelAvatar,
+          views: '0',
+          likes: '0',
+          publishDate: safeGet(item, 'snippet.publishedAt', '')
+        };
+      }
+    });
+    
+    const videos = await Promise.all(videoPromises);
+    
     const playlistDetails: PlaylistDetails = {
       id: playlistId,
-      type: "playlist" as const,
+      type: "playlist",
       title: safeGet(playlist, 'snippet.title', 'Unknown playlist'),
       description: safeGet(playlist, 'snippet.description', ''),
       thumbnail: safeGet(playlist, 'snippet.thumbnails.maxres.url') ||
                 safeGet(playlist, 'snippet.thumbnails.high.url') ||
                 safeGet(playlist, 'snippet.thumbnails.standard.url') ||
                 '',
-      channelId: safeGet(playlist, 'snippet.channelId', ''),
+      channelId: channelId,
       channelName: safeGet(playlist, 'snippet.channelTitle', ''),
-      channelAvatar: '',
-      itemCount: Number(safeGet(playlist, 'contentDetails.itemCount', '0')),
-      publishDate: playlist.snippet?.publishedAt ?
-        new Date(playlist.snippet.publishedAt).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        }) : '',
-      publishedAt: playlist.snippet?.publishedAt || '',  // Include both for compatibility
-      videos: [] // This will be populated with VideoItem[]
-    }
+      channelAvatar: channelAvatar,
+      itemCount: safeGet(playlist, 'contentDetails.itemCount', 0),
+      videos: videos
+    };
 
-    if (fetchVideoDetails) {
-      const videos: VideoItem[] = []
-      let nextPageToken: string | undefined
-
-      do {
-        const params = new URLSearchParams({
-          part: "snippet,contentDetails",
-          playlistId: playlistId,
-          maxResults: "50",
-          key: config.youtube.apiKey,
-          ...(nextPageToken ? { pageToken: nextPageToken } : {})
-        })
-
-        const itemsResponse = await fetch(
-          `${config.youtube.apiUrl}/playlistItems?${params}`,
-          fetchOptions
-        )
-
-        if (!itemsResponse.ok) break
-
-        const itemsData = await itemsResponse.json()
-        if (!itemsData.items?.length) break
-
-        const currentItems: VideoItem[] = itemsData.items.map((item: any, index: number) => ({
-          id: item.snippet?.resourceId?.videoId || '',
-          videoId: item.snippet?.resourceId?.videoId || '',
-          title: item.snippet?.title || 'Untitled Video',
-          description: item.snippet?.description || '',
-          thumbnail: safeGet(item, 'snippet.thumbnails.maxres.url') ||
-                    safeGet(item, 'snippet.thumbnails.high.url') ||
-                    safeGet(item, 'snippet.thumbnails.standard.url') ||
-                    '',
-          channelId: item.snippet?.videoOwnerChannelId || '',
-          channelName: item.snippet?.videoOwnerChannelTitle || '',
-          duration: '',
-          position: item.snippet?.position || index,
-          publishDate: item.contentDetails?.videoPublishedAt ? 
-            new Date(item.contentDetails.videoPublishedAt).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            }) : ''
-        }))
-
-        videos.push(...currentItems)
-        nextPageToken = itemsData.nextPageToken
-
-      } while (nextPageToken && videos.length < 200)
-
-      playlistDetails.videos = videos
-    }
-
-    return playlistDetails
+    return playlistDetails;
   } catch (error) {
-    throw error instanceof Error ? error : new Error(String(error))
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }

@@ -1,6 +1,4 @@
-import { Id } from "@/convex/_generated/dataModel";
-
-export type ResourceType = "article" | "video" | "code" | "document" | "link";
+export type ResourceType = "documentation" | "tutorial" | "article" | "video" | "code" | "blog";
 
 export interface Resource {
   title: string;
@@ -12,252 +10,109 @@ export interface Resource {
 export interface Lesson {
   id: string;
   title: string;
-  duration: string;
   description: string;
-  content: string;
+  duration: string;
   startTime: number;
   endTime: number;
-  resources: Resource[];
+  keyPoints: string[];
 }
-
-// Base assessment without content
-export interface AssessmentBase {
-  id: string;
-  type: "test" | "assignment" | "project";
-  title: string;
-  description: string;
-  position: number;
-  isLocked: boolean;
-  requiredSkills: string[];
-  estimatedDuration: string;
-  contentGenerated: boolean;
-}
-
-// Assessment with content
-export interface TestContent extends AssessmentBase {
-  type: "test";
-  questions: Array<{
-    question: string;
-    type: "multiple-choice" | "written";
-    options?: string[];
-    correctAnswer: string;
-    explanation: string;
-  }>;
-}
-
-export interface AssignmentContent extends AssessmentBase {
-  type: "assignment";
-  tasks: Array<{
-    title: string;
-    description: string;
-    acceptance: string[];
-    hint?: string;
-  }>;
-}
-
-export interface ProjectContent extends AssessmentBase {
-  type: "project";
-  guidelines: string;
-  submissionFormats: Array<"file upload" | "git repo link">;
-  deadline: string;
-}
-
-export type AssessmentContent = TestContent | AssignmentContent | ProjectContent;
 
 export interface Section {
   id: string;
   title: string;
   description: string;
-  duration: string;
   startTime: number;
   endTime: number;
+  objective: string;
+  keyPoints: string[];
   lessons: Lesson[];
-  assessments: Array<AssessmentBase | AssessmentContent>;
+  assessment?: "quiz" | "assignment";
 }
 
-export interface Course {
-  _id?: Id<"courses">;
-  title: string;
-  subtitle: string;
-  overview: {
-    description: string;
-    prerequisites: Array<{
-      title: string;
-      description: string;
-      level: "beginner" | "intermediate" | "advanced";
-    }>;
-    learningOutcomes: Array<{
-      title: string;
-      description: string;
-      category: "skill" | "knowledge" | "tool";
-    }>;
-    totalDuration: string;
-    difficultyLevel: "beginner" | "intermediate" | "advanced";
-    skills: string[];
-    tools: string[];
-  };
-  sections: Section[];
-  createdAt?: number;
-  updatedAt?: number;
-}
-
-export interface Course {
-  id: string;
+export interface Metadata {
   title: string;
   description: string;
-  category: string;
-  image: string;
-  progress: number;
-  lessonsCompleted?: number;
-  totalLessons?: number;
-  lastAccessed?: number | string | Date;
-  videoId?: string;
-  isNew?: boolean;
-  isEnrolled?: boolean;
-  metadata?: {
-    difficulty?: string;
-    duration?: string;
-    category?: string;
-    prerequisites?: string[];
-    objectives?: string[];
-    targetAudience?: string[];
-    sources?: any[];
-  };
-  sections?: any[];
-}
-
-export type CourseFilter = "all" | "in-progress" | "completed" | "not-started";
-export type CourseCategory = "all" | "programming" | "design" | "business" | "marketing" | "productivity" | string;
-
-// Type guards
-export function isTestContent(assessment: AssessmentBase | AssessmentContent): assessment is TestContent {
-  return assessment.type === "test" && "questions" in assessment;
-}
-
-export function isAssignmentContent(assessment: AssessmentBase | AssessmentContent): assessment is AssignmentContent {
-  return assessment.type === "assignment" && "tasks" in assessment;
-}
-
-export function isProjectContent(assessment: AssessmentBase | AssessmentContent): assessment is ProjectContent {
-  return assessment.type === "project" && "guidelines" in assessment;
-}
-
-export function hasContent(assessment: AssessmentBase | AssessmentContent): assessment is AssessmentContent {
-  return assessment.contentGenerated;
-}
-
-/**
- * Types for course data structures
- */
-
-// Course resource item
-export interface CourseResource {
-  title: string;
-  url: string;
-  description?: string;
-  type?: string;
-}
-
-// Course lesson
-export interface CourseLesson {
-  id: string;
-  title: string;
-  description: string;
-  content?: string;
-  duration?: string;
-  keyPoints?: string[];
-  resources?: CourseResource[];
-}
-
-// Course assessment
-export interface CourseAssessment {
-  id: string;
-  type: string;
-  title: string;
-  description: string;
-  position: number;
-  estimatedDuration?: string;
-  requiredSkills?: string[];
-  questions?: CourseQuestion[];
-  isCompleted?: boolean;
-  isLocked?: boolean;
-}
-
-// Question for assessments
-export interface CourseQuestion {
-  id: string;
-  question: string;
-  options?: string[];
-  correctAnswer?: string | number | string[];
-  explanation?: string;
-  type?: string;
-}
-
-// Course section
-export interface CourseSection {
-  id: string;
-  title: string;
-  description: string;
-  lessons: CourseLesson[];
-  assessments?: CourseAssessment[];
-}
-
-// Course overview details
-export interface CourseOverview {
-  description: string;
-  prerequisites: string[];
-  learningOutcomes: string[];
-  totalDuration: string;
-  difficultyLevel: string;
-  skills: string[];
-  tools?: string[];
-}
-
-// Course metadata
-export interface CourseMetadata {
-  category?: string;
-  subcategory?: string;
-  difficulty: string;
   duration: string;
-  objectives?: string[];
-  prerequisites?: string[];
-  targetAudience?: string[];
-  sources?: CourseSource[];
+  category: string;
+  tags: string[];
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
+  prerequisites: string[];
+  objectives: string[];
+  overviewText?: string;
+  sources?: Resource[];
 }
 
-// Course source reference
-export interface CourseSource {
-  name: string;
-  type: string;
-  avatar: string;
-  url: string;
-}
-
-// Complete course structure
-export interface Course {
-  id?: string;
+export interface Assessment {
+  type: "quiz";
   title: string;
-  subtitle?: string;
   description: string;
-  videoId?: string;
-  thumbnail?: string;
+  placeholder: boolean;
+}
+
+export interface Course {
+  id?: string; // Generic ID field, not tied to any specific database
+  videoId: string;
+  title: string;
+  description: string;
   image?: string;
-  overview: CourseOverview;
-  metadata: CourseMetadata;
-  sections: CourseSection[];
+  metadata: Metadata;
+  resources: Resource[];
+  sections: Section[];
+  assessments: Assessment[];
+  // Optional fields for UI state
   progress?: number;
   lessonsCompleted?: number;
   totalLessons?: number;
   lastAccessed?: number;
-  enrolledAt?: number;
-  isNew?: boolean;
   isEnrolled?: boolean;
-  rating?: number;
-  enrolledCount?: number;
-  topics?: {
-    current: number;
-    total: number;
-    currentTitle?: string;
-  };
-  sources?: CourseSource[];
+}
+
+// Type Guards
+export function isResource(obj: any): obj is Resource {
+  return (
+    typeof obj === "object" &&
+    typeof obj.title === "string" &&
+    typeof obj.url === "string" &&
+    typeof obj.type === "string" &&
+    typeof obj.description === "string"
+  );
+}
+
+export function isLesson(obj: any): obj is Lesson {
+  return (
+    typeof obj === "object" &&
+    typeof obj.id === "string" &&
+    typeof obj.title === "string" &&
+    typeof obj.description === "string" &&
+    typeof obj.duration === "string" &&
+    typeof obj.startTime === "number" &&
+    typeof obj.endTime === "number" &&
+    Array.isArray(obj.keyPoints)
+  );
+}
+
+export function isSection(obj: any): obj is Section {
+  return (
+    typeof obj === "object" &&
+    typeof obj.id === "string" &&
+    typeof obj.title === "string" &&
+    typeof obj.description === "string" &&
+    typeof obj.startTime === "number" &&
+    typeof obj.endTime === "number" &&
+    typeof obj.objective === "string" &&
+    Array.isArray(obj.keyPoints) &&
+    Array.isArray(obj.lessons) &&
+    obj.lessons.every(isLesson)
+  );
+}
+
+export function isCourse(obj: any): obj is Course {
+  return (
+    typeof obj === "object" &&
+    typeof obj.title === "string" &&
+    typeof obj.description === "string" &&
+    typeof obj.videoId === "string" &&
+    Array.isArray(obj.sections) &&
+    obj.sections.every(isSection)
+  );
 }

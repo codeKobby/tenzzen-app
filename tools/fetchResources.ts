@@ -1,7 +1,6 @@
 import { logger } from '@/lib/ai/debug-logger';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { getYoutubeTranscript } from '@/actions/getYoutubeTranscript';
 import { getVideoDetails } from '@/actions/getYoutubeData';
 import { identifyYoutubeIdType } from '@/lib/utils/youtube';
 
@@ -16,7 +15,7 @@ const resourceSchema = z.object({
 export type Resource = z.infer<typeof resourceSchema>;
 
 /**
- * Extract resources from text content (transcript, description)
+ * Extract resources from text content (description)
  */
 function extractUrlsFromText(text: string): string[] {
   if (!text) return [];
@@ -107,7 +106,7 @@ function generateTitleFromUrl(url: string): string {
 }
 
 export const fetchResourcesFromVideo = tool({
-  description: 'Fetch learning resources related to a YouTube video by analyzing its transcript and description',
+  description: 'Fetch learning resources related to a YouTube video by analyzing its description',
   parameters: z.object({
     videoUrl: z.string().describe('YouTube video URL or ID'),
     maxResults: z.number().default(10).optional().describe('Maximum number of resources to fetch')
@@ -126,18 +125,11 @@ export const fetchResourcesFromVideo = tool({
       // Fetch video details
       const videoDetails = await getVideoDetails(id);
       
-      // Fetch video transcript
-      const transcript = await getYoutubeTranscript(id);
-      
-      // Extract text from transcript
-      const transcriptText = transcript.map(segment => segment.text).join(' ');
-      
-      // Extract all URLs from description and transcript
+      // Extract all URLs from description
       const descriptionUrls = extractUrlsFromText(videoDetails.description || '');
-      const transcriptUrls = extractUrlsFromText(transcriptText);
       
       // Combine all unique URLs
-      const allUrls = Array.from(new Set([...descriptionUrls, ...transcriptUrls]));
+      const allUrls = Array.from(new Set([...descriptionUrls]));
       
       // Filter out YouTube and social media links
       const filteredUrls = allUrls.filter(url => {

@@ -1,11 +1,12 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { useAnalysis } from "@/hooks/use-analysis-context"
-import { Button } from "@/components/ui/button"
-import { ChevronLeft, Bell, ArrowLeft, Menu, ArrowUp } from "lucide-react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import Link from "next/link";
+import { useAnalysis } from "@/hooks/use-analysis-context";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, Bell, ArrowLeft, Menu, ArrowUp } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { getNavigateBackPath } from "@/lib/utils/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,62 +14,61 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useUser } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 interface BreadcrumbItem {
-  label: string
-  href: string
+  label: string;
+  href: string;
 }
 
 function getBreadcrumbFromPath(path: string): BreadcrumbItem[] {
-  if (path === "/") return []
-  const segments = path.split("/").filter(Boolean)
+  if (path === "/") return [];
+  const segments = path.split("/").filter(Boolean);
 
   return segments.map((segment, index) => ({
     label: segment === "analysis" ? "Course Generation" : segment.charAt(0).toUpperCase() + segment.slice(1),
     href: "/" + segments.slice(0, index + 1).join("/"),
-  }))
+  }));
 }
 
 export function AnalysisHeader() {
-  const { showAlert, setShowAlert, courseData, courseGenerating, toggle } = useAnalysis()
-  const { user } = useUser()
-  const router = useRouter()
-  const [scrolled, setScrolled] = React.useState(false)
-  const [showScrollTop, setShowScrollTop] = React.useState(false)
-  const breadcrumbs = getBreadcrumbFromPath("/analysis")
+  const { showAlert, setShowAlert, courseData, courseGenerating, toggle } = useAnalysis();
+  const { user } = useUser();
+  const router = useRouter();
+  const [scrolled, setScrolled] = React.useState(false);
+  const [showScrollTop, setShowScrollTop] = React.useState(false);
+  const breadcrumbs = getBreadcrumbFromPath("/analysis");
 
-  // Get course title from context or mock data
-  const courseTitle = courseData || courseGenerating ? "Course Title" : ""
+  const courseTitle = courseData || courseGenerating ? "Course Title" : "";
 
-  // Handle back button navigation
   const handleBack = () => {
     if (courseData) {
-      setShowAlert(true)
-      return
+      setShowAlert(true);
+      return;
     }
-    window.history.back()
-  }
+    const backPath = getNavigateBackPath();
+    router.push(backPath);
+  };
 
   React.useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 0)
-      setShowScrollTop(window.scrollY > 300) // Show scroll button after scrolling down 300px
-    }
-    handleScroll()
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+      setScrolled(window.scrollY > 0);
+      setShowScrollTop(window.scrollY > 300);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
       behavior: 'smooth'
-    })
-  }
+    });
+  };
 
   return (
     <header className={cn(
@@ -77,7 +77,7 @@ export function AnalysisHeader() {
     )}>
       <div className={cn(
         "mx-auto w-[95%] lg:w-[90%] flex h-16 items-center justify-between",
-        `transition-all duration-300 ease-in-out`
+        "transition-all duration-300 ease-in-out"
       )}>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
@@ -101,7 +101,6 @@ export function AnalysisHeader() {
             <Menu className="h-4 w-4 transition-colors hover:text-primary" />
           </Button>
 
-          {/* Hide "Course Generation" on small screens when a course title is displayed */}
           <nav className="flex items-center gap-2 text-sm sm:ml-6">
             {breadcrumbs.map((item, index) => (
               <React.Fragment key={item.href}>
@@ -114,7 +113,6 @@ export function AnalysisHeader() {
                     index === breadcrumbs.length - 1
                       ? "text-foreground font-medium"
                       : "text-muted-foreground",
-                    // Hide "Course Generation" on small screens when course title is shown
                     (courseTitle && item.label === "Course Generation") ? "hidden sm:inline" : ""
                   )}
                 >
@@ -125,7 +123,6 @@ export function AnalysisHeader() {
           </nav>
         </div>
 
-        {/* Centered title - only show when course exists */}
         {courseTitle && (
           <div className="flex-1 text-center font-semibold text-lg truncate max-w-xs sm:max-w-md md:max-w-lg">
             {courseTitle}
@@ -208,7 +205,6 @@ export function AnalysisHeader() {
         </div>
       </div>
 
-      {/* Scroll to top button - positioned on the bottom right */}
       {showScrollTop && (
         <Button
           variant="secondary"
@@ -220,5 +216,5 @@ export function AnalysisHeader() {
         </Button>
       )}
     </header>
-  )
+  );
 }
