@@ -1,4 +1,3 @@
-import { type YouTubeVideoData } from '@/types/youtube';
 import { createLogger } from './debug-logger';
 
 // Create a logger instance
@@ -140,4 +139,48 @@ export function formatDuration(seconds: number): string {
   if (remainingSeconds > 0 || parts.length === 0) parts.push(`${remainingSeconds}s`);
 
   return parts.join(' ');
+}
+
+// --- Added Missing Utilities ---
+
+/**
+ * Identifies if a YouTube ID belongs to a video or playlist.
+ * This is a simplified check based on typical ID lengths and patterns.
+ * A more robust check might involve API calls, but this is often sufficient.
+ */
+export async function identifyYoutubeIdType(id: string): Promise<'video' | 'playlist' | 'unknown'> {
+  if (!id || typeof id !== 'string') return 'unknown';
+
+  // Basic length checks (Video IDs are usually 11 chars, Playlist IDs are longer)
+  if (id.length === 11 && !id.includes('&') && !id.includes('?')) {
+    // Could potentially be a video ID, do a quick API check to be more certain
+    // For simplicity here, we assume 11 chars = video
+    return 'video';
+  } else if (id.length > 11 && id.startsWith('PL')) {
+    // Standard playlist IDs start with PL and are longer
+    return 'playlist';
+  } else if (id.length > 11) {
+     // Could be a non-standard playlist ID or channel ID, assume playlist for now
+     // A more robust check would involve trying playlist API endpoint
+     logger.warn(`Assuming ID '${id}' is a playlist based on length > 11.`);
+     return 'playlist';
+  }
+
+  logger.warn(`Could not determine type for ID: ${id}`);
+  return 'unknown';
+}
+
+/**
+ * Returns fetch options, potentially including headers for API restrictions.
+ * Currently returns empty options, but can be expanded.
+ */
+export async function getFetchOptions(): Promise<RequestInit> {
+  // Example: Add headers if needed for domain restriction or auth
+  const headers: HeadersInit = {
+    'Accept': 'application/json',
+    // 'Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', // Example
+  };
+  return {
+    // headers: headers, // Uncomment and configure if needed
+  };
 }

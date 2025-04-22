@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
-import { getVideoDetails } from "@/actions/getYoutubeData";
+import { getYoutubeData } from "@/actions/getYoutubeData"; // Changed from getVideoDetails
 import type { VideoDetails, PlaylistDetails, PlaylistVideo, ContentDetails } from "@/types/youtube";
 import { startUrl } from "@/lib/utils";
 import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton";
@@ -85,7 +85,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
   const handleVideoClick = useCallback(async (videoId: string): Promise<void> => {
     if (videoData && isPlaylist(videoData)) {
       try {
-        const details = await getVideoDetails(videoId);
+        const details = await getYoutubeData(videoId); // Changed from getVideoDetails
         if (!details) {
           console.error('No video details returned');
           return;
@@ -162,17 +162,21 @@ export function VideoContent({ loading, error }: VideoContentProps) {
           </div>
           <Button
             variant="ghost"
-            size="sm"
-            onClick={() => {
+          size="sm"
+          onClick={() => {
+            // Defer state updates slightly to ensure they happen after current render cycle
+            setTimeout(() => {
               setRemovedVideos(prev => {
                 const newRemoved = { ...prev };
                 delete newRemoved[video.id];
                 return newRemoved;
               });
               setActiveCancelId(null);
-              toast.dismiss(id);
-            }}
-            className="border border-border px-2 h-8 hover:bg-accent hover:text-accent-foreground"
+            }, 0);
+            // Call dismiss directly, but after deferred state updates
+            toast.dismiss(id);
+          }}
+          className="border border-border px-2 h-8 hover:bg-accent hover:text-accent-foreground"
           >
             Undo
           </Button>
@@ -182,20 +186,19 @@ export function VideoContent({ loading, error }: VideoContentProps) {
           <div
             className="h-full bg-primary animate-countdown-progress"
             style={{ animationDuration: "5s" }}
-            onAnimationEnd={() => {
-              setActiveCancelId(null);
-            }}
+            // Removed state update from onAnimationEnd to prevent potential render conflicts
+            onAnimationEnd={() => {}}
           />
         </div>
       </div>
     ), {
       id: toastId,
       duration: 5000,
-      onAutoClose: () => {
-        setActiveCancelId(null);
-      }
+      // Removed setActiveCancelId(null) from onAutoClose as it might cause render issues
+      // The state is reset in the Undo button's onClick handler anyway.
+      onAutoClose: () => {}
     });
-  }, []);
+  }, [setRemovedVideos, setActiveCancelId]); // Added dependencies
 
   if (loading) {
     return <VideoContentSkeleton />;
@@ -230,8 +233,10 @@ export function VideoContent({ loading, error }: VideoContentProps) {
     <>
       <div className="space-y-4 pb-2 p-4">
         {!isPlaylist(videoData) ? (
+          // Single Video Display
           <div className="space-y-4">
-            <div className="flex gap-4">
+             {/* ... (rest of single video display code remains the same) ... */}
+             <div className="flex gap-4">
               <div className="flex-shrink-0">
                 <div
                   className="w-28 relative cursor-pointer rounded-lg overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
@@ -307,9 +312,11 @@ export function VideoContent({ loading, error }: VideoContentProps) {
             )}
           </div>
         ) : (
+          // Playlist Display
           <div className="space-y-4">
             <div className="sticky top-0 z-50 bg-background pt-2 pb-3 -mt-2 -mx-4 px-4 border-b border-border/40">
-              <div className="flex gap-4">
+               {/* ... (rest of playlist header code remains the same) ... */}
+               <div className="flex gap-4">
                 <div className="flex-shrink-0">
                   <div
                     className="w-24 relative cursor-pointer rounded-lg overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
@@ -350,7 +357,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 flex-shrink-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10 
+                            className="h-7 w-7 flex-shrink-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10
                                      opacity-70 sm:opacity-40 sm:group-hover:opacity-100 transition-all rounded-full border border-transparent
                                      hover:border-destructive/30"
                             onClick={(e) => handleRemoveVideo(video, e)}
@@ -425,12 +432,13 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                             </Button>
                           </div>
 
+                          {/* Conditional rendering of progress bar based on activeCancelId */}
                           {activeCancelId === video.id && (
                             <div className="w-full mt-1 bg-muted h-[3px] rounded-full overflow-hidden">
                               <div
                                 className="bg-primary h-full animate-countdown-progress"
                                 style={{ animationDuration: "5s" }}
-                                onAnimationEnd={() => setActiveCancelId(null)}
+                                onAnimationEnd={() => setActiveCancelId(null)} // Use callback
                               />
                             </div>
                           )}
@@ -438,8 +446,9 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                       </div>
 
                       {expandedVideoIds.has(video.id) && (
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-background/95 backdrop-blur-[2px]" />
+                         <div className="relative">
+                           {/* ... (rest of expanded video details code remains the same) ... */}
+                           <div className="absolute inset-0 bg-background/95 backdrop-blur-[2px]" />
                           <div className="relative z-10 px-2 pb-4 mt-2">
                             <div className="mt-1 space-y-4">
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70 pb-3 border-b">
@@ -452,7 +461,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                               </div>
                             </div>
                           </div>
-                        </div>
+                         </div>
                       )}
                     </div>
                   </div>
@@ -463,7 +472,8 @@ export function VideoContent({ loading, error }: VideoContentProps) {
       </div>
 
       <AlertDialog open={showVideoOpenDialog} onOpenChange={setShowVideoOpenDialog}>
-        <AlertDialogContent>
+         {/* ... (rest of AlertDialog code remains the same) ... */}
+         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Open Video in New Tab?</AlertDialogTitle>
             <AlertDialogDescription>

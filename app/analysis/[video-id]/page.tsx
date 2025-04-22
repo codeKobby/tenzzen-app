@@ -9,11 +9,11 @@ interface AnalysisPageProps {
 }
 
 export async function generateMetadata({ params }: AnalysisPageProps): Promise<Metadata> {
-  // Destructure videoId from params
-  const { "video-id": videoId } = params;
+  // Access videoId directly
+  const videoId = params["video-id"];
   
   try {
-    // Use the destructured videoId
+    // Use the videoId
     const videoData = await getYoutubeData(videoId);
     
     return {
@@ -28,12 +28,12 @@ export async function generateMetadata({ params }: AnalysisPageProps): Promise<M
   }
 }
 
-export default function AnalysisPage({ params }: AnalysisPageProps) {
-  // Destructure videoId from params
-  const { "video-id": videoId } = params;
+export default async function AnalysisPage({ params }: AnalysisPageProps) {
+  // Access videoId directly
+  const videoId = params["video-id"];
   return (
     <div className="h-full w-full flex flex-col bg-background overflow-hidden">
-      {/* Pass the destructured videoId */}
+      {/* Pass the videoId */}
       <AnalysisClient videoId={videoId} />
     </div>
   );

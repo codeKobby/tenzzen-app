@@ -1,13 +1,12 @@
 "use client";
 
+import React, { useEffect, useState, useRef } from "react"; // Explicitly import React
 import { CoursePanel } from "@/components/analysis/course-panel";
-import { CourseGeneration } from "@/components/analysis/course-generation";
 import { VideoContent } from "@/components/analysis/video-content";
 import { ResizablePanel } from "@/components/resizable-panel";
 import { MobileSheet } from "@/components/analysis/mobile-sheet";
 import { AnalysisHeader } from "@/components/analysis/header";
 import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context";
-import { CourseGenerationProvider } from "@/hooks/use-course-generation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,10 +18,16 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, useRef } from "react";
 import { getYoutubeData } from "@/actions/getYoutubeData";
 import type { ContentDetails } from "@/types/youtube";
+import { GoogleAICourseGenerateButton } from "@/components/google-ai-course-generate-button";
 
+interface ContentProps {
+  initialContent: ContentDetails | null;
+  initialError: string | null;
+}
+
+// Define Content component outside AnalysisClient
 function Content({ initialContent, initialError }: ContentProps) {
   const {
     width,
@@ -119,10 +124,10 @@ function Content({ initialContent, initialError }: ContentProps) {
           {courseData || courseGenerating ? (
             <CoursePanel className="flex-1 z-10" />
           ) : (
-            <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-              <div className="h-full overflow-auto hover:scrollbar scrollbar-thin">
-                <CourseGeneration />
-              </div>
+            // Render the button/initial UI component here
+            <div className="flex-1 min-w-0 flex flex-col overflow-hidden items-center justify-center p-4">
+              {/* Assuming GoogleAICourseGenerateButton contains the trigger */}
+              <GoogleAICourseGenerateButton />
             </div>
           )}
         </div>
@@ -146,11 +151,6 @@ function Content({ initialContent, initialError }: ContentProps) {
       </AlertDialog>
     </>
   );
-}
-
-interface ContentProps {
-  initialContent: ContentDetails | null;
-  initialError: string | null;
 }
 
 interface AnalysisClientProps {
@@ -203,18 +203,16 @@ export function AnalysisClient({ videoId }: AnalysisClientProps) {
 
   return (
     <div id="main" className="h-full w-full flex flex-col bg-background overflow-hidden">
-      <CourseGenerationProvider>
-        <AnalysisProvider initialContent={initialContent}>
-          <AnalysisHeader />
-          {isLoading ? (
+      <AnalysisProvider initialContent={initialContent}>
+        <AnalysisHeader />
+        {isLoading ? (
             <div className="flex-1 flex items-center justify-center">
               <p className="text-muted-foreground">Loading video data...</p>
             </div>
           ) : (
             <Content initialContent={initialContent} initialError={initialError} />
           )}
-        </AnalysisProvider>
-      </CourseGenerationProvider>
+      </AnalysisProvider>
     </div>
   );
 }

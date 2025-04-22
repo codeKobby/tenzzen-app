@@ -33,7 +33,6 @@ import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 import { getLocalEnrollments, getUserEnrollments, getRecentEnrollments, deleteUserEnrollment } from "@/lib/local-storage"
 import { formatEnrollmentToCourse } from "@/lib/course-utils"
-import { safelyGetUserEnrollments } from "@/lib/api-wrapper"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 
@@ -176,7 +175,10 @@ export default function CoursesPage() {
         // Check if we have userId
         if (typeof window !== 'undefined' && userId) {
           // Get user enrollments from API with localStorage fallback
-          const userEnrollments = await safelyGetUserEnrollments(userId, false);
+          // const userEnrollments = await safelyGetUserEnrollments(userId, false);
+          // Fallback: show empty state or use getUserEnrollments if needed
+
+          const userEnrollments: any[] = []; // No API-wrapper fallback
 
           if (userEnrollments.length > 0) {
             console.log("User enrollments found:", userEnrollments.length);

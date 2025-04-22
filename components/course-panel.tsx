@@ -27,9 +27,40 @@ interface CourseResource {
     title: string;
     url: string;
     description?: string;
-    sourceType?: string;
+    type?: string;
     lesson?: string;
     section?: string;
+}
+
+// --- Helper to normalize AI output for resources and metadata ---
+function normalizeCourseData(raw: any) {
+    // Accepts both mock and AI output, returns a normalized object for the UI
+    const metadata = {
+        category: raw.category || raw.metadata?.category || "General",
+        tags: raw.tags || raw.metadata?.tags || [],
+        difficulty: raw.difficulty || raw.metadata?.difficulty || "",
+        prerequisites: raw.prerequisites || raw.metadata?.prerequisites || [],
+        objectives: raw.objectives || raw.metadata?.objectives || [],
+        overviewText: raw.overviewText || raw.metadata?.overviewText || "",
+        sources: raw.resources || raw.metadata?.sources || [],
+        duration: raw.duration || raw.metadata?.duration || "Variable duration"
+    };
+    // Sections and project
+    const sections = raw.sections || [];
+    // Project assessment (AI output may use project: { assessment: 'project' } or just a section with assessment)
+    let project = raw.project || null;
+    if (!project && Array.isArray(sections)) {
+        const lastSection = sections[sections.length - 1];
+        if (lastSection && lastSection.assessment === 'project') {
+            project = { assessment: 'project' };
+        }
+    }
+    return {
+        ...raw,
+        metadata,
+        sections,
+        project
+    };
 }
 
 // Action Buttons component that can be rendered in multiple places
@@ -67,19 +98,27 @@ function CourseSummary({ course }: { course: any }) {
     const testsCount = 3; // Mock data
 
     // Define course category and subcategory/tag
-    const courseCategory = "Programming";
-    const courseTag = "Web Development";
+    const courseCategory = course.metadata.category;
+    const courseTags = course.metadata.tags;
 
     return (
         <div className="flex flex-col gap-4">
             <div>
                 <h3 className="font-semibold text-lg">About this course</h3>
                 <p className="text-muted-foreground text-sm mt-1 line-clamp-3">
-                    {course.description}
+                    {course.metadata.overviewText || course.description}
                 </p>
             </div>
 
-            {/* ...existing code... */}
+            <div>
+                <h4 className="font-semibold text-md">Category</h4>
+                <p className="text-sm">{courseCategory}</p>
+            </div>
+
+            <div>
+                <h4 className="font-semibold text-md">Tags</h4>
+                <p className="text-sm">{courseTags.join(", ")}</p>
+            </div>
 
             <ActionButtons className="flex-1 mt-2" />
         </div>
@@ -92,7 +131,22 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
         // Enhanced overview tab with more detailed information about skills gained
         return (
             <div className="space-y-6">
-                {/* ...existing code... */}
+                <div>
+                    <h4 className="font-semibold text-md">Difficulty</h4>
+                    <p className="text-sm">{course.metadata.difficulty}</p>
+                </div>
+                <div>
+                    <h4 className="font-semibold text-md">Prerequisites</h4>
+                    <p className="text-sm">{course.metadata.prerequisites.join(", ")}</p>
+                </div>
+                <div>
+                    <h4 className="font-semibold text-md">Objectives</h4>
+                    <ul className="list-disc pl-5">
+                        {course.metadata.objectives.map((objective: string, index: number) => (
+                            <li key={index} className="text-sm">{objective}</li>
+                        ))}
+                    </ul>
+                </div>
             </div>
         )
     }
@@ -112,7 +166,12 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
 
         return (
             <div className="space-y-6">
-                {/* ...existing code... */}
+                {course.project && (
+                    <div>
+                        <h4 className="font-semibold text-md">Project Assessment</h4>
+                        <p className="text-sm">This course includes a project assessment.</p>
+                    </div>
+                )}
             </div>
         )
     }
@@ -124,32 +183,25 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
                 title: "MDN Web Docs - HTML Documentation",
                 url: "https://developer.mozilla.org/en-US/docs/Web/HTML",
                 description: "Comprehensive HTML reference and guides",
-                sourceType: "official"
+                type: "official"
             },
             // ...other resources...
         ];
 
         // Collect all resources from course sections and lessons
-        const courseResources: CourseResource[] = [];
-
-        course.sections?.forEach((section: any) => {
-            section.lessons?.forEach((lesson: any) => {
-                if (lesson.resources?.length) {
-                    lesson.resources.forEach((resource: any) => {
-                        courseResources.push({
-                            ...resource,
-                            lesson: lesson.title,
-                            section: section.title,
-                            sourceType: "course"
-                        })
-                    })
-                }
-            })
-        })
+        const courseResources: CourseResource[] = course.metadata.sources;
 
         return (
             <div className="space-y-6">
-                {/* ...existing code... */}
+                {courseResources.map((resource, index) => (
+                    <div key={index}>
+                        <h4 className="font-semibold text-md">{resource.title}</h4>
+                        <p className="text-sm">{resource.description}</p>
+                        <a href={resource.url} className="text-blue-500 text-sm" target="_blank" rel="noopener noreferrer">
+                            {resource.url}
+                        </a>
+                    </div>
+                ))}
             </div>
         )
     }
@@ -179,8 +231,8 @@ export function CoursePanel({ className }: CoursePanelProps) {
         courseData: contextCourseData
     } = useAnalysis()
 
-    // Always use mock data instead of context data
-    const courseData = mockCourseData
+    // Use normalized AI or mock data
+    const courseData = normalizeCourseData(contextCourseData || mockCourseData);
 
     // Track if panel should be visible
     const [isVisible, setIsVisible] = React.useState(false)
@@ -224,8 +276,6 @@ export function CoursePanel({ className }: CoursePanelProps) {
         }
     }, [])
 
-    // ...existing intersection observer for summary section...
-
     if (!isVisible) {
         return null
     }
@@ -238,38 +288,51 @@ export function CoursePanel({ className }: CoursePanelProps) {
             "bg-background flex flex-col w-full sm:w-full h-full overflow-hidden transition-all duration-300 ease-in-out relative",
             className
         )}>
-            {/* ...existing code for loading state... */}
-
-            {/* ...existing code for error state... */}
-
             {/* Course content with single scrollable container */}
             {courseData && !courseGenerating && !courseError && (
                 <div className="flex flex-col flex-1 overflow-hidden">
-                    {/* This is now the main scroll container for everything */}
                     <div
                         ref={scrollContainerRef}
                         className="flex-1 overflow-y-auto hover:scrollbar scrollbar-thin"
                         onScroll={handleScroll}
                     >
-                        {/* Course preview and summary section */}
                         <div className="p-4 border-b" ref={summaryRef}>
-                            {/* ...existing grid with YouTube embed and course summary... */}
+                            <CourseSummary course={courseData} />
                         </div>
 
-                        {/* Course tabs */}
                         <Tabs
                             value={activeTab}
                             onValueChange={setActiveTab}
                             className="flex flex-col"
                         >
-                            {/* ...existing sticky tabs navigation... */}
-
-                            {/* ...existing tabs content... */}
+                            <TabsList>
+                                <TabsTrigger value="overview">Overview</TabsTrigger>
+                                <TabsTrigger value="content">Content</TabsTrigger>
+                                <TabsTrigger value="resources">Resources</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="overview">
+                                <TabContent tab="overview" course={courseData} />
+                            </TabsContent>
+                            <TabsContent value="content">
+                                <TabContent tab="content" course={courseData} />
+                            </TabsContent>
+                            <TabsContent value="resources">
+                                <TabContent tab="resources" course={courseData} />
+                            </TabsContent>
                         </Tabs>
                     </div>
 
-                    {/* Section-specific scroll to top button */}
                     {showScrollTop && (
                         <Button
                             variant="secondary"
                             size="icon"
+                            onClick={scrollToTop}
+                        >
+                            <ArrowUp className="h-4 w-4" />
+                        </Button>
+                    )}
+                </div>
+            )}
+        </div>
+    )
+}

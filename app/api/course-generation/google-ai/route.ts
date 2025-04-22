@@ -1,64 +1,142 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
+import { ReadableStream } from 'stream/web'; // For type hints
 
+// This route calls the ADK service, consumes the stream, and returns the final result.
 export async function POST(req: Request) {
+  let videoId: string | undefined;
+  let videoTitle: string | undefined;
+  let videoDescription: string = '';
+  let transcript: string | undefined;
+  let videoDataBody: any;
+
   try {
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'Google AI API key not configured' }, { status: 500 });
+    // 1. Parse request body
+    try {
+      const body = await req.json();
+      videoId = body.videoId;
+      videoTitle = body.videoTitle;
+      videoDescription = body.videoDescription || '';
+      transcript = body.transcript;
+      videoDataBody = body.videoData;
+      if (!videoId) return NextResponse.json({ error: 'videoId is required' }, { status: 400 });
+      if (!videoDataBody) return NextResponse.json({ error: 'videoData is required' }, { status: 400 });
+      if (!videoTitle) return NextResponse.json({ error: 'videoTitle is required' }, { status: 400 });
+      if (!transcript) return NextResponse.json({ error: 'transcript is required' }, { status: 400 });
+      console.log(`[google-ai route -> ADK] Using provided metadata and videoData for videoId: ${videoId}`);
+    } catch (parseError) {
+      console.error("[google-ai route -> ADK] Error parsing request body:", parseError);
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    const { videoId, videoTitle, videoDescription = '', difficulty = 'Intermediate' } = await req.json();
-    if (!videoId || !videoTitle) {
-      return NextResponse.json({ error: 'Video ID and title are required' }, { status: 400 });
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-    const model = 'gemini-2.0-flash'; // or 'gemini-2.0-pro' if available
-
-    const systemInstruction = `You are an AI course structuring assistant specializing in JSON generation.\nYour task is to analyze video content and create a well-structured learning experience.\nIMPORTANT RULES:\n1. Output ONLY valid JSON - no explanations or additional text\n2. DO NOT include these fields as they are already available:\n   - videoId (from video data)\n   - title (use video title)\n   - description (use video description)\n   - image (use video thumbnail)\n3. Required Metadata:\n   - category: Main topic area (e.g., \"Programming\", \"Music\", \"Design\")\n   - tags: Array of specific subtopics/technologies/skills (for filtering & discovery)\n   - difficulty: [\"Beginner\", \"Intermediate\", \"Advanced\"] with clear progression\n   - prerequisites: Specific, actionable list of required knowledge/skills\n   - objectives: 3-5 clear learning goals (displayed in overview)\n   - overviewText: Compelling summary focused on outcomes\n4. Resources Structure:\n   - title: Clear, descriptive title\n   - url: Valid URL\n   - description: Purpose and value of resource\n   - type: [\"documentation\", \"tutorial\", \"article\", \"video\", \"code\", \"blog\"]\n   - Include both video-mentioned and supplementary resources\n5. Section Structure:\n   - id: Unique identifier\n   - title: Clear, descriptive section name\n   - description: Overview of section content\n   - startTime: Video timestamp where section begins\n   - endTime: Video timestamp where section ends\n   - objective: Primary learning goal for section\n   - keyPoints: Array of main concepts covered\n   - lessons: Array of detailed lesson objects\n   - assessment: Optional \"quiz\" or \"assignment\" after key sections\n6. Lesson Structure:\n   - id: Unique identifier\n   - title: Clear, actionable title\n   - description: Detailed lesson content\n   - startTime: Precise video timestamp\n   - endTime: Precise video timestamp\n   - keyPoints: Specific concepts/skills covered\n7. Project Section Requirements:\n   - Must be final section\n   - Title: Clear project name\n   - Instructions: Detailed steps and requirements\n   - Evaluation criteria\n   - Required deliverables\nFocus on logical progression:\n1. Foundation knowledge\n2. Core concepts\n3. Practical skills\n4. Advanced techniques\n5. Integration project`;
-
-    const userPrompt = `generate a very well structured course from the video using the chapters and video transcript. the generation must include at least one test and assignment and a project at the end. Also determine the difficulty and category\n\nDo not include test questions or assignments, just state after which lesson where you deam fit to have a test or assignment. For instance, lesson 1, lesson 2, test, lesson 3, assignment lesson 5, test, project. the projects are the last in the structure.\nThe structure sections should be titled sections with lessons, grouped based on common grounds, concepts, topics, ideas, etc. Also include resources in the output, first any resource in the discription, mentioned in the video or any additional resource necessary for the leaner.\nand there should be a main category, and then tags. For example: programming and the tags could be Javascript, Nextjs, MERN stack or Guitar and the tags would be bar chords, blues scales, jass`;
-
-    const contents = [
-      {
-        role: 'user',
-        parts: [
-          {
-            fileData: {
-              fileUri: `https://youtu.be/${videoId}`,
-              mimeType: 'video/*',
-            }
-          },
-          { text: userPrompt }
-        ],
-      }
-    ];
-
-    const config = {
-      responseMimeType: 'text/plain',
-      systemInstruction: [{ text: systemInstruction }],
+    // 3. Prepare payload for ADK backend using provided metadata
+    const payload = {
+      video_id: videoId,
+      video_title: videoTitle,
+      video_description: videoDescription,
+      transcript: transcript,
+      video_data: videoDataBody,
     };
 
-    const response = await ai.models.generateContent({
-      model,
-      config,
-      contents,
+    // 4. Call ADK backend
+    console.log(`[google-ai route -> ADK] Calling ADK backend for videoId: ${videoId}`);
+    // NOTE: The ADK service currently has an internal error ("unhashable type: 'Session'")
+    // and this call will likely fail until that is resolved.
+    const adkResponse = await fetch('http://localhost:8080/generate-course', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/x-ndjson', // ADK service streams ndjson
+      },
+      body: JSON.stringify(payload),
     });
 
-    let responseText = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (responseText.includes('```json')) {
-      const match = responseText.match(/```json\s*([\s\S]*?)\s*```/);
-      if (match && match[1]) responseText = match[1].trim();
-    } else if (responseText.includes('```')) {
-      const match = responseText.match(/```\s*([\s\S]*?)\s*```/);
-      if (match && match[1]) responseText = match[1].trim();
+    if (!adkResponse.ok) {
+      const errorText = await adkResponse.text();
+      console.error(`[google-ai route -> ADK] ADK backend error (${adkResponse.status}): ${errorText}`);
+      return NextResponse.json({ error: `ADK backend error: ${errorText}` }, { status: 502 }); // 502 Bad Gateway
     }
 
-    const data = JSON.parse(responseText);
+    if (!adkResponse.body) {
+       console.error("[google-ai route -> ADK] ADK response body is null.");
+       return NextResponse.json({ error: "Received empty response from ADK service." }, { status: 502 });
+    }
 
-    return NextResponse.json({ success: true, data });
+    // 5. Consume the ndjson stream and extract the final data
+    console.log("[google-ai route -> ADK] Consuming stream from ADK service...");
+    const reader = adkResponse.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalCourseData: any = null;
+    let lastErrorMessage: string | null = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        console.log("[google-ai route -> ADK] ADK Stream finished.");
+        // Process any remaining buffer content
+        if (buffer.trim()) {
+           try {
+              const update = JSON.parse(buffer.trim());
+              if (update.status === 'completed' && update.data) {
+                 finalCourseData = update.data;
+              } else if (update.status === 'error') {
+                 lastErrorMessage = update.message || 'Unknown error from final stream chunk';
+              }
+           } catch (e) {
+              console.error("[google-ai route -> ADK] Error parsing final buffer chunk:", e, "Chunk:", buffer);
+              lastErrorMessage = "Failed to parse final stream data.";
+           }
+        }
+        break; // Exit the loop
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // Keep the last potentially incomplete line
+
+      for (const line of lines) {
+        if (line.trim() === '') continue;
+        try {
+          const update = JSON.parse(line);
+          console.log("[google-ai route -> ADK] Stream update:", update); // Log updates
+
+          if (update.status === 'completed' && update.data) {
+            finalCourseData = update.data; // Store the data from the completed message
+            console.log("[google-ai route -> ADK] Final course data found in stream.");
+          } else if (update.status === 'error') {
+             lastErrorMessage = update.message || 'Unknown error received from stream';
+             console.error("[google-ai route -> ADK] Error message received from stream:", lastErrorMessage);
+          }
+        } catch (e) {
+          console.error("[google-ai route -> ADK] Error parsing stream line:", e, "Line:", line);
+          lastErrorMessage = "Failed to parse stream update.";
+        }
+      }
+    } // end while loop
+
+    // 6. Return the extracted data or an error
+    if (finalCourseData) {
+      // --- Improved Logging ---
+      console.log("[API Route] Returning final course data. Keys:", Object.keys(finalCourseData));
+      console.log("[API Route] Sections received (count):", finalCourseData.sections?.length || 0);
+      console.log("[API Route] Resources received (count):", finalCourseData.resources?.length || 0);
+      // Log first section/resource to check structure (avoids overly long logs)
+      if (finalCourseData.sections && finalCourseData.sections.length > 0) {
+          console.log("[API Route] First Section Sample:", JSON.stringify(finalCourseData.sections[0], null, 2));
+      }
+       if (finalCourseData.resources && finalCourseData.resources.length > 0) {
+          console.log("[API Route] First Resource Sample:", JSON.stringify(finalCourseData.resources[0], null, 2));
+      }
+      // --- End Improved Logging ---
+      return NextResponse.json({ success: true, data: finalCourseData });
+    } else {
+      console.error("[google-ai route -> ADK] Stream finished but no final course data was extracted. Last error:", lastErrorMessage);
+      // Prioritize returning the specific error message from the stream if available
+      return NextResponse.json({ error: lastErrorMessage || "Failed to extract course data from ADK stream." }, { status: 502 });
+    }
+
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    console.error("[google-ai route -> ADK Call] Outer catch block Error:", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown server error' }, { status: 500 });
   }
 }

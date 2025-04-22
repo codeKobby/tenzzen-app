@@ -16,3 +16,24 @@ export function sleep(ms: number): Promise<void> {
 export function addUnitIfNeeded(value: number | string, unit: string = 'px'): string {
   return typeof value === 'number' ? `${value}${unit}` : value;
 }
+
+// Format large numbers (like views, likes) with K, M, B suffixes
+export function formatViews(viewsStr: string | number | undefined | null): string {
+  try {
+    const views = Number(viewsStr); // Convert input to number
+    if (isNaN(views)) return "0"; // Handle non-numeric input
+
+    if (views >= 1_000_000_000) {
+      return `${(views / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
+    } else if (views >= 1_000_000) {
+      return `${(views / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    } else if (views >= 1_000) {
+      return `${(views / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+    } else {
+      return String(views);
+    }
+  } catch (error) {
+    console.error("Error formatting views:", error);
+    return "0"; // Fallback on error
+  }
+}

@@ -24,7 +24,7 @@ export default defineSchema({
     details: v.object({
       type: v.string(),
       id: v.string(),
-      title: v.string(),
+      title: v.optional(v.string()), // Make title optional
       description: v.string(),
       duration: v.string(),
       thumbnail: v.string()

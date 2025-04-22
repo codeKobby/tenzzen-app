@@ -1,0 +1,13 @@
+google-adk[database] # Add [database] extra for DatabaseSessionService
+google-generativeai # Use the Generative AI SDK for Gemini API key
+python-dotenv
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+youtube-transcript-api
+isodate # Corrected package name
+# Add FastAPI and Uvicorn if we create a custom server wrapper
+fastapi
+uvicorn[standard]
+pydantic # Often useful for schema validation with FastAPI/ADK
+# sqlalchemy is installed via google-adk[database]

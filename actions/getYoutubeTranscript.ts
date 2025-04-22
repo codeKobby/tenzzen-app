@@ -2,7 +2,7 @@
 
 import { ConvexHttpClient } from "convex/browser";
 import { Innertube } from 'youtubei.js';
-import { createAILogger } from "@/lib/ai/debug-logger";
+import { createLogger } from "@/lib/debug-logger";
 
 // Define the TranscriptSegment type directly in this file to avoid import issues
 interface TranscriptSegment {
@@ -12,7 +12,7 @@ interface TranscriptSegment {
 }
 
 // Initialize logger
-const logger = createAILogger("youtube-transcript");
+const logger = createLogger("youtube-transcript");
 
 // Initialize Convex client
 let convexClient: ConvexHttpClient | null = null;
@@ -28,10 +28,10 @@ export async function getYoutubeTranscript(
   language: string = "en"
 ): Promise<TranscriptSegment[]> {
   try {
-    logger.debug('Fetching transcript directly from YouTube (skipping cache check)');
+    logger.log('Fetching transcript directly from YouTube (skipping cache check)');
 
     // Fetch from YouTube
-    logger.debug('Fetching transcript from YouTube');
+    logger.log('Fetching transcript from YouTube');
     try {
       const youtube = await Innertube.create({
         generate_session_locally: true,
@@ -80,7 +80,7 @@ export async function getYoutubeTranscript(
       const segments = parseTranscriptXml(transcriptXml);
 
       // Don't try to cache - skip it to avoid errors
-      logger.debug('Skipping transcript caching to avoid potential errors');
+      logger.log('Skipping transcript caching to avoid potential errors');
 
       return segments;
     } catch (youtubeError) {

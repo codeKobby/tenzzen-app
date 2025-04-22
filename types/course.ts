@@ -46,8 +46,45 @@ export interface Assessment {
   type: "quiz";
   title: string;
   description: string;
-  placeholder: boolean;
+  placeholder: boolean; // Indicates if content needs generation
+  estimatedDuration?: string; // e.g., "15 minutes"
 }
+
+// Specific Assessment Content Types
+export interface TestContent {
+  type: "test";
+  questions: Array<{
+    question: string;
+    // Add other relevant fields like options, answer, etc.
+  }>;
+  estimatedDuration?: string;
+}
+
+export interface AssignmentContent {
+  type: "assignment";
+  tasks: Array<{
+    title: string;
+    description: string;
+    // Add other relevant fields like submission format, etc.
+  }>;
+  estimatedDuration?: string;
+}
+
+export interface ProjectContent {
+  type: "project";
+  guidelines: string;
+  deadline?: string; // Consider using a Date type if needed
+  estimatedDuration?: string;
+  // Add other relevant fields like deliverables, evaluation criteria, etc.
+}
+
+// Union type for detailed assessment content
+export type AssessmentDetails = TestContent | AssignmentContent | ProjectContent;
+
+// Base type expected by the card (might need adjustment based on useAssessment hook)
+// For now, let's assume AssessmentBase is the same as the basic Assessment
+export type AssessmentBase = Assessment;
+
 
 export interface Course {
   id?: string; // Generic ID field, not tied to any specific database
@@ -106,13 +143,31 @@ export function isSection(obj: any): obj is Section {
   );
 }
 
+// Type Guards for specific assessment content
+export function isTestContent(content: any): content is TestContent {
+  return typeof content === 'object' && content !== null && content.type === 'test' && Array.isArray(content.questions);
+}
+
+export function isAssignmentContent(content: any): content is AssignmentContent {
+  return typeof content === 'object' && content !== null && content.type === 'assignment' && Array.isArray(content.tasks);
+}
+
+export function isProjectContent(content: any): content is ProjectContent {
+  return typeof content === 'object' && content !== null && content.type === 'project' && typeof content.guidelines === 'string';
+}
+
+
 export function isCourse(obj: any): obj is Course {
   return (
     typeof obj === "object" &&
+    obj !== null && // Added null check
     typeof obj.title === "string" &&
     typeof obj.description === "string" &&
     typeof obj.videoId === "string" &&
+    typeof obj.metadata === "object" && // Added check for metadata
     Array.isArray(obj.sections) &&
-    obj.sections.every(isSection)
+    obj.sections.every(isSection) &&
+    Array.isArray(obj.resources) && // Added check for resources
+    Array.isArray(obj.assessments) // Added check for assessments
   );
 }
