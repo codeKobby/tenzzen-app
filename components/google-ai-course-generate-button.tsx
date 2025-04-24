@@ -1,59 +1,70 @@
 "use client";
 
-import { useState } from "react";
-import { Button, type ButtonProps } from "@/components/ui/button"; // Import ButtonProps
+import React, { useState, useEffect, useRef } from "react";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "./custom-toast";
 import { useAnalysis } from "@/hooks/use-analysis-context";
-import { getYoutubeTranscript } from "@/actions/getYoutubeTranscript"; // Import getYoutubeTranscript
+import { getYoutubeTranscript } from "@/actions/getYoutubeTranscript";
 
-// Define prop types explicitly
 interface GoogleAICourseGenerateButtonProps {
   className?: string;
-  size?: ButtonProps['size']; // Use type from ButtonProps
-  variant?: ButtonProps['variant']; // Use type from ButtonProps
+  size?: ButtonProps['size'];
+  variant?: ButtonProps['variant'];
 }
 
 export function GoogleAICourseGenerateButton({
   className = "",
-  size = "lg", // Default value is still fine
-  variant = "default" // Default value is still fine
-}: GoogleAICourseGenerateButtonProps) { // Apply the interface
+  size = "lg",
+  variant = "default"
+}: GoogleAICourseGenerateButtonProps) {
   const {
     videoData,
-    transcript,
     setCourseData,
+    courseData,
     setCourseError,
+    courseError,
     setCourseGenerating,
+    courseGenerating,
     setProgressMessage,
     setGenerationProgress,
   } = useAnalysis();
-  const [isGenerating, setIsGenerating] = useState(false);
+
+  const prevCourseGeneratingRef = useRef<boolean>(courseGenerating);
+
+  useEffect(() => {
+    if (prevCourseGeneratingRef.current === true && courseGenerating === false) {
+      if (courseError) {
+        toast.error("Generation Failed", { description: courseError });
+      } else if (courseData) {
+        toast.success("Course Generated", { description: "Your course has been created!" });
+      }
+    }
+    prevCourseGeneratingRef.current = courseGenerating;
+  }, [courseGenerating, courseData, courseError]);
 
   const handleGenerateCourse = async () => {
     if (!videoData?.id || !videoData?.title) {
       toast.error("Missing Video Data", { description: "Please select a valid YouTube video first." });
       return;
     }
-    setIsGenerating(true);
     setCourseGenerating(true);
+    setCourseError(null);
+    setCourseData(null);
     setProgressMessage("Fetching transcript...");
     setGenerationProgress(10);
+
     try {
-      // Fetch transcript on demand
       const transcriptSegments = await getYoutubeTranscript(videoData.id);
-      const transcript = transcriptSegments.map(seg => seg.text).join(" ").trim(); // Add ()
+      const transcript = transcriptSegments.map(seg => seg.text).join(" ").trim();
 
       if (!transcript) {
-        toast.error("Transcript not found", { description: "Could not retrieve transcript for this video." });
-        setIsGenerating(false);
-        setCourseGenerating(false);
-        setProgressMessage("Transcript not found");
-        setGenerationProgress(0);
-        return;
+        throw new Error("Could not retrieve transcript for this video.");
       }
 
-      // Call backend
+      setProgressMessage("Generating course with AI...");
+      setGenerationProgress(20);
+
       const response = await fetch('/api/course-generation/google-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,43 +85,29 @@ export function GoogleAICourseGenerateButton({
       const result = await response.json();
       if (!result.data) throw new Error("No course data returned from the API");
 
-      // Update State FIRST
       setCourseData(result.data);
       setProgressMessage("Course generation complete!");
       setGenerationProgress(100);
-      setIsGenerating(false);
-      setCourseGenerating(false);
-
-      // Delay Toast AFTER state updates
-      setTimeout(() => {
-        toast.success("Course Generated", { description: "Your course has been created!" });
-      }, 0);
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to generate course";
-      // Update State FIRST
       setCourseError(errorMsg);
       setProgressMessage("Course generation failed");
       setGenerationProgress(0);
-      setIsGenerating(false);
+    } finally {
       setCourseGenerating(false);
-
-      // Delay Toast AFTER state updates
-      setTimeout(() => {
-        toast.error("Generation Failed", { description: errorMsg });
-      }, 0);
     }
   };
 
   return (
     <Button
       onClick={handleGenerateCourse}
-      disabled={isGenerating}
+      disabled={courseGenerating}
       className={className}
       variant={variant}
       size={size}
     >
-      {isGenerating ? (
+      {courseGenerating ? (
         <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating... </>
       ) : (
         <> <Sparkles className="mr-2 h-4 w-4" /> Generate Course </>

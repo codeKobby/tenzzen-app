@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { getYoutubeData } from "@/actions/getYoutubeData";
 import type { ContentDetails } from "@/types/youtube";
 import { GoogleAICourseGenerateButton } from "@/components/google-ai-course-generate-button";
+import { XCircle } from "lucide-react"; // Import XCircle
 
 interface ContentProps {
   initialContent: ContentDetails | null;
@@ -44,6 +45,7 @@ function Content({ initialContent, initialError }: ContentProps) {
     generateCourse,
     courseGenerating,
     courseData,
+    courseError, // Get error state from context
   } = useAnalysis();
 
   const [mounted, setMounted] = useState(false);
@@ -91,11 +93,14 @@ function Content({ initialContent, initialError }: ContentProps) {
     }
   }, [initialContent, initialError, setVideoData]);
 
+  // Use initialError passed down for initial video loading error
+  const initialVideoLoadError = error; // Rename state variable for clarity
+
   return (
     <>
       <main className="flex-1 relative overflow-hidden">
         <div className="flex h-[calc(100vh-64px)] overflow-hidden">
-          {/* Left panel - converts to bottom sheet on small screens */}
+          {/* Left panel - VideoContent */}
           <div className="hidden sm:block relative border-r bg-background">
             <ResizablePanel
               defaultWidth={width}
@@ -105,7 +110,8 @@ function Content({ initialContent, initialError }: ContentProps) {
               className="h-full"
             >
               <div className="h-full overflow-auto hover:scrollbar scrollbar-thin">
-                <VideoContent loading={loading} error={error} />
+                {/* Pass loading/error state related to initial video fetch */}
+                <VideoContent loading={loading} error={initialVideoLoadError} videoData={videoData} />
               </div>
             </ResizablePanel>
           </div>
@@ -115,21 +121,50 @@ function Content({ initialContent, initialError }: ContentProps) {
             <MobileSheet
               isOpen={isOpen}
               onClose={() => toggle(false)}
+              // Pass loading/error state related to initial video fetch
               loading={loading}
-              error={error}
+              error={initialVideoLoadError}
             />
           )}
 
-          {/* Right side - Either course panel, generation UI, or generate button */}
-          {courseData || courseGenerating ? (
-            <CoursePanel className="flex-1 z-10" />
-          ) : (
-            // Render the button/initial UI component here
-            <div className="flex-1 min-w-0 flex flex-col overflow-hidden items-center justify-center p-4">
-              {/* Assuming GoogleAICourseGenerateButton contains the trigger */}
-              <GoogleAICourseGenerateButton />
-            </div>
-          )}
+          {/* Right side - Course Panel or Initial Button/State */}
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+            {/* State 1: Initial Loading or Error for videoData */}
+            {(loading || initialVideoLoadError) && !videoData && !courseGenerating && !courseData && (
+              <div className="flex-1 flex items-center justify-center p-4 text-center">
+                {loading && <p className="text-muted-foreground">Loading video details...</p>}
+                {initialVideoLoadError && <p className="text-destructive">Error loading video details: {initialVideoLoadError}</p>}
+              </div>
+            )}
+
+            {/* State 2: videoData loaded, ready for generation (Show Button) */}
+            {videoData && !courseGenerating && !courseData && !courseError && (
+              <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+                <p className="text-muted-foreground mb-4">Video details loaded. Ready to generate course structure.</p>
+                <GoogleAICourseGenerateButton />
+              </div>
+            )}
+
+            {/* State 3: Generation in Progress (Show CoursePanel loading state) */}
+            {courseGenerating && (
+              <CoursePanel className="flex-1 z-10" />
+            )}
+
+            {/* State 4: Generation Failed */}
+            {courseError && !courseGenerating && !courseData && (
+              <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+                <XCircle className="h-8 w-8 text-destructive mb-4" />
+                <p className="font-medium text-destructive mb-1">Course Generation Failed</p>
+                <p className="text-sm text-muted-foreground mb-4">{courseError}</p>
+                <GoogleAICourseGenerateButton buttonText="Retry Generation" />
+              </div>
+            )}
+
+            {/* State 5: Generation Successful (Show CoursePanel with data) */}
+            {courseData && !courseGenerating && !courseError && (
+              <CoursePanel className="flex-1 z-10" />
+            )}
+          </div>
         </div>
       </main>
 
@@ -170,6 +205,7 @@ export function AnalysisClient({ videoId }: AnalysisClientProps) {
 
         // Ensure the data has a valid id
         if (data) {
+          console.log("[AnalysisClient] Fetched initial video data:", data); // Log fetched data
           const contentWithId = {
             ...data,
             id: videoId || data.id,
@@ -206,12 +242,12 @@ export function AnalysisClient({ videoId }: AnalysisClientProps) {
       <AnalysisProvider initialContent={initialContent}>
         <AnalysisHeader />
         {isLoading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-muted-foreground">Loading video data...</p>
-            </div>
-          ) : (
-            <Content initialContent={initialContent} initialError={initialError} />
-          )}
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-muted-foreground">Loading video data...</p>
+          </div>
+        ) : (
+          <Content initialContent={initialContent} initialError={initialError} />
+        )}
       </AnalysisProvider>
     </div>
   );

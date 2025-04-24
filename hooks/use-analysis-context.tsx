@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import type { ContentDetails } from '@/types/youtube';
@@ -15,7 +15,7 @@ interface AnalysisContextType {
   isOpen: boolean;
   showAlert: boolean;
   sidebarWidth: number;
-  videoData: ContentDetails | null;
+  videoData: ContentDetails | null; // Ensure this holds the full data
   transcript: string[];
   courseGenerating: boolean;
   progressMessage: string;
@@ -26,7 +26,7 @@ interface AnalysisContextType {
   toggle: (open?: boolean) => void;
   setShowAlert: (show: boolean) => void;
   confirmBack: () => void;
-  setVideoData: (data: ContentDetails | null) => void; // Allow null
+  setVideoData: (data: ContentDetails | null) => void; // Ensure setter is included
   setTranscript: (transcript: string[]) => void;
   generateCourse: () => void;
   setCourseGenerating: (generating: boolean) => void;
@@ -89,6 +89,17 @@ export function AnalysisProvider({
   // Video data state
   const [videoData, setVideoData] = useState<ContentDetails | null>(initialContent || null);
 
+  // --- Update videoData when initialContent changes --- 
+  useEffect(() => {
+    // Only update if initialContent is valid and different from current videoData
+    // This prevents resetting videoData if initialContent becomes null during navigation/re-renders
+    if (initialContent && initialContent.id !== videoData?.id) {
+      console.log("[AnalysisProvider] Setting videoData from initialContent:", initialContent);
+      setVideoData(initialContent);
+    }
+  }, [initialContent, videoData?.id]); // Depend on initialContent and videoData.id
+  // --- End Update ---
+
   // Transcript state
   const [transcript, setTranscript] = useState<string[]>([]);
 
@@ -99,13 +110,19 @@ export function AnalysisProvider({
   const [courseData, setCourseData] = useState<Course | null>(null);
   const [courseError, setCourseError] = useState<string | null>(null);
 
+  // --- Add Logging to setCourseData ---
+  const updateCourseData = useCallback((data: Course | null) => {
+    console.log("[AnalysisProvider] setCourseData called with:", data ? `Data with videoId: ${data.videoId}` : "null"); // Log the data being set
+    setCourseData(data);
+  }, []);
+  // --- End Logging ---
+
   // Navigation
   const router = useRouter();
   const pathname = usePathname();
 
   // Abort controller for cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
-
 
   // Toggle mobile sheet
   const toggle = useCallback((open?: boolean) => {
@@ -127,15 +144,14 @@ export function AnalysisProvider({
 
     // Abort previous request if any
     if (abortControllerRef.current) {
-        console.log("Aborting previous generation request...");
-        abortControllerRef.current.abort();
+      console.log("Aborting previous generation request...");
+      abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-
     setCourseGenerating(true);
-    setCourseData(null);
+    updateCourseData(null);
     setCourseError(null);
     setProgressMessage('Initializing course generation...');
     setGenerationProgress(5); // Small initial progress
@@ -159,7 +175,7 @@ export function AnalysisProvider({
         } catch (e) {
           errorData = { error: `Service returned status ${response.status}: ${await response.text()}` };
         }
-         throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
       }
 
       if (!response.body) {
@@ -174,34 +190,34 @@ export function AnalysisProvider({
       let lastErrorMessage: string | null = null;
 
       while (true) {
-         // Check for abort signal before reading next chunk
-         if (signal.aborted) {
-            console.log("Generation cancelled by user.");
-            // Close the reader if possible (depends on browser support)
-            if (reader.cancel) {
-                await reader.cancel("User cancelled generation");
-            }
-            throw new Error("Generation cancelled"); // Throw specific error or handle differently
-         }
+        // Check for abort signal before reading next chunk
+        if (signal.aborted) {
+          console.log("Generation cancelled by user.");
+          // Close the reader if possible (depends on browser support)
+          if (reader.cancel) {
+            await reader.cancel("User cancelled generation");
+          }
+          throw new Error("Generation cancelled"); // Throw specific error or handle differently
+        }
 
         const { done, value } = await reader.read();
         if (done) {
           console.log("Stream finished.");
           // Process any remaining buffer content if necessary
           if (buffer.trim()) {
-             try {
-                const update = JSON.parse(buffer.trim());
-                 if (update.status === 'completed') {
-                    finalCourse = update.data as Course;
-                    setProgressMessage(update.message || 'Completed');
-                    setGenerationProgress(100);
-                 } else if (update.status === 'error') {
-                    lastErrorMessage = update.message || 'Unknown error from stream end';
-                 }
-             } catch (e) {
-                console.error("Error parsing final buffer chunk:", e, "Chunk:", buffer);
-                lastErrorMessage = "Failed to parse final stream data.";
-             }
+            try {
+              const update = JSON.parse(buffer.trim());
+              if (update.status === 'completed') {
+                finalCourse = update.data as Course;
+                setProgressMessage(update.message || 'Completed');
+                setGenerationProgress(100);
+              } else if (update.status === 'error') {
+                lastErrorMessage = update.message || 'Unknown error from stream end';
+              }
+            } catch (e) {
+              console.error("Error parsing final buffer chunk:", e, "Chunk:", buffer);
+              lastErrorMessage = "Failed to parse final stream data.";
+            }
           }
           break;
         }
@@ -228,12 +244,12 @@ export function AnalysisProvider({
               console.log("Final course data received from stream.");
               // Don't break here, let the stream finish naturally
             } else if (update.status === 'error') {
-               console.error("Error received from stream:", update.message);
-               lastErrorMessage = update.message || 'Unknown error from stream';
-               setGenerationProgress(0); // Reset progress on error
-               setProgressMessage('Generation failed.');
-               // Optionally break the loop on error if desired
-               // break;
+              console.error("Error received from stream:", update.message);
+              lastErrorMessage = update.message || 'Unknown error from stream';
+              setGenerationProgress(0); // Reset progress on error
+              setProgressMessage('Generation failed.');
+              // Optionally break the loop on error if desired
+              // break;
             }
           } catch (e) {
             console.error("Error parsing stream line:", e, "Line:", line);
@@ -245,12 +261,19 @@ export function AnalysisProvider({
 
       // After stream finishes
       if (finalCourse) {
-         // TODO: Add validation here if needed: CourseSchema.parse(finalCourse);
-         setCourseData(finalCourse);
-         toast.success("Course generated successfully!");
+        // *** Add the videoId back into the course data ***
+        const completeCourseData = {
+          ...finalCourse,
+          videoId: videoData?.id || "", // Get videoId from the context's videoData state
+        };
+        console.log("[AnalysisProvider] Merged videoId into final course data:", completeCourseData.videoId);
+
+        // TODO: Add validation here if needed: CourseSchema.parse(completeCourseData);
+        updateCourseData(completeCourseData); // Update state with the complete data
+        toast.success("Course generated successfully!");
       } else {
-         // If stream finished but no final course data was set, it's an error
-         throw new Error(lastErrorMessage || "Stream finished without providing course data.");
+        // If stream finished but no final course data was set, it's an error
+        throw new Error(lastErrorMessage || "Stream finished without providing course data.");
       }
 
     } catch (error) {
@@ -258,21 +281,22 @@ export function AnalysisProvider({
       console.error('Course generation error:', error);
       // Don't show toast/set error if it was a user cancellation
       if ((error as Error).message !== "Generation cancelled") {
-          const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-          setCourseError(errorMessage);
-          toast.error(`Failed to generate course: ${errorMessage}`);
-          setGenerationProgress(0); // Reset progress on error
-          setProgressMessage('Generation failed.');
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        setCourseError(errorMessage);
+        toast.error(`Failed to generate course: ${errorMessage}`);
+        setGenerationProgress(0); // Reset progress on error
+        setProgressMessage('Generation failed.');
       } else {
-          // Handle cancellation state if needed (e.g., different message)
-          setProgressMessage('Generation cancelled.');
-          setGenerationProgress(0);
+        // Handle cancellation state if needed (e.g., different message)
+        setProgressMessage('Generation cancelled.');
+        setGenerationProgress(0);
       }
+      updateCourseData(null); // Clear data on error
     } finally {
       setCourseGenerating(false); // Ensure loading state is turned off
       abortControllerRef.current = null; // Clear the ref
     }
-  }, [videoData, setCourseData, setCourseError, setCourseGenerating, setProgressMessage, setGenerationProgress, generationProgress]); // Added generationProgress to deps
+  }, [videoData, updateCourseData, setCourseError, setCourseGenerating, setProgressMessage, setGenerationProgress]); // Added updateCourseData to deps
 
   // Cancel generation
   const cancelGeneration = useCallback(() => {
@@ -291,7 +315,8 @@ export function AnalysisProvider({
     isOpen,
     showAlert,
     sidebarWidth: width,
-    videoData,
+    videoData, // Provide videoData
+    setVideoData, // Provide setter
     transcript,
     courseGenerating,
     progressMessage,
@@ -302,13 +327,12 @@ export function AnalysisProvider({
     toggle,
     setShowAlert,
     confirmBack,
-    setVideoData,
     setTranscript,
     generateCourse,
     setCourseGenerating,
     setProgressMessage,
     setGenerationProgress,
-    setCourseData,
+    setCourseData: updateCourseData, // Provide the logged setter
     setCourseError,
     cancelGeneration,
   };

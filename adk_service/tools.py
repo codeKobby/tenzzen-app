@@ -260,7 +260,9 @@ class WebSearchTool(BaseTool): # Inherit from BaseTool
                 {
                     "title": item.get("title", "No Title"),
                     "url": item.get("link") or item.get("url"), # Common variations
-                    "snippet": item.get("snippet", "No Snippet")
+                    "snippet": item.get("snippet", "No Snippet"),
+                    # Add description field, using snippet as default if available
+                    "description": item.get("snippet", "No description available.")
                 }
                 for item in items_list[:num_results] # Safely get items and limit
                 if (item.get("link") or item.get("url")) # Ensure there's a URL
