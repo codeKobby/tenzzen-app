@@ -201,10 +201,10 @@ function ActionButtons({ className, course, onCancel }: { className?: string, co
     try {
       setEnrolling(true);
       // Show loading toast
-      toast.info('Enrolling in course...', { 
+      toast.info('Enrolling in course...', {
         description: 'Please wait while we process your enrollment'
       });
-      
+
       // Call the mutation
       const result = await enrollMutation({
         courseData: {
@@ -217,7 +217,7 @@ function ActionButtons({ className, course, onCancel }: { className?: string, co
         },
         userId: user.id
       });
-      
+
       // Handle success
       toast.success('Successfully enrolled in course!');
       // Redirect to courses page after enrollment
@@ -234,23 +234,23 @@ function ActionButtons({ className, course, onCancel }: { className?: string, co
 
   return (
     <div className={cn("flex gap-2", className)}>
-      <Button 
-        className="gap-1.5" 
-        size="default" 
-        onClick={handleEnroll} 
+      <Button
+        className="gap-1.5"
+        size="default"
+        onClick={handleEnroll}
         disabled={enrolling || !user}
-      > 
-        {enrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />} 
-        Enroll Now 
+      >
+        {enrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />}
+        Enroll Now
       </Button>
-      <Button 
-        variant="outline" 
-        className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" 
+      <Button
+        variant="outline"
+        className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
         size="default"
         onClick={onCancel}
-      > 
-        <XCircle className="h-4 w-4" /> 
-        Cancel 
+      >
+        <XCircle className="h-4 w-4" />
+        Cancel
       </Button>
     </div>
   );
@@ -259,7 +259,7 @@ function ActionButtons({ className, course, onCancel }: { className?: string, co
 // --- Course Summary ---
 function CourseSummary({ course }: { course: any }) {
   // Use the hook to get the context value
-  const { handleCancel } = useCoursePanelContext(); 
+  const { handleCancel } = useCoursePanelContext();
 
   const totalLessons = course.courseItems
     ?.filter((item: any) => item.type === 'section')
@@ -388,9 +388,9 @@ function CourseSummary({ course }: { course: any }) {
       </div>
 
       {/* Pass the handleCancel from context to ActionButtons */}
-      <ActionButtons 
-        className="flex-1 mt-3" 
-        course={course} 
+      <ActionButtons
+        className="flex-1 mt-3"
+        course={course}
         onCancel={handleCancel} // Use handleCancel obtained from the context hook
       />
     </div>
@@ -711,20 +711,20 @@ export function CoursePanel({ className }: { className?: string }) {
     }
   }, [courseData, courseGenerating]);
 
-  const handleScroll = () => { 
+  const handleScroll = () => {
     if (scrollContainerRef.current) {
       setShowScrollTop(scrollContainerRef.current.scrollTop > 300);
     }
   };
-  
-  const scrollToTop = () => { 
+
+  const scrollToTop = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
-  
-  useEffect(() => { 
-    const currentRef = scrollContainerRef.current; 
+
+  useEffect(() => {
+    const currentRef = scrollContainerRef.current;
     if (currentRef) {
       currentRef.addEventListener('scroll', handleScroll);
       return () => currentRef.removeEventListener('scroll', handleScroll);
@@ -747,7 +747,7 @@ export function CoursePanel({ className }: { className?: string }) {
     }
     try {
       setEnrolling(true);
-      toast.info('Enrolling in course...', { 
+      toast.info('Enrolling in course...', {
         description: 'Please wait while we process your enrollment'
       });
       await enrollUserMutation({
@@ -797,13 +797,13 @@ export function CoursePanel({ className }: { className?: string }) {
     <div className={cn("bg-background flex flex-col w-full sm:w-full h-full overflow-hidden transition-all duration-300 ease-in-out relative", className)}>
       {/* Loading State */}
       {courseGenerating && (
-         <div className="flex flex-col items-center justify-center flex-1 p-4 text-center">
-           <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-           <p className="font-medium mb-1">{progressMessage || "Generating Course..."}</p>
-           <p className="text-sm text-muted-foreground mb-4">AI is structuring your learning experience.</p>
-           {/* Use handleCancel directly here */}
-           <Button variant="outline" size="sm" onClick={handleCancel} className="mt-4">Cancel</Button>
-         </div>
+        <div className="flex flex-col items-center justify-center flex-1 p-4 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+          <p className="font-medium mb-1">{progressMessage || "Generating Course..."}</p>
+          <p className="text-sm text-muted-foreground mb-4">AI is structuring your learning experience.</p>
+          {/* Use handleCancel directly here */}
+          <Button variant="outline" size="sm" onClick={handleCancel} className="mt-4">Cancel</Button>
+        </div>
       )}
       {/* Error State */}
       {!courseGenerating && courseError && (
@@ -829,24 +829,24 @@ export function CoursePanel({ className }: { className?: string }) {
                     />
                   </div>
                   {/* CourseSummary uses context via useCoursePanelContext */}
-                  <CourseSummary course={courseData} /> 
+                  <CourseSummary course={courseData} />
                 </div>
                 {/* Creator Socials Section */}
                 {courseData.creatorSocials && courseData.creatorSocials.length > 0 && (
-                   <div className="px-4 pt-3 pb-4 border-b">
-                     <h3 className="text-sm font-semibold mb-2 text-foreground/80">Connect with Creator</h3>
-                     <div className="flex flex-wrap gap-2">
-                       {courseData.creatorSocials.map((social: { platform: string, url: string }, index: number) => (
-                         <Button key={`social-top-${index}`} variant="outline" size="sm" asChild className="h-7 px-2 py-1 text-xs">
-                           <a href={social.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
-                             {getSocialIcon(social.platform)}
-                             <span className="capitalize">{social.platform}</span>
-                           </a>
-                         </Button>
-                       ))}
-                     </div>
-                   </div>
-                 )}
+                  <div className="px-4 pt-3 pb-4 border-b">
+                    <h3 className="text-sm font-semibold mb-2 text-foreground/80">Connect with Creator</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {courseData.creatorSocials.map((social: { platform: string, url: string }, index: number) => (
+                        <Button key={`social-top-${index}`} variant="outline" size="sm" asChild className="h-7 px-2 py-1 text-xs">
+                          <a href={social.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
+                            {getSocialIcon(social.platform)}
+                            <span className="capitalize">{social.platform}</span>
+                          </a>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               {/* Tabs Section */}
               <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col">

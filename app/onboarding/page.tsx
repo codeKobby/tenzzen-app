@@ -229,11 +229,10 @@ export default function OnboardingPage() {
             type="button"
             onClick={() => toggleLearningArea(area.id)}
             aria-label={`Toggle ${area.label} learning area`}
-            className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-              formData.learningAreas.includes(area.id)
+            className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${formData.learningAreas.includes(area.id)
                 ? 'border-primary bg-primary/10 text-primary font-medium'
                 : 'border-border hover:border-primary/50'
-            }`}
+              }`}
           >
             <span className="text-xl">{area.icon}</span>
             <span className="flex-1 text-left">{area.label}</span>
@@ -328,11 +327,10 @@ export default function OnboardingPage() {
                       key={level}
                       type="button"
                       onClick={() => updateSkillLevel(areaId, level as keyof typeof SKILL_LEVELS)}
-                      className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center gap-1 transition-all ${
-                        selectedLevel === level
+                      className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center gap-1 transition-all ${selectedLevel === level
                           ? 'border-primary bg-primary/10 text-primary'
                           : 'border-border hover:border-primary/50'
-                      }`}
+                        }`}
                     >
                       <span className="font-medium">{label}</span>
                       <span className="text-xs text-muted-foreground">{description}</span>
@@ -379,11 +377,11 @@ export default function OnboardingPage() {
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
         <SparklesIcon className="h-8 w-8 text-primary" />
       </div>
-      
+
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">You're All Set!</h1>
         <p className="text-muted-foreground">
-          Get ready to experience learning in a whole new way. We'll transform YouTube content into structured, 
+          Get ready to experience learning in a whole new way. We'll transform YouTube content into structured,
           personalized courses just for you.
         </p>
       </div>
@@ -476,11 +474,10 @@ export default function OnboardingPage() {
             type="button"
             onClick={nextPage}
             disabled={!canProceed() || loading}
-            className={`flex items-center justify-center gap-1 px-5 py-2 rounded-md font-medium transition-all ${
-              canProceed() && !loading
+            className={`flex items-center justify-center gap-1 px-5 py-2 rounded-md font-medium transition-all ${canProceed() && !loading
                 ? 'bg-primary text-primary-foreground hover:opacity-90'
                 : 'bg-primary/50 text-primary-foreground/70 cursor-not-allowed'
-            }`}
+              }`}
           >
             {currentPage === pages.length - 1
               ? loading ? 'Processing...' : 'Get Started'

@@ -81,10 +81,10 @@ function ActionButtons({ className, course, onCancel }: { className?: string, co
         try {
             setEnrolling(true);
             // Show loading toast
-            toast.info('Enrolling in course...', { 
+            toast.info('Enrolling in course...', {
                 description: 'Please wait while we process your enrollment'
             });
-            
+
             // Call the mutation
             await enrollMutation({
                 courseData: {
@@ -97,7 +97,7 @@ function ActionButtons({ className, course, onCancel }: { className?: string, co
                 },
                 userId: user.id
             });
-            
+
             // Handle success
             toast.success('Successfully enrolled in course!');
             router.push('/courses');
@@ -114,23 +114,23 @@ function ActionButtons({ className, course, onCancel }: { className?: string, co
 
     return (
         <div className={cn("flex gap-2", className)}>
-            <Button 
-                className="gap-1.5" 
-                size="default" 
-                onClick={handleEnroll} 
+            <Button
+                className="gap-1.5"
+                size="default"
+                onClick={handleEnroll}
                 disabled={enrolling || !user}
-            > 
-                {enrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />} 
-                Enroll Now 
+            >
+                {enrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />}
+                Enroll Now
             </Button>
-            <Button 
-                variant="outline" 
-                className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" 
+            <Button
+                variant="outline"
+                className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                 size="default"
                 onClick={onCancel}
-            > 
-                <XCircle className="h-4 w-4" /> 
-                Cancel 
+            >
+                <XCircle className="h-4 w-4" />
+                Cancel
             </Button>
         </div>
     );

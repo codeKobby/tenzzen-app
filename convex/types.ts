@@ -42,16 +42,30 @@ export type AssessmentContent =
   | ({ type: "assignment" } & AssignmentContent)
   | ({ type: "project" } & ProjectContent);
 
-// Database types
+// Progress status types
+export type ProgressStatus = "not_started" | "in_progress" | "completed" | "graded";
+
+// Database types for assessments - matches schema definition
 export interface DbAssessment {
   _id: Id<"assessments">;
+  title: string;
+  description: string;
   courseId: Id<"courses">;
-  sectionId: string;
-  assessmentId: string;
-  type: "test" | "assignment" | "project";
-  content: AssessmentContent;
-  isLocked: boolean;
-  contentGenerated: boolean;
+  type: string;
+  questions?: any[];
+  instructions?: string;
   createdAt: number;
-  updatedAt: number;
+}
+
+// Database types for progress tracking
+export interface DbProgress {
+  _id: Id<"progress">;
+  userId: string;
+  assessmentId: Id<"assessments">;
+  status: ProgressStatus;
+  score?: number;
+  feedback?: string;
+  submission?: any;
+  startedAt?: number;
+  completedAt?: number;
 }

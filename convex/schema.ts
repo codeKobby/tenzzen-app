@@ -12,11 +12,11 @@ export default defineSchema({
       duration: v.number()
     })),
     cachedAt: v.string(),
-  }).searchIndex("search_by_id", {
+  })
+  // Combined search index instead of two separate ones
+  .searchIndex("search_transcripts", {
     searchField: "youtubeId",
-  }).searchIndex("search_by_id_lang", {
-    searchField: "youtubeId",
-    filterFields: ["language"],
+    filterFields: ["language"]
   }),
 
   videos: defineTable({
@@ -24,17 +24,32 @@ export default defineSchema({
     details: v.object({
       type: v.string(),
       id: v.string(),
-      title: v.optional(v.string()), // Make title optional
+      title: v.optional(v.string()),
       description: v.string(),
       duration: v.string(),
       thumbnail: v.string()
     }),
     cachedAt: v.string(),
-  }).searchIndex("by_youtube_id", {
-    searchField: "youtubeId",
-  }),
+  }).index("by_youtube_id", ["youtubeId"]),
 
-  // --- Added Courses Table ---
+  // Playlists table
+  playlists: defineTable({
+    youtubeId: v.string(),
+    title: v.string(),
+    description: v.string(),
+    thumbnail: v.string(),
+    itemCount: v.number(),
+    cachedAt: v.string(),
+  }).index("by_youtube_id", ["youtubeId"]),
+
+  // Playlist videos relationship table
+  playlist_videos: defineTable({
+    playlistId: v.id("playlists"),
+    videoId: v.id("videos"),
+    position: v.number(),
+  }).index("by_playlist", ["playlistId"]),
+
+  // Courses Table
   courses: defineTable({
     title: v.string(),
     subtitle: v.optional(v.string()),
@@ -65,7 +80,7 @@ export default defineSchema({
     enrollmentCount: v.optional(v.number())
   }),
 
-  // --- Added Enrollments Table ---
+  // Enrollments Table
   enrollments: defineTable({
     userId: v.string(),
     courseId: v.id("courses"),
@@ -74,10 +89,35 @@ export default defineSchema({
     progress: v.optional(v.number()),
     isActive: v.optional(v.boolean()),
     completedLessons: v.optional(v.array(v.string()))
-  })
+  }),
+
+  // Assessments Table
+  assessments: defineTable({
+    title: v.string(),
+    description: v.string(),
+    courseId: v.id("courses"),
+    type: v.string(), // "quiz", "project", etc.
+    questions: v.optional(v.array(v.any())),
+    instructions: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_course", ["courseId"]),
+
+  // Progress Table
+  progress: defineTable({
+    userId: v.string(),
+    assessmentId: v.id("assessments"),
+    status: v.string(), // "not_started", "in_progress", "completed", "graded"
+    score: v.optional(v.number()),
+    feedback: v.optional(v.string()),
+    submission: v.optional(v.any()),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  }).index("by_assessment", ["assessmentId"])
+    .index("by_user", ["userId"])
+    .index("by_user_assessment", ["userId", "assessmentId"]),
 });
 
-// Export type for segments
+// Export types for reuse
 export interface TranscriptSegment {
   text: string;
   start: number;
@@ -101,7 +141,7 @@ export interface VideoDoc {
   youtubeId: string;
   details: {
     type: string;
-    id: string;
+    id: string,
     title: string;
     description: string;
     duration: string;

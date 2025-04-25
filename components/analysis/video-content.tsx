@@ -182,7 +182,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
         <div className="w-full h-[3px] bg-muted rounded-full overflow-hidden mt-2">
           <div
             className="h-full bg-primary animate-countdown-progress"
-            // Add a utility class if needed or configure animation duration in CSS/Tailwind
+          // Add a utility class if needed or configure animation duration in CSS/Tailwind
           />
         </div>
       </div>
