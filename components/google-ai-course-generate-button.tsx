@@ -11,12 +11,14 @@ interface GoogleAICourseGenerateButtonProps {
   className?: string;
   size?: ButtonProps['size'];
   variant?: ButtonProps['variant'];
+  buttonText?: string; // Added optional buttonText prop
 }
 
 export function GoogleAICourseGenerateButton({
   className = "",
   size = "lg",
-  variant = "default"
+  variant = "default",
+  buttonText = "Generate Course" // Default text
 }: GoogleAICourseGenerateButtonProps) {
   const {
     videoData,
@@ -29,19 +31,6 @@ export function GoogleAICourseGenerateButton({
     setProgressMessage,
     setGenerationProgress,
   } = useAnalysis();
-
-  const prevCourseGeneratingRef = useRef<boolean>(courseGenerating);
-
-  useEffect(() => {
-    if (prevCourseGeneratingRef.current === true && courseGenerating === false) {
-      if (courseError) {
-        toast.error("Generation Failed", { description: courseError });
-      } else if (courseData) {
-        toast.success("Course Generated", { description: "Your course has been created!" });
-      }
-    }
-    prevCourseGeneratingRef.current = courseGenerating;
-  }, [courseGenerating, courseData, courseError]);
 
   const handleGenerateCourse = async () => {
     if (!videoData?.id || !videoData?.title) {
@@ -62,39 +51,65 @@ export function GoogleAICourseGenerateButton({
         throw new Error("Could not retrieve transcript for this video.");
       }
 
-      setProgressMessage("Generating course with AI...");
+      setProgressMessage("Generating course with Google AI ADK...");
       setGenerationProgress(20);
 
-      const response = await fetch('/api/course-generation/google-ai', {
+      // Call the ADK endpoint for direct JSON response
+      const response = await fetch('/api/course-generation/google-adk', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json', // Changed to accept JSON
+        },
         body: JSON.stringify({
           videoId: videoData.id,
           videoTitle: videoData.title,
           videoDescription: videoData.description || "",
           transcript,
-          videoData: videoData
+          video_data: videoData
         }),
       });
 
       if (!response.ok) {
         let errorMsg = `Error: ${response.status}`;
-        try { const errData = await response.json(); errorMsg = errData.error || errData.message || errorMsg; } catch { }
+        try {
+          const errData = await response.json();
+          errorMsg = errData.error || errData.message || errorMsg;
+        } catch { }
         throw new Error(errorMsg);
       }
-      const result = await response.json();
-      if (!result.data) throw new Error("No course data returned from the API");
 
-      setCourseData(result.data);
+      // Parse the direct JSON response
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      if (!result.data) {
+        throw new Error("No course data received from the API");
+      }
+
+      // Show progress at 100% for course generation completion
       setProgressMessage("Course generation complete!");
       setGenerationProgress(100);
+
+      // Add the videoId to the course data if it's missing
+      const finalData = result.data;
+      if (!finalData.videoId && videoData.id) {
+        finalData.videoId = videoData.id;
+      }
+
+      setCourseData(finalData);
+      toast.success("Course generated successfully!");
+      setCourseGenerating(false);
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to generate course";
       setCourseError(errorMsg);
       setProgressMessage("Course generation failed");
       setGenerationProgress(0);
-    } finally {
+      toast.error("Generation Failed", { description: errorMsg });
       setCourseGenerating(false);
     }
   };
@@ -110,7 +125,7 @@ export function GoogleAICourseGenerateButton({
       {courseGenerating ? (
         <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating... </>
       ) : (
-        <> <Sparkles className="mr-2 h-4 w-4" /> Generate Course </>
+        <> <Sparkles className="mr-2 h-4 w-4" /> {buttonText} </>
       )}
     </Button>
   );

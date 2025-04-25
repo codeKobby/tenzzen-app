@@ -1,82 +1,72 @@
-import { NextResponse } from 'next/server';
-import { ReadableStream } from 'stream/web'; // Use Node.js stream
+import { NextRequest, NextResponse } from 'next/server';
 
-// This route calls the ADK service and streams its response
-export async function POST(req: Request) {
-  let videoId: string | undefined;
-  let difficulty: string = 'Intermediate';
-
+export async function POST(req: NextRequest) {
   try {
-    // 1. Parse request body: expect videoId, videoTitle, transcript, optional difficulty
-    let body;
-    try {
-      body = await req.json();
-    } catch (parseError) {
-      console.error("[google-adk route] Error parsing request body:", parseError);
-      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    const requestBody = await req.json();
+
+    // Validate input
+    const { videoId, videoTitle, videoDescription, transcript, video_data } = requestBody;
+    if (!videoId) {
+      return NextResponse.json({ error: 'Missing required video ID' }, { status: 400 });
     }
-    videoId = body.videoId;
-    const videoTitle: string | undefined = body.videoTitle;
-    const videoDescription: string = body.videoDescription || '';
-    const transcript: string | undefined = body.transcript;
-    difficulty = body.difficulty || difficulty;
-    if (!videoId) return NextResponse.json({ error: 'videoId is required' }, { status: 400 });
-    if (!videoTitle) return NextResponse.json({ error: 'videoTitle is required' }, { status: 400 });
-    if (!transcript) return NextResponse.json({ error: 'transcript is required' }, { status: 400 });
-    console.log(`[google-adk route] Using provided metadata/transcript for videoId: ${videoId}`);
 
-    // 2. Prepare payload for ADK backend using provided data
-    const payload = {
-      video_id: videoId,
-      video_title: videoTitle,
-      video_description: videoDescription,
-      transcript: transcript,
-      difficulty,
-    };
+    console.log('[google-adk route] Starting course generation for video:', videoId);
 
-    // 4. Call ADK backend and stream the response
-    console.log(`[google-adk route] Calling ADK backend for videoId: ${videoId}`);
-    const adkResponse = await fetch('http://localhost:8080/generate-course', {
+    // Call the ADK service (now configured for direct JSON response)
+    const response = await fetch('http://localhost:8080/generate-course', {
       method: 'POST',
-      headers: {
+      headers: { 
         'Content-Type': 'application/json',
-        'Accept': 'application/x-ndjson', // Expecting newline-delimited JSON stream
+        'Accept': 'application/json', // Changed from application/x-ndjson to application/json
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        video_id: videoId,
+        video_title: videoTitle || '',
+        video_description: videoDescription || '',
+        transcript: transcript || '',
+        video_data: video_data || {},
+      }),
     });
 
-    if (!adkResponse.ok) {
-      const errorText = await adkResponse.text();
-      console.error(`[google-adk route] ADK backend error (${adkResponse.status}): ${errorText}`);
-      return new Response(JSON.stringify({ error: `ADK backend error: ${errorText}` }), {
-        status: 502,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    // Handle non-200 responses
+    if (!response.ok) {
+      let errorMessage = `ADK service returned status ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch (e) {
+        console.error('[google-adk route] Error parsing error response:', e);
+      }
+      console.error('[google-adk route] ADK service error:', errorMessage);
+      return NextResponse.json({ error: errorMessage }, { status: 502 });
     }
 
-    if (!adkResponse.body) {
-      console.error("[google-adk route] ADK response body is null.");
-      return new Response(JSON.stringify({ error: "Received empty response from ADK service." }), {
-        status: 502,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    // Parse the JSON response directly
+    try {
+      const courseData = await response.json();
+      console.log('[google-adk route] Successfully received course data for video:', videoId);
+      
+      // Handle potential error field in the response
+      if (courseData.error) {
+        console.error('[google-adk route] Error in course data:', courseData.error);
+        return NextResponse.json({ error: courseData.error }, { status: 400 });
+      }
+      
+      // Return the course data as-is
+      return NextResponse.json({ data: courseData });
+      
+    } catch (jsonError) {
+      console.error('[google-adk route] Error parsing JSON response:', jsonError);
+      return NextResponse.json(
+        { error: `Failed to parse response from ADK service: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON parsing error'}` },
+        { status: 502 }
+      );
     }
-
-    // 5. Stream the response back to the client
-    const headers = new Headers({
-      'Content-Type': 'application/x-ndjson',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    });
-    const responseStream = adkResponse.body as ReadableStream<Uint8Array>;
-    console.log("[google-adk route] Streaming response from ADK service to client.");
-    return new Response(responseStream as any, { headers });
-
   } catch (error) {
-    console.error("[google-adk route] Error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    console.error('[google-adk route] Unhandled error:', error);
+    return NextResponse.json(
+      { error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      { status: 500 }
+    );
   }
 }

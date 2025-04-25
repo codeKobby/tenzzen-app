@@ -440,7 +440,6 @@ export default function OnboardingPage() {
           <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
             <div
               className="h-full bg-primary transition-all duration-300 ease-in-out"
-              style={{ width: `${((currentPage + 1) / pages.length) * 100}%` }}
             ></div>
           </div>
         </div>

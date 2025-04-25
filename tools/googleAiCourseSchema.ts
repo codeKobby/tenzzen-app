@@ -75,11 +75,10 @@ export const courseSchema = z.object({
     url: z.string().url().describe('Direct URL to the creator\'s profile.'),
   })).optional().describe('List of the content creator\'s social media profiles.'),
 
-  // Define project separately if it's always the final element, or integrate as an assessment type
-  // Option 1: Separate final project (if always last)
+  // Define project separately - REMOVE .optional() to make it REQUIRED
   project: assessmentPlaceholderSchema.refine(data => data.assessmentType === 'project', {
     message: "Final assessment must be of type 'project'"
-  }).optional().describe('Optional final project details, placed after all sections and other assessments.'),
+  }).describe('Mandatory final project details, placed after all sections and other assessments.'),
 
   // Option 2: Integrate project into courseItems (if it can appear anywhere)
   // If using Option 2, remove the separate 'project' field above.

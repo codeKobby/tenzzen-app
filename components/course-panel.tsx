@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useState } from "react"
+import React, { useRef, useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { useAnalysis } from "@/hooks/use-analysis-context"
 import { mockCourseData } from "@/lib/mock/course-data"
@@ -9,7 +9,7 @@ import { Button } from "./ui/button"
 import {
     X, Play, Bookmark, GraduationCap, Clock, BookOpen, FileText, TestTube2,
     XCircle, Tag, ChevronDown, Lock, FileQuestion, Code, Briefcase, CheckCircle2,
-    ArrowUp
+    ArrowUp, Loader2
 } from "lucide-react"
 import { YouTubeEmbed } from "@/components/youtube-embed"
 import {
@@ -17,6 +17,11 @@ import {
     CollapsibleContent,
     CollapsibleTrigger
 } from "@/components/ui/collapsible"
+import { toast } from "@/components/custom-toast"
+import { useMutation } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
 
 interface CoursePanelProps {
     className?: string
@@ -63,30 +68,76 @@ function normalizeCourseData(raw: any) {
     };
 }
 
-// Action Buttons component that can be rendered in multiple places
-function ActionButtons({ className }: { className?: string }) {
-    const isSmall = className?.includes("sm");
+// --- Action Buttons ---
+function ActionButtons({ className, course, onCancel }: { className?: string, course: any, onCancel: () => void }) {
+    const router = useRouter();
+    const { user } = useAuth();
+    const enrollMutation = useMutation(api.courses.enrollUserInCourse);
+    const [enrolling, setEnrolling] = useState(false);
+
+    const handleEnroll = async () => {
+        if (!user || !course) return;
+
+        try {
+            setEnrolling(true);
+            // Show loading toast
+            toast.info('Enrolling in course...', { 
+                description: 'Please wait while we process your enrollment'
+            });
+            
+            // Call the mutation
+            await enrollMutation({
+                courseData: {
+                    title: course.title,
+                    description: course.description || "",
+                    videoId: course.videoId,
+                    thumbnail: course.image,
+                    metadata: course.metadata,
+                    sections: course.courseItems || []
+                },
+                userId: user.id
+            });
+            
+            // Handle success
+            toast.success('Successfully enrolled in course!');
+            router.push('/courses');
+        } catch (error) {
+            console.error("Error enrolling in course:", error);
+            // Show error toast
+            toast.error("Failed to enroll in course", {
+                description: "Please try again later."
+            });
+        } finally {
+            setEnrolling(false);
+        }
+    };
 
     return (
         <div className={cn("flex gap-2", className)}>
-            <Button className="gap-1.5" size={isSmall ? "sm" : "default"}>
-                <GraduationCap className="h-4 w-4" />
-                {isSmall ? "" : "Enroll Now"}
+            <Button 
+                className="gap-1.5" 
+                size="default" 
+                onClick={handleEnroll} 
+                disabled={enrolling || !user}
+            > 
+                {enrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />} 
+                Enroll Now 
             </Button>
-            <Button
-                variant="outline"
-                className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                size={isSmall ? "sm" : "default"}
-            >
-                <XCircle className="h-4 w-4" />
-                {isSmall ? "" : "Cancel"}
+            <Button 
+                variant="outline" 
+                className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" 
+                size="default"
+                onClick={onCancel}
+            > 
+                <XCircle className="h-4 w-4" /> 
+                Cancel 
             </Button>
         </div>
     );
 }
 
 // Updated Course Summary section
-function CourseSummary({ course }: { course: any }) {
+function CourseSummary({ course, onCancel }: { course: any, onCancel: () => void }) {
     // Calculate total lessons count
     const totalLessons = course.sections?.reduce(
         (acc: number, section: any) => acc + (section.lessons?.length || 0),
@@ -120,7 +171,11 @@ function CourseSummary({ course }: { course: any }) {
                 <p className="text-sm">{courseTags.join(", ")}</p>
             </div>
 
-            <ActionButtons className="flex-1 mt-2" />
+            <ActionButtons
+                className="flex-1 mt-2"
+                course={course}
+                onCancel={onCancel}
+            />
         </div>
     )
 }
@@ -211,11 +266,12 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
 
 // Simple ProgressBar component
 function ProgressBar({ value = 0 }: { value?: number }) {
+    // Calculate width percentage for potential use with CSS variables or dynamic classes
+    const widthPercent = Math.min(Math.max(value, 0), 100);
     return (
         <div className="w-full max-w-xs bg-secondary rounded-full h-2.5 dark:bg-secondary/20">
             <div
                 className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-in-out"
-                style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
             />
         </div>
     )
@@ -228,20 +284,46 @@ export function CoursePanel({ className }: CoursePanelProps) {
         generationProgress,
         courseError,
         cancelGeneration,
-        courseData: contextCourseData
+        courseData: contextCourseData,
+        videoData
     } = useAnalysis()
 
+    // Get authentication context
+    const { user, isAuthenticated } = useAuth()
+
+    // Convex mutations
+    const enrollUserInCourse = useMutation(api.courses.enrollUserInCourse)
+
     // Use normalized AI or mock data
-    const courseData = normalizeCourseData(contextCourseData || mockCourseData);
+    const [normalizedCourseData, setNormalizedCourseData] = useState<any>(null);
+
+    // Use useEffect to handle any data processing that might trigger state updates
+    useEffect(() => {
+        if (contextCourseData || !courseGenerating) {
+            setNormalizedCourseData(normalizeCourseData(contextCourseData || mockCourseData));
+        }
+    }, [contextCourseData, courseGenerating, videoData]);
+
+    // Handle cancel button
+    const router = useRouter();
+    const handleCancel = () => {
+        if (courseGenerating) {
+            // If generation is in progress, cancel it
+            cancelGeneration();
+            toast.info("Generation canceled", {
+                description: "Course generation has been canceled."
+            });
+        } else {
+            // If viewing a course, go back or close panel
+            router.back();
+        }
+    };
 
     // Track if panel should be visible
     const [isVisible, setIsVisible] = React.useState(false)
 
     // Current tab state
     const [activeTab, setActiveTab] = React.useState("overview")
-
-    // Track if summary section is visible
-    const [isSummaryVisible, setIsSummaryVisible] = React.useState(true)
 
     // Track scroll position for the scroll-to-top button
     const [showScrollTop, setShowScrollTop] = React.useState(false)
@@ -276,6 +358,11 @@ export function CoursePanel({ className }: CoursePanelProps) {
         }
     }, [])
 
+    // Set visibility in an effect, not during render
+    useEffect(() => {
+        setIsVisible(true);
+    }, []);
+
     if (!isVisible) {
         return null
     }
@@ -288,8 +375,49 @@ export function CoursePanel({ className }: CoursePanelProps) {
             "bg-background flex flex-col w-full sm:w-full h-full overflow-hidden transition-all duration-300 ease-in-out relative",
             className
         )}>
-            {/* Course content with single scrollable container */}
-            {courseData && !courseGenerating && !courseError && (
+            {/* Loading state */}
+            {courseGenerating && (
+                <div className="flex flex-col items-center justify-center h-full p-6">
+                    <div className="mb-4 text-center">
+                        <h3 className="font-semibold text-lg">Generating your course...</h3>
+                        <p className="text-muted-foreground text-sm mt-1">{progressMessage || "Processing video content..."}</p>
+                    </div>
+                    <ProgressBar value={generationProgress} />
+                    <div className="mt-4">
+                        <Button
+                            variant="outline"
+                            className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                            onClick={handleCancel}
+                        >
+                            <XCircle className="h-4 w-4" />
+                            Cancel
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Error state */}
+            {courseError && (
+                <div className="flex flex-col items-center justify-center h-full p-6">
+                    <div className="mb-4 text-center">
+                        <h3 className="font-semibold text-lg text-red-500">Error generating course</h3>
+                        <p className="text-muted-foreground text-sm mt-1">Please try again later.</p>
+                    </div>
+                    <div className="mt-4">
+                        <Button
+                            variant="outline"
+                            className="gap-1.5"
+                            onClick={handleCancel}
+                        >
+                            <XCircle className="h-4 w-4" />
+                            Close
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Course content */}
+            {normalizedCourseData && !courseGenerating && !courseError && (
                 <div className="flex flex-col flex-1 overflow-hidden">
                     <div
                         ref={scrollContainerRef}
@@ -297,7 +425,7 @@ export function CoursePanel({ className }: CoursePanelProps) {
                         onScroll={handleScroll}
                     >
                         <div className="p-4 border-b" ref={summaryRef}>
-                            <CourseSummary course={courseData} />
+                            <CourseSummary course={normalizedCourseData} onCancel={handleCancel} />
                         </div>
 
                         <Tabs
@@ -305,27 +433,27 @@ export function CoursePanel({ className }: CoursePanelProps) {
                             onValueChange={setActiveTab}
                             className="flex flex-col"
                         >
-                            <TabsList>
+                            <TabsList className="flex">
                                 <TabsTrigger value="overview">Overview</TabsTrigger>
                                 <TabsTrigger value="content">Content</TabsTrigger>
                                 <TabsTrigger value="resources">Resources</TabsTrigger>
                             </TabsList>
                             <TabsContent value="overview">
-                                <TabContent tab="overview" course={courseData} />
+                                <TabContent tab="overview" course={normalizedCourseData} />
                             </TabsContent>
                             <TabsContent value="content">
-                                <TabContent tab="content" course={courseData} />
+                                <TabContent tab="content" course={normalizedCourseData} />
                             </TabsContent>
                             <TabsContent value="resources">
-                                <TabContent tab="resources" course={courseData} />
+                                <TabContent tab="resources" course={normalizedCourseData} />
                             </TabsContent>
                         </Tabs>
                     </div>
 
                     {showScrollTop && (
                         <Button
-                            variant="secondary"
-                            size="icon"
+                            variant="outline"
+                            className="fixed bottom-4 right-4"
                             onClick={scrollToTop}
                         >
                             <ArrowUp className="h-4 w-4" />
