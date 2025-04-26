@@ -1,4 +1,4 @@
-import { AuthenticatedLayoutClient } from "@/components/authenticated-layout-client"
+import { AuthenticatedLayoutClient } from "./authenticated-layout-client"
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode

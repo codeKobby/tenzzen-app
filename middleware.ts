@@ -40,13 +40,14 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   // For users who just signed in, redirect to dashboard if they've completed onboarding
-  if (userId && sessionClaims?.metadata?.onboardingComplete && (req.nextUrl.pathname === '/sign-in' || req.nextUrl.pathname === '/')) {
+  // But only redirect from sign-in page, not from homepage
+  if (userId && sessionClaims?.metadata?.onboardingComplete && req.nextUrl.pathname === '/sign-in') {
     const dashboardUrl = new URL('/dashboard', req.url);
     return NextResponse.redirect(dashboardUrl);
   }
 
   // Redirect users who haven't completed onboarding to the onboarding page
-  if (userId && !sessionClaims?.metadata?.onboardingComplete && !isOnboardingRoute(req)) {
+  if (userId && !sessionClaims?.metadata?.onboardingComplete && !isOnboardingRoute(req) && !isPublicRoute(req)) {
     const onboardingUrl = new URL('/onboarding', req.url);
     return NextResponse.redirect(onboardingUrl);
   }

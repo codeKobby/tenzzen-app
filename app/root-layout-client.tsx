@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { Providers } from "./providers"
+import { useEffect, useState } from "react"
 import { AuthenticatedLayout } from "@/components/authenticated-layout"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CookieConsent } from "@/components/cookie-consent"
@@ -11,32 +11,42 @@ interface RootLayoutClientProps {
 }
 
 export function RootLayoutClient({ children }: RootLayoutClientProps) {
-  return (
-    <Providers>
-      <RootLayoutContent>
-        {children}
-      </RootLayoutContent>
-    </Providers>
-  )
-}
-
-function RootLayoutContent({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+  const pathname = usePathname() || ''
   const isAuthPage = ['/sign-in', '/sign-up'].includes(pathname)
 
-  if (isAuthPage) {
-    return children
+  // Critical: This ensures proper client-side hydration
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Don't show anything until the component is mounted
+  // This avoids hydration errors and blank pages
+  if (!mounted) {
+    return (
+      <div id="main">
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        </div>
+      </div>
+    )
   }
 
+  // For auth pages, render directly without authenticated layout
+  if (isAuthPage) {
+    return <>{children}</>
+  }
+
+  // For all other pages, use authenticated layout
   return (
     <div id="main">
       <AuthenticatedLayout>
         {children}
-        <div className="fixed bottom-4 right-4 z-50">
-          <ThemeToggle />
-        </div>
-        <CookieConsent />
       </AuthenticatedLayout>
+      <div className="fixed bottom-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+      <CookieConsent />
     </div>
   )
 }

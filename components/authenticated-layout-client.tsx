@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { cn } from "@/lib/utils"
 import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
-import { Authenticated, Unauthenticated, AuthLoading } from "convex/react"
+import { Authenticated } from "convex/react"
+import { useState, useEffect, Suspense } from "react"
 
 interface AuthenticatedLayoutClientProps {
   children: React.ReactNode
@@ -40,7 +41,7 @@ function FullLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className={cn(
         "min-h-screen",
-        `transition-transform duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING} ease-in-out`,
+        `transition-transform duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING} ease-in-out`,
         isOpen ? "lg:pl-[280px]" : "lg:pl-0"
       )}>
         <PageHeader />
@@ -53,7 +54,7 @@ function FullLayout({ children }: { children: React.ReactNode }) {
 }
 
 function AuthenticatedContent({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
+  const pathname = usePathname() || ""
   const isAnalysisPage = pathname.startsWith('/analysis/')
 
   if (isAnalysisPage) {
@@ -63,22 +64,65 @@ function AuthenticatedContent({ children }: { children: React.ReactNode }) {
   return <FullLayout>{children}</FullLayout>
 }
 
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <BaseLayout>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    </BaseLayout>
+  )
+}
+
 export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClientProps) {
-  const pathname = usePathname()
+  const pathname = usePathname() || ""
   const publicPages = ['/', '/sign-in', '/sign-up', '/onboarding']
   const isAuthPage = pathname === '/sign-in' || pathname === '/sign-up'
-
-  if (isAuthPage) {
-    return children
+  const [mounted, setMounted] = useState(false)
+  
+  // Force page content to render after a timeout
+  const [forceRender, setForceRender] = useState(false)
+  
+  // Ensure proper client-side rendering
+  useEffect(() => {
+    setMounted(true)
+    
+    // Force render after a short timeout to prevent indefinite loading
+    const timer = setTimeout(() => {
+      setForceRender(true)
+    }, 1500)
+    
+    return () => clearTimeout(timer)
+  }, [])
+  
+  // Don't render anything until client-side hydration is complete
+  if (!mounted) {
+    return <LoadingFallback />
   }
 
+  // Auth pages don't need the layout wrapper
+  if (isAuthPage) {
+    return <>{children}</>
+  }
+
+  // Public pages use the base layout
   if (publicPages.includes(pathname)) {
     return <BaseLayout>{children}</BaseLayout>
   }
 
+  // For authenticated pages, wrap with Authenticated component
+  // Use Suspense to handle loading states better
   return (
-    <Authenticated>
-      <AuthenticatedContent>{children}</AuthenticatedContent>
-    </Authenticated>
+    <Suspense fallback={<LoadingFallback />}>
+      {forceRender ? (
+        // Force render after timeout to prevent indefinite loading
+        <AuthenticatedContent>{children}</AuthenticatedContent>
+      ) : (
+        <Authenticated>
+          <AuthenticatedContent>{children}</AuthenticatedContent>
+        </Authenticated>
+      )}
+    </Suspense>
   )
 }

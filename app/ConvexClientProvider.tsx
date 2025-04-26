@@ -2,7 +2,7 @@
 
 import { ClerkProvider, useAuth } from "@clerk/clerk-react"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
-import { ReactNode } from "react"
+import { ReactNode, useEffect, useState } from "react"
 import { convex } from "@/hooks/use-convex"
 
 if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
@@ -17,6 +17,13 @@ export function ConvexClientProvider({
 }: {
   children: ReactNode
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  // This ensures hydration issues don't cause rendering problems
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!}
@@ -39,7 +46,7 @@ export function ConvexClientProvider({
       }}
     >
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-        {children}
+        {mounted ? children : null}
       </ConvexProviderWithClerk>
     </ClerkProvider>
   )
