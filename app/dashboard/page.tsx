@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card, CardContent, CardHeader, CardTitle
 } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import {
   Clock, GraduationCap, Target, BookOpen, TrendingUp,
   PlayCircle, Youtube, Sparkles, Timer, ListChecks,
   Brain, Lightbulb, Map, Award, BookOpenCheck,
+  LucideIcon, Loader2, BookPlus
   LucideIcon, Loader2, BookPlus
 } from 'lucide-react';
 import Image from 'next/image';
@@ -26,7 +28,9 @@ import { CourseGenerationModal } from '@/components/modals/course-generation-mod
 // Define interfaces for type safety
 interface Course {
   _id: Id<"courses">;
+  _id: Id<"courses">;
   title: string;
+  thumbnail?: string;
   thumbnail?: string;
   progress: number;
   lastAccessedAt: number;
@@ -54,8 +58,41 @@ interface LearningActivity {
   metadata?: any;
   courseName?: string;
   assessmentTitle?: string;
+  lastAccessedAt: number;
+  completedLessons?: string[];
+  sections?: {
+    title: string;
+    lessons?: {
+      id: string;
+      title: string;
+      type: string;
+    }[];
+  }[];
+  overview?: {
+    skills?: string[];
+    difficultyLevel?: string;
+    totalDuration?: string;
+  };
 }
 
+interface LearningActivity {
+  _id: Id<"learning_activities">;
+  type: string;
+  timestamp: number;
+  courseId?: Id<"courses">;
+  metadata?: any;
+  courseName?: string;
+  assessmentTitle?: string;
+}
+
+interface UserStats {
+  totalLearningHours?: number;
+  coursesInProgress?: number;
+  coursesCompleted?: number;
+  projectsSubmitted?: number;
+  streakDays?: number;
+  longestStreak?: number;
+  weeklyActivity?: number[];
 interface UserStats {
   totalLearningHours?: number;
   coursesInProgress?: number;
@@ -247,7 +284,11 @@ export default function DashboardPage() {
     {
       label: "Learning Hours",
       value: `${userStats?.totalLearningHours?.toFixed(1) || '0'}h`,
+      value: `${userStats?.totalLearningHours?.toFixed(1) || '0'}h`,
       icon: Clock,
+      change: userStats?.totalLearningHours && userStats.totalLearningHours > 0
+        ? { value: "+1.2h", type: "increase" as const }
+        : undefined
       change: userStats?.totalLearningHours && userStats.totalLearningHours > 0
         ? { value: "+1.2h", type: "increase" as const }
         : undefined
@@ -255,7 +296,11 @@ export default function DashboardPage() {
     {
       label: "Active Courses",
       value: `${userStats?.coursesInProgress || '0'}`,
+      value: `${userStats?.coursesInProgress || '0'}`,
       icon: GraduationCap,
+      change: userStats?.coursesInProgress && userStats.coursesInProgress > 0
+        ? { value: "+1", type: "increase" as const }
+        : undefined
       change: userStats?.coursesInProgress && userStats.coursesInProgress > 0
         ? { value: "+1", type: "increase" as const }
         : undefined
@@ -263,7 +308,12 @@ export default function DashboardPage() {
     {
       label: "Completed",
       value: `${userStats?.coursesCompleted || '0'}`,
+      label: "Completed",
+      value: `${userStats?.coursesCompleted || '0'}`,
       icon: Target,
+      change: userStats?.coursesCompleted && userStats.coursesCompleted > 0
+        ? { value: "New", type: "increase" as const, showTrend: true }
+        : undefined
       change: userStats?.coursesCompleted && userStats.coursesCompleted > 0
         ? { value: "New", type: "increase" as const, showTrend: true }
         : undefined
@@ -271,7 +321,13 @@ export default function DashboardPage() {
     {
       label: "Projects",
       value: `${userStats?.projectsSubmitted || '0'}`,
+      label: "Projects",
+      value: `${userStats?.projectsSubmitted || '0'}`,
       icon: ListChecks,
+      change: userStats?.projectsSubmitted && userStats.projectsSubmitted > 0
+        ? { value: "+1", type: "increase" as const }
+        : undefined
+    }
       change: userStats?.projectsSubmitted && userStats.projectsSubmitted > 0
         ? { value: "+1", type: "increase" as const }
         : undefined
@@ -279,15 +335,75 @@ export default function DashboardPage() {
   ];
 
   // Get current streak info
+  // Get current streak info
   const streak = {
+    current: Math.max(userStats?.streakDays || 0, 1), // Ensure minimum streak of 1 for logged-in users
+    longest: Math.max(userStats?.longestStreak || 0, 1), // Also ensure minimum longest streak is 1
     current: Math.max(userStats?.streakDays || 0, 1), // Ensure minimum streak of 1 for logged-in users
     longest: Math.max(userStats?.longestStreak || 0, 1), // Also ensure minimum longest streak is 1
     today: {
       minutes: activeTime, // Now tracking active login time instead of learning time
       tasks: recentActivities?.activities?.filter(a => new Date(a.timestamp).toDateString() === new Date().toDateString()).length || 0
+      minutes: activeTime, // Now tracking active login time instead of learning time
+      tasks: recentActivities?.activities?.filter(a => new Date(a.timestamp).toDateString() === new Date().toDateString()).length || 0
     }
   };
 
+  const userName = user?.firstName || user?.username || 'Learner';
+  const greeting = getGreeting();
+
+  // Get selected course
+  const selectedCourse = recentCourses?.find(course => course._id === activeCourse);
+
+  // Find or generate recent notes
+  const recentNotes: Note[] = [
+    ...(recentActivities?.activities
+      ?.filter(activity => activity.type.includes('note'))
+      ?.slice(0, 2)
+      ?.map(activity => ({
+        id: activity._id,
+        title: activity.metadata?.title || "Untitled Note",
+        course: activity.courseName || "General",
+        date: new Date(activity.timestamp).toLocaleDateString()
+      })) || []),
+    // Add placeholder if needed
+    ...((!recentActivities?.activities?.length || recentActivities.activities.filter(a => a.type.includes('note')).length < 2)
+      ? [{
+        id: 'placeholder',
+        title: "Create your first note",
+        course: "Get Started",
+        date: "Today"
+      }]
+      : [])
+  ].slice(0, 2); // Ensure we only show max 2 notes
+
+  // Create tasks for dashboard
+  const dashboardTasks: DashboardTask[] = [
+    // Show upcoming assessments from courses or placeholder
+    ...(recentCourses?.flatMap(course =>
+      course.sections?.flatMap(section =>
+        section.lessons?.filter(lesson =>
+          lesson.type === 'assessment' &&
+          !course.completedLessons?.includes(lesson.id)
+        ).map(lesson => ({
+          id: lesson.id,
+          type: "assessment",
+          title: lesson.title,
+          date: new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000) // Random date in next week
+        })) || []
+      ) || []
+    ).slice(0, 3) || []),
+    // Add placeholder if needed
+    ...(!recentCourses || recentCourses.length === 0 ? [{
+      id: 'placeholder',
+      type: "project",
+      title: "Start your learning journey",
+      date: new Date()
+    }] : [])
+  ].filter((task): task is DashboardTask => !!task); // Remove any potential undefined values
+
+  // Convert tasks to calendar-compatible format
+  const calendarTasks = mapTasksForCalendar(dashboardTasks);
   const userName = user?.firstName || user?.username || 'Learner';
   const greeting = getGreeting();
 
@@ -368,6 +484,7 @@ export default function DashboardPage() {
                       <p className="text-xs text-primary-foreground/80 flex items-center gap-1.5">
                         Best: {streak.longest} days
                         {streak.current >= streak.longest && streak.longest > 0 && (
+                        {streak.current >= streak.longest && streak.longest > 0 && (
                           <span className="text-xs">🏆</span>
                         )}
                       </p>
@@ -384,10 +501,12 @@ export default function DashboardPage() {
                         <Timer className="h-3.5 w-3.5" />
                         <span>{streak.today.minutes}m today</span>
                         {streak.today.minutes > 0 && <span className="ml-1 text-xs">⭐</span>}
+                        {streak.today.minutes > 0 && <span className="ml-1 text-xs">⭐</span>}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <ListChecks className="h-3.5 w-3.5" />
                         <span>{streak.today.tasks} tasks done</span>
+                        {streak.today.tasks > 0 && <span className="ml-1 text-xs">✅</span>}
                         {streak.today.tasks > 0 && <span className="ml-1 text-xs">✅</span>}
                       </div>
                     </div>
@@ -401,7 +520,10 @@ export default function DashboardPage() {
                   size="sm"
                   className="flex-1 h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
                   onClick={() => setIsCourseModalOpen(true)}
+                  onClick={() => setIsCourseModalOpen(true)}
                 >
+                  <BookPlus className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">Generate Course</span>
                   <BookPlus className="h-4 w-4 shrink-0" />
                   <span className="font-medium">Generate Course</span>
                 </Button>
@@ -410,8 +532,10 @@ export default function DashboardPage() {
                   size="sm"
                   className="flex-1 h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
                   onClick={() => window.location.href = '/courses'}
+                  onClick={() => window.location.href = '/courses'}
                 >
                   <Sparkles className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">Browse Courses</span>
                   <span className="font-medium">Browse Courses</span>
                 </Button>
               </div>
@@ -532,13 +656,30 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 space-y-3">
+                      <div className="bg-muted/40 mx-auto rounded-full w-12 h-12 flex items-center justify-center">
+                        <BookOpen className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium">No courses yet</h3>
+                      <p className="text-muted-foreground text-sm">
+                        Start your learning journey by enrolling in a course
+                      </p>
+                      <Button
+                        onClick={() => window.location.href = '/explore'}
+                        size="sm"
+                      >
+                        Explore Courses
+                      </Button>
                     </div>
-                  ))}
+                  )}
 
                   {selectedCourse && (
                     <div className="bg-muted/50 rounded-lg p-4 mt-4">
                       <h4 className="text-sm font-medium flex items-center gap-1.5 mb-3">
                         <Brain className="h-4 w-4 text-primary" />
+                        Course Structure for {selectedCourse.title}
                         Course Structure for {selectedCourse.title}
                       </h4>
                       {/* Rest of selected course content remains the same */}
@@ -548,7 +689,17 @@ export default function DashboardPage() {
                             <div className="flex justify-between text-xs mb-1">
                               <span className="font-medium">Section {index + 1}: {section.title}</span>
                               <span>{section.lessons?.length || 0} lessons</span>
+                              <span className="font-medium">Section {index + 1}: {section.title}</span>
+                              <span>{section.lessons?.length || 0} lessons</span>
                             </div>
+                            <Progress
+                              value={
+                                (selectedCourse.completedLessons?.filter(
+                                  lessonId => section.lessons?.some(l => l.id === lessonId)
+                                ).length || 0) / (section.lessons?.length || 1) * 100
+                              }
+                              className="h-1.5"
+                            />
                             <Progress
                               value={
                                 (selectedCourse.completedLessons?.filter(
@@ -573,17 +724,35 @@ export default function DashboardPage() {
                         </div>
                       )}
 
+                      {selectedCourse.sections && selectedCourse.sections.length > 4 && (
+                        <div className="mt-2 text-center">
+                          <Button
+                            variant="link"
+                            className="text-xs"
+                            onClick={() => window.location.href = `/courses/${selectedCourse._id}`}
+                          >
+                            View all {selectedCourse.sections.length} sections
+                          </Button>
+                        </div>
+                      )}
+
                       <div className="mt-4 flex flex-col sm:flex-row gap-4">
                         <div className="flex-1">
                           <h5 className="text-xs font-medium flex items-center gap-1.5 mb-2">
                             <Map className="h-3.5 w-3.5 text-primary" />
                             Topics Covered
+                            Topics Covered
                           </h5>
                           <div className="flex flex-wrap gap-2">
                             {selectedCourse.overview?.skills?.slice(0, 5).map((skill, idx) => (
+                            {selectedCourse.overview?.skills?.slice(0, 5).map((skill, idx) => (
                               <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                                 {skill}
+                                {skill}
                               </span>
+                            )) || (
+                                <span className="text-xs text-muted-foreground">No topics available</span>
+                              )}
                             )) || (
                                 <span className="text-xs text-muted-foreground">No topics available</span>
                               )}
@@ -593,8 +762,16 @@ export default function DashboardPage() {
                           <h5 className="text-xs font-medium flex items-center gap-1.5 mb-2">
                             <Lightbulb className="h-3.5 w-3.5 text-primary" />
                             Difficulty Level
+                            Difficulty Level
                           </h5>
                           <div className="text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <Award className="h-3 w-3 text-primary" />
+                              <span>{selectedCourse.overview?.difficultyLevel || 'Beginner'}</span>
+                              <span className="text-muted-foreground">
+                                ({selectedCourse.overview?.totalDuration || 'Unknown duration'})
+                              </span>
+                            </div>
                             <div className="flex items-center gap-1.5">
                               <Award className="h-3 w-3 text-primary" />
                               <span>{selectedCourse.overview?.difficultyLevel || 'Beginner'}</span>
@@ -659,6 +836,14 @@ export default function DashboardPage() {
                 >
                   View All
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => window.location.href = '/library'}
+                >
+                  View All
+                </Button>
               </div>
 
               <div className="space-y-3">
@@ -685,8 +870,36 @@ export default function DashboardPage() {
                     </div>
                   );
                 })}
+                {recentNotes.map(note => {
+                  // Generate a consistent key that's always a string
+                  const noteKey = typeof note.id === 'string'
+                    ? note.id
+                    : String(note.id); // Convert to string explicitly
+
+                  return (
+                    <div
+                      key={noteKey}
+                      className="rounded-md border p-2.5 hover:border-primary/50 transition-all cursor-pointer"
+                      onClick={() => note.id === 'placeholder'
+                        ? window.location.href = '/library?create=note'
+                        : window.location.href = `/library?note=${note.id}`
+                      }
+                    >
+                      <h5 className="text-sm font-medium mb-1">{note.title}</h5>
+                      <div className="flex justify-between items-center text-xs text-muted-foreground">
+                        <span>{note.course}</span>
+                        <span>{note.date}</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
+              <Button
+                className="w-full text-xs h-8 mt-2"
+                variant="outline"
+                onClick={() => window.location.href = '/library?create=note'}
+              >
               <Button
                 className="w-full text-xs h-8 mt-2"
                 variant="outline"
@@ -750,6 +963,12 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      {/* Course Generation Modal */}
+      <CourseGenerationModal
+        isOpen={isCourseModalOpen}
+        onClose={() => setIsCourseModalOpen(false)}
+      />
 
       {/* Course Generation Modal */}
       <CourseGenerationModal

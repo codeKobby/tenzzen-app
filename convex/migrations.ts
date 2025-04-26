@@ -119,13 +119,19 @@ export const fixPlaylistVideoRecords = mutation({
 
 // Migrate transcripts to be stored within video documents
 // Note: This migration is for legacy data only - the transcripts table has been removed
+// Note: This migration is for legacy data only - the transcripts table has been removed
 export const migrateTranscriptsToVideos = mutation({
   args: {},
   handler: async (ctx) => {
     console.log("This migration is now obsolete as the transcripts table has been removed.");
     console.log("Transcripts are now stored directly in the videos table.");
     
+    console.log("This migration is now obsolete as the transcripts table has been removed.");
+    console.log("Transcripts are now stored directly in the videos table.");
+    
     return {
+      status: "obsolete",
+      message: "Transcripts table has been removed. Transcripts are now stored in the videos table."
       status: "obsolete",
       message: "Transcripts table has been removed. Transcripts are now stored in the videos table."
     };
@@ -134,12 +140,16 @@ export const migrateTranscriptsToVideos = mutation({
 
 // Optional cleanup to remove the old transcript documents after migration
 // Note: This is now obsolete as the transcripts table has been removed
+// Note: This is now obsolete as the transcripts table has been removed
 export const deleteOldTranscripts = mutation({
   args: {},
   handler: async (ctx) => {
     console.log("This migration is now obsolete as the transcripts table has been removed.");
+    console.log("This migration is now obsolete as the transcripts table has been removed.");
     
     return {
+      status: "obsolete",
+      message: "Transcripts table has been removed."
       status: "obsolete",
       message: "Transcripts table has been removed."
     };
