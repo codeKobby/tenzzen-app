@@ -80,22 +80,22 @@ export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClien
   const publicPages = ['/', '/sign-in', '/sign-up', '/onboarding']
   const isAuthPage = pathname === '/sign-in' || pathname === '/sign-up'
   const [mounted, setMounted] = useState(false)
-  
+
   // Force page content to render after a timeout
   const [forceRender, setForceRender] = useState(false)
-  
+
   // Ensure proper client-side rendering
   useEffect(() => {
     setMounted(true)
-    
+
     // Force render after a short timeout to prevent indefinite loading
     const timer = setTimeout(() => {
       setForceRender(true)
     }, 1500)
-    
+
     return () => clearTimeout(timer)
   }, [])
-  
+
   // Don't render anything until client-side hydration is complete
   if (!mounted) {
     return <LoadingFallback />

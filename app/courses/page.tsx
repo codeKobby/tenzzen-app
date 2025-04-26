@@ -36,7 +36,7 @@ import { formatEnrollmentToCourse } from "@/lib/course-utils"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 
-// Same filters and categories as before
+// Filters for course status
 const filters: { id: CourseFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "in-progress", label: "In Progress" },
@@ -44,7 +44,8 @@ const filters: { id: CourseFilter; label: string }[] = [
   { id: "not-started", label: "Not Started" }
 ]
 
-const allCategories: { id: CourseCategory; label: string }[] = [
+// Fallback categories in case database categories aren't available
+const fallbackCategories: { id: CourseCategory; label: string }[] = [
   { id: "all", label: "All" },
   { id: "programming", label: "Programming" },
   { id: "design", label: "Design" },
@@ -68,6 +69,11 @@ export default function CoursesPage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const { userId } = useAuth();
   const router = useRouter()
+
+  // Fetch categories from the database
+  const dbCategories = useQuery(api.categories.getPopularCategories, {
+    limit: 10
+  });
 
   // Refresh trigger to reload courses when needed (like after deletion)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
@@ -307,8 +313,17 @@ export default function CoursesPage() {
   // Get the filtered courses
   const { inProgressCourses, otherCourses } = filteredCourses;
 
-  // Instead of using fixed categories, derive them from available courses
+  // Instead of using fixed categories, derive them from available courses or database
   const availableCategories = useMemo(() => {
+    // Map database categories to the expected format (id, label), or use fallback
+    // Handle possible undefined state during initial loading
+    const categoriesFromDb = dbCategories
+      ? dbCategories.map(dbCat => ({
+        id: dbCat.slug as string, // Use slug as id since it's a string identifier
+        label: dbCat.name as string // Use name as label
+      }))
+      : fallbackCategories;
+
     // If no courses or only one course, don't show categories
     if (formattedCourses.length <= 1) {
       return [];
@@ -328,10 +343,10 @@ export default function CoursesPage() {
     }
 
     // Always include "all" category first, then add course-specific categories
-    const categories = [{ id: "all", label: "All" }];
+    const categories: { id: CourseCategory; label: string }[] = [{ id: "all", label: "All" }];
 
     // Match course categories with predefined ones when possible
-    allCategories.forEach(predefinedCategory => {
+    categoriesFromDb.forEach(predefinedCategory => {
       if (predefinedCategory.id !== "all" && uniqueCategories.has(predefinedCategory.id.toLowerCase())) {
         categories.push(predefinedCategory);
         uniqueCategories.delete(predefinedCategory.id.toLowerCase());
@@ -342,11 +357,11 @@ export default function CoursesPage() {
     Array.from(uniqueCategories).sort().forEach(categoryId => {
       // Capitalize first letter for label
       const label = categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
-      categories.push({ id: categoryId, label });
+      categories.push({ id: categoryId as CourseCategory, label });
     });
 
     return categories;
-  }, [formattedCourses]);
+  }, [formattedCourses, dbCategories]);
 
   // Handle course click - navigate to course page instead of opening dialog
   const handleCourseClick = (courseId: string) => {

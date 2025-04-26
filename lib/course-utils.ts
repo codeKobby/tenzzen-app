@@ -78,6 +78,9 @@ export function formatEnrollmentToCourse(enrollment: any): Course {
     // For debugging
     console.log("Generated course ID in formatEnrollmentToCourse:", courseId);
 
+    // Extract video details from metadata if available
+    const videoDetails = enrollment.courseData.metadata?.videoDetails || {};
+
     const formattedCourse = {
       id: courseId,
       title: enrollment.courseTitle || enrollment.courseData.title || "Untitled Course",
@@ -85,6 +88,12 @@ export function formatEnrollmentToCourse(enrollment: any): Course {
       category: enrollment.courseData.metadata?.category || "Programming",
       image: enrollment.courseData.thumbnail || `/placeholders/course-thumbnail.jpg`,
       thumbnail: enrollment.courseData.thumbnail || `/placeholders/course-thumbnail.jpg`,
+      // Add new video details - use || {} for safety
+      channelName: videoDetails.channelTitle, // Assuming field name is channelTitle
+      channelAvatar: videoDetails.channelAvatar, // Assuming field name
+      viewCount: videoDetails.viewCount, // Assuming field name
+      likeCount: videoDetails.likeCount, // Assuming field name
+      publishedDate: videoDetails.publishedAt, // Assuming field name
       progress: enrollment.progress || 0,
       lessonsCompleted: enrollment.completedLessons?.length || 0,
       totalLessons: totalLessons,

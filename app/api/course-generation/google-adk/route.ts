@@ -13,11 +13,11 @@ export async function POST(req: NextRequest) {
     console.log('[google-adk route] Starting course generation for video:', videoId);
 
     // Call the ADK service (now configured for direct JSON response)
-    const response = await fetch('http://localhost:8080/generate-course', {
+    const response = await fetch('http://localhost:8000/generate-course', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Accept': 'application/json', // Changed from application/x-ndjson to application/json
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
         video_id: videoId,

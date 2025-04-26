@@ -70,13 +70,15 @@ INSTRUCTIONS:
 2.  **Course Structure & Lesson Granularity:** Identify key concepts and structure them into sections. **Group related sub-topics or steps into meaningful, comprehensive lessons.** Avoid creating too many very short lessons; aim for lessons that cover a distinct, substantial part of a topic. Intersperse assessment placeholders (`type: "assessment_placeholder"`) logically between sections.
 3.  **Descriptions:** Generate a **brief** top-level `description` (1-2 sentences) AND a **detailed** `metadata.overviewText`. Both are required.
 4.  **Metadata:** Populate other fields within the `metadata` object (`difficulty`, `tags`, `objectives`, `prerequisites`, `category`, `sources`) whenever possible.
-5.  **Final JSON:** Combine all generated information into a single, valid JSON object adhering EXACTLY to the schema structure described below.
+5.  **Video Timestamps:** For each lesson, extract and include a `startTime` property that indicates when in the video (in seconds) this lesson's topic begins. This is CRITICAL for user navigation. Use the transcript's timestamps to accurately determine these start times.
+6.  **Final JSON:** Combine all generated information into a single, valid JSON object adhering EXACTLY to the schema structure described below.
 
 SIMPLIFIED JSON OUTPUT SCHEMA DESCRIPTION (Follow this structure):
 - Top Level Keys: `title` (string), `description` (string, brief), `videoId` (string, optional), `image` (string, optional), `metadata` (object, MANDATORY), `courseItems` (array, MANDATORY), `resources` (array), `creatorResources` (array), `creatorSocials` (array), `project` (object, optional).
 - `metadata` Object Keys: `overviewText` (string, REQUIRED, detailed), `difficulty` (string, optional), `duration` (string, optional), `prerequisites` (array of strings, optional), `objectives` (array of strings, optional), `category` (string, optional), `tags` (array of strings, optional), `sources` (array of objects with name/avatar/type, optional).
 - `courseItems` Array Items: Objects with `type` ("section" or "assessment_placeholder").
-    - If "section": include `title` (string), `description` (string, optional), `lessons` (array of objects with title/description/duration/keyPoints), `objective` (string, optional).
+    - If "section": include `title` (string), `description` (string, optional), `lessons` (array of objects with title/description/duration/keyPoints/startTime), `objective` (string, optional).
+    - For each lesson, INCLUDE a `startTime` (number) property that represents the seconds into the video where this lesson begins.
     - If "assessment_placeholder": include `assessmentType` (string: 'quiz'|'assignment'|'test').
 - `resources` / `creatorResources` Array Items: Objects MUST contain `title` (string, MANDATORY, specific), `url` (string, optional/required), `description` (string, MANDATORY, meaningful), AND `type` (string, MANDATORY, specific - e.g., 'documentation', 'tool', 'code', 'article', 'video', 'website', 'patreon').
 - `creatorSocials` Array Items: Objects with `platform` (string), `url` (string).
@@ -86,10 +88,11 @@ CRITICAL RULES:
 1.  **Resource Quality (MOST IMPORTANT):** The `resources` and `creatorResources` arrays MUST contain objects with specific, non-generic `title`, descriptive, non-empty `description`, AND specific `type` fields (e.g., 'documentation', 'tool', 'practice', 'code'). The `resources` array MUST contain supplementary items if relevant topics are discussed. Failure on this rule is critical.
 2.  **JSON ONLY:** Output MUST be a single, valid JSON object adhering EXACTLY to the schema structure described above. Include ALL required top-level keys. No extra text or markdown.
 3.  **Mandatory Keys:** The `metadata` object (with `overviewText`) and the `courseItems` array MUST be present.
-4.  **Populate Metadata:** Populate fields *within* `metadata` where possible. `overviewText` is REQUIRED. Use defaults (`[]`, `null`, `""`) otherwise.
-5.  **Structure:** Generate `courseItems` with meaningful, comprehensive lessons (avoid overly granular breakdown). Intersperse assessments logically.
-6.  **Creator Links:** Extract `creatorResources` from transcript/description. Extract `creatorSocials` ONLY from video description. Use `[]` if none.
-7.  **Description vs Overview:** Ensure top-level `description` is brief and `metadata.overviewText` is detailed. BOTH MUST BE GENERATED.
+4.  **Timestamps Required:** For each lesson in a section, the `startTime` property MUST be included, representing seconds into the video. This is CRITICAL for user navigation.
+5.  **Populate Metadata:** Populate fields *within* `metadata` where possible. `overviewText` is REQUIRED. Use defaults (`[]`, `null`, `""`) otherwise.
+6.  **Structure:** Generate `courseItems` with meaningful, comprehensive lessons (avoid overly granular breakdown). Intersperse assessments logically.
+7.  **Creator Links:** Extract `creatorResources` from transcript/description. Extract `creatorSocials` ONLY from video description. Use `[]` if none.
+8.  **Description vs Overview:** Ensure top-level `description` is brief and `metadata.overviewText` is detailed. BOTH MUST BE GENERATED.
 """
         print("[GenAI Direct] Calling direct GenAI with prompt for course generation")
         

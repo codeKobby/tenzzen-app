@@ -2,11 +2,11 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { SIDEBAR_WIDTH, TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
+import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
-import { SignOutButton, useClerk } from "@clerk/nextjs"
+import { useClerk } from "@clerk/nextjs"
 import {
   BookOpen,
   GraduationCap,
@@ -38,7 +38,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 type ColorTheme = 'purple' | 'neutral' | 'minimal' | 'modern'
-type ThemeMode = 'light' | 'dark' | 'system'
 
 interface NavigationItem {
   title: string
@@ -104,7 +103,7 @@ export function Sidebar({ className }: { className?: string }) {
   const router = useRouter()
   const { isOpen, toggle } = useSidebar()
   const { signOut } = useClerk()
-  const { theme, resolvedTheme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const { updateTheme } = useThemePersistence()
   const [isMobile, setIsMobile] = React.useState(false)
   const [colorTheme, setColorTheme] = React.useState<ColorTheme>('purple')
@@ -154,7 +153,6 @@ export function Sidebar({ className }: { className?: string }) {
         title: "Signed out successfully",
         variant: "default",
       })
-      // Redirect user after sign out to sign-in page (fixed from /login)
       router.push("/sign-in")
     } catch {
       toast({
@@ -168,7 +166,7 @@ export function Sidebar({ className }: { className?: string }) {
     setColorTheme(selectedTheme)
     document.documentElement.classList.remove('theme-purple', 'theme-neutral', 'theme-minimal', 'theme-modern')
     document.documentElement.classList.add(`theme-${selectedTheme}`)
-    updateTheme(theme || 'system', selectedTheme)
+    updateTheme(theme as 'light' | 'dark' | 'system', selectedTheme)
   }
 
   const NavigationLink = ({ item }: { item: NavigationItem }) => {

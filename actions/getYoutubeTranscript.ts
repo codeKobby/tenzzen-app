@@ -3,6 +3,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import { Innertube } from 'youtubei.js';
 import { createLogger } from "@/lib/debug-logger";
+import { api } from "@/convex/_generated/api";
 
 // Define the TranscriptSegment type directly in this file to avoid import issues
 interface TranscriptSegment {
@@ -28,7 +29,24 @@ export async function getYoutubeTranscript(
   language: string = "en"
 ): Promise<TranscriptSegment[]> {
   try {
-    logger.log('Fetching transcript directly from YouTube (skipping cache check)');
+    // Check if transcript is already cached in video document
+    logger.log('Checking for cached transcript in video document');
+    const client = getConvexClient();
+    if (client) {
+      try {
+        const cachedTranscript = await client.query(api.videos.getVideoTranscript, { 
+          youtubeId: videoId,
+          language: language
+        });
+        
+        if (cachedTranscript && !('expired' in cachedTranscript)) {
+          logger.log('Found valid cached transcript in video document');
+          return cachedTranscript.segments;
+        }
+      } catch (cacheError) {
+        logger.warn('Error retrieving transcript from video document:', cacheError);
+      }
+    }
 
     // Fetch from YouTube
     logger.log('Fetching transcript from YouTube');
@@ -79,8 +97,21 @@ export async function getYoutubeTranscript(
       const transcriptXml = await response.text();
       const segments = parseTranscriptXml(transcriptXml);
 
-      // Don't try to cache - skip it to avoid errors
-      logger.log('Skipping transcript caching to avoid potential errors');
+      // Cache the transcript in the video document
+      if (client && segments.length > 0) {
+        try {
+          logger.log('Caching transcript in video document');
+          await client.mutation(api.videos.cacheVideoTranscript, {
+            youtubeId: videoId,
+            language: language,
+            segments: segments,
+            cachedAt: new Date().toISOString()
+          });
+          logger.log('Successfully cached transcript in video document');
+        } catch (cachingError) {
+          logger.error('Error caching transcript in video document:', cachingError);
+        }
+      }
 
       return segments;
     } catch (youtubeError) {

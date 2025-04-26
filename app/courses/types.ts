@@ -7,6 +7,12 @@ export interface Course {
   category: string
   thumbnail?: string
   image?: string // Add image property
+  // Add new video detail fields
+  channelName?: string
+  channelAvatar?: string
+  viewCount?: number | string // Use string to accommodate formatted numbers like "1.2M"
+  likeCount?: number | string // Use string for formatted numbers
+  publishedDate?: string | number | Date // Date the video was published
   lastAccessed?: string | number | Date
   videoSource?: string
   instructor?: string

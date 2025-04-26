@@ -437,8 +437,8 @@ function LessonItem({ lesson, sectionItemIndex, lessonIndex }: { lesson: any, se
   const [isDescriptionVisible, setIsDescriptionVisible] = useState(false);
   const toggleDescription = () => setIsDescriptionVisible(!isDescriptionVisible);
 
-  // Format the start time using the new function
-  const startTimeFormatted = formatTimestamp(lesson.startTime);
+  // Format the start time using the formatTimestamp function from utils
+  const startTimeFormatted = lesson.startTime !== undefined ? formatTimestamp(lesson.startTime) : null;
 
   return (
     <div key={`lesson-${sectionItemIndex}-${lessonIndex}`} className="py-2 px-2 rounded-md transition-colors group border-b border-border/40 last:border-b-0">
@@ -448,8 +448,8 @@ function LessonItem({ lesson, sectionItemIndex, lessonIndex }: { lesson: any, se
           <span className="text-sm font-medium truncate">{lesson.title || `Lesson ${lessonIndex + 1}`}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {/* Display formatted start time instead of duration */}
-          {lesson.startTime !== undefined && lesson.startTime !== null && (
+          {/* Display timestamp where the lesson occurs in the video */}
+          {startTimeFormatted && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <ClockIcon className="h-3 w-3" />
               {startTimeFormatted}

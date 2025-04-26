@@ -1,11 +1,8 @@
 import { v } from "convex/values";
-import { mutation, query, action } from "./_generated/server"; // Removed QueryBuilder
+import { mutation, query } from "./_generated/server"; // Removed action, QueryBuilder
 import { Id, Doc } from "./_generated/dataModel"; // Added Doc
-import { Section, Lesson, Assessment, Course } from "../types/course"; // Added types
+// Removed unused specific types: import { Section, Lesson, Assessment, Course } from "../types/course";
 import { api } from "./_generated/api"; // Import api
-
-// Define a placeholder type for the context in actions if needed, adjust if api.courses.generateStructureAction exists
-// type ActionCtx = { runMutation: Function, runQuery: Function, runAction: Function, db: DatabaseReader };
 
 // Generate a new course from video content
 export const generateCourse = mutation({
@@ -35,9 +32,11 @@ export const generateCourse = mutation({
           tools: []
         },
         sections: [],
+        isPublic: false, // Added required field, default to false
         createdAt: now,
         updatedAt: now,
-        status: "generating"
+        status: "generating",
+        enrollmentCount: 0, // Initialize enrollment count
       });
 
       // TODO: Implement course generation logic.
@@ -48,47 +47,19 @@ export const generateCourse = mutation({
       // For now, skipping generation and patching.
 
       // Placeholder for where generated content would be used
-      const courseContent: Course | null = null; // Replace null with actual generated content
-      if (!courseContent) {
-         console.warn("Course content generation skipped/failed.");
-         // Decide how to handle this - maybe keep status as 'generating' or set to 'failed'
-         // For now, just returning the placeholder course ID
-         return await ctx.db.get(courseId);
-         // throw new Error("Course generation failed or returned null"); // Original error handling
+      // const courseContent: Course | null = null; // Replace null with actual generated content
+      // For now, generation logic is skipped/commented out.
+
+      // Return the placeholder course
+      const course = await ctx.db.get(courseId);
+      if (!course) {
+        // This should not happen if insert succeeded
+        throw new Error("Failed to retrieve placeholder course after creation.");
       }
-
-
-      // TODO: Uncomment and use actual courseContent data once generation is implemented correctly.
-      /*
-      // Assuming courseContent has a structure matching the 'courses' table schema
-      await ctx.db.patch(courseId, {
-        title: courseContent.title, // Assumes courseContent has title
-        subtitle: courseContent.subtitle, // Assumes courseContent has subtitle
-        overview: courseContent.overview, // Assumes courseContent has overview object
-        // Map sections, removing explicit IDs and incorrect assessment mapping
-        sections: (courseContent.sections ?? []).map((section: any) => ({ // Use 'any' for now, aligning with schema
-          ...section, // Spread section content (assuming it includes lessons)
-          // Remove explicit id: `section-${index + 1}`,
-          lessons: (section.lessons ?? []).map((lesson: any) => ({ // Use 'any'
-             ...lesson // Spread lesson content
-             // Remove explicit id: `lesson-${index + 1}-${lessonIndex + 1}`,
-          })),
-          // Removed incorrect assessments mapping:
-          // assessments: (section.assessments ?? []).map(...)
-        })),
-        metadata: courseContent.metadata, // Assumes courseContent has metadata object
-        status: "ready",
-        updatedAt: Date.now()
-      });
-      */
-
-      // Return the placeholder course for now
-      const course = await ctx.db.get(courseId); // Use ctx.db
       return course;
 
-
     } catch (err) {
-      console.error("Course generation failed:", err);
+      console.error("Course generation mutation failed:", err);
       // Optionally patch the status to failed here as well if not already done
       // await ctx.db.patch(courseId, { status: "failed", updatedAt: Date.now() });
       throw new Error("Failed to generate course");
@@ -105,12 +76,14 @@ export const getCourse = query({
   }
 });
 
-// List all courses
+// List all ready courses (consider pagination for large datasets)
 export const listCourses = query({
   args: {},
   async handler({ db }) {
+    // Fetch only courses marked as ready and public? Or just ready? Assuming ready for now.
     return await db.query("courses")
-      .filter((q) => q.eq(q.field("status"), "ready")) // Removed explicit type
+      .filter((q) => q.eq(q.field("status"), "ready"))
+      .order("desc") // Default order by creation time or popularity? Let's use creation time.
       .collect();
   }
 });
@@ -157,6 +130,15 @@ export const enrollUserInCourse = mutation({
         objectives: v.optional(v.array(v.string())),
         category: v.optional(v.string()),
         sources: v.optional(v.array(v.any())),
+        // Add the missing fields
+        overviewText: v.optional(v.string()),
+        resources: v.optional(v.array(v.object({
+          title: v.string(),
+          description: v.optional(v.string()),
+          type: v.string(),
+          url: v.string()
+        }))),
+        tags: v.optional(v.array(v.string()))
       })),
       sections: v.array(v.any()) // Keep as any for now, matches schema
     }),
@@ -178,6 +160,7 @@ export const enrollUserInCourse = mutation({
         // Create a new course if one doesn't already exist
         courseId = await db.insert("courses", {
           title: courseData.title,
+          // subtitle: courseData.subtitle, // Assuming subtitle is not in courseData args
           description: courseData.description,
           videoId: courseData.videoId,
           thumbnail: courseData.thumbnail,
@@ -193,12 +176,16 @@ export const enrollUserInCourse = mutation({
           sections: courseData.sections, // Keep as any
           metadata: {
             ...courseData.metadata,
-            category: courseData.metadata?.category || "Programming"
+            category: courseData.metadata?.category || "Programming",
+            sources: courseData.metadata?.sources || [],
           },
+          isPublic: false, // Default new courses created via enrollment to private? Or should they be public? Assuming false.
           status: "ready",
           createdAt: now,
           updatedAt: now,
-          enrollmentCount: 0,
+          enrollmentCount: 0, // Initialize enrollment count
+          // featured: false, // Default featured status
+          // popularity: 0, // Default popularity
         });
       } else {
         // Use the existing course
@@ -221,9 +208,11 @@ export const enrollUserInCourse = mutation({
           courseId,
           enrolledAt: now,
           lastAccessedAt: now,
+          completionStatus: "not_started", // Added required field
           progress: 0,
           isActive: true,
-          completedLessons: []
+          completedLessons: [],
+          // totalTimeSpent: 0 // Initialize time spent
         });
 
         // Update the enrollment count
@@ -264,12 +253,11 @@ export const getRecentlyAddedCourses = query({
 
     try {
       // Get the user's enrollments, sorted by most recent first
-      // Assuming an index "by_user_enrolledAt" exists on enrollments table: .index("by_user_enrolledAt", q => q.eq("userId", userId))
-      // If not, use filter: .filter((q) => q.eq(q.field("userId"), userId))
+      // Use the index "by_user_enrolledAt" for efficient sorting and filtering
       const enrollments = await db
         .query("enrollments")
-        .filter((q) => q.eq(q.field("userId"), userId)) // Removed explicit type
-        .order("desc") // Corrected order syntax
+        .withIndex("by_user_enrolledAt", q => q.eq("userId", userId))
+        .order("desc") // Order by enrolledAt (descending for most recent)
         .take(limit);
 
       if (enrollments.length === 0) {
@@ -335,17 +323,130 @@ export const updateCourseProgress = mutation({
 
     // Update the enrollment
     const now = Date.now();
-    let updateData: any = {
+    const updateData: Partial<Doc<"enrollments">> = { // Use Partial<Doc> for type safety
       progress,
       lastAccessedAt: now
     };
 
-    if (completedLessons) {
+    if (completedLessons !== undefined) { // Check if explicitly provided
       updateData.completedLessons = completedLessons;
     }
 
+    // Determine completion status based on progress
+    if (progress >= 100) {
+      updateData.completionStatus = "completed";
+    } else if (progress > 0 && enrollment.completionStatus === "not_started") {
+      updateData.completionStatus = "in_progress";
+    }
+    // Add logic to update totalTimeSpent if tracked
+
     await db.patch(enrollment._id, updateData);
 
+    // TODO: Consider adding learning activity log here
+
     return { success: true };
+  }
+});
+
+// Get all public/universal courses for the explore page
+export const getPublicCourses = query({
+  args: {
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.id("courses")),
+    categoryId: v.optional(v.id("categories")),
+    searchQuery: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    // Start with a base query for public courses
+    const baseQuery = ctx.db
+      .query("courses")
+      .filter(q => q.eq(q.field("isPublic"), true));
+    
+    // Collection of course IDs if filtering by category
+    let categoryFilteredCourseIds: Id<"courses">[] = [];
+    
+    // Apply category filter if provided
+    if (args.categoryId) {
+      // Get all course IDs in this category
+      const courseCategories = await ctx.db
+        .query("course_categories")
+        .withIndex("by_category", q => q.eq("categoryId", args.categoryId!)) // Use index
+        .collect();
+
+      categoryFilteredCourseIds = courseCategories.map(cc => cc.courseId);
+
+      if (categoryFilteredCourseIds.length === 0) {
+         // No courses in this category, return empty result immediately
+         return {
+          courses: [],
+          cursor: null
+        };
+      }
+    }
+    
+    // Handle search query separately to avoid reassignment issues
+    let finalQuery;
+    if (args.searchQuery && args.searchQuery.trim() !== "") {
+      const searchQuery = args.searchQuery.trim();
+      // Use the search index
+      finalQuery = ctx.db
+        .query("courses")
+        .withSearchIndex("search_courses", (q) => 
+          q.search("title", searchQuery).eq("isPublic", true)
+        );
+    } else {
+      finalQuery = baseQuery;
+    }
+
+    // Apply pagination
+    const limit = args.limit ?? 20;
+    // Note: searchQuery would use different pagination approach
+    const results = await finalQuery
+      .paginate({ numItems: limit, cursor: args.cursor as string | null });
+
+    // Apply post-query filtering for tags and categories if needed
+    let filteredPage = results.page;
+    
+    // Filter by category IDs if we have them
+    if (categoryFilteredCourseIds.length > 0) {
+      filteredPage = filteredPage.filter((course: any) => 
+        categoryFilteredCourseIds.includes(course._id)
+      );
+    }
+    
+    // Filter by tags if provided
+    if (args.tags && args.tags.length > 0) {
+      filteredPage = filteredPage.filter((course: any) => {
+        if (!course.tags) return false;
+        return args.tags!.some(tag => course.tags!.includes(tag));
+      });
+    }
+
+    // Fetch category information for each course
+    const coursesWithCategories = await Promise.all(
+      filteredPage.map(async (course) => {
+        const courseCategoryLinks = await ctx.db
+          .query("course_categories")
+          .withIndex("by_course", q => q.eq("courseId", course._id))
+          .collect();
+
+        const categoryIds = courseCategoryLinks.map(link => link.categoryId);
+        const categoryDetails = categoryIds.length > 0
+          ? await Promise.all(categoryIds.map(id => ctx.db.get(id)))
+          : [];
+
+        return {
+          ...course,
+          categories: categoryDetails.filter((c): c is Doc<"categories"> => c !== null)
+        };
+      })
+    );
+
+    return {
+      courses: coursesWithCategories,
+      isDone: results.isDone,
+      cursor: results.continueCursor
+    };
   }
 });

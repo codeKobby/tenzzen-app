@@ -10,6 +10,7 @@ export interface VideoBase {
   views: string;
   likes: string;
   publishDate: string;
+  hasTranscripts?: boolean;
 }
 
 export interface VideoDetails extends VideoBase {
