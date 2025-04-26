@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card, CardContent, CardHeader, CardTitle
 } from '@/components/ui/card';
@@ -11,49 +11,58 @@ import {
   Clock, GraduationCap, Target, BookOpen, TrendingUp,
   PlayCircle, Youtube, Sparkles, Timer, ListChecks,
   Brain, Lightbulb, Map, Award, BookOpenCheck,
-  LucideIcon
+  LucideIcon, Loader2, BookPlus
 } from 'lucide-react';
 import Image from 'next/image';
+import { useQuery } from 'convex/react';
+import { api } from "@/convex/_generated/api";
+import { useUser } from "@clerk/clerk-react";
 import { LineChart } from '@/components/dashboard/line-chart';
 import { TaskCalendar } from '@/components/dashboard/calendar';
+import { Id } from "@/convex/_generated/dataModel";
+import { CourseGenerationModal } from '@/components/modals/course-generation-modal';
 
-interface KnowledgeMapItem {
-  id: number;
-  title: string;
-  mastery: number;
-}
-
-interface Project {
-  id: number;
-  title: string;
-  difficulty: string;
-}
-
+// Define interfaces for type safety
 interface Course {
-  id: number;
+  _id: Id<"courses">;
   title: string;
+  thumbnail?: string;
   progress: number;
-  totalLessons: number;
-  completedLessons: number;
-  lastAccessed: string;
-  thumbnail: string;
-  knowledgeMap: KnowledgeMapItem[];
-  nextConcepts: string[];
-  recommendedProjects: Project[];
+  lastAccessedAt: number;
+  completedLessons?: string[];
+  sections?: {
+    title: string;
+    lessons?: {
+      id: string;
+      title: string;
+      type: string;
+    }[];
+  }[];
+  overview?: {
+    skills?: string[];
+    difficultyLevel?: string;
+    totalDuration?: string;
+  };
 }
 
-interface RecommendedCourse {
-  id: number;
-  title: string;
-  match: number;
-  reason: string;
-  thumbnail: string;
-  duration: string;
+interface LearningActivity {
+  _id: Id<"learning_activities">;
+  type: string;
+  timestamp: number;
+  courseId?: Id<"courses">;
+  metadata?: any;
+  courseName?: string;
+  assessmentTitle?: string;
 }
 
-interface LearningPathData {
-  courses: Course[];
-  recommendedCourses: RecommendedCourse[];
+interface UserStats {
+  totalLearningHours?: number;
+  coursesInProgress?: number;
+  coursesCompleted?: number;
+  projectsSubmitted?: number;
+  streakDays?: number;
+  longestStreak?: number;
+  weeklyActivity?: number[];
 }
 
 interface StatChange {
@@ -69,122 +78,268 @@ interface LearningStat {
   change?: StatChange;
 }
 
+interface Note {
+  id: string | Id<"learning_activities">;
+  title: string;
+  course: string;
+  date: string;
+}
+
+// This is our local task interface
+interface DashboardTask {
+  id: string;
+  type: string;
+  title: string;
+  date: Date;
+}
+
+// This matches what the TaskCalendar component expects
+interface CalendarTask {
+  id: number;
+  title: string;
+  date: Date;
+  type: "assignment" | "quiz" | "project";
+}
+
 type TabValue = 'inprogress' | 'recommended';
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabValue>('inprogress');
-  const [activeCourse, setActiveCourse] = useState<number>(1);
+  const [activeCourse, setActiveCourse] = useState<string>('');
+  const [activeTime, setActiveTime] = useState<number>(0); // Track active login time in minutes
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
 
-  const learningPathData: LearningPathData = {
-    courses: [
-      {
-        id: 1,
-        title: "Advanced Machine Learning",
-        progress: 75,
-        totalLessons: 48,
-        completedLessons: 36,
-        lastAccessed: "2 hours ago",
-        thumbnail: "/placeholder.jpg",
-        knowledgeMap: [
-          { id: 1, title: "Neural Networks", mastery: 85 },
-          { id: 2, title: "Supervised Learning", mastery: 90 },
-          { id: 3, title: "Data Preprocessing", mastery: 75 },
-          { id: 4, title: "Model Evaluation", mastery: 65 }
-        ],
-        nextConcepts: ["Reinforcement Learning", "GANs"],
-        recommendedProjects: [
-          { id: 1, title: "Image Classification System", difficulty: "Intermediate" }
-        ]
-      },
-      {
-        id: 2,
-        title: "Full-Stack Web Development",
-        progress: 45,
-        totalLessons: 64,
-        completedLessons: 29,
-        lastAccessed: "Yesterday",
-        thumbnail: "/placeholder.jpg",
-        knowledgeMap: [
-          { id: 1, title: "React Fundamentals", mastery: 80 },
-          { id: 2, title: "API Integration", mastery: 65 },
-          { id: 3, title: "Database Design", mastery: 50 },
-          { id: 4, title: "Authentication", mastery: 40 }
-        ],
-        nextConcepts: ["State Management", "Testing"],
-        recommendedProjects: [
-          { id: 1, title: "Full-Stack CRUD Application", difficulty: "Intermediate" }
-        ]
+  // Clerk auth
+  const { user, isLoaded: isUserLoaded, isSignedIn } = useUser();
+
+  // Convex data fetching
+  const userStats = useQuery(api.user_stats.getUserStats,
+    isUserLoaded && isSignedIn ? { userId: user?.id || '' } : 'skip'
+  ) as UserStats | undefined;
+
+  const recentCourses = useQuery(api.courses.getRecentlyAddedCourses,
+    isUserLoaded && isSignedIn ? { userId: user?.id || '', limit: 4 } : 'skip'
+  ) as Course[] | undefined;
+
+  const recentActivities = useQuery(api.user_stats.getRecentActivities,
+    isUserLoaded && isSignedIn ? { userId: user?.id || '', limit: 10 } : 'skip'
+  ) as { activities: LearningActivity[], cursor?: string } | undefined;
+
+  const learningTrends = useQuery(api.user_stats.getLearningTrends,
+    isUserLoaded && isSignedIn ? { userId: user?.id || '', timeframe: 'week' } : 'skip'
+  ) as { weeklyActivity?: number[] } | undefined;
+
+  // Set active course when data is loaded
+  useEffect(() => {
+    if (recentCourses && recentCourses.length > 0) {
+      setActiveCourse(recentCourses[0]._id);
+    }
+  }, [recentCourses]);
+
+  // Track active time for logged-in users
+  useEffect(() => {
+    if (isSignedIn && user?.id) {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const storageKey = `user_${user.id}_active_time`;
+
+      // Check if we have stored time data
+      const storedTimeData = localStorage.getItem(storageKey);
+      let initialTime = 1; // Default to 1 minute
+
+      if (storedTimeData) {
+        try {
+          const { date, minutes } = JSON.parse(storedTimeData);
+          // If the stored date is today, use the stored minutes, otherwise reset
+          if (date === today) {
+            initialTime = minutes;
+          }
+        } catch (error) {
+          console.error("Error parsing stored time data:", error);
+        }
       }
-    ],
-    recommendedCourses: [
-      {
-        id: 3,
-        title: "Advanced JavaScript Concepts",
-        match: 95,
-        reason: "Based on your Web Development progress",
-        thumbnail: "/placeholder.jpg",
-        duration: "12 hours"
-      },
-      {
-        id: 4,
-        title: "Data Visualization with D3.js",
-        match: 87,
-        reason: "Complements your Machine Learning skills",
-        thumbnail: "/placeholder.jpg",
-        duration: "8 hours"
-      }
+
+      // Initialize with stored value or default
+      setActiveTime(initialTime);
+
+      // Update active time every minute
+      const interval = setInterval(() => {
+        setActiveTime(prevTime => {
+          const newTime = prevTime + 1;
+          // Store the updated time in localStorage
+          localStorage.setItem(storageKey, JSON.stringify({
+            date: today,
+            minutes: newTime
+          }));
+          return newTime;
+        });
+      }, 60000); // Every minute
+
+      return () => clearInterval(interval);
+    }
+  }, [isSignedIn, user?.id]);
+
+  // Create activity data from weekly activity
+  const activityData = learningTrends?.weeklyActivity
+    ? [
+      { date: "Sun", hours: learningTrends.weeklyActivity[0] || 0 },
+      { date: "Mon", hours: learningTrends.weeklyActivity[1] || 0 },
+      { date: "Tue", hours: learningTrends.weeklyActivity[2] || 0 },
+      { date: "Wed", hours: learningTrends.weeklyActivity[3] || 0 },
+      { date: "Thu", hours: learningTrends.weeklyActivity[4] || 0 },
+      { date: "Fri", hours: learningTrends.weeklyActivity[5] || 0 },
+      { date: "Sat", hours: learningTrends.weeklyActivity[6] || 0 }
     ]
+    : [
+      { date: "Sun", hours: 0 },
+      { date: "Mon", hours: 0 },
+      { date: "Tue", hours: 0 },
+      { date: "Wed", hours: 0 },
+      { date: "Thu", hours: 0 },
+      { date: "Fri", hours: 0 },
+      { date: "Sat", hours: 0 }
+    ];
+
+  // Helper function to get greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
   };
 
+  // Convert DashboardTask to CalendarTask
+  const mapTasksForCalendar = (tasks: DashboardTask[]): CalendarTask[] => {
+    return tasks.map((task, index) => ({
+      // Use index + 1 for numeric ID
+      id: index + 1,
+      title: task.title,
+      date: task.date,
+      // Map our task types to expected calendar task types
+      type: task.type === "assessment" ? "assignment" :
+        task.type === "project" ? "project" : "quiz"
+    }));
+  };
+
+  // Loading state
+  if (!isUserLoaded) {
+    return (
+      <div className="flex justify-center items-center h-[80vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Not signed in state
+  if (!isSignedIn) {
+    return (
+      <div className="flex flex-col justify-center items-center h-[80vh] gap-4">
+        <h2 className="text-2xl font-bold">Please sign in to view your dashboard</h2>
+        <p className="text-muted-foreground">Sign in to access your personalized learning dashboard</p>
+      </div>
+    );
+  }
+
+  // Define learning stats based on user stats
   const learningStats: LearningStat[] = [
     {
       label: "Learning Hours",
-      value: "32.5h",
+      value: `${userStats?.totalLearningHours?.toFixed(1) || '0'}h`,
       icon: Clock,
-      change: { value: "+2.1h", type: "increase" }
+      change: userStats?.totalLearningHours && userStats.totalLearningHours > 0
+        ? { value: "+1.2h", type: "increase" as const }
+        : undefined
     },
     {
       label: "Active Courses",
-      value: "5",
+      value: `${userStats?.coursesInProgress || '0'}`,
       icon: GraduationCap,
-      change: { value: "+1", type: "increase" }
+      change: userStats?.coursesInProgress && userStats.coursesInProgress > 0
+        ? { value: "+1", type: "increase" as const }
+        : undefined
     },
     {
-      label: "Avg. Progress",
-      value: "85%",
+      label: "Completed",
+      value: `${userStats?.coursesCompleted || '0'}`,
       icon: Target,
-      change: { value: "5%", type: "increase", showTrend: true }
+      change: userStats?.coursesCompleted && userStats.coursesCompleted > 0
+        ? { value: "New", type: "increase" as const, showTrend: true }
+        : undefined
     },
     {
-      label: "Tasks Done",
-      value: "12",
+      label: "Projects",
+      value: `${userStats?.projectsSubmitted || '0'}`,
       icon: ListChecks,
-      change: { value: "+2", type: "increase" }
+      change: userStats?.projectsSubmitted && userStats.projectsSubmitted > 0
+        ? { value: "+1", type: "increase" as const }
+        : undefined
     }
   ];
 
-  const activityData = [
-    { date: "Mon", hours: 2.5 },
-    { date: "Tue", hours: 3.2 },
-    { date: "Wed", hours: 4.1 },
-    { date: "Thu", hours: 2.8 },
-    { date: "Fri", hours: 3.9 },
-    { date: "Sat", hours: 1.5 },
-    { date: "Sun", hours: 2.2 }
-  ];
-
-  const userName = 'Alex';
-  const greeting = 'Good morning';
+  // Get current streak info
   const streak = {
-    current: 12,
-    longest: 30,
+    current: Math.max(userStats?.streakDays || 0, 1), // Ensure minimum streak of 1 for logged-in users
+    longest: Math.max(userStats?.longestStreak || 0, 1), // Also ensure minimum longest streak is 1
     today: {
-      minutes: 45,
-      tasks: 2
+      minutes: activeTime, // Now tracking active login time instead of learning time
+      tasks: recentActivities?.activities?.filter(a => new Date(a.timestamp).toDateString() === new Date().toDateString()).length || 0
     }
   };
 
-  const selectedCourse = learningPathData.courses.find(course => course.id === activeCourse);
+  const userName = user?.firstName || user?.username || 'Learner';
+  const greeting = getGreeting();
+
+  // Get selected course
+  const selectedCourse = recentCourses?.find(course => course._id === activeCourse);
+
+  // Find or generate recent notes
+  const recentNotes: Note[] = [
+    ...(recentActivities?.activities
+      ?.filter(activity => activity.type.includes('note'))
+      ?.slice(0, 2)
+      ?.map(activity => ({
+        id: activity._id,
+        title: activity.metadata?.title || "Untitled Note",
+        course: activity.courseName || "General",
+        date: new Date(activity.timestamp).toLocaleDateString()
+      })) || []),
+    // Add placeholder if needed
+    ...((!recentActivities?.activities?.length || recentActivities.activities.filter(a => a.type.includes('note')).length < 2)
+      ? [{
+        id: 'placeholder',
+        title: "Create your first note",
+        course: "Get Started",
+        date: "Today"
+      }]
+      : [])
+  ].slice(0, 2); // Ensure we only show max 2 notes
+
+  // Create tasks for dashboard
+  const dashboardTasks: DashboardTask[] = [
+    // Show upcoming assessments from courses or placeholder
+    ...(recentCourses?.flatMap(course =>
+      course.sections?.flatMap(section =>
+        section.lessons?.filter(lesson =>
+          lesson.type === 'assessment' &&
+          !course.completedLessons?.includes(lesson.id)
+        ).map(lesson => ({
+          id: lesson.id,
+          type: "assessment",
+          title: lesson.title,
+          date: new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000) // Random date in next week
+        })) || []
+      ) || []
+    ).slice(0, 3) || []),
+    // Add placeholder if needed
+    ...(!recentCourses || recentCourses.length === 0 ? [{
+      id: 'placeholder',
+      type: "project",
+      title: "Start your learning journey",
+      date: new Date()
+    }] : [])
+  ].filter((task): task is DashboardTask => !!task); // Remove any potential undefined values
+
+  // Convert tasks to calendar-compatible format
+  const calendarTasks = mapTasksForCalendar(dashboardTasks);
 
   return (
     <div className="mx-auto space-y-6 pt-6 w-full lg:w-[90%]">
@@ -209,7 +364,7 @@ export default function DashboardPage() {
                       <span className="text-sm text-primary-foreground/90">day streak</span>
                       <p className="text-xs text-primary-foreground/80 flex items-center gap-1.5">
                         Best: {streak.longest} days
-                        {streak.current >= streak.longest && (
+                        {streak.current >= streak.longest && streak.longest > 0 && (
                           <span className="text-xs">🏆</span>
                         )}
                       </p>
@@ -225,12 +380,12 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-1.5">
                         <Timer className="h-3.5 w-3.5" />
                         <span>{streak.today.minutes}m today</span>
-                        <span className="ml-1 text-xs">⭐</span>
+                        {streak.today.minutes > 0 && <span className="ml-1 text-xs">⭐</span>}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <ListChecks className="h-3.5 w-3.5" />
                         <span>{streak.today.tasks} tasks done</span>
-                        <span className="ml-1 text-xs">✅</span>
+                        {streak.today.tasks > 0 && <span className="ml-1 text-xs">✅</span>}
                       </div>
                     </div>
                   </div>
@@ -242,17 +397,19 @@ export default function DashboardPage() {
                   variant="secondary"
                   size="sm"
                   className="flex-1 h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
+                  onClick={() => setIsCourseModalOpen(true)}
                 >
-                  <Youtube className="h-4 w-4 shrink-0" />
-                  <span className="font-medium">Import Video</span>
+                  <BookPlus className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">Generate Course</span>
                 </Button>
                 <Button
                   variant="secondary"
                   size="sm"
                   className="flex-1 h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
+                  onClick={() => window.location.href = '/courses'}
                 >
                   <Sparkles className="h-4 w-4 shrink-0" />
-                  <span className="font-medium">AI Generate</span>
+                  <span className="font-medium">Browse Courses</span>
                 </Button>
               </div>
             </div>
@@ -324,102 +481,142 @@ export default function DashboardPage() {
             <CardContent className="relative z-10 space-y-4">
               {activeTab === 'inprogress' ? (
                 <div>
-                  {learningPathData.courses.map((course) => (
-                    <div
-                      key={course.id}
-                      className={`group rounded-lg border bg-card p-3 hover:border-primary/50 transition-all mb-4 ${course.id === activeCourse ? 'border-primary' : ''}`}
-                      onClick={() => setActiveCourse(course.id)}
-                    >
-                      <div className="flex gap-3">
-                        <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-md sm:w-40">
-                          <Image
-                            src={course.thumbnail}
-                            alt={course.title}
-                            width={400}
-                            height={220}
-                            className="object-cover"
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <PlayCircle className="h-8 w-8 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
-                          </div>
-                        </div>
-                        <div className="flex-1 space-y-2">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-medium leading-snug tracking-tight group-hover:text-primary transition-colors">
-                                {course.title}
-                              </h3>
-                              <p className="text-xs text-muted-foreground">
-                                Last accessed {course.lastAccessed}
-                              </p>
+                  {recentCourses && recentCourses.length > 0 ? (
+                    recentCourses.map((course) => (
+                      <div
+                        key={course._id}
+                        className={`group rounded-lg border bg-card p-3 hover:border-primary/50 transition-all mb-4 ${course._id === activeCourse ? 'border-primary' : ''}`}
+                        onClick={() => setActiveCourse(course._id)}
+                      >
+                        <div className="flex gap-3">
+                          <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-md sm:w-40">
+                            <Image
+                              src={course.thumbnail || "/placeholder.jpg"}
+                              alt={course.title}
+                              width={400}
+                              height={220}
+                              className="object-cover"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <PlayCircle className="h-8 w-8 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
                             </div>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="h-8 text-xs"
-                            >
-                              {course.progress === 0 ? 'Start' : course.progress === 100 ? 'Review' : 'Continue'}
-                            </Button>
                           </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                {course.completedLessons}/{course.totalLessons} lessons
-                              </span>
-                              <span>{course.progress}%</span>
+                          <div className="flex-1 space-y-2">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h3 className="font-medium leading-snug tracking-tight group-hover:text-primary transition-colors">
+                                  {course.title}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                  Last accessed {new Date(course.lastAccessedAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="h-8 text-xs"
+                                onClick={() => window.location.href = `/courses/${course._id}`}
+                              >
+                                {course.progress === 0 ? 'Start' : course.progress === 100 ? 'Review' : 'Continue'}
+                              </Button>
                             </div>
-                            <Progress value={course.progress} className="h-1.5" />
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  {course.completedLessons?.length || 0}/{(course.sections?.flatMap(s => s.lessons)?.length || 0)} lessons
+                                </span>
+                                <span>{course.progress || 0}%</span>
+                              </div>
+                              <Progress value={course.progress || 0} className="h-1.5" />
+                            </div>
                           </div>
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 space-y-3">
+                      <div className="bg-muted/40 mx-auto rounded-full w-12 h-12 flex items-center justify-center">
+                        <BookOpen className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium">No courses yet</h3>
+                      <p className="text-muted-foreground text-sm">
+                        Start your learning journey by enrolling in a course
+                      </p>
+                      <Button
+                        onClick={() => window.location.href = '/explore'}
+                        size="sm"
+                      >
+                        Explore Courses
+                      </Button>
                     </div>
-                  ))}
+                  )}
 
                   {selectedCourse && (
                     <div className="bg-muted/50 rounded-lg p-4 mt-4">
                       <h4 className="text-sm font-medium flex items-center gap-1.5 mb-3">
                         <Brain className="h-4 w-4 text-primary" />
-                        Knowledge Progress for {selectedCourse.title}
+                        Course Structure for {selectedCourse.title}
                       </h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        {selectedCourse.knowledgeMap.map(concept => (
-                          <div key={concept.id} className="bg-background rounded p-2">
+                      <div className="grid grid-cols-1 gap-3">
+                        {selectedCourse.sections?.slice(0, 4).map((section, index) => (
+                          <div key={index} className="bg-background rounded p-2">
                             <div className="flex justify-between text-xs mb-1">
-                              <span>{concept.title}</span>
-                              <span className="font-medium">{concept.mastery}%</span>
+                              <span className="font-medium">Section {index + 1}: {section.title}</span>
+                              <span>{section.lessons?.length || 0} lessons</span>
                             </div>
-                            <Progress value={concept.mastery} className="h-1.5" />
+                            <Progress
+                              value={
+                                (selectedCourse.completedLessons?.filter(
+                                  lessonId => section.lessons?.some(l => l.id === lessonId)
+                                ).length || 0) / (section.lessons?.length || 1) * 100
+                              }
+                              className="h-1.5"
+                            />
                           </div>
                         ))}
                       </div>
+
+                      {selectedCourse.sections && selectedCourse.sections.length > 4 && (
+                        <div className="mt-2 text-center">
+                          <Button
+                            variant="link"
+                            className="text-xs"
+                            onClick={() => window.location.href = `/courses/${selectedCourse._id}`}
+                          >
+                            View all {selectedCourse.sections.length} sections
+                          </Button>
+                        </div>
+                      )}
 
                       <div className="mt-4 flex flex-col sm:flex-row gap-4">
                         <div className="flex-1">
                           <h5 className="text-xs font-medium flex items-center gap-1.5 mb-2">
                             <Map className="h-3.5 w-3.5 text-primary" />
-                            Next Concepts
+                            Topics Covered
                           </h5>
                           <div className="flex flex-wrap gap-2">
-                            {selectedCourse.nextConcepts.map((concept, idx) => (
+                            {selectedCourse.overview?.skills?.slice(0, 5).map((skill, idx) => (
                               <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                                {concept}
+                                {skill}
                               </span>
-                            ))}
+                            )) || (
+                                <span className="text-xs text-muted-foreground">No topics available</span>
+                              )}
                           </div>
                         </div>
                         <div className="flex-1">
                           <h5 className="text-xs font-medium flex items-center gap-1.5 mb-2">
                             <Lightbulb className="h-3.5 w-3.5 text-primary" />
-                            Recommended Projects
+                            Difficulty Level
                           </h5>
                           <div className="text-xs">
-                            {selectedCourse.recommendedProjects.map(project => (
-                              <div key={project.id} className="flex items-center gap-1.5">
-                                <Award className="h-3 w-3 text-primary" />
-                                <span>{project.title}</span>
-                                <span className="text-muted-foreground">({project.difficulty})</span>
-                              </div>
-                            ))}
+                            <div className="flex items-center gap-1.5">
+                              <Award className="h-3 w-3 text-primary" />
+                              <span>{selectedCourse.overview?.difficultyLevel || 'Beginner'}</span>
+                              <span className="text-muted-foreground">
+                                ({selectedCourse.overview?.totalDuration || 'Unknown duration'})
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -428,37 +625,39 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {learningPathData.recommendedCourses.map(course => (
-                    <div key={course.id} className="group flex gap-3 rounded-lg border bg-card p-3 hover:border-primary/50 transition-all">
+                  {[1, 2].map(course => (
+                    <div key={course} className="group flex gap-3 rounded-lg border bg-card p-3 hover:border-primary/50 transition-all">
                       <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-md sm:w-36">
-                        <Image
-                          src={course.thumbnail}
-                          alt={course.title}
-                          width={400}
-                          height={220}
-                          className="object-cover"
-                        />
+                        <div className="w-full h-full bg-muted/60 flex items-center justify-center">
+                          <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                        </div>
                       </div>
                       <div className="flex-1">
                         <div className="flex items-start justify-between mb-1">
-                          <h3 className="font-medium leading-snug tracking-tight group-hover:text-primary transition-colors">
-                            {course.title}
-                          </h3>
-                          <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">{course.match}% match</span>
+                          <div className="space-y-1">
+                            <div className="h-5 w-40 bg-muted/60 rounded animate-pulse"></div>
+                            <div className="h-4 w-32 bg-muted/40 rounded animate-pulse"></div>
+                          </div>
+                          <div className="h-5 w-16 bg-primary/10 rounded-full"></div>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-2">{course.reason}</p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs flex items-center gap-1.5">
-                            <Clock className="h-3 w-3" />
-                            {course.duration}
-                          </span>
-                          <Button variant="outline" size="sm" className="h-7 text-xs">
-                            Enroll
+                        <div className="mt-4 flex justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => window.location.href = '/explore'}
+                          >
+                            Find Courses
                           </Button>
                         </div>
                       </div>
                     </div>
                   ))}
+                  <div className="text-center py-2">
+                    <p className="text-sm text-muted-foreground">
+                      Recommendations will appear as you complete more courses
+                    </p>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -498,54 +697,113 @@ export default function DashboardPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center mb-2">
                 <h4 className="text-sm font-medium">Recent Notes</h4>
-                <Button variant="ghost" size="sm" className="h-7 text-xs">View All</Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => window.location.href = '/library'}
+                >
+                  View All
+                </Button>
               </div>
 
               <div className="space-y-3">
-                {[
-                  { id: 1, title: "Neural Network Architectures", course: "Advanced ML", date: "Today" },
-                  { id: 2, title: "React Hooks Deep Dive", course: "Web Development", date: "Yesterday" }
-                ].map(note => (
-                  <div key={note.id} className="rounded-md border p-2.5 hover:border-primary/50 transition-all cursor-pointer">
-                    <h5 className="text-sm font-medium mb-1">{note.title}</h5>
-                    <div className="flex justify-between items-center text-xs text-muted-foreground">
-                      <span>{note.course}</span>
-                      <span>{note.date}</span>
+                {recentNotes.map(note => {
+                  // Generate a consistent key that's always a string
+                  const noteKey = typeof note.id === 'string'
+                    ? note.id
+                    : String(note.id); // Convert to string explicitly
+
+                  return (
+                    <div
+                      key={noteKey}
+                      className="rounded-md border p-2.5 hover:border-primary/50 transition-all cursor-pointer"
+                      onClick={() => note.id === 'placeholder'
+                        ? window.location.href = '/library?create=note'
+                        : window.location.href = `/library?note=${note.id}`
+                      }
+                    >
+                      <h5 className="text-sm font-medium mb-1">{note.title}</h5>
+                      <div className="flex justify-between items-center text-xs text-muted-foreground">
+                        <span>{note.course}</span>
+                        <span>{note.date}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <Button className="w-full text-xs h-8 mt-2" variant="outline">
+              <Button
+                className="w-full text-xs h-8 mt-2"
+                variant="outline"
+                onClick={() => window.location.href = '/library?create=note'}
+              >
                 Create New Note
               </Button>
             </CardContent>
           </Card>
 
-          <TaskCalendar
-            tasks={[
-              {
-                id: 1,
-                type: "assignment",
-                title: "Advanced Data Structures",
-                date: new Date("2024-02-21 10:00:00")
-              },
-              {
-                id: 2,
-                type: "quiz",
-                title: "Neural Networks Basics",
-                date: new Date("2024-02-22 14:00:00")
-              },
-              {
-                id: 3,
-                type: "project",
-                title: "JavaScript Closures Quiz",
-                date: new Date("2024-02-20 18:00:00")
-              }
-            ]}
-          />
+          <Card className="overflow-hidden">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Clock className="h-4 w-4" />
+                Recent Activities
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {recentActivities?.activities && recentActivities.activities.length > 0 ? (
+                <div className="space-y-3">
+                  {recentActivities.activities.slice(0, 5).map((activity) => (
+                    <div key={activity._id} className="flex items-start gap-2">
+                      <div className="mt-0.5">
+                        {activity.type.includes('course') ? (
+                          <BookOpen className="h-4 w-4 text-primary" />
+                        ) : activity.type.includes('assessment') ? (
+                          <ListChecks className="h-4 w-4 text-orange-500" />
+                        ) : (
+                          <Clock className="h-4 w-4 text-blue-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 text-sm">
+                        <p className="font-medium">
+                          {activity.type === 'started_course' ? 'Started a new course' :
+                            activity.type === 'completed_course' ? 'Completed a course' :
+                              activity.type === 'completed_assessment' ? 'Completed an assessment' :
+                                activity.type === 'earned_points' ? `Earned ${activity.metadata?.points || 0} points` :
+                                  'Learning activity'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {activity.courseName || activity.metadata?.title || 'Learning journey'} • {new Date(activity.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 space-y-2">
+                  <p className="text-sm text-muted-foreground">No activities recorded yet</p>
+                </div>
+              )}
+
+              <Button
+                className="w-full text-xs h-8 mt-2"
+                variant="outline"
+                onClick={() => window.location.href = '/explore'}
+              >
+                Start Learning
+              </Button>
+            </CardContent>
+          </Card>
+
+          <TaskCalendar tasks={calendarTasks} />
         </div>
       </div>
+
+      {/* Course Generation Modal */}
+      <CourseGenerationModal
+        isOpen={isCourseModalOpen}
+        onClose={() => setIsCourseModalOpen(false)}
+      />
     </div>
   );
 }

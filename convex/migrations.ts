@@ -1,7 +1,7 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { TranscriptDoc } from "./schema";
+import { VideoDoc, TranscriptSegment } from "./schema";
 
 // Migration to fix playlist_videos records with string playlistIds
 export const fixPlaylistVideoRecords = mutation({
@@ -61,101 +61,30 @@ export const fixPlaylistVideoRecords = mutation({
 });
 
 // Migrate transcripts to be stored within video documents
+// Note: This migration is for legacy data only - the transcripts table has been removed
 export const migrateTranscriptsToVideos = mutation({
   args: {},
   handler: async (ctx) => {
-    // Fetch all existing transcripts
-    const transcripts = await ctx.db.query("transcripts").collect();
+    console.log("This migration is now obsolete as the transcripts table has been removed.");
+    console.log("Transcripts are now stored directly in the videos table.");
     
-    console.log(`Found ${transcripts.length} transcripts to migrate`);
-    
-    let migratedCount = 0;
-    let errorCount = 0;
-
-    // Process each transcript
-    for (const transcript of transcripts) {
-      try {
-        // Find the corresponding video
-        const video = await ctx.db
-          .query("videos")
-          .filter(q => q.eq(q.field("youtubeId"), transcript.youtubeId))
-          .first();
-
-        if (video) {
-          // If video exists, add transcript to it
-          const existingTranscripts = video.transcripts || [];
-          
-          // Check if this language transcript already exists
-          const hasTranscript = existingTranscripts.some(
-            (t: any) => t.language === transcript.language
-          );
-          
-          if (!hasTranscript) {
-            // Add transcript to video document
-            await ctx.db.patch(video._id, {
-              transcripts: [
-                ...existingTranscripts,
-                {
-                  language: transcript.language,
-                  segments: transcript.segments,
-                  cachedAt: transcript.cachedAt
-                }
-              ]
-            });
-            migratedCount++;
-          }
-        } else {
-          // If video doesn't exist, create a placeholder video with the transcript
-          await ctx.db.insert("videos", {
-            youtubeId: transcript.youtubeId,
-            details: {
-              type: "video",
-              id: transcript.youtubeId,
-              title: "Placeholder Title",
-              description: "",
-              duration: "",
-              thumbnail: ""
-            },
-            transcripts: [{
-              language: transcript.language,
-              segments: transcript.segments,
-              cachedAt: transcript.cachedAt
-            }],
-            cachedAt: transcript.cachedAt
-          });
-          migratedCount++;
-        }
-      } catch (error) {
-        console.error(`Error migrating transcript for video ${transcript.youtubeId}:`, error);
-        errorCount++;
-      }
-    }
-
     return {
-      totalTranscripts: transcripts.length,
-      migratedCount,
-      errorCount
+      status: "obsolete",
+      message: "Transcripts table has been removed. Transcripts are now stored in the videos table."
     };
   }
 });
 
 // Optional cleanup to remove the old transcript documents after migration
+// Note: This is now obsolete as the transcripts table has been removed
 export const deleteOldTranscripts = mutation({
   args: {},
   handler: async (ctx) => {
-    const transcripts = await ctx.db.query("transcripts").collect();
-    
-    console.log(`Removing ${transcripts.length} old transcript documents`);
-    
-    let deletedCount = 0;
-    
-    for (const transcript of transcripts) {
-      await ctx.db.delete(transcript._id);
-      deletedCount++;
-    }
+    console.log("This migration is now obsolete as the transcripts table has been removed.");
     
     return {
-      deletedCount
+      status: "obsolete",
+      message: "Transcripts table has been removed."
     };
   }
 });

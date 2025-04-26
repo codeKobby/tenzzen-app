@@ -13,6 +13,7 @@ erDiagram
     categories ||--o{ course_categories : includes
     courses ||--o{ assessments : contains
     assessments ||--o{ progress : tracked_in
+    users ||--o{ user_profiles : has_profile
     users ||--o{ enrollments : enrolls_in
     users ||--o{ progress : completes
     users ||--o{ notes : creates
@@ -151,7 +152,7 @@ erDiagram
         id assessmentId
         string status
         number score
-        string feedback
+        any feedback
         any submission
         number startedAt
         number completedAt
@@ -205,6 +206,16 @@ erDiagram
         number views
         boolean isFavorite
         string sourceType
+    }
+
+    user_profiles {
+        string userId
+        string bio
+        string timezone
+        string language
+        object preferences
+        object learningPreferences
+        number updatedAt
     }
 
     user_stats {
@@ -287,10 +298,16 @@ erDiagram
     }
 
     users {
-        string id
+        string clerkId
         string name
         string email
+        string imageUrl
+        string authProvider
         string role
+        string status
+        number createdAt
+        number updatedAt
+        object lastLogin
     }
 ```
 
@@ -303,6 +320,12 @@ erDiagram
 - **Categories** and **Tags** provide classification and searchability for courses.
 - **Course Groups** allow for organizing related courses (e.g., learning paths, specializations).
 
+### User Management
+
+- **Users** contain core identity information linked with Clerk authentication.
+- **User Profiles** store extended user information and preferences.
+- **User Stats** track overall learning metrics for dashboards.
+
 ### User Learning Journey
 
 - **Enrollments** track a user's progress through a course.
@@ -312,7 +335,6 @@ erDiagram
 
 ### User Experience & Engagement
 
-- **User Stats** track overall learning metrics for dashboards.
 - **Learning Activities** record detailed user interactions for the activity feed.
 - **User Interests** and **Recommendations** power the personalized course suggestions.
 - **Achievements** support gamification elements like badges and points.
@@ -482,6 +504,42 @@ flowchart TD
     T --> B
 ```
 
+### 6. Achievement & Gamification Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as Tenzzen UI
+    participant API as API Service
+    participant DB as Database
+
+    Note over User,DB: User performs various learning activities
+
+    User->>UI: Completes a learning activity
+    UI->>API: Records activity completion
+    API->>DB: Stores learning activity
+    API->>DB: Checks achievement criteria
+
+    alt Achievement Unlocked
+        DB-->>API: Achievement criteria met
+        API->>DB: Creates achievement record
+        API->>DB: Updates user stats & points
+        API-->>UI: Returns achievement notification
+        UI-->>User: Displays achievement animation
+        UI-->>User: Updates badges & level display
+    else No Achievement
+        DB-->>API: No achievement criteria met
+        API-->>UI: Returns activity confirmation only
+    end
+
+    User->>UI: Views achievements page
+    UI->>API: Requests user achievements
+    API->>DB: Fetches achievements
+    DB-->>API: Returns achievement data
+    API-->>UI: Returns formatted achievements
+    UI-->>User: Displays badges & achievements
+```
+
 ## Implementation Notes
 
 ### Data Consistency Strategy
@@ -495,12 +553,26 @@ flowchart TD
 - Indexes on frequently queried fields (userId, courseId, completion status).
 - Denormalization of certain data (e.g., course tags as array) for read performance.
 - Activity logs partitioned by time periods to improve query performance.
+- Search indexes to enable efficient content discovery and filtering.
 
 ### Security & Privacy
 
 - User-specific data isolated through userId partitioning.
 - Content visibility controlled through isPublic flags.
 - User-generated content filterable by public/private status.
+- Role-based access controls implemented through user roles.
+
+## Type System
+
+The database implements a strong type system for consistent data handling:
+
+- **CourseStatus**: "draft" | "published" | "archived"
+- **CompletionStatus**: "not_started" | "in_progress" | "completed"
+- **AssessmentType**: "quiz" | "project" | "assignment"
+- **SubmissionStatus**: "submitted" | "reviewed" | "revisions_requested" | "approved"
+- **ActivityType**: Various activity types like "started_course", "completed_lesson", etc.
+- **ResourceType**: "link", "document", "file", "video", "image", "code", "pdf"
+- **DifficultyLevel**: "beginner", "intermediate", "advanced", "expert"
 
 ## Migration Path
 
@@ -508,12 +580,13 @@ For planned transitions:
 
 1. **Legacy to Enhanced Schema**:
 
-   - Transcripts will migrate from standalone table to nested structure in videos.
-   - Course tags will move from simple arrays to relational course_tags table.
+   - ✅ Transcripts migrated from standalone table to nested structure in videos.
+   - ✅ Course tags moved from simple arrays to relational course_tags table.
 
 2. **Feature Expansion**:
-   - Project-based learning will leverage the assessments and project_submissions tables.
-   - Gamification will utilize achievements and user_stats tables.
-   - Personalization engine will use learning_activities and user_interests.
+   - ✅ Project-based learning now leverages the assessments and project_submissions tables.
+   - ✅ Gamification implemented using achievements and user_stats tables.
+   - ✅ Personalization engine now uses learning_activities and user_interests.
+   - 🔄 Enhanced community features planned using public courses and shared resources.
 
-This database structure is designed to support all current Tenzzen features while enabling future expansion into advanced learning analytics, social learning features, and content marketplace capabilities.
+This database structure supports all current Tenzzen features while enabling future expansion into advanced learning analytics, social learning features, and content marketplace capabilities.

@@ -6,6 +6,7 @@ This document provides an overview of the Tenzzen learning platform's database s
 
 ```mermaid
 erDiagram
+    USERS ||--o{ USER_PROFILES : has
     USERS ||--o{ USER_STATS : has
     USERS ||--o{ ENROLLMENTS : enrolls_in
     USERS ||--o{ NOTES : creates
@@ -14,53 +15,72 @@ erDiagram
     USERS ||--o{ LEARNING_ACTIVITIES : generates
     USERS ||--o{ USER_INTERESTS : has
     USERS ||--o{ PROGRESS : tracks
+    USERS ||--o{ ACHIEVEMENTS : earns
+    USERS ||--o{ RECOMMENDATIONS : receives
+    USERS ||--o{ PROJECT_SUBMISSIONS : submits
 
     COURSES ||--o{ ENROLLMENTS : has
     COURSES ||--o{ ASSESSMENTS : contains
     COURSES ||--o{ NOTES : referenced_in
     COURSES ||--o{ RESOURCES : referenced_in
     COURSES ||--o{ RATINGS : receives
-    COURSES }o--o{ CATEGORIES : belongs_to
-    COURSES }o--o{ TAGS : has
+    COURSES ||--o{ COURSE_TAGS : has
+    COURSES ||--o{ COURSE_CATEGORIES : belongs_to
+    COURSES ||--o{ COURSE_GROUP_MEMBERS : part_of
 
     CATEGORIES ||--o{ COURSE_CATEGORIES : in
-    COURSE_CATEGORIES }o--|| COURSES : for
-
     TAGS ||--o{ COURSE_TAGS : in
-    COURSE_TAGS }o--|| COURSES : for
 
     ASSESSMENTS ||--o{ PROGRESS : for
     ASSESSMENTS ||--o{ PROJECT_SUBMISSIONS : receives
 
-    VIDEOS ||--o{ TRANSCRIPTS : has
+    VIDEOS }|--o{ PLAYLIST_VIDEOS : included_in
     PLAYLISTS ||--o{ PLAYLIST_VIDEOS : contains
-    PLAYLIST_VIDEOS }o--|| VIDEOS : links
+
+    COURSE_GROUPS ||--o{ COURSE_GROUP_MEMBERS : has
 
     USERS {
-        string id
+        string clerkId
         string email
         string name
         string imageUrl
-        timestamp createdAt
+        string authProvider
+        string role
+        string status
+        number createdAt
+        number updatedAt
+        object lastLogin
+    }
+
+    USER_PROFILES {
+        string userId
+        string bio
+        string timezone
+        string language
+        object preferences
+        object learningPreferences
+        number updatedAt
     }
 
     USER_STATS {
-        id _id
         string userId
         number totalLearningHours
         number coursesCompleted
         number coursesInProgress
         number assessmentsCompleted
         number projectsSubmitted
-        timestamp lastActiveAt
+        number lastActiveAt
         number streakDays
         number longestStreak
         number totalPoints
         array weeklyActivity
+        array badges
+        number level
+        string learningStyle
+        array topCategories
     }
 
     COURSES {
-        id _id
         string title
         string subtitle
         string description
@@ -74,14 +94,15 @@ erDiagram
         array sections
         object metadata
         string status
-        timestamp createdAt
-        timestamp updatedAt
+        number createdAt
+        number updatedAt
         number estimatedHours
         array tags
+        boolean featured
+        number popularity
     }
 
     CATEGORIES {
-        id _id
         string name
         string description
         string icon
@@ -91,29 +112,25 @@ erDiagram
     }
 
     COURSE_CATEGORIES {
-        id _id
         id courseId
         id categoryId
     }
 
     TAGS {
-        id _id
         string name
         number useCount
     }
 
     COURSE_TAGS {
-        id _id
         id courseId
         id tagId
     }
 
     ENROLLMENTS {
-        id _id
         string userId
         id courseId
-        timestamp enrolledAt
-        timestamp lastAccessedAt
+        number enrolledAt
+        number lastAccessedAt
         string completionStatus
         number progress
         boolean isActive
@@ -121,21 +138,24 @@ erDiagram
         string lastLessonId
         number totalTimeSpent
         string notes
+        boolean reminderEnabled
+        string reminderFrequency
+        object learningGoal
     }
 
     RATINGS {
-        id _id
         string userId
         id courseId
         number rating
         string review
-        timestamp createdAt
-        timestamp updatedAt
+        number createdAt
+        number updatedAt
         number helpful
+        boolean reported
+        boolean verified
     }
 
     ASSESSMENTS {
-        id _id
         string title
         string description
         id courseId
@@ -145,24 +165,29 @@ erDiagram
         array projectRequirements
         string submissionType
         array resources
-        timestamp deadline
-        timestamp createdAt
+        number deadline
+        number createdAt
+        string difficulty
+        number estimatedTime
+        number passingScore
+        boolean allowRetries
+        number maxRetries
     }
 
     PROGRESS {
-        id _id
         string userId
         id assessmentId
         string status
         number score
-        string feedback
+        any feedback
         any submission
-        timestamp startedAt
-        timestamp completedAt
+        number startedAt
+        number completedAt
+        number attemptNumber
+        number timeSpent
     }
 
     PROJECT_SUBMISSIONS {
-        id _id
         string userId
         id assessmentId
         string submissionUrl
@@ -171,25 +196,28 @@ erDiagram
         string status
         string feedback
         number grade
-        timestamp submittedAt
-        timestamp reviewedAt
+        number submittedAt
+        number reviewedAt
+        string reviewerNotes
+        number revisionCount
     }
 
     NOTES {
-        id _id
         string userId
         string title
         string content
         id courseId
         string lessonId
         array tags
-        timestamp createdAt
-        timestamp updatedAt
+        number createdAt
+        number updatedAt
         boolean isPublic
+        string aiSummary
+        array highlights
+        boolean isFavorite
     }
 
     RESOURCES {
-        id _id
         string userId
         string title
         string type
@@ -199,61 +227,94 @@ erDiagram
         string lessonId
         string description
         array tags
-        timestamp createdAt
-        timestamp updatedAt
+        number createdAt
+        number updatedAt
         boolean isPublic
+        number views
+        boolean isFavorite
+        string sourceType
     }
 
     LEARNING_ACTIVITIES {
-        id _id
         string userId
         string type
         id courseId
         string lessonId
         id assessmentId
-        timestamp timestamp
-        object metadata
+        number timestamp
+        any metadata
+        boolean visible
     }
 
     USER_INTERESTS {
-        id _id
         string userId
         id categoryId
         number interestLevel
-        timestamp createdAt
-        timestamp updatedAt
+        number createdAt
+        number updatedAt
+        string source
     }
 
     VIDEOS {
-        id _id
         string youtubeId
         object details
         array transcripts
-        timestamp cachedAt
-    }
-
-    TRANSCRIPTS {
-        id _id
-        string youtubeId
-        string language
-        array segments
-        timestamp cachedAt
+        string cachedAt
     }
 
     PLAYLISTS {
-        id _id
         string youtubeId
         string title
         string description
         string thumbnail
         number itemCount
-        timestamp cachedAt
+        string cachedAt
     }
 
     PLAYLIST_VIDEOS {
-        id _id
         id playlistId
         id videoId
+        number position
+    }
+
+    RECOMMENDATIONS {
+        string userId
+        id courseId
+        number score
+        string reason
+        number createdAt
+        boolean viewed
+        boolean dismissed
+    }
+
+    ACHIEVEMENTS {
+        string userId
+        string type
+        string title
+        string description
+        number awardedAt
+        number points
+        string icon
+        number level
+        any metadata
+    }
+
+    COURSE_GROUPS {
+        string title
+        string description
+        string thumbnail
+        string creatorId
+        boolean isPublic
+        number createdAt
+        number updatedAt
+        number courseCount
+        array tags
+        string slug
+    }
+
+    COURSE_GROUP_MEMBERS {
+        id groupId
+        id courseId
         number position
     }
 ```
@@ -271,20 +332,23 @@ erDiagram
 
 - **Courses & Categories**: Courses belong to multiple categories for organization and discovery.
 - **Courses & Tags**: Courses have multiple tags for enhanced searchability.
-- **Videos & Transcripts**: Videos store transcripts for content analysis and searchability.
+- **Videos & Transcripts**: Videos store transcripts directly as an embedded array for content analysis and searchability.
 - **Playlists & Videos**: Playlists organize videos in a sequence.
+- **Course Groups & Courses**: Related courses can be organized into groups for learning paths.
 
 ### User Generated Content
 
 - **Users & Notes**: Users create notes related to courses and lessons.
 - **Users & Resources**: Users create or save resources for learning.
 - **Users & Ratings**: Users rate and review courses.
+- **Users & Projects**: Users submit projects for assessment.
 
-### Learning Metrics
+### User Experience & Engagement
 
 - **User Stats**: Aggregate metrics about a user's learning activity.
-- **Enrollments**: Track course progress and completion data.
-- **Progress**: Track assessment completion and scores.
+- **Achievements**: Gamification elements like badges and achievement records.
+- **Recommendations**: Personalized course suggestions based on interests and history.
+- **User Profiles**: Extended user information and preferences.
 
 ## Key User Flows
 
@@ -351,6 +415,7 @@ sequenceDiagram
     alt Course Completed
         API->>DB: Marks course as completed
         API->>DB: Updates completion metrics
+        API->>DB: Creates achievement record
         API->>UI: Prompts for course rating
     end
 
@@ -424,10 +489,40 @@ sequenceDiagram
         API->>DB: Fetches user stats
         API->>DB: Fetches recent activities
         API->>DB: Fetches in-progress courses
+        API->>DB: Fetches achievements
+        API->>DB: Fetches recommendations
     end
 
     API->>UI: Returns dashboard data
     UI->>User: Displays learning metrics & activity
+```
+
+### Achievement & Gamification Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as Frontend UI
+    participant API as Convex API
+    participant DB as Database
+
+    User->>UI: Completes learning activity
+    UI->>API: Records activity completion
+    API->>DB: Stores learning activity
+    API->>DB: Checks achievement criteria
+
+    alt Achievement Unlocked
+        API->>DB: Creates achievement record
+        API->>DB: Updates user stats & points
+        API->>UI: Returns achievement notification
+        UI->>User: Displays achievement animation
+    end
+
+    User->>UI: Views achievements page
+    UI->>API: Requests user achievements
+    API->>DB: Fetches achievements
+    API->>UI: Returns formatted achievements
+    UI->>User: Displays badges & achievements
 ```
 
 ## Database Indexing Strategy
@@ -443,7 +538,7 @@ The database schema includes strategic indexes to optimize common query patterns
 
    - Indexes on `isPublic` for exploring available courses
    - Compound indexes for filtering by category and tags
-   - Full-text search indexes on course titles and descriptions
+   - Full-text search indexes on course titles for enhanced search performance
 
 3. **Content Relationships**
 
@@ -460,7 +555,7 @@ The Tenzzen platform follows a well-structured data flow pattern:
 
 1. **Content Ingestion**
 
-   - YouTube content is processed and stored in the videos and transcripts tables
+   - YouTube content is processed and stored in the videos table with embedded transcripts
    - AI analysis transforms raw content into structured course data
 
 2. **User Engagement**
@@ -476,5 +571,30 @@ The Tenzzen platform follows a well-structured data flow pattern:
 4. **Analytics & Personalization**
    - User actions aggregate into statistics and trends
    - Personalized recommendations are generated based on interests and history
+   - Achievements and gamification elements enhance user engagement
 
-This architecture ensures efficient data storage, retrieval, and analysis while supporting the platform's core learning features and personalization capabilities.
+## Type System
+
+The database implements a strong type system for consistent data handling:
+
+- **CourseStatus**: "draft" | "published" | "archived"
+- **CompletionStatus**: "not_started" | "in_progress" | "completed"
+- **AssessmentType**: "quiz" | "project" | "assignment"
+- **SubmissionStatus**: "submitted" | "reviewed" | "revisions_requested" | "approved"
+- **ActivityType**: Various activity types like "started_course", "completed_lesson", etc.
+- **ResourceType**: "link", "document", "file", "video", "image", "code", "pdf"
+- **DifficultyLevel**: "beginner", "intermediate", "advanced", "expert"
+
+## Migration Notes
+
+1. **Completed Migrations**:
+
+   - ✅ Transcripts moved from standalone table to embedded array within videos table
+   - ✅ Enhanced user system with separate user_profiles table
+   - ✅ Added gamification through achievements table
+   - ✅ Implemented recommendation system
+
+2. **Future Enhancements**:
+   - 🔄 Enhanced social learning features
+   - 🔄 Learning path progression tracking
+   - 🔄 Advanced analytics dashboards

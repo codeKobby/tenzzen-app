@@ -3,6 +3,47 @@ import { v } from "convex/values";
 
 // Define schema with proper table configuration
 export default defineSchema({
+  // Users - Core identity information linked with Clerk
+  users: defineTable({
+    // This will match the Clerk user ID
+    clerkId: v.string(),
+    email: v.string(),
+    name: v.string(),
+    imageUrl: v.optional(v.string()),
+    authProvider: v.string(), // e.g., "clerk", "google", etc.
+    role: v.string(), // "user", "admin", etc.
+    status: v.string(), // "active", "suspended", "deleted"
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    lastLogin: v.optional(v.object({
+      time: v.number(),
+      ip: v.optional(v.string()),
+      userAgent: v.optional(v.string()),
+    })),
+  }).index("by_clerk_id", ["clerkId"])
+    .index("by_email", ["email"])
+    .index("by_role", ["role"]),
+
+  // User profiles - Extended user information and preferences
+  user_profiles: defineTable({
+    userId: v.string(), // Foreign key to users table
+    bio: v.optional(v.string()),
+    timezone: v.optional(v.string()),
+    language: v.optional(v.string()),
+    preferences: v.optional(v.object({
+      darkMode: v.optional(v.boolean()),
+      accentColor: v.optional(v.string()),
+      notificationPreferences: v.optional(v.string()),
+      emailUpdates: v.optional(v.boolean()),
+    })),
+    learningPreferences: v.optional(v.object({
+      preferredCategories: v.optional(v.array(v.string())),
+      difficulty: v.optional(v.string()),
+      dailyGoalMinutes: v.optional(v.number()),
+    })),
+    updatedAt: v.number(),
+  }).index("by_user_id", ["userId"]),
+
   // Videos and transcripts (already enhanced)
   videos: defineTable({
     youtubeId: v.string(),
@@ -373,22 +414,6 @@ export default defineSchema({
     position: v.number(), // Order within group
   }).index("by_group", ["groupId"])
     .index("by_course", ["courseId"]),
-
-  // Transcripts table (legacy - will be removed after migration)
-  transcripts: defineTable({
-    youtubeId: v.string(),
-    language: v.string(),
-    segments: v.array(v.object({
-      text: v.string(),
-      start: v.number(),
-      duration: v.number()
-    })),
-    cachedAt: v.string(),
-  })
-  .searchIndex("search_transcripts", {
-    searchField: "youtubeId",
-    filterFields: ["language"]
-  }),
 });
 
 // Export types for reuse
@@ -396,16 +421,6 @@ export interface TranscriptSegment {
   text: string;
   start: number;
   duration: number;
-}
-
-// Export type for document
-export interface TranscriptDoc {
-  _id: string;
-  _creationTime: number;
-  youtubeId: string;
-  language: string;
-  segments: TranscriptSegment[];
-  cachedAt: string;
 }
 
 // Export type for video document

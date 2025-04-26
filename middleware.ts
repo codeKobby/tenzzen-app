@@ -27,9 +27,10 @@ export default clerkMiddleware(async (auth, req) => {
     });
   }
 
-  // For users on the onboarding page, don't redirect
+  // For users on the onboarding page, redirect to dashboard since we're removing onboarding
   if (userId && isOnboardingRoute(req)) {
-    return NextResponse.next();
+    const dashboardUrl = new URL('/dashboard', req.url);
+    return NextResponse.redirect(dashboardUrl);
   }
 
   // If the user isn't signed in and the route is private, redirect to sign-in
@@ -39,18 +40,14 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(signInUrl);
   }
 
-  // For users who just signed in, redirect to dashboard if they've completed onboarding
-  // But only redirect from sign-in page, not from homepage
-  if (userId && sessionClaims?.metadata?.onboardingComplete && req.nextUrl.pathname === '/sign-in') {
+  // For users who just signed in, redirect to dashboard (always, removed onboarding check)
+  if (userId && req.nextUrl.pathname === '/sign-in') {
     const dashboardUrl = new URL('/dashboard', req.url);
     return NextResponse.redirect(dashboardUrl);
   }
 
-  // Redirect users who haven't completed onboarding to the onboarding page
-  if (userId && !sessionClaims?.metadata?.onboardingComplete && !isOnboardingRoute(req) && !isPublicRoute(req)) {
-    const onboardingUrl = new URL('/onboarding', req.url);
-    return NextResponse.redirect(onboardingUrl);
-  }
+  // Skip onboarding redirect and send all authenticated users directly to their destination
+  // (Removed the onboarding redirect logic)
 
   return NextResponse.next();
 });

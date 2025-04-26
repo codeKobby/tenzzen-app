@@ -43,6 +43,21 @@ export interface Course {
   averageRating?: number // Add averageRating property
   enrolledCount?: number
   enrollmentCount?: number // Add enrollmentCount as an alias
+  // Add sections property to match the course data structure
+  sections?: Array<{
+    title: string
+    lessons: Array<{
+      id: string
+      title: string
+      content?: string
+      duration?: number
+      videoId?: string
+      completed?: boolean
+    }>
+    duration?: number
+  }>
+  lessonsCompleted?: number
+  isNew?: boolean
 }
 
 export type CourseFilter = "all" | "in-progress" | "completed" | "not-started"
