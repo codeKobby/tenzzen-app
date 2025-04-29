@@ -190,47 +190,8 @@ function normalizeCourseData(
 
 // --- Action Buttons ---
 function ActionButtons({ className, course, onCancel }: { className?: string, course: any, onCancel: () => void }) {
-  const router = useRouter();
+  const { handleEnroll, isEnrolling } = useCoursePanelContext();
   const { user } = useAuth();
-  const enrollMutation = useMutation(api.courses.enrollUserInCourse);
-  const [enrolling, setEnrolling] = useState(false);
-
-  const handleEnroll = async () => {
-    if (!user || !course) return;
-
-    try {
-      setEnrolling(true);
-      // Show loading toast
-      toast.info('Enrolling in course...', {
-        description: 'Please wait while we process your enrollment'
-      });
-
-      // Call the mutation
-      const result = await enrollMutation({
-        courseData: {
-          title: course.title,
-          description: course.description || "",
-          videoId: course.videoId,
-          thumbnail: course.image,
-          metadata: course.metadata,
-          sections: course.courseItems || []
-        },
-        userId: user.id
-      });
-
-      // Handle success
-      toast.success('Successfully enrolled in course!');
-      // Redirect to courses page after enrollment
-      router.push('/courses');
-    } catch (error) {
-      console.error("Error enrolling in course:", error);
-      toast.error("Failed to enroll in course", {
-        description: "Please try again later."
-      });
-    } finally {
-      setEnrolling(false);
-    }
-  };
 
   return (
     <div className={cn("flex gap-2", className)}>
@@ -238,9 +199,9 @@ function ActionButtons({ className, course, onCancel }: { className?: string, co
         className="gap-1.5"
         size="default"
         onClick={handleEnroll}
-        disabled={enrolling || !user}
+        disabled={isEnrolling || !user}
       >
-        {enrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />}
+        {isEnrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />}
         Enroll Now
       </Button>
       <Button

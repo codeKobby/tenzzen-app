@@ -239,7 +239,7 @@ export const createOrUpdateResource = mutation({
     resourceId: v.optional(v.id("resources")),
     userId: v.string(),
     title: v.string(),
-    type: v.string(),
+    type: v.union(v.literal("document"), v.literal("file"), v.literal("link"), v.literal("code"), v.literal("video"), v.literal("image"), v.literal("pdf")),
     url: v.optional(v.string()),
     content: v.optional(v.string()),
     courseId: v.optional(v.id("courses")),
@@ -248,7 +248,7 @@ export const createOrUpdateResource = mutation({
     tags: v.optional(v.array(v.string())),
     isPublic: v.optional(v.boolean()),
     isFavorite: v.optional(v.boolean()),
-    sourceType: v.optional(v.string()),
+    sourceType: v.optional(v.union(v.literal("user_created"), v.literal("ai_generated"), v.literal("course_provided"))),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -262,8 +262,22 @@ export const createOrUpdateResource = mutation({
       if (!existingResource) throw new Error(`Resource with ID ${resourceId} not found`);
       if (existingResource.userId !== userId) throw new Error("Permission denied");
 
-      const updateData: Partial<Doc<"resources">> = { ...resourceData, updatedAt: now };
-      Object.keys(updateData).forEach(key => updateData[key as keyof typeof updateData] === undefined && delete updateData[key as keyof typeof updateData]);
+      // Create a properly typed update object
+      const updateData: Partial<Doc<"resources">> = { updatedAt: now };
+      
+      // Only add properties that are defined
+      if (resourceData.title !== undefined) updateData.title = resourceData.title;
+      if (resourceData.type !== undefined) updateData.type = resourceData.type;
+      if (resourceData.url !== undefined) updateData.url = resourceData.url;
+      if (resourceData.content !== undefined) updateData.content = resourceData.content;
+      if (resourceData.courseId !== undefined) updateData.courseId = resourceData.courseId;
+      if (resourceData.lessonId !== undefined) updateData.lessonId = resourceData.lessonId;
+      if (resourceData.description !== undefined) updateData.description = resourceData.description;
+      if (resourceData.tags !== undefined) updateData.tags = resourceData.tags;
+      if (resourceData.isPublic !== undefined) updateData.isPublic = resourceData.isPublic;
+      if (resourceData.isFavorite !== undefined) updateData.isFavorite = resourceData.isFavorite;
+      if (resourceData.sourceType !== undefined) updateData.sourceType = resourceData.sourceType;
+      
       await ctx.db.patch(resourceId, updateData);
       // TODO: Handle tag count updates for diff
       return { resourceId: resourceId, isNew: false };

@@ -26,6 +26,11 @@ export function useCachePlaylist() {
   return useMutation(api.videos.cachePlaylist)
 }
 
+// Add hook to update video with course data
+export function useUpdateVideoCourseData() {
+  return useMutation(api.videos.updateVideoCourseData)
+}
+
 // Re-export useful types and functions
 export { api }
 export type { VideoDetails, PlaylistDetails } from "@/types/youtube"

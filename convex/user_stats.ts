@@ -106,14 +106,23 @@ export const updateUserStreak = mutation({
     const now = Date.now();
     const lastActive = userStats.lastActiveAt;
     
-    // Calculate the days since last activity
-    const daysSinceLastActive = Math.floor((now - lastActive) / (1000 * 60 * 60 * 24));
+    // Get date objects (without time) for today and last active day
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const lastActiveDate = new Date(lastActive);
+    lastActiveDate.setHours(0, 0, 0, 0);
+    
+    // Calculate difference in days between today and last active day
+    const timeDiff = today.getTime() - lastActiveDate.getTime();
+    const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
     
     let newStreakDays = userStats.streakDays;
     let newLongestStreak = userStats.longestStreak;
+    let streakChanged = false;
     
     // If the user was active today already, no change to streak
-    if (daysSinceLastActive < 1) {
+    if (daysDiff === 0) {
       // Just update the last active time
       await ctx.db.patch(userStats._id, {
         lastActiveAt: now
@@ -127,21 +136,25 @@ export const updateUserStreak = mutation({
     }
     
     // If the user was active yesterday, increment streak
-    if (daysSinceLastActive === 1) {
+    if (daysDiff === 1) {
       newStreakDays += 1;
+      streakChanged = true;
       
       // Update longest streak if current streak is longer
       if (newStreakDays > newLongestStreak) {
         newLongestStreak = newStreakDays;
       }
     } 
-    // If the user missed a day, reset streak to 1
-    else {
+    // If the user missed a day or more, reset streak to 1
+    else if (daysDiff > 1) {
+      // Only reset if it's been more than 24 hours since the streak could continue
+      // This fixes the issue where logging in on the next day incorrectly resets the streak
       newStreakDays = 1;
+      streakChanged = true;
     }
     
     // Update the user's weekly activity
-    const dayOfWeek = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
     const weeklyActivity = userStats.weeklyActivity ? [...userStats.weeklyActivity] : [0, 0, 0, 0, 0, 0, 0];
     
     weeklyActivity[dayOfWeek] += 1;
@@ -157,7 +170,7 @@ export const updateUserStreak = mutation({
     return { 
       streakDays: newStreakDays, 
       longestStreak: newLongestStreak,
-      streakChanged: true 
+      streakChanged 
     };
   }
 });
@@ -166,7 +179,19 @@ export const updateUserStreak = mutation({
 export const logLearningActivity = mutation({
   args: {
     userId: v.string(),
-    type: v.string(),
+    type: v.union(
+      v.literal("started_course"),
+      v.literal("completed_lesson"),
+      v.literal("started_assessment"),
+      v.literal("completed_assessment"),
+      v.literal("submitted_project"),
+      v.literal("received_feedback"),
+      v.literal("earned_achievement"),
+      v.literal("earned_points"),
+      v.literal("shared_note"),
+      v.literal("created_course"),
+      v.literal("completed_course")
+    ),
     courseId: v.optional(v.id("courses")),
     lessonId: v.optional(v.string()),
     assessmentId: v.optional(v.id("assessments")),
@@ -251,8 +276,8 @@ export const getRecentActivities = query({
     // Set up the query with pagination
     let activitiesQuery = ctx.db
       .query("learning_activities")
-      .filter(q => q.eq(q.field("userId"), args.userId))
-      .order("desc"); // Fixed: removed second parameter
+      .withIndex("by_user", q => q.eq("userId", args.userId))
+      .order("desc"); // Correctly specify ordering by timestamp
     
     // Paginate using cursor-based pagination
     const paginationResult = await activitiesQuery.paginate({

@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server"; // Removed action, QueryB
 import { Id, Doc } from "./_generated/dataModel"; // Added Doc
 // Removed unused specific types: import { Section, Lesson, Assessment, Course } from "../types/course";
 import { api } from "./_generated/api"; // Import api
+import { DifficultyLevel, difficultyLevelValidator } from "./validation"; // Import difficultyLevelValidator
 
 // Generate a new course from video content
 export const generateCourse = mutation({
@@ -15,11 +16,14 @@ export const generateCourse = mutation({
   },
   async handler(ctx, { videoId, options }) { // Added ctx
     console.log("Starting course generation for video:", videoId);
+    
+    // Define courseId at function level so it's accessible in the catch block
+    let courseId: Id<"courses"> | null = null;
 
     try {
       // First, store a placeholder course
       const now = Date.now();
-      const courseId = await ctx.db.insert("courses", { // Use ctx.db
+      courseId = await ctx.db.insert("courses", { // Use ctx.db
         title: "Generating Course...",
         subtitle: "Please wait while we analyze the content",
         overview: {
@@ -60,8 +64,10 @@ export const generateCourse = mutation({
 
     } catch (err) {
       console.error("Course generation mutation failed:", err);
-      // Optionally patch the status to failed here as well if not already done
-      // await ctx.db.patch(courseId, { status: "failed", updatedAt: Date.now() });
+      // Now courseId is properly in scope for the catch block
+      if (courseId) {
+        await ctx.db.patch(courseId, { status: "failed", updatedAt: Date.now() });
+      }
       throw new Error("Failed to generate course");
     }
   }
@@ -169,7 +175,7 @@ export const enrollUserInCourse = mutation({
             prerequisites: courseData.metadata?.prerequisites || [],
             learningOutcomes: courseData.metadata?.objectives || [],
             totalDuration: courseData.metadata?.duration || "Unknown",
-            difficultyLevel: courseData.metadata?.difficulty || "beginner",
+            difficultyLevel: (courseData.metadata?.difficulty || "beginner") as DifficultyLevel,
             skills: [], // Assuming skills/tools are not part of courseData input
             tools: []
           },
@@ -178,6 +184,7 @@ export const enrollUserInCourse = mutation({
             ...courseData.metadata,
             category: courseData.metadata?.category || "Programming",
             sources: courseData.metadata?.sources || [],
+            difficulty: courseData.metadata?.difficulty as DifficultyLevel, // Cast to DifficultyLevel
           },
           isPublic: false, // Default new courses created via enrollment to private? Or should they be public? Assuming false.
           status: "ready",
@@ -237,6 +244,83 @@ export const enrollUserInCourse = mutation({
       };
     } catch (error) {
       console.error("Error in enrollUserInCourse:", error);
+      throw error;
+    }
+  }
+});
+
+// Enroll a user in an existing course by ID
+export const enrollInCourse = mutation({
+  args: {
+    courseId: v.id("courses"),
+    userId: v.string()
+  },
+  async handler({ db }, { courseId, userId }) {
+    try {
+      // Get the course to verify it exists
+      const course = await db.get(courseId);
+      if (!course) {
+        throw new Error("Course not found");
+      }
+
+      // Check if enrollment already exists
+      const existingEnrollment = await db
+        .query("enrollments")
+        .filter((q) => q.and(
+          q.eq(q.field("userId"), userId),
+          q.eq(q.field("courseId"), courseId)
+        ))
+        .first();
+
+      const now = Date.now();
+      
+      // If not already enrolled, create enrollment
+      if (!existingEnrollment) {
+        const enrollmentId = await db.insert("enrollments", {
+          userId,
+          courseId,
+          enrolledAt: now,
+          lastAccessedAt: now,
+          completionStatus: "not_started",
+          progress: 0,
+          isActive: true,
+          completedLessons: [],
+        });
+
+        // Update the enrollment count
+        const enrollmentCount = (course.enrollmentCount || 0) + 1;
+        await db.patch(courseId, { 
+          enrollmentCount,
+          updatedAt: now
+        });
+
+        // Log this activity
+        await db.insert("learning_activities", {
+          userId,
+          type: "started_course", // Changed from "enrolled" to match allowed activity types
+          courseId,
+          timestamp: now,
+          visible: true
+        });
+
+        return {
+          success: true,
+          courseId,
+          enrollmentId,
+          newEnrollment: true,
+          course
+        };
+      }
+
+      return {
+        success: true,
+        courseId,
+        enrollmentId: existingEnrollment._id,
+        newEnrollment: false,
+        course
+      };
+    } catch (error) {
+      console.error("Error in enrollInCourse:", error);
       throw error;
     }
   }
@@ -448,5 +532,149 @@ export const getPublicCourses = query({
       isDone: results.isDone,
       cursor: results.continueCursor
     };
+  }
+});
+
+// Update a generated course with content and make it public
+export const updateGeneratedCourse = mutation({
+  args: {
+    courseId: v.id("courses"),
+    courseContent: v.object({
+      title: v.string(),
+      subtitle: v.optional(v.string()),
+      description: v.optional(v.string()),
+      videoId: v.optional(v.string()),
+      thumbnail: v.optional(v.string()),
+      overview: v.optional(v.object({
+        description: v.optional(v.string()),
+        prerequisites: v.optional(v.array(v.string())),
+        learningOutcomes: v.optional(v.array(v.string())),
+        totalDuration: v.optional(v.string()),
+        difficultyLevel: v.optional(difficultyLevelValidator), // Fixed: Use difficultyLevelValidator instead of v.string()
+        skills: v.optional(v.array(v.string())),
+        tools: v.optional(v.array(v.string()))
+      })),
+      sections: v.array(v.any()),
+      metadata: v.optional(v.object({
+        difficulty: v.optional(difficultyLevelValidator), // Fixed: Use difficultyLevelValidator instead of v.string()
+        duration: v.optional(v.string()),
+        prerequisites: v.optional(v.array(v.string())),
+        objectives: v.optional(v.array(v.string())),
+        category: v.optional(v.string()),
+        sources: v.optional(v.array(v.any())),
+      })),
+      tags: v.optional(v.array(v.string())),
+    })
+  },
+  async handler(ctx, { courseId, courseContent }) {
+    // Check if the course exists
+    const existingCourse = await ctx.db.get(courseId);
+    if (!existingCourse) {
+      throw new Error("Course not found");
+    }
+    
+    // Update the course with generated content
+    const now = Date.now();
+    await ctx.db.patch(courseId, {
+      title: courseContent.title,
+      subtitle: courseContent.subtitle,
+      description: courseContent.description,
+      videoId: courseContent.videoId,
+      thumbnail: courseContent.thumbnail,
+      overview: courseContent.overview,
+      sections: courseContent.sections,
+      metadata: courseContent.metadata,
+      tags: courseContent.tags,
+      isPublic: true, // Mark as public in universal course database
+      status: "ready", // Change status from "generating" to "ready"
+      updatedAt: now
+    });
+    
+    // If there are tags, ensure they exist in the tags table
+    if (courseContent.tags && courseContent.tags.length > 0) {
+      for (const tagName of courseContent.tags) {
+        // Check if tag exists
+        const existingTag = await ctx.db.query("tags")
+          .withIndex("by_name", q => q.eq("name", tagName))
+          .unique();
+        
+        if (existingTag) {
+          // Increment the use count for the tag
+          await ctx.db.patch(existingTag._id, {
+            useCount: (existingTag.useCount || 0) + 1
+          });
+          
+          // Create tag-course relationship if it doesn't exist
+          const existingRelation = await ctx.db.query("course_tags")
+            .withIndex("by_course_tag", q => 
+              q.eq("courseId", courseId).eq("tagId", existingTag._id)
+            )
+            .unique();
+            
+          if (!existingRelation) {
+            await ctx.db.insert("course_tags", {
+              courseId,
+              tagId: existingTag._id
+            });
+          }
+        } else {
+          // Create new tag
+          const tagId = await ctx.db.insert("tags", {
+            name: tagName,
+            useCount: 1
+          });
+          
+          // Create tag-course relationship
+          await ctx.db.insert("course_tags", {
+            courseId,
+            tagId
+          });
+        }
+      }
+    }
+    
+    // If there's a category in metadata, ensure the category-course relationship exists
+    if (courseContent.metadata?.category) {
+      const categoryName = courseContent.metadata.category;
+      // Find or create the category
+      let categoryId;
+      const existingCategory = await ctx.db.query("categories")
+        .withIndex("by_name", q => q.eq("name", categoryName))
+        .unique();
+      
+      if (existingCategory) {
+        categoryId = existingCategory._id;
+        // Increment the course count for the category
+        await ctx.db.patch(categoryId, {
+          courseCount: (existingCategory.courseCount || 0) + 1
+        });
+      } else {
+        // Create new category
+        categoryId = await ctx.db.insert("categories", {
+          name: categoryName,
+          description: `Courses related to ${categoryName}`,
+          slug: categoryName.toLowerCase().replace(/\s+/g, '-'),
+          courseCount: 1
+        });
+      }
+      
+      // Check if relationship already exists
+      const existingRelation = await ctx.db.query("course_categories")
+        .withIndex("by_course_category", q => 
+          q.eq("courseId", courseId).eq("categoryId", categoryId)
+        )
+        .unique();
+        
+      if (!existingRelation) {
+        // Create category-course relationship
+        await ctx.db.insert("course_categories", {
+          courseId,
+          categoryId
+        });
+      }
+    }
+    
+    // Return the updated course
+    return await ctx.db.get(courseId);
   }
 });

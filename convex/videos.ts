@@ -51,7 +51,7 @@ export const getVideoTranscript = query({
     }
 
     // Find transcript in the specified language
-    const transcript = video.transcripts.find(t => t.language === args.language);
+    const transcript = video.transcripts.find((t: { language: string; segments: TranscriptSegment[]; cachedAt: string }) => t.language === args.language);
     if (!transcript) {
       return null;
     }
@@ -84,7 +84,7 @@ export const deleteVideo = mutation({
   }
 });
 
-// Save video details to cache
+// Save video details to cache with better conflict handling
 export const cacheVideo = mutation({
   args: {
     youtubeId: v.string(),
@@ -103,9 +103,12 @@ export const cacheVideo = mutation({
       likes: v.optional(v.string()),
       publishDate: v.optional(v.string())
     }),
-    cachedAt: v.string()
+    cachedAt: v.string(),
+    // Add courseData field (optional)
+    courseData: v.optional(v.any())
   },
   handler: async (ctx, args) => {
+    // First check if the video already exists and get it atomically
     const existing = await ctx.db
       .query("videos")
       .filter(q => 
@@ -113,26 +116,78 @@ export const cacheVideo = mutation({
       )
       .first();
 
+    // If the video exists and has courseData, don't update it - just return the ID
+    if (existing && existing.courseData) {
+      console.log(`Video ${args.youtubeId} already has course data, skipping cache operation`);
+      return existing._id;
+    }
+
+    // Determine if we need to set courseData
+    const shouldSetCourseData = args.courseData !== undefined;
+    
+    // If the video exists
     if (existing) {
-      // Preserve existing transcripts when updating video details
-      const transcripts = existing.transcripts || [];
-      // Use patch to update existing document instead of delete/insert
-      // This preserves the original _id and _creationTime
-      await ctx.db.patch(existing._id, {
-        details: args.details, // Pass the full details object
-        transcripts: transcripts, // Keep existing transcripts
-        cachedAt: args.cachedAt
-      });
-      return existing._id; // Return the ID of the updated document
+      try {
+        // Preserve existing transcripts when updating video details
+        const transcripts = existing.transcripts || [];
+        // Use patch to update existing document instead of delete/insert
+        // This preserves the original _id and _creationTime
+        const updates: any = {
+          details: args.details, // Pass the full details object
+          transcripts: transcripts, // Keep existing transcripts
+          cachedAt: args.cachedAt
+        };
+        
+        // Add courseData if provided
+        if (shouldSetCourseData) {
+          updates.courseData = args.courseData;
+        }
+        
+        await ctx.db.patch(existing._id, updates);
+        return existing._id; // Return the ID of the updated document
+      } catch (error) {
+        // Log the error but don't throw - this helps avoid cascade failures
+        console.error(`Error updating video ${args.youtubeId}:`, error);
+        // Even if patching fails, return the existing ID so clients can try again or use existing data
+        return existing._id;
+      }
     }
 
     // Insert new video details without transcripts
-    return await ctx.db.insert("videos", {
-      youtubeId: args.youtubeId,
-      details: args.details, // Pass the full details object
-      cachedAt: args.cachedAt
-      // transcripts will be undefined initially
-    });
+    try {
+      const insertData: any = {
+        youtubeId: args.youtubeId,
+        details: args.details, // Pass the full details object
+        cachedAt: args.cachedAt
+        // transcripts will be undefined initially
+      };
+      
+      // Add courseData if provided
+      if (shouldSetCourseData) {
+        insertData.courseData = args.courseData;
+      };
+      
+      return await ctx.db.insert("videos", insertData);
+    } catch (error) {
+      // If insertion fails, try one more time to fetch the document
+      // It's possible another concurrent request succeeded in creating it
+      console.error(`Insert failed for video ${args.youtubeId}, checking if created by concurrent request:`, error);
+      
+      const retryFetch = await ctx.db
+        .query("videos")
+        .filter(q => 
+          q.eq(q.field("youtubeId"), args.youtubeId)
+        )
+        .first();
+        
+      if (retryFetch) {
+        // Document exists now, so return its ID
+        return retryFetch._id;
+      }
+      
+      // If we still can't find it, propagate the error
+      throw error;
+    }
   }
 });
 
@@ -184,7 +239,7 @@ export const cacheVideoTranscript = mutation({
     let transcripts = video.transcripts || [];
     
     // Remove existing transcript in the same language if present
-    transcripts = transcripts.filter(t => t.language !== args.language);
+    transcripts = transcripts.filter((t: { language: string; segments: TranscriptSegment[]; cachedAt: string }) => t.language !== args.language);
     
     // Add the new transcript
     transcripts.push({
@@ -219,7 +274,7 @@ export const deleteVideoTranscript = mutation({
     }
 
     // Filter out the transcript in the specified language
-    const updatedTranscripts = video.transcripts.filter(t => t.language !== args.language);
+    const updatedTranscripts = video.transcripts.filter((t: { language: string; segments: TranscriptSegment[]; cachedAt: string }) => t.language !== args.language);
     
     // Update the video document with the filtered transcripts
     return await ctx.db.patch(video._id, {
@@ -249,5 +304,54 @@ export const clearOldVideos = mutation({
     }
 
     return deletedCount;
+  }
+});
+
+// Check if a video has course data
+export const hasCourseData = query({
+  args: { 
+    youtubeId: v.string()
+  },
+  handler: async (ctx, args) => {
+    const video = await ctx.db
+      .query("videos")
+      .filter(q => 
+        q.eq(q.field("youtubeId"), args.youtubeId)
+      )
+      .first();
+
+    if (!video) {
+      return false;
+    }
+
+    return video.courseData !== undefined;
+  }
+});
+
+// Update a video record with course data
+export const updateVideoCourseData = mutation({
+  args: {
+    youtubeId: v.string(),
+    courseData: v.any()
+  },
+  handler: async (ctx, args) => {
+    // Find the video document
+    const video = await ctx.db
+      .query("videos")
+      .filter(q => q.eq(q.field("youtubeId"), args.youtubeId))
+      .first();
+
+    if (!video) {
+      throw new Error(`Video with ID ${args.youtubeId} not found`);
+    }
+
+    // Update the video with the course data
+    await ctx.db.patch(video._id, {
+      courseData: args.courseData,
+      cachedAt: new Date().toISOString() // Update cache timestamp
+    });
+
+    console.log(`Updated video ${args.youtubeId} with course data`);
+    return video._id;
   }
 });

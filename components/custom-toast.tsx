@@ -29,9 +29,19 @@ export const toast = {
       duration: 5000,
     });
   },
+  infoWithAction: (title: string, options?: { description?: string }) => {
+    sonnerToast.info(title, {
+      description: options?.description,
+      duration: 8000, // Extended duration (8 seconds)
+      action: {
+        label: "Okay",
+        onClick: () => sonnerToast.dismiss()
+      }
+    });
+  },
 };
 
-// Toast container component that was missing
+// Toast container component
 export function ToastContainer() {
   const { theme } = useTheme();
 

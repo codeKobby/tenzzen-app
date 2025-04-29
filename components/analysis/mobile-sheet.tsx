@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { VideoContent } from "@/components/analysis/video-content";
+import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton";
 import {
   Sheet,
   SheetClose,
@@ -54,7 +55,11 @@ export function MobileSheet({ isOpen, onClose, loading, error }: MobileSheetProp
         </SheetHeader>
         <ScrollArea className="h-[calc(80vh-3.5rem)]">
           <div className="px-4 py-6">
-            <VideoContent loading={loading} error={error} />
+            {loading ? (
+              <VideoContentSkeleton />
+            ) : (
+              <VideoContent error={error} />
+            )}
           </div>
         </ScrollArea>
       </SheetContent>

@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id, Doc } from "./_generated/dataModel"; // Added Doc
-import { AssessmentType, SubmissionStatus } from "./schema";
+import { AssessmentType, SubmissionStatus, DifficultyLevel, ProgressStatus, SubmissionType } from "./schema";
 
 // Get assessments for a course
 export const getCourseAssessments = query({
@@ -83,7 +83,12 @@ export const createOrUpdateAssessment = mutation({
     }))),
     deadline: v.optional(v.number()),
     // Added fields from schema
-    difficulty: v.optional(v.string()),
+    difficulty: v.optional(v.union(
+      v.literal("beginner"),
+      v.literal("intermediate"), 
+      v.literal("advanced"),
+      v.literal("expert")
+    )),
     estimatedTime: v.optional(v.number()),
     passingScore: v.optional(v.number()),
     allowRetries: v.optional(v.boolean()),
@@ -115,10 +120,10 @@ export const createOrUpdateAssessment = mutation({
       questions: args.questions,
       instructions: args.instructions,
       projectRequirements: args.projectRequirements,
-      submissionType: args.submissionType,
+      submissionType: args.submissionType as SubmissionType,
       resources: args.resources,
       deadline: args.deadline,
-      difficulty: args.difficulty,
+      difficulty: args.difficulty as DifficultyLevel,
       estimatedTime: args.estimatedTime,
       passingScore: args.passingScore,
       allowRetries: args.allowRetries,
@@ -409,7 +414,7 @@ export const submitProject = mutation({
 
     if (progress) {
       await ctx.db.patch(progress._id, {
-        status: "submitted", // Update status to submitted (not completed yet)
+        status: "in_progress" as ProgressStatus,
         submission: {
           submissionId,
           submissionUrl: args.submissionUrl,
@@ -423,7 +428,7 @@ export const submitProject = mutation({
       await ctx.db.insert("progress", {
         userId: args.userId,
         assessmentId: args.assessmentId,
-        status: "submitted",
+        status: "in_progress" as ProgressStatus,
         submission: {
           submissionId,
           submissionUrl: args.submissionUrl,
@@ -527,16 +532,24 @@ export const reviewProjectSubmission = mutation({
       .first();
 
     if (progress) {
+      // Create a properly typed progressUpdates object with correct typing
       const progressUpdates: Partial<Doc<"progress">> = {
         status: "graded",
-        feedback: args.feedback,
-        score: args.grade
+        feedback: args.feedback
       };
+      
+      // Only add score if defined
+      if (args.grade !== undefined) {
+        progressUpdates.score = args.grade;
+      }
+      
       // Mark as completed only if approved
       if (args.status === "approved") {
         progressUpdates.completedAt = now;
-        progressUpdates.status = "completed"; // Or keep as graded?
+        progressUpdates.status = "completed";
       }
+      
+      // Update the progress record
       await ctx.db.patch(progress._id, progressUpdates);
     }
 
@@ -580,7 +593,12 @@ export const generateNewProject = mutation({
   args: {
     userId: v.string(),
     courseId: v.id("courses"),
-    difficulty: v.string(), // "beginner", "intermediate", "advanced"
+    difficulty: v.union(
+      v.literal("beginner"),
+      v.literal("intermediate"), 
+      v.literal("advanced"),
+      v.literal("expert")
+    ),
     previousProjectIds: v.optional(v.array(v.id("assessments")))
   },
   handler: async (ctx, args) => {
@@ -619,7 +637,7 @@ export const generateNewProject = mutation({
       type: "project" as AssessmentType,
       instructions: `Build a project that demonstrates your understanding of ${course.title}. This project was dynamically generated for you based on your learning progress.`,
       projectRequirements: requirements,
-      submissionType: "link", // Default to link submission
+      submissionType: "link" as SubmissionType, // Default to link submission
       resources: [
         {
           title: "Course Materials",
@@ -629,7 +647,7 @@ export const generateNewProject = mutation({
       ],
       deadline: now + (7 * 24 * 60 * 60 * 1000), // 1 week deadline
       createdAt: now,
-      difficulty: args.difficulty, // Use provided difficulty
+      difficulty: args.difficulty as DifficultyLevel, // Use provided difficulty
       estimatedTime: 180, // Placeholder: 3 hours
       passingScore: 70, // Placeholder
       allowRetries: true, // Placeholder

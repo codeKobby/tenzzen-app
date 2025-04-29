@@ -6,6 +6,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "./custom-toast";
 import { useAnalysis } from "@/hooks/use-analysis-context";
 import { getYoutubeTranscript } from "@/actions/getYoutubeTranscript";
+import { useVideoQuery, useUpdateVideoCourseData } from "@/hooks/use-convex"; // Import the new hook
 
 interface GoogleAICourseGenerateButtonProps {
   className?: string;
@@ -32,18 +33,68 @@ export function GoogleAICourseGenerateButton({
     setGenerationProgress,
   } = useAnalysis();
 
+  // Use the query to check if a course exists for this video
+  const existingVideo = useVideoQuery(videoData?.id || '');
+  // Hook to update video with course data
+  const updateVideoCourseData = useUpdateVideoCourseData();
+  const [isChecking, setIsChecking] = useState(false);
+  const [isSavingToDb, setIsSavingToDb] = useState(false);
+
+  // Type guard for expired video objects
+  function isExpiredVideo(video: any): video is { _id: string; expired: true } {
+    return video && 'expired' in video && video.expired === true;
+  }
+
+  // Type guard for full video documents with details
+  function isFullVideoDoc(video: any): video is { details: any; _id: string; _creationTime: number; courseData?: any } {
+    return video && 'details' in video;
+  }
+
+  // Helper function to check if a video object has valid course data
+  function hasValidCourseData(video: any): boolean {
+    return video && 'courseData' in video && !!video.courseData;
+  }
+
   const handleGenerateCourse = async () => {
     if (!videoData?.id || !videoData?.title) {
       toast.error("Missing Video Data", { description: "Please select a valid YouTube video first." });
       return;
     }
+
+    // Start progress for checking database
+    setIsChecking(true);
     setCourseGenerating(true);
     setCourseError(null);
-    setCourseData(null);
-    setProgressMessage("Fetching transcript...");
-    setGenerationProgress(10);
+    setProgressMessage("Checking database for existing course...");
+    setGenerationProgress(5);
 
     try {
+      // First check if we already have this course in the database
+      if (existingVideo) {
+        // Check if the video is expired using our type guard
+        const isExpired = isExpiredVideo(existingVideo);
+
+        // If not expired and has valid course data, use it directly
+        if (!isExpired && isFullVideoDoc(existingVideo) && hasValidCourseData(existingVideo)) {
+          setProgressMessage("Found existing course in database...");
+          setGenerationProgress(100);
+
+          // Use the existing course data
+          console.log("Using existing course data from database:", existingVideo.courseData);
+          setCourseData(existingVideo.courseData);
+          toast.success("Course loaded from database.");
+          setCourseGenerating(false);
+          setIsChecking(false);
+          return; // Exit early as we already have the course
+        }
+      }
+
+      // If we reach here, either no course exists or it's expired
+      // Continue with normal generation process
+      setIsChecking(false);
+      setProgressMessage("Fetching transcript...");
+      setGenerationProgress(10);
+
       const transcriptSegments = await getYoutubeTranscript(videoData.id);
       const transcript = transcriptSegments.map(seg => seg.text).join(" ").trim();
 
@@ -90,9 +141,10 @@ export function GoogleAICourseGenerateButton({
         throw new Error("No course data received from the API");
       }
 
-      // Show progress at 100% for course generation completion
-      setProgressMessage("Course generation complete!");
-      setGenerationProgress(100);
+      // Show progress at 90% for course generation completion
+      setProgressMessage("Course generated successfully! Saving to database...");
+      setGenerationProgress(90);
+      setIsSavingToDb(true);
 
       // Add the videoId to the course data if it's missing
       const finalData = result.data;
@@ -100,9 +152,25 @@ export function GoogleAICourseGenerateButton({
         finalData.videoId = videoData.id;
       }
 
+      // Save the course data to the database
+      try {
+        await updateVideoCourseData({
+          youtubeId: videoData.id,
+          courseData: finalData
+        });
+        console.log("Course data saved to database");
+        setProgressMessage("Course saved to database!");
+        setGenerationProgress(100);
+      } catch (dbError) {
+        console.error("Error saving course to database:", dbError);
+        // Continue anyway since we have the data in memory
+        setProgressMessage("Note: Course not saved to database, but available for current session");
+      }
+
       setCourseData(finalData);
       toast.success("Course generated successfully!");
       setCourseGenerating(false);
+      setIsSavingToDb(false);
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to generate course";
@@ -111,6 +179,8 @@ export function GoogleAICourseGenerateButton({
       setGenerationProgress(0);
       toast.error("Generation Failed", { description: errorMsg });
       setCourseGenerating(false);
+      setIsChecking(false);
+      setIsSavingToDb(false);
     }
   };
 
@@ -123,7 +193,11 @@ export function GoogleAICourseGenerateButton({
       size={size}
     >
       {courseGenerating ? (
-        <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating... </>
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          {isChecking ? "Checking database..." :
+            isSavingToDb ? "Saving to database..." : "Generating..."}
+        </>
       ) : (
         <> <Sparkles className="mr-2 h-4 w-4" /> {buttonText} </>
       )}

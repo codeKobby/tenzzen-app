@@ -2,3 +2,4 @@
 - Never make ui changes unless specified in the prompt and always stick to what you have been asked to edit and avoid completely editing or altering any ui, if the need arises for you to make a change ask for confirmation first
 - Use sequential thinking mcp together with context7 for all database setups.
 - use sequential thinking to fix problems and all error fixing tasks.
+- use web search tool when necessary.

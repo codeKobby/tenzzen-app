@@ -2,6 +2,63 @@ import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { VideoDoc, TranscriptSegment } from "./schema";
+import { Migration } from "./migration_framework";
+
+// Define migration metadata
+export const migrations: Migration[] = [
+  {
+    id: "fix-playlist-video-records",
+    name: "Fix Playlist Video Records",
+    description: "Fix playlist_videos records with string playlistIds instead of references",
+    version: 1,
+    apply: async (ctx) => {
+      // Implementation in fixPlaylistVideoRecords mutation
+      return await ctx.runMutation("migrations:fixPlaylistVideoRecords", {});
+    }
+  },
+  {
+    id: "migrate-transcripts-to-videos",
+    name: "Migrate Transcripts to Videos",
+    description: "Move transcripts from dedicated table to video documents",
+    version: 2,
+    runAfter: ["fix-playlist-video-records"],
+    apply: async (ctx) => {
+      // Implementation in migrateTranscriptsToVideos mutation
+      return await ctx.runMutation("migrations:migrateTranscriptsToVideos", {});
+    }
+  },
+  {
+    id: "add-missing-enrollment-indexes",
+    name: "Add Missing Enrollment Indexes",
+    description: "Verify and add missing indexes for enrollment queries",
+    version: 3,
+    runAfter: ["migrate-transcripts-to-videos"],
+    apply: async (ctx) => {
+      // No actual implementation needed - schema updates handle this
+      // This is a placeholder for tracking schema changes as migrations
+      return {
+        success: true,
+        message: "Indexes added in schema.ts update",
+        schemaChange: true
+      };
+    }
+  },
+  {
+    id: "add-validation-rules",
+    name: "Add Database Validation Rules",
+    description: "Implement stricter validation rules for database fields",
+    version: 4,
+    runAfter: ["add-missing-enrollment-indexes"],
+    apply: async (ctx) => {
+      // No actual implementation needed - schema updates handle this
+      return {
+        success: true,
+        message: "Validation rules added in schema.ts and validation.ts",
+        schemaChange: true
+      };
+    }
+  }
+];
 
 // Migration to fix playlist_videos records with string playlistIds
 export const fixPlaylistVideoRecords = mutation({

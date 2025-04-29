@@ -1,5 +1,26 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import {
+  userRoleValidator,
+  userStatusValidator,
+  authProviderValidator,
+  taskTypeValidator,
+  difficultyLevelValidator,
+  completionStatusValidator,
+  courseStatusValidator,
+  assessmentTypeValidator,
+  submissionTypeValidator,
+  progressStatusValidator,
+  submissionStatusValidator,
+  resourceTypeValidator,
+  resourceSourceTypeValidator,
+  activityTypeValidator,
+  learningStyleValidator,
+  reminderFrequencyValidator,
+  learningGoalTypeValidator,
+  interestSourceValidator,
+  achievementTypeValidator
+} from "./validation";
 
 // Define schema with proper table configuration
 export default defineSchema({
@@ -10,9 +31,9 @@ export default defineSchema({
     email: v.string(),
     name: v.string(),
     imageUrl: v.optional(v.string()),
-    authProvider: v.string(), // e.g., "clerk", "google", etc.
-    role: v.string(), // "user", "admin", etc.
-    status: v.string(), // "active", "suspended", "deleted"
+    authProvider: authProviderValidator,
+    role: userRoleValidator,
+    status: userStatusValidator,
     createdAt: v.number(),
     updatedAt: v.number(),
     lastLogin: v.optional(v.object({
@@ -23,6 +44,21 @@ export default defineSchema({
   }).index("by_clerk_id", ["clerkId"])
     .index("by_email", ["email"])
     .index("by_role", ["role"]),
+
+  // Tasks for Calendar
+  tasks: defineTable({
+    userId: v.string(), // Foreign key to users table
+    title: v.string(),
+    date: v.string(), // ISO date string
+    type: taskTypeValidator,
+    dueTime: v.optional(v.string()),
+    description: v.optional(v.string()),
+    completed: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user_id", ["userId"])
+    .index("by_user_date", ["userId", "date"])
+    .index("by_completion", ["userId", "completed"]),
 
   // User profiles - Extended user information and preferences
   user_profiles: defineTable({
@@ -38,7 +74,7 @@ export default defineSchema({
     })),
     learningPreferences: v.optional(v.object({
       preferredCategories: v.optional(v.array(v.string())),
-      difficulty: v.optional(v.string()),
+      difficulty: v.optional(difficultyLevelValidator),
       dailyGoalMinutes: v.optional(v.number()),
     })),
     updatedAt: v.number(),
@@ -72,6 +108,8 @@ export default defineSchema({
       cachedAt: v.string()
     }))),
     cachedAt: v.string(),
+    // Add courseData field to store generated course data
+    courseData: v.optional(v.any()),
   }).index("by_youtube_id", ["youtubeId"]),
 
   // Playlists table
@@ -134,20 +172,20 @@ export default defineSchema({
       prerequisites: v.optional(v.array(v.string())),
       learningOutcomes: v.optional(v.array(v.string())),
       totalDuration: v.optional(v.string()),
-      difficultyLevel: v.optional(v.string()),
+      difficultyLevel: v.optional(difficultyLevelValidator),
       skills: v.optional(v.array(v.string())),
       tools: v.optional(v.array(v.string()))
     })),
     sections: v.optional(v.array(v.any())),
     metadata: v.optional(v.object({
-      difficulty: v.optional(v.string()),
+      difficulty: v.optional(difficultyLevelValidator),
       duration: v.optional(v.string()),
       prerequisites: v.optional(v.array(v.string())),
       objectives: v.optional(v.array(v.string())),
       category: v.optional(v.string()), // Legacy field - will migrate to course_categories
       sources: v.optional(v.array(v.any())),
     })),
-    status: v.optional(v.string()),
+    status: v.optional(courseStatusValidator),
     createdAt: v.number(),
     updatedAt: v.number(),
     estimatedHours: v.optional(v.number()), // Estimated hours to complete
@@ -177,7 +215,7 @@ export default defineSchema({
     courseId: v.id("courses"),
     enrolledAt: v.number(),
     lastAccessedAt: v.number(),
-    completionStatus: v.string(), // "not_started", "in_progress", "completed"
+    completionStatus: completionStatusValidator,
     progress: v.optional(v.number()), // Percentage complete (0-100)
     isActive: v.optional(v.boolean()),
     completedLessons: v.optional(v.array(v.string())),
@@ -185,9 +223,9 @@ export default defineSchema({
     totalTimeSpent: v.optional(v.number()), // Total time spent in milliseconds
     notes: v.optional(v.string()), // Personal notes about this course
     reminderEnabled: v.optional(v.boolean()), // Whether learning reminders are enabled
-    reminderFrequency: v.optional(v.string()), // "daily", "weekly", etc.
+    reminderFrequency: v.optional(reminderFrequencyValidator),
     learningGoal: v.optional(v.object({
-      type: v.string(), // "time_based", "completion_based", etc.
+      type: learningGoalTypeValidator,
       targetDate: v.number(), // Target completion date
       hoursPerWeek: v.optional(v.number()), // Target hours per week
     })),
@@ -218,11 +256,11 @@ export default defineSchema({
     title: v.string(),
     description: v.string(),
     courseId: v.id("courses"),
-    type: v.string(), // "quiz", "project", etc.
+    type: assessmentTypeValidator,
     questions: v.optional(v.array(v.any())),
     instructions: v.optional(v.string()),
     projectRequirements: v.optional(v.array(v.string())), // For project assessments
-    submissionType: v.optional(v.string()), // "file", "link", "text", etc.
+    submissionType: v.optional(submissionTypeValidator),
     resources: v.optional(v.array(v.object({
       title: v.string(),
       url: v.string(),
@@ -230,7 +268,7 @@ export default defineSchema({
     }))),
     deadline: v.optional(v.number()), // Optional deadline timestamp
     createdAt: v.number(),
-    difficulty: v.optional(v.string()), // "beginner", "intermediate", "advanced"
+    difficulty: v.optional(difficultyLevelValidator),
     estimatedTime: v.optional(v.number()), // Estimated completion time in minutes
     passingScore: v.optional(v.number()), // Minimum score to pass (percentage)
     allowRetries: v.optional(v.boolean()), // Whether retries are allowed
@@ -243,7 +281,7 @@ export default defineSchema({
   progress: defineTable({
     userId: v.string(),
     assessmentId: v.id("assessments"),
-    status: v.string(), // "not_started", "in_progress", "completed", "graded"
+    status: progressStatusValidator,
     score: v.optional(v.number()),
     feedback: v.optional(v.any()), // Changed from v.string() to v.any() to allow structured feedback
     submission: v.optional(v.any()),
@@ -262,7 +300,7 @@ export default defineSchema({
     submissionUrl: v.optional(v.string()), // URL to GitHub/external resource
     fileIds: v.optional(v.array(v.string())), // IDs of submitted files
     notes: v.optional(v.string()), // Student notes about submission
-    status: v.string(), // "submitted", "reviewed", "revisions_requested", "approved"
+    status: submissionStatusValidator,
     feedback: v.optional(v.string()), // Instructor feedback
     grade: v.optional(v.number()), // Numeric grade if applicable
     submittedAt: v.number(),
@@ -302,7 +340,7 @@ export default defineSchema({
   resources: defineTable({
     userId: v.string(),
     title: v.string(),
-    type: v.string(), // "link", "file", "document", etc.
+    type: resourceTypeValidator,
     url: v.optional(v.string()),
     content: v.optional(v.string()),
     courseId: v.optional(v.id("courses")),
@@ -314,7 +352,7 @@ export default defineSchema({
     isPublic: v.optional(v.boolean()),
     views: v.optional(v.number()), // Number of times viewed (if public)
     isFavorite: v.optional(v.boolean()), // If the user has favorited this resource
-    sourceType: v.optional(v.string()), // "user_created", "ai_generated", "course_provided"
+    sourceType: v.optional(resourceSourceTypeValidator),
   }).index("by_user", ["userId"])
     .index("by_course", ["courseId"])
     .index("by_type", ["type"])
@@ -336,14 +374,14 @@ export default defineSchema({
     weeklyActivity: v.optional(v.array(v.number())), // Activity hours by day of week
     badges: v.optional(v.array(v.string())), // Achievement badges earned
     level: v.optional(v.number()), // User experience level
-    learningStyle: v.optional(v.string()), // Identified learning style preference
+    learningStyle: v.optional(learningStyleValidator),
     topCategories: v.optional(v.array(v.string())), // Most studied categories
   }).index("by_user", ["userId"]),
 
   // Learning Activities (For activity feed and detailed tracking)
   learning_activities: defineTable({
     userId: v.string(),
-    type: v.string(), // "started_course", "completed_lesson", "submitted_assessment", etc.
+    type: activityTypeValidator,
     courseId: v.optional(v.id("courses")),
     lessonId: v.optional(v.string()),
     assessmentId: v.optional(v.id("assessments")),
@@ -361,7 +399,7 @@ export default defineSchema({
     interestLevel: v.number(), // 1-5 scale of interest
     createdAt: v.number(),
     updatedAt: v.number(),
-    source: v.optional(v.string()), // "user_selected", "inferred", "quiz"
+    source: v.optional(interestSourceValidator),
   }).index("by_user", ["userId"])
     .index("by_category", ["categoryId"]),
 
@@ -381,7 +419,7 @@ export default defineSchema({
   // User Achievements (For gamification)
   achievements: defineTable({
     userId: v.string(),
-    type: v.string(), // "streak", "course_completion", "assessment_mastery", etc.
+    type: achievementTypeValidator,
     title: v.string(),
     description: v.string(),
     awardedAt: v.number(),
@@ -414,6 +452,18 @@ export default defineSchema({
     position: v.number(), // Order within group
   }).index("by_group", ["groupId"])
     .index("by_course", ["courseId"]),
+
+  // Migrations Registry - Track applied migrations
+  migrations_registry: defineTable({
+    migrationId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    version: v.number(),
+    appliedAt: v.number(), // Timestamp when applied
+    result: v.any(), // Result of the migration
+    rerun: v.boolean(), // Whether this migration was rerun
+  }).index("by_migration_id", ["migrationId"])
+    .index("by_version", ["version"]),
 });
 
 // Export types for reuse
@@ -449,36 +499,31 @@ export interface VideoDoc {
     cachedAt: string;
   }[];
   cachedAt: string;
+  // Add courseData field to match schema update
+  courseData?: any;
+  // Add expired flag for cache expiration state
+  expired?: boolean;
 }
 
-// Additional type definitions for new schema elements
-export type CourseStatus = "draft" | "published" | "archived";
-export type CompletionStatus = "not_started" | "in_progress" | "completed";
-export type AssessmentType = "quiz" | "project" | "assignment";
-export type SubmissionStatus = "submitted" | "reviewed" | "revisions_requested" | "approved";
-export type ActivityType = 
-  | "started_course" 
-  | "completed_lesson" 
-  | "started_assessment" 
-  | "completed_assessment"
-  | "submitted_project"
-  | "received_feedback"
-  | "earned_achievement"
-  | "earned_points"
-  | "shared_note"
-  | "created_course";
-
-export type ResourceType =
-  | "link"
-  | "document"
-  | "file"
-  | "video"
-  | "image"
-  | "code"
-  | "pdf";
-
-export type DifficultyLevel =
-  | "beginner"
-  | "intermediate"
-  | "advanced"
-  | "expert";
+// Re-export types from validation.ts for backward compatibility
+export type {
+  CourseStatus,
+  CompletionStatus,
+  AssessmentType,
+  SubmissionStatus,
+  ActivityType,
+  ResourceType,
+  DifficultyLevel,
+  UserRole,
+  UserStatus,
+  AuthProvider,
+  LearningStyle,
+  TaskType,
+  SubmissionType,
+  ReminderFrequency,
+  LearningGoalType,
+  ResourceSourceType,
+  AchievementType,
+  InterestSource,
+  ProgressStatus
+} from './validation';
