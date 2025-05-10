@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
       if (!config.resolve.fallback) {
         config.resolve.fallback = {};
       }
-      
+
       // Use object spread to make a clean copy and avoid potential mutation issues
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
         tls: false,
       };
     }
-    
+
     // Optimize webpack cache to reduce memory usage and improve performance
     if (config.cache) {
       // Use memory cache type instead of filesystem to reduce the warning about serializing big strings
@@ -47,16 +47,17 @@ const nextConfig: NextConfig = {
         // Additional cache configuration can be added here if needed
       };
     }
-    
+
     // Important: always return the modified config
     return config;
   },
   experimental: {
     // Enable memory optimizations for webpack
     webpackMemoryOptimizations: true,
-    // Enable streaming support
+    // Configure server actions
     serverActions: {
-      bodySizeLimit: '50mb',
+      // Add any specific server actions configuration here if needed
+      bodySizeLimit: '2mb'
     }
   }
 };

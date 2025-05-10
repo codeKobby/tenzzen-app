@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAnalysis } from "@/hooks/use-analysis-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,18 +46,29 @@ import {
 } from "lucide-react";
 import { ClockIcon } from "lucide-react";
 import type { ContentDetails } from "@/types/youtube";
-import { useAuth } from "@/hooks/use-auth";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { CoursePanelContext, useCoursePanelContext } from '../course/course-panel-context';
-import { formatTimestamp } from "@/lib/utils";
 
 // --- Helper to normalize AI output ---
 function normalizeCourseData(
   raw: any,
   initialVideoData: ContentDetails | null
 ) {
+  console.log("[Normalize] Starting normalization with raw:", raw ? "Present" : "Not present");
+  console.log("[Normalize] Starting normalization with initialVideoData:", initialVideoData ? "Present" : "Not present");
+
+  // Log the raw data keys if available
+  if (raw) {
+    console.log("[Normalize] Raw data keys:", Object.keys(raw));
+    console.log("[Normalize] Raw videoId:", raw.videoId);
+  }
+
+  // Log the initialVideoData keys if available
+  if (initialVideoData) {
+    console.log("[Normalize] InitialVideoData keys:", Object.keys(initialVideoData));
+    console.log("[Normalize] InitialVideoData id:", initialVideoData.id);
+  }
+
   if (!raw && !initialVideoData) {
+    console.log("[Normalize] Both raw and initialVideoData are missing, returning default data");
     return {
       title: "Loading Course...",
       description: "",
@@ -79,7 +89,19 @@ function normalizeCourseData(
 
   const title = initialVideoData?.title || raw?.title || raw?.course_title || "Generated Course";
   const description = raw?.description || initialVideoData?.description || "";
-  const videoId = initialVideoData?.id || raw?.videoId || raw?.id || "";
+
+  // Ensure we have a videoId - this is critical for the course panel to display correctly
+  let videoId = initialVideoData?.id || raw?.videoId || raw?.id || "";
+  console.log("[Normalize] Extracted videoId:", videoId);
+
+  // If we still don't have a videoId but have raw data, this is likely an issue
+  if (!videoId && raw) {
+    console.warn("[Normalize] Missing videoId in both raw and initialVideoData, but raw data exists");
+    console.warn("[Normalize] Raw data keys:", Object.keys(raw));
+    // Try to extract from any possible location
+    if (raw._id) videoId = raw._id;
+    else if (raw.video_id) videoId = raw.video_id;
+  }
   const image = initialVideoData?.thumbnail || raw?.thumbnail || raw?.image || raw?.metadata?.thumbnail || "/placeholder-thumbnail.jpg";
 
   let sources: any[] = [];
@@ -189,39 +211,17 @@ function normalizeCourseData(
 }
 
 // --- Action Buttons ---
-function ActionButtons({ className, course, onCancel }: { className?: string, course: any, onCancel: () => void }) {
-  const { handleEnroll, isEnrolling } = useCoursePanelContext();
-  const { user } = useAuth();
-
+function ActionButtons({ className }: { className?: string }) {
   return (
     <div className={cn("flex gap-2", className)}>
-      <Button
-        className="gap-1.5"
-        size="default"
-        onClick={handleEnroll}
-        disabled={isEnrolling || !user}
-      >
-        {isEnrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />}
-        Enroll Now
-      </Button>
-      <Button
-        variant="outline"
-        className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-        size="default"
-        onClick={onCancel}
-      >
-        <XCircle className="h-4 w-4" />
-        Cancel
-      </Button>
+      <Button className="gap-1.5" size="default"> <GraduationCap className="h-4 w-4" /> Enroll Now </Button>
+      <Button variant="outline" className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" size="default"> <XCircle className="h-4 w-4" /> Cancel </Button>
     </div>
   );
 }
 
 // --- Course Summary ---
 function CourseSummary({ course }: { course: any }) {
-  // Use the hook to get the context value
-  const { handleCancel } = useCoursePanelContext();
-
   const totalLessons = course.courseItems
     ?.filter((item: any) => item.type === 'section')
     .reduce((acc: number, section: any) => acc + (section.lessons?.length || 0), 0) || 0;
@@ -272,6 +272,7 @@ function CourseSummary({ course }: { course: any }) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
+                            type="button"
                             className={cn(
                               "relative h-5 w-5 rounded-full overflow-hidden border-2 border-background transition-transform hover:z-10",
                               i > 0 && "-ml-1.5 hover:translate-x-0.5"
@@ -348,12 +349,7 @@ function CourseSummary({ course }: { course: any }) {
         <div className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" /><span>{totalLessons} Lesson{totalLessons !== 1 ? 's' : ''}</span></div>
       </div>
 
-      {/* Pass the handleCancel from context to ActionButtons */}
-      <ActionButtons
-        className="flex-1 mt-3"
-        course={course}
-        onCancel={handleCancel} // Use handleCancel obtained from the context hook
-      />
+      <ActionButtons className="flex-1 mt-3" />
     </div>
   )
 }
@@ -398,9 +394,6 @@ function LessonItem({ lesson, sectionItemIndex, lessonIndex }: { lesson: any, se
   const [isDescriptionVisible, setIsDescriptionVisible] = useState(false);
   const toggleDescription = () => setIsDescriptionVisible(!isDescriptionVisible);
 
-  // Format the start time using the formatTimestamp function from utils
-  const startTimeFormatted = lesson.startTime !== undefined ? formatTimestamp(lesson.startTime) : null;
-
   return (
     <div key={`lesson-${sectionItemIndex}-${lessonIndex}`} className="py-2 px-2 rounded-md transition-colors group border-b border-border/40 last:border-b-0">
       <div className="flex items-center justify-between cursor-pointer" onClick={toggleDescription}>
@@ -409,12 +402,8 @@ function LessonItem({ lesson, sectionItemIndex, lessonIndex }: { lesson: any, se
           <span className="text-sm font-medium truncate">{lesson.title || `Lesson ${lessonIndex + 1}`}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {/* Display timestamp where the lesson occurs in the video */}
-          {startTimeFormatted && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <ClockIcon className="h-3 w-3" />
-              {startTimeFormatted}
-            </span>
+          {lesson.duration && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1"><ClockIcon className="h-3 w-3" />{lesson.duration}</span>
           )}
           <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isDescriptionVisible && "rotate-180")} />
         </div>
@@ -431,24 +420,7 @@ function LessonItem({ lesson, sectionItemIndex, lessonIndex }: { lesson: any, se
 // --- TabContent Component ---
 function TabContent({ tab, course }: { tab: string; course: any }) {
   console.log(`[TabContent] Rendering tab '${tab}' with course:`, course);
-  // Fix: Create handlers for toast calls to prevent setState during render
-  const handleAssessmentClick = React.useCallback(() => {
-    toast.info("Assessment Locked", {
-      description: "Complete previous sections to take the assessment."
-    });
-  }, []);
-
-  const handleProjectClick = React.useCallback(() => {
-    toast.info("Assessment Locked", {
-      description: "Complete the course sections to unlock the final project."
-    });
-  }, []);
-
-  const handleSpecificAssessmentClick = React.useCallback((type: string) => {
-    toast.info("Assessment Locked", {
-      description: `Complete previous sections to take the ${type}.`
-    });
-  }, []);
+  // Social icons are rendered outside TabContent
 
   if (tab === "overview") {
     // Use metadata.overviewText for the detailed view in this tab.
@@ -500,9 +472,6 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
 
   if (tab === "content") {
     let sectionCounter = 0;
-    // Flag to track if a project placeholder has already been rendered from courseItems
-    let projectRenderedFromItems = false;
-
     return (
       <div className="space-y-4">
         {course.courseItems?.map((item: any, index: number) => {
@@ -535,41 +504,34 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
               </Collapsible>
             );
           } else if (item.type === 'assessment_placeholder') {
-            // Only render assessment placeholders from courseItems *if* they are NOT projects,
-            // OR if the main course.project field is missing.
-            // The main course.project field will be handled separately below.
-            if (item.assessmentType !== 'project' || !course.project) {
-              // If it IS a project rendered here (because course.project is missing), set the flag
-              if (item.assessmentType === 'project') {
-                projectRenderedFromItems = true;
-              }
-              const assessment = item;
-              return (
-                <button key={`assessment-${index}`} className="w-full border rounded-lg p-3 bg-muted/20 flex items-center justify-between my-2 text-left hover:bg-muted/40 transition-colors"
-                  onClick={() => handleSpecificAssessmentClick(assessment.assessmentType)}>
-                  <div className="flex items-center gap-3">
-                    {getAssessmentIcon(assessment.assessmentType)}
-                    <span className="font-medium text-sm capitalize">{assessment.assessmentType}</span>
-                  </div>
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                </button>
-              );
-            }
+            const assessment = item;
+            return (
+              <button
+                type="button"
+                key={`assessment-${index}`}
+                className="w-full border rounded-lg p-3 bg-muted/20 flex items-center justify-between my-2 text-left hover:bg-muted/40 transition-colors"
+                onClick={() => toast.info("Assessment Locked", { description: `Complete previous sections to take the ${assessment.assessmentType}.` })}>
+                <div className="flex items-center gap-3">
+                  {getAssessmentIcon(assessment.assessmentType)}
+                  <span className="font-medium text-sm capitalize">{assessment.assessmentType}</span>
+                </div>
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              </button>
+            );
           }
           return null;
         })}
-
-        {/* Render the main project placeholder *only if* it exists AND a project wasn't already rendered from courseItems */}
-        {course.project && course.project.type === 'assessment_placeholder' && course.project.assessmentType === 'project' && !projectRenderedFromItems && (
-          <button key={`assessment-final-project`} className="w-full border rounded-lg p-3 bg-muted/20 flex items-center justify-between my-2 text-left hover:bg-muted/40 transition-colors"
-            onClick={handleProjectClick}>
+        {course.project && course.project.type === 'assessment_placeholder' && course.project.assessmentType === 'project' && (
+          <button
+            type="button"
+            key={`assessment-final-project`}
+            className="w-full border rounded-lg p-3 bg-muted/20 flex items-center justify-between my-2 text-left hover:bg-muted/40 transition-colors"
+            onClick={() => toast.info("Assessment Locked", { description: "Complete the course sections to unlock the final project." })}>
             <div className="flex items-center gap-3">{getAssessmentIcon('project')}<span className="font-medium text-sm capitalize">Final Project</span></div>
             <Lock className="h-4 w-4 text-muted-foreground" />
           </button>
         )}
-
-        {/* Fallback message if no content AND no project was rendered */}
-        {(!course.courseItems || course.courseItems.length === 0) && !course.project && !projectRenderedFromItems && (
+        {(!course.courseItems || course.courseItems.length === 0) && !course.project && (
           <p className="text-muted-foreground text-center py-4">No course content available.</p>
         )}
       </div>
@@ -650,196 +612,189 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
 
 // --- Main CoursePanel Component ---
 export function CoursePanel({ className }: { className?: string }) {
-  // Hooks should be called at the top level of the component function
   const {
-    courseGenerating, progressMessage, generationProgress, courseError, cancelGeneration, courseData: contextCourseData, videoData
+    courseGenerating, courseError, cancelGeneration,
+    courseData: contextCourseData, videoData, setCourseGenerating
   } = useAnalysis();
-  const router = useRouter();
-  const { user } = useAuth();
-  const enrollUserMutation = useMutation(api.courses.enrollUserInCourse);
-
-  // State variables
   const courseData = normalizeCourseData(contextCourseData, videoData);
   const [activeTab, setActiveTab] = useState("overview");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [enrolling, setEnrolling] = useState(false);
-
-  // Effects
-  useEffect(() => {
-    if (courseData && !courseGenerating) {
-      console.log("[CoursePanel] Rendering with normalized courseData:", JSON.stringify(courseData, null, 2));
-    }
-  }, [courseData, courseGenerating]);
-
-  const handleScroll = () => {
-    if (scrollContainerRef.current) {
-      setShowScrollTop(scrollContainerRef.current.scrollTop > 300);
-    }
-  };
-
-  const scrollToTop = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
 
   useEffect(() => {
-    const currentRef = scrollContainerRef.current;
-    if (currentRef) {
-      currentRef.addEventListener('scroll', handleScroll);
-      return () => currentRef.removeEventListener('scroll', handleScroll);
-    }
-  }, []); // Empty dependency array ensures this runs once on mount
+    if (courseData) {
+      console.log("[CoursePanel] Course data available:", {
+        hasVideoId: !!courseData.videoId,
+        title: courseData.title,
+        courseGenerating,
+        keys: Object.keys(courseData)
+      });
 
-  // Event Handlers defined within the component scope
-  const handleEnroll = async () => {
-    if (!user) {
-      toast.error("Authentication required", {
-        description: "Please sign in to enroll in this course."
-      });
-      return;
-    }
-    if (!courseData || !courseData.videoId) {
-      toast.error("Invalid course data", {
-        description: "Cannot enroll in this course due to missing data."
-      });
-      return;
-    }
-    try {
-      setEnrolling(true);
-      toast.info('Enrolling in course...', {
-        description: 'Please wait while we process your enrollment'
-      });
-      await enrollUserMutation({
-        courseData: {
-          title: courseData.title,
-          description: courseData.description || "",
-          videoId: courseData.videoId,
-          thumbnail: courseData.image,
-          metadata: courseData.metadata || {},
-          sections: courseData.courseItems || []
-        },
-        userId: user.id
-      });
-      toast.success('Successfully enrolled in course!');
-      router.push('/courses');
-    } catch (error) {
-      console.error("Error during enrollment:", error);
-      toast.error('Failed to enroll in course', {
-        description: 'Please try again later.'
-      });
-    } finally {
-      setEnrolling(false);
-    }
-  };
+      // Force courseGenerating to false if we have course data
+      if (courseGenerating) {
+        console.log("[CoursePanel] Setting courseGenerating to false because we have course data");
+        setCourseGenerating(false);
+      }
 
-  const handleCancel = () => {
-    if (courseGenerating) {
-      cancelGeneration();
-      toast.info("Generation canceled");
+      // Ensure we have a valid courseData object with required fields
+      const courseDataAny = courseData as any;
+      if (!courseDataAny.courseItems || !Array.isArray(courseDataAny.courseItems) || courseDataAny.courseItems.length === 0) {
+        console.warn("[CoursePanel] Course data missing courseItems array or empty array");
+        // Add a default section if courseItems is missing or empty
+        courseDataAny.courseItems = [
+          {
+            type: 'section',
+            title: 'Introduction',
+            description: 'Introduction to the course',
+            lessons: [
+              {
+                title: 'Getting Started',
+                description: 'Learn the basics of the course',
+                duration: '10 minutes',
+                keyPoints: ['Introduction to key concepts']
+              }
+            ]
+          }
+        ];
+      }
     } else {
-      router.back();
+      console.log("[CoursePanel] No courseData available, courseGenerating:", courseGenerating);
     }
+  }, [courseData, courseGenerating, setCourseGenerating]);
+
+  const handleScroll = () => { if (scrollContainerRef.current) { setShowScrollTop(scrollContainerRef.current.scrollTop > 300) } }; // Ensure 300 has no leading zero
+  const scrollToTop = () => { if (scrollContainerRef.current) { scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }) } }; // Ensure 0 has no leading zero
+  useEffect(() => { const currentRef = scrollContainerRef.current; if (currentRef) { currentRef.addEventListener('scroll', handleScroll); return () => currentRef.removeEventListener('scroll', handleScroll); } }, []);
+
+  // Create a normalized version of the course data with default values
+  const normalizedCourseData = {
+    ...courseData,
+    title: courseData.title || "Generated Course",
+    description: courseData.description || "No description available",
+    videoId: courseData.videoId || "",
+    image: courseData.image || "/placeholder-thumbnail.jpg"
   };
 
-  // Prepare context value to match CoursePanelContextType
-  const contextValue = {
-    enrollUserInCourse: handleEnroll, // Map local handleEnroll to the context's expected name
-    cancelGeneration: handleCancel,   // Map local handleCancel to context's cancelGeneration
-    handleCancel: handleCancel,     // Also provide handleCancel as defined in the type
-    isEnrolling: enrolling
-  };
+  // Ensure courseItems exists and is an array
+  if (!normalizedCourseData.courseItems || !Array.isArray(normalizedCourseData.courseItems)) {
+    console.warn("[CoursePanel] Course data missing courseItems array, adding default");
+    normalizedCourseData.courseItems = [
+      {
+        type: 'section',
+        title: 'Introduction',
+        description: 'Introduction to the course',
+        lessons: [
+          {
+            title: 'Getting Started',
+            description: 'Learn the basics of the course',
+            duration: '10 minutes',
+            keyPoints: ['Introduction to key concepts']
+          }
+        ]
+      }
+    ];
+  }
 
-  const thumbnailUrl = courseData?.image || "/placeholder-thumbnail.jpg";
+  // If we have course data but missing videoId, try to fix it
+  if (!normalizedCourseData.videoId && videoData?.id) {
+    console.log("[CoursePanel] Adding missing videoId to course data");
+    normalizedCourseData.videoId = videoData.id;
+  }
 
-  // Main return statement for the component
+  const thumbnailUrl = normalizedCourseData.image || "/placeholder-thumbnail.jpg";
+
+  // Log the current state before rendering
+  console.log("[CoursePanel] Rendering with state:", {
+    courseGenerating,
+    hasCourseError: !!courseError,
+    hasCourseData: !!courseData,
+    hasVideoId: courseData?.videoId ? true : false
+  });
+
+  // Force courseGenerating to false if we have course data
+  if (courseData && courseGenerating) {
+    console.log("[CoursePanel] Setting courseGenerating to false in render phase");
+    setCourseGenerating(false);
+  }
+
+  // We should always show the course content in this component
+  // The parent component (client.tsx) handles the conditional rendering
+  // This component should only be rendered when courseData is available
+
+  // Log the course data for debugging
+  console.log("[CoursePanel] Rendering with courseData:", courseData ? {
+    hasVideoId: !!courseData.videoId,
+    title: courseData.title,
+    courseGenerating,
+    courseDataType: typeof courseData,
+    courseItemsCount: Array.isArray(courseData.courseItems) ? courseData.courseItems.length : 'Not an array'
+  } : "No course data");
+
+  // If we don't have valid course data, show a debug message
+  if (!courseData) {
+    console.error("[CoursePanel] Missing course data entirely");
+    return (
+      <div className={cn("bg-background flex flex-col w-full sm:w-full h-full overflow-hidden transition-all duration-300 ease-in-out relative", className)}>
+        <div className="flex-1 flex items-center justify-center p-4 text-center">
+          <div className="max-w-md">
+            <p className="text-muted-foreground mb-2">Course data is missing entirely.</p>
+            <pre className="mt-2 text-xs text-left bg-muted p-2 rounded overflow-auto max-h-40">
+              {JSON.stringify({
+                hasCourseData: !!courseData,
+                courseGenerating
+              }, null, 2)}
+            </pre>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("bg-background flex flex-col w-full sm:w-full h-full overflow-hidden transition-all duration-300 ease-in-out relative", className)}>
-      {/* Loading State */}
-      {courseGenerating && (
-        <div className="flex flex-col items-center justify-center flex-1 p-4 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-          <p className="font-medium mb-1">{progressMessage || "Generating Course..."}</p>
-          <p className="text-sm text-muted-foreground mb-4">AI is structuring your learning experience.</p>
-          {/* Use handleCancel directly here */}
-          <Button variant="outline" size="sm" onClick={handleCancel} className="mt-4">Cancel</Button>
-        </div>
-      )}
-      {/* Error State */}
-      {!courseGenerating && courseError && (
-        <div className="flex flex-col items-center justify-center flex-1 p-4 text-center">
-          <XCircle className="h-8 w-8 text-destructive mb-4" />
-          <p className="font-medium text-destructive mb-1">Generation Failed</p>
-          <p className="text-sm text-muted-foreground mb-4">{courseError}</p>
-          {/* Add a close/retry button if needed, using handleCancel or a retry function */}
-        </div>
-      )}
-
-      {/* Content Display State */}
-      {!courseGenerating && !courseError && courseData && courseData.videoId && (
-        <CoursePanelContext.Provider value={contextValue}>
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto hover:scrollbar scrollbar-thin" onScroll={handleScroll}>
-              {/* Top Section with Image and Summary */}
-              <div className="p-4 border-b">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="aspect-video relative overflow-hidden rounded-lg border">
-                    <Image src={thumbnailUrl} alt={courseData.title} fill style={{ objectFit: "cover" }} priority
-                      onError={(e) => { console.error("Thumbnail Load Error:", e); (e.target as HTMLImageElement).src = '/placeholder-thumbnail.jpg'; }}
-                    />
-                  </div>
-                  {/* CourseSummary uses context via useCoursePanelContext */}
-                  <CourseSummary course={courseData} />
-                </div>
-                {/* Creator Socials Section */}
-                {courseData.creatorSocials && courseData.creatorSocials.length > 0 && (
-                  <div className="px-4 pt-3 pb-4 border-b">
-                    <h3 className="text-sm font-semibold mb-2 text-foreground/80">Connect with Creator</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {courseData.creatorSocials.map((social: { platform: string, url: string }, index: number) => (
-                        <Button key={`social-top-${index}`} variant="outline" size="sm" asChild className="h-7 px-2 py-1 text-xs">
-                          <a href={social.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
-                            {getSocialIcon(social.platform)}
-                            <span className="capitalize">{social.platform}</span>
-                          </a>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto hover:scrollbar scrollbar-thin" onScroll={handleScroll}>
+          <div className="p-4 border-b">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="aspect-video relative overflow-hidden rounded-lg border">
+                <Image src={thumbnailUrl} alt={normalizedCourseData.title} fill style={{ objectFit: "cover" }} priority
+                  onError={(e) => { console.error("Thumbnail Load Error:", e); (e.target as HTMLImageElement).src = '/placeholder-thumbnail.jpg'; }}
+                />
               </div>
-              {/* Tabs Section */}
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
-                <div className="sticky top-0 z-10 bg-background border-b">
-                  <div className="flex items-center justify-between pr-2">
-                    <TabsList className="bg-transparent h-10 p-0">
-                      <TabsTrigger value="overview" className="data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Overview</TabsTrigger>
-                      <TabsTrigger value="content" className="data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Content</TabsTrigger>
-                      <TabsTrigger value="resources" className="data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Resources</TabsTrigger>
-                    </TabsList>
-                  </div>
-                </div>
-                <TabsContent value="overview" className="px-4 py-4 mt-0 border-none"><TabContent tab="overview" course={courseData} /></TabsContent>
-                <TabsContent value="content" className="px-4 py-4 mt-0 border-none"><TabContent tab="content" course={courseData} /></TabsContent>
-                <TabsContent value="resources" className="px-4 py-4 mt-0 border-none"><TabContent tab="resources" course={courseData} /></TabsContent>
-              </Tabs>
+              <CourseSummary course={normalizedCourseData} />
             </div>
-            {/* Scroll to Top Button */}
-            {showScrollTop && (<Button variant="secondary" size="icon" onClick={scrollToTop} className="absolute bottom-4 right-4 z-20"><ArrowUp className="h-4 w-4" /></Button>)}
+            {/* Creator Socials Section - Rendered below summary, above tabs */}
+            {normalizedCourseData.creatorSocials && normalizedCourseData.creatorSocials.length > 0 && (
+              <div className="px-4 pt-3 pb-4 border-b"> {/* Added pt-3 */}
+                <h3 className="text-sm font-semibold mb-2 text-foreground/80">Connect with Creator</h3>
+                <div className="flex flex-wrap gap-2">
+                  {normalizedCourseData.creatorSocials.map((social: { platform: string, url: string }, index: number) => (
+                    <Button key={`social-top-${index}`} variant="outline" size="sm" asChild className="h-7 px-2 py-1 text-xs">
+                      <a href={social.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
+                        {getSocialIcon(social.platform)} {/* Use helper function */}
+                        <span className="capitalize">{social.platform}</span>
+                      </a>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </CoursePanelContext.Provider>
-      )}
-
-      {/* Fallback: Data loaded but no videoId */}
-      {!courseGenerating && !courseError && courseData && !courseData.videoId && (
-        <div className="flex-1 flex items-center justify-center p-4 text-center">
-          <p className="text-muted-foreground">Course data loaded, but missing required video ID for display.</p>
-          <pre className="mt-2 text-xs text-left bg-muted p-2 rounded overflow-auto max-h-40">
-            {JSON.stringify(courseData, null, 2)}
-          </pre>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
+            <div className="sticky top-0 z-10 bg-background border-b"><div className="flex items-center justify-between pr-2">
+              <TabsList className="bg-transparent h-10 p-0">
+                <TabsTrigger value="overview" className="data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Overview</TabsTrigger>
+                <TabsTrigger value="content" className="data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Content</TabsTrigger>
+                <TabsTrigger value="resources" className="data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Resources</TabsTrigger>
+              </TabsList>
+            </div></div>
+            <TabsContent value="overview" className="px-4 py-4 mt-0 border-none"><TabContent tab="overview" course={normalizedCourseData} /></TabsContent>
+            <TabsContent value="content" className="px-4 py-4 mt-0 border-none"><TabContent tab="content" course={normalizedCourseData} /></TabsContent>
+            <TabsContent value="resources" className="px-4 py-4 mt-0 border-none"><TabContent tab="resources" course={normalizedCourseData} /></TabsContent>
+          </Tabs>
         </div>
-      )}
+        {showScrollTop && (<Button variant="secondary" size="icon" onClick={scrollToTop} className="absolute bottom-4 right-4 z-20"><ArrowUp className="h-4 w-4" /></Button>)}
+      </div>
     </div>
   );
-} // Ensure this closing brace matches the function definition
+}

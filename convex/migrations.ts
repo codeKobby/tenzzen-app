@@ -3,6 +3,8 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { VideoDoc, TranscriptSegment } from "./schema";
 import { Migration } from "./migration_framework";
+import { fixUserStatsFieldNames } from "./migrations/fix_user_stats_field_names";
+import { fixUserTimestamps } from "./migrations/fix_user_timestamps";
 
 // Define migration metadata
 export const migrations: Migration[] = [
@@ -57,6 +59,28 @@ export const migrations: Migration[] = [
         schemaChange: true
       };
     }
+  },
+  {
+    id: "fix-user-stats-field-names",
+    name: "Fix User Stats Field Names",
+    description: "Convert snake_case field names to camelCase field names in user_stats records",
+    version: 5,
+    runAfter: ["add-validation-rules"],
+    apply: async (ctx) => {
+      // Implementation in fixUserStatsFieldNames mutation
+      return await ctx.runMutation("migrations:fixUserStatsFieldNames", {});
+    }
+  },
+  {
+    id: "fix-user-timestamps",
+    name: "Fix User Timestamps",
+    description: "Add missing createdAt and updatedAt fields to user records",
+    version: 6,
+    runAfter: ["fix-user-stats-field-names"],
+    apply: async (ctx) => {
+      // Implementation in fixUserTimestamps mutation
+      return await ctx.runMutation("migrations:fixUserTimestamps", {});
+    }
   }
 ];
 
@@ -68,7 +92,7 @@ export const fixPlaylistVideoRecords = mutation({
     const records = await ctx.db.query("playlist_videos").collect();
     let fixed = 0;
     let errors = 0;
-    
+
     for (const record of records) {
       // Check if playlistId is a string (invalid)
       if (typeof record.playlistId === 'string') {
@@ -78,7 +102,7 @@ export const fixPlaylistVideoRecords = mutation({
             .query("playlists")
             .withIndex("by_youtube_id", q => q.eq("youtubeId", record.playlistId))
             .unique();
-            
+
           if (playlist) {
             // Update the record with the correct ID
             await ctx.db.patch(record._id, {
@@ -95,7 +119,7 @@ export const fixPlaylistVideoRecords = mutation({
               itemCount: 0,
               cachedAt: new Date().toISOString()
             });
-            
+
             // Update the record with the new playlist ID
             await ctx.db.patch(record._id, {
               playlistId: newPlaylistId
@@ -108,7 +132,7 @@ export const fixPlaylistVideoRecords = mutation({
         }
       }
     }
-    
+
     return {
       processed: records.length,
       fixed,
@@ -119,19 +143,13 @@ export const fixPlaylistVideoRecords = mutation({
 
 // Migrate transcripts to be stored within video documents
 // Note: This migration is for legacy data only - the transcripts table has been removed
-// Note: This migration is for legacy data only - the transcripts table has been removed
 export const migrateTranscriptsToVideos = mutation({
   args: {},
   handler: async (ctx) => {
     console.log("This migration is now obsolete as the transcripts table has been removed.");
     console.log("Transcripts are now stored directly in the videos table.");
-    
-    console.log("This migration is now obsolete as the transcripts table has been removed.");
-    console.log("Transcripts are now stored directly in the videos table.");
-    
+
     return {
-      status: "obsolete",
-      message: "Transcripts table has been removed. Transcripts are now stored in the videos table."
       status: "obsolete",
       message: "Transcripts table has been removed. Transcripts are now stored in the videos table."
     };
@@ -140,18 +158,20 @@ export const migrateTranscriptsToVideos = mutation({
 
 // Optional cleanup to remove the old transcript documents after migration
 // Note: This is now obsolete as the transcripts table has been removed
-// Note: This is now obsolete as the transcripts table has been removed
 export const deleteOldTranscripts = mutation({
   args: {},
   handler: async (ctx) => {
     console.log("This migration is now obsolete as the transcripts table has been removed.");
-    console.log("This migration is now obsolete as the transcripts table has been removed.");
-    
+
     return {
-      status: "obsolete",
-      message: "Transcripts table has been removed."
       status: "obsolete",
       message: "Transcripts table has been removed."
     };
   }
 });
+
+// Export the fixUserStatsFieldNames mutation
+export { fixUserStatsFieldNames };
+
+// Export the fixUserTimestamps mutation
+export { fixUserTimestamps };

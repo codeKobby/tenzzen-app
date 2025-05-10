@@ -4,7 +4,7 @@ import re
 from typing import Dict, Any
 from dotenv import load_dotenv, find_dotenv
 import google.generativeai as genai
-from adk_service.tools import WebSearchTool
+from tools import WebSearchTool
 
 # --- Environment Setup ---
 load_dotenv(find_dotenv())
@@ -14,7 +14,7 @@ if not api_key:
 
 # Configure the genai library for direct calls
 genai.configure(api_key=api_key)
-model_name = "gemini-2.5-pro-preview-03-25"  # Or your preferred model
+model_name = "models/gemini-2.5-pro-exp-03-25"  # Using the experimental model with free tier
 
 # Direct GenAI model (for course generation)
 direct_genai_model = genai.GenerativeModel(model_name)
@@ -95,13 +95,13 @@ CRITICAL RULES:
 8.  **Description vs Overview:** Ensure top-level `description` is brief and `metadata.overviewText` is detailed. BOTH MUST BE GENERATED.
 """
         print("[GenAI Direct] Calling direct GenAI with prompt for course generation")
-        
+
         # Use async call to generate content
         response = await direct_genai_model.generate_content_async(prompt_text)
         response_text = response.text
-        
+
         print(f"[GenAI Direct] Received response for {video_id}")
-        
+
         # Process the response to extract JSON
         try:
             # Attempt to find JSON block even if there's surrounding text
@@ -115,18 +115,18 @@ CRITICAL RULES:
 
             # Log some key information about the parsed data
             print(f"[PostProcess] Parsed Data Keys: {list(final_data.keys())}")
-            
+
             # Post-processing to ensure required fields are present
-            if 'videoId' not in final_data: 
+            if 'videoId' not in final_data:
                 final_data['videoId'] = video_id
-            if 'title' not in final_data or not final_data.get('title'): 
+            if 'title' not in final_data or not final_data.get('title'):
                 final_data['title'] = video_title
             if 'image' not in final_data and video_data.get('thumbnail'):
                 final_data['image'] = video_data.get('thumbnail')
-            
+
             # Return the final processed data
             return final_data
-            
+
         except json.JSONDecodeError as json_err:
             print(f"[PostProcess] Error parsing JSON response: {json_err}")
             raise ValueError(f"AI output was not valid JSON: {json_err}")

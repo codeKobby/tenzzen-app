@@ -85,7 +85,7 @@ export const createOrUpdateAssessment = mutation({
     // Added fields from schema
     difficulty: v.optional(v.union(
       v.literal("beginner"),
-      v.literal("intermediate"), 
+      v.literal("intermediate"),
       v.literal("advanced"),
       v.literal("expert")
     )),
@@ -306,10 +306,19 @@ export const submitQuizAssessment = mutation({
       .first();
 
     if (userStats) {
+      // Get current values, handling both camelCase and snake_case
+      const currentAssessments = userStats.assessmentsCompleted || userStats.assessments_completed || 0;
+      const currentHours = userStats.totalLearningHours || userStats.total_learning_hours || 0;
+      const hoursSpent = timeSpent / (1000 * 60 * 60);
+
       await ctx.db.patch(userStats._id, {
-        assessmentsCompleted: (userStats.assessmentsCompleted || 0) + 1,
+        // Update both camelCase and snake_case fields
+        assessmentsCompleted: currentAssessments + 1,
+        assessments_completed: currentAssessments + 1,
         lastActiveAt: now,
-        totalLearningHours: (userStats.totalLearningHours || 0) + (timeSpent / (1000 * 60 * 60))
+        last_active_at: now,
+        totalLearningHours: currentHours + hoursSpent,
+        total_learning_hours: currentHours + hoursSpent
       });
     }
 
@@ -462,11 +471,20 @@ export const submitProject = mutation({
       .first();
 
     if (userStats) {
+      // Get current values, handling both camelCase and snake_case
+      const currentProjects = userStats.projectsSubmitted || userStats.projects_submitted || 0;
+      const currentHours = userStats.totalLearningHours || userStats.total_learning_hours || 0;
+      const hoursSpent = timeSpent / (1000 * 60 * 60);
+      const incrementProjects = revisionCount === 0 ? 1 : 0;
+
       await ctx.db.patch(userStats._id, {
-        // Only increment projectsSubmitted on the first submission?
-        projectsSubmitted: (userStats.projectsSubmitted || 0) + (revisionCount === 0 ? 1 : 0),
+        // Update both camelCase and snake_case fields
+        projectsSubmitted: currentProjects + incrementProjects,
+        projects_submitted: currentProjects + incrementProjects,
         lastActiveAt: now,
-        totalLearningHours: (userStats.totalLearningHours || 0) + (timeSpent / (1000 * 60 * 60))
+        last_active_at: now,
+        totalLearningHours: currentHours + hoursSpent,
+        total_learning_hours: currentHours + hoursSpent
       });
     }
 
@@ -537,18 +555,18 @@ export const reviewProjectSubmission = mutation({
         status: "graded",
         feedback: args.feedback
       };
-      
+
       // Only add score if defined
       if (args.grade !== undefined) {
         progressUpdates.score = args.grade;
       }
-      
+
       // Mark as completed only if approved
       if (args.status === "approved") {
         progressUpdates.completedAt = now;
         progressUpdates.status = "completed";
       }
-      
+
       // Update the progress record
       await ctx.db.patch(progress._id, progressUpdates);
     }
@@ -574,10 +592,15 @@ export const reviewProjectSubmission = mutation({
         .withIndex("by_user", (q) => q.eq("userId", submission.userId))
         .first();
       if (userStats) {
-         await ctx.db.patch(userStats._id, {
-           assessmentsCompleted: (userStats.assessmentsCompleted || 0) + 1,
-           // projectsSubmitted was incremented on first submit
-         });
+        // Get current values, handling both camelCase and snake_case
+        const currentAssessments = userStats.assessmentsCompleted || userStats.assessments_completed || 0;
+
+        await ctx.db.patch(userStats._id, {
+          // Update both camelCase and snake_case fields
+          assessmentsCompleted: currentAssessments + 1,
+          assessments_completed: currentAssessments + 1,
+          // projectsSubmitted was incremented on first submit
+        });
       }
     }
 
@@ -595,7 +618,7 @@ export const generateNewProject = mutation({
     courseId: v.id("courses"),
     difficulty: v.union(
       v.literal("beginner"),
-      v.literal("intermediate"), 
+      v.literal("intermediate"),
       v.literal("advanced"),
       v.literal("expert")
     ),

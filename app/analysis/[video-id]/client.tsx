@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState, useRef } from "react"; // Explicitly import React
 import { CoursePanel } from "@/components/analysis/course-panel";
+import { CoursePanelSkeleton } from "@/components/analysis/course-panel-skeleton";
 import { VideoContent } from "@/components/analysis/video-content";
-import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton";
 import { ResizablePanel } from "@/components/resizable-panel";
 import { MobileSheet } from "@/components/analysis/mobile-sheet";
 import { AnalysisHeader } from "@/components/analysis/header";
@@ -18,12 +18,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { getYoutubeData } from "@/actions/getYoutubeData";
 import type { ContentDetails } from "@/types/youtube";
 import { GoogleAICourseGenerateButton } from "@/components/google-ai-course-generate-button";
-import { XCircle } from "lucide-react"; // Import XCircle
-import { useVideoQuery } from "@/hooks/use-convex"; // Import useVideoQuery to check if course exists
-import { toast } from "@/components/custom-toast"; // Import toast from custom-toast
+import { XCircle, Loader2 } from "lucide-react"; // Import XCircle
 
 interface ContentProps {
   initialContent: ContentDetails | null;
@@ -44,36 +44,19 @@ function Content({ initialContent, initialError }: ContentProps) {
     confirmBack,
     setVideoData,
     videoData,
+    generateCourse,
     courseGenerating,
     courseData,
-    courseError, // Get error state from context
-    setCourseData, // Add setCourseData from context
+    courseError,
+    cancelGeneration,
+    setCourseGenerating
   } = useAnalysis();
 
   const [mounted, setMounted] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [loading, setLoading] = useState(initialContent === null && !initialError);
-  // Use error state without destructuring setError since it's not being used
-  const error = useState<string | null>(initialError)[0];
+  const [error, setError] = useState<string | null>(initialError);
   const initialOpenDoneRef = useRef(false);
-
-  // Check if a course exists for this video
-  const existingCourse = useVideoQuery(videoData?.id || '');
-
-  // Type guard for expired video objects
-  function isExpiredVideo(video: any): video is { _id: string; expired: true } {
-    return video && 'expired' in video && video.expired === true;
-  }
-
-  // Type guard for full video documents with details
-  function isFullVideoDoc(video: any): video is { details: any; _id: string; _creationTime: number; courseData?: any } {
-    return video && 'details' in video;
-  }
-
-  // Helper function to check if a video object has valid course data
-  function hasValidCourseData(video: any): boolean {
-    return video && 'courseData' in video && !!video.courseData;
-  }
 
   // Only open sheet on first load for mobile
   useEffect(() => {
@@ -114,27 +97,36 @@ function Content({ initialContent, initialError }: ContentProps) {
     }
   }, [initialContent, initialError, setVideoData]);
 
+  // Debug log for courseData and courseGenerating
+  useEffect(() => {
+    console.log("[Content] CRITICAL STATE CHANGE:", {
+      hasCourseData: !!courseData,
+      courseGenerating,
+      courseDataKeys: courseData ? Object.keys(courseData) : [],
+      courseError: !!courseError
+    });
+
+    // Force re-render if we have course data but still showing generating
+    if (courseData && courseGenerating) {
+      console.log("[Content] CRITICAL FIX: Force setting courseGenerating to false because we have course data");
+      // Immediately set courseGenerating to false when we have course data
+      setCourseGenerating(false);
+    }
+
+    // Add additional debugging to check if courseData exists but is empty or invalid
+    if (courseData) {
+      console.log("[Content] DETAILED COURSE DATA CHECK:", {
+        hasVideoId: !!courseData.videoId,
+        hasTitle: !!courseData.title,
+        hasSections: Array.isArray(courseData.sections) && courseData.sections.length > 0,
+        courseDataType: typeof courseData,
+        isObject: courseData !== null && typeof courseData === 'object'
+      });
+    }
+  }, [courseData, courseGenerating, courseError, setCourseGenerating]);
+
   // Use initialError passed down for initial video loading error
   const initialVideoLoadError = error; // Rename state variable for clarity
-
-  // Check if a course exists in existingCourse and set it if available
-  useEffect(() => {
-    if (existingCourse && videoData && !courseData && !courseGenerating) {
-      // First check if the course is expired using our type guard
-      const isExpired = isExpiredVideo(existingCourse);
-
-      // If not expired and has valid course data, use it
-      if (!isExpired && isFullVideoDoc(existingCourse) && hasValidCourseData(existingCourse)) {
-        console.log("[Content] Found existing course data for video:", videoData.id);
-        // Set the course data directly without calling generateCourse
-        setCourseData(existingCourse.courseData);
-        // Add toast notification with "Okay" button and extended duration
-        toast.infoWithAction("Course loaded from database", {
-          description: "Using previously generated course data for this video"
-        });
-      }
-    }
-  }, [existingCourse, videoData, courseData, courseGenerating, setCourseData]);
 
   return (
     <>
@@ -169,44 +161,42 @@ function Content({ initialContent, initialError }: ContentProps) {
 
           {/* Right side - Course Panel or Initial Button/State */}
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-            {/* State 1: Initial Loading or Error for videoData */}
-            {(loading || initialVideoLoadError) && !videoData && !courseGenerating && !courseData && (
-              <div className="flex-1">
-                {loading && <VideoContentSkeleton />}
-                {initialVideoLoadError && (
-                  <div className="flex items-center justify-center p-4 text-center">
-                    <p className="text-destructive">Error loading video details: {initialVideoLoadError}</p>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* State 1: Initial Loading or Error for videoData - REMOVED, now handled by the simplified logic below */}
 
-            {/* State 2: videoData loaded, ready for generation (Show Button) */}
-            {videoData && !courseGenerating && !courseData && !courseError && (
+            {/* State 2: videoData loaded, ready for generation (Show Button) - REMOVED, now handled by the simplified logic below */}
+
+            {/* ULTRA SIMPLIFIED RENDERING LOGIC - ONLY THREE STATES */}
+            {courseData ? (
+              // Priority 1: Show course panel when we have data from API
+              <div className="flex-1 z-10 w-full h-full">
+                <CoursePanel className="w-full h-full" />
+              </div>
+            ) : courseGenerating ? (
+              // Priority 2: Show skeleton when course is generating
+              <div className="flex-1 z-10 w-full h-full">
+                <CoursePanelSkeleton className="w-full h-full" />
+              </div>
+            ) : videoData ? (
+              // Priority 3: Show generate button if we have video data but nothing else
               <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
                 <p className="text-muted-foreground mb-4">Video details loaded. Ready to generate course structure.</p>
                 <GoogleAICourseGenerateButton />
               </div>
-            )}
-
-            {/* State 3: Generation in Progress (Show CoursePanel loading state) */}
-            {courseGenerating && (
-              <CoursePanel className="flex-1 z-10" />
-            )}
-
-            {/* State 4: Generation Failed */}
-            {courseError && !courseGenerating && !courseData && (
-              <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
-                <XCircle className="h-8 w-8 text-destructive mb-4" />
-                <p className="font-medium text-destructive mb-1">Course Generation Failed</p>
-                <p className="text-sm text-muted-foreground mb-4">{courseError}</p>
-                <GoogleAICourseGenerateButton buttonText="Retry Generation" />
+            ) : loading ? (
+              // Priority 4: Show loading state
+              <div className="flex-1 flex items-center justify-center p-4 text-center">
+                <p className="text-muted-foreground">Loading video details...</p>
               </div>
-            )}
-
-            {/* State 5: Generation Successful (Show CoursePanel with data) */}
-            {courseData && !courseGenerating && !courseError && (
-              <CoursePanel className="flex-1 z-10" />
+            ) : initialVideoLoadError ? (
+              // Priority 5: Show error state
+              <div className="flex-1 flex items-center justify-center p-4 text-center">
+                <p className="text-destructive">Error loading video details: {initialVideoLoadError}</p>
+              </div>
+            ) : (
+              // Priority 6: Fallback - should never reach here
+              <div className="flex-1 flex items-center justify-center p-4 text-center">
+                <p className="text-muted-foreground">Waiting for video data...</p>
+              </div>
             )}
           </div>
         </div>
@@ -240,57 +230,23 @@ export function AnalysisClient({ videoId }: AnalysisClientProps) {
   const [initialContent, setInitialContent] = useState<ContentDetails | null>(null);
   const [initialError, setInitialError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // Use the query to check if a course exists for this video
-  const existingVideo = useVideoQuery(videoId);
-
-  // Type guard for expired video objects
-  function isExpiredVideo(video: any): video is { _id: string; expired: true } {
-    return video && 'expired' in video && video.expired === true;
-  }
-
-  // Helper function to type check if the video has details
-  function isFullVideoDoc(video: any): video is { details: any; expired?: boolean } {
-    return video && 'details' in video;
-  }
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true);
+        const data = await getYoutubeData(videoId);
 
-        // If we already have cached data in the database, use it directly
-        if (existingVideo) {
-          // Check if video is not expired using our type guard
-          const isExpired = isExpiredVideo(existingVideo);
-
-          // Only use the cached data if it's not expired and has full details
-          if (!isExpired && isFullVideoDoc(existingVideo)) {
-            console.log("[AnalysisClient] Using cached video data:", existingVideo);
-
-            // Create a ContentDetails object from the database record
-            const cachedContent: ContentDetails = {
-              id: videoId,
-              type: existingVideo.details.type,
-              title: existingVideo.details.title || "Untitled Video",
-              description: existingVideo.details.description || "",
-              duration: existingVideo.details.duration || "",
-              thumbnail: existingVideo.details.thumbnail || "",
-              channelId: existingVideo.details.channelId || "",
-              channelName: existingVideo.details.channelName || "",
-              channelAvatar: existingVideo.details.channelAvatar || "",
-              views: existingVideo.details.views || "",
-              likes: existingVideo.details.likes || "",
-              publishDate: existingVideo.details.publishDate || ""
-            };
-
-            setInitialContent(cachedContent);
-          } else {
-            // Video is expired or doesn't have full details, fetch fresh data
-            await fetchFreshData();
-          }
+        // Ensure the data has a valid id
+        if (data) {
+          console.log("[AnalysisClient] Fetched initial video data:", data); // Log fetched data
+          const contentWithId = {
+            ...data,
+            id: videoId || data.id,
+          };
+          setInitialContent(contentWithId);
         } else {
-          // No existing video, fetch fresh data
-          await fetchFreshData();
+          setInitialError("Could not load video data");
         }
       } catch (err) {
         setInitialError(err instanceof Error ? err.message : "Failed to load video");
@@ -299,27 +255,10 @@ export function AnalysisClient({ videoId }: AnalysisClientProps) {
       }
     };
 
-    // Helper function to fetch fresh video data
-    async function fetchFreshData() {
-      const data = await getYoutubeData(videoId);
-
-      // Ensure the data has a valid id
-      if (data) {
-        console.log("[AnalysisClient] Fetched initial video data:", data);
-        const contentWithId = {
-          ...data,
-          id: videoId || data.id,
-        };
-        setInitialContent(contentWithId);
-      } else {
-        setInitialError("Could not load video data");
-      }
-    }
-
     if (videoId) {
       loadData();
     }
-  }, [videoId, existingVideo]);
+  }, [videoId]);
 
   // Apply overflow hidden to the html and body for this page
   useEffect(() => {
@@ -337,8 +276,8 @@ export function AnalysisClient({ videoId }: AnalysisClientProps) {
       <AnalysisProvider initialContent={initialContent}>
         <AnalysisHeader />
         {isLoading ? (
-          <div className="flex-1">
-            <VideoContentSkeleton />
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-muted-foreground">Loading video data...</p>
           </div>
         ) : (
           <Content initialContent={initialContent} initialError={initialError} />

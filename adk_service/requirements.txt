@@ -5,7 +5,8 @@ google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
 youtube-transcript-api
-isodate # Corrected package name
+isodate # For parsing YouTube video durations
+requests # For direct HTTP requests as fallback
 # Add FastAPI and Uvicorn if we create a custom server wrapper
 fastapi
 uvicorn[standard]

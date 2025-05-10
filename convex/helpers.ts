@@ -82,19 +82,43 @@ export async function getOrCreateUser(
     .unique();
 
   if (existingUser) {
-    // Update user data if it has changed
+    const now = Date.now();
+    const updates: Record<string, any> = {};
+    let needsUpdate = false;
+
+    // Check if user data has changed
     if (
       existingUser.email !== userData.email ||
       existingUser.name !== userData.name ||
       existingUser.imageUrl !== userData.imageUrl
     ) {
-      await ctx.db.patch(existingUser._id, {
-        email: userData.email,
-        name: userData.name,
-        imageUrl: userData.imageUrl,
-        updatedAt: Date.now(),
-      });
+      updates.email = userData.email;
+      updates.name = userData.name;
+      updates.imageUrl = userData.imageUrl;
+      needsUpdate = true;
     }
+
+    // Check if createdAt or updatedAt fields are missing
+    if (!('createdAt' in existingUser)) {
+      updates.createdAt = now;
+      needsUpdate = true;
+    }
+
+    if (!('updatedAt' in existingUser)) {
+      updates.updatedAt = now;
+      needsUpdate = true;
+    } else {
+      // Always update the updatedAt field if other fields have changed
+      if (needsUpdate) {
+        updates.updatedAt = now;
+      }
+    }
+
+    // Update the user record if needed
+    if (needsUpdate) {
+      await ctx.db.patch(existingUser._id, updates);
+    }
+
     return existingUser._id;
   }
 
@@ -121,8 +145,9 @@ export async function getOrCreateUser(
     updatedAt: now,
   });
 
-  // Initialize user stats
+  // Initialize user stats with both camelCase and snake_case field names
   await ctx.db.insert("user_stats", {
+    // CamelCase fields
     userId: clerkId, // Use clerkId as userId for referencing
     totalLearningHours: 0,
     coursesCompleted: 0,
@@ -132,6 +157,21 @@ export async function getOrCreateUser(
     lastActiveAt: now,
     streakDays: 0,
     longestStreak: 0,
+    totalPoints: 0,
+    weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // One value per day of week
+
+    // Snake_case fields for backward compatibility
+    user_id: clerkId,
+    total_learning_hours: 0,
+    courses_completed: 0,
+    courses_in_progress: 0,
+    assessments_completed: 0,
+    projects_submitted: 0,
+    last_active_at: now,
+    streak_days: 0,
+    longest_streak: 0,
+    total_points: 0,
+    weekly_activity: [0, 0, 0, 0, 0, 0, 0]
   });
 
   return userId;
@@ -183,13 +223,28 @@ export async function updateUserLogin(
     .unique();
 
   if (user) {
-    await ctx.db.patch(user._id, {
+    const now = Date.now();
+    const updates: Record<string, any> = {
       lastLogin: {
-        time: Date.now(),
+        time: now,
         ip: ipAddress,
         userAgent: userAgent,
       },
-    });
+    };
+
+    // Check if createdAt or updatedAt fields are missing
+    if (!('createdAt' in user)) {
+      updates.createdAt = now;
+    }
+
+    if (!('updatedAt' in user)) {
+      updates.updatedAt = now;
+    } else {
+      // Always update the updatedAt field
+      updates.updatedAt = now;
+    }
+
+    await ctx.db.patch(user._id, updates);
   }
 }
 

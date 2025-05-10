@@ -34,8 +34,8 @@ export default defineSchema({
     authProvider: authProviderValidator,
     role: userRoleValidator,
     status: userStatusValidator,
-    createdAt: v.number(),
-    updatedAt: v.number(),
+    createdAt: v.optional(v.number()), // Made optional for backward compatibility
+    updatedAt: v.optional(v.number()), // Made optional for backward compatibility
     lastLogin: v.optional(v.object({
       time: v.number(),
       ip: v.optional(v.string()),
@@ -362,20 +362,35 @@ export default defineSchema({
   // User Statistics (For dashboard metrics)
   user_stats: defineTable({
     userId: v.string(),
-    totalLearningHours: v.number(), // Total time spent learning
-    coursesCompleted: v.number(),
-    coursesInProgress: v.number(),
-    assessmentsCompleted: v.number(),
-    projectsSubmitted: v.number(),
-    lastActiveAt: v.number(),
-    streakDays: v.number(), // Consecutive days of learning
-    longestStreak: v.number(), // Longest streak achieved
+    // Make all fields optional to handle both camelCase and snake_case field names
+    totalLearningHours: v.optional(v.number()), // Total time spent learning
+    coursesCompleted: v.optional(v.number()),
+    coursesInProgress: v.optional(v.number()),
+    assessmentsCompleted: v.optional(v.number()),
+    projectsSubmitted: v.optional(v.number()),
+    lastActiveAt: v.optional(v.number()),
+    streakDays: v.optional(v.number()), // Consecutive days of learning
+    longestStreak: v.optional(v.number()), // Longest streak achieved
     totalPoints: v.optional(v.number()), // Gamification points if implemented
     weeklyActivity: v.optional(v.array(v.number())), // Activity hours by day of week
     badges: v.optional(v.array(v.string())), // Achievement badges earned
     level: v.optional(v.number()), // User experience level
     learningStyle: v.optional(learningStyleValidator),
     topCategories: v.optional(v.array(v.string())), // Most studied categories
+
+    // Add snake_case field names for backward compatibility
+    // These will be migrated to camelCase in a future migration
+    total_learning_hours: v.optional(v.number()),
+    courses_completed: v.optional(v.number()),
+    courses_in_progress: v.optional(v.number()),
+    assessments_completed: v.optional(v.number()),
+    projects_submitted: v.optional(v.number()),
+    last_active_at: v.optional(v.number()),
+    streak_days: v.optional(v.number()),
+    longest_streak: v.optional(v.number()),
+    total_points: v.optional(v.number()),
+    weekly_activity: v.optional(v.array(v.number())),
+    user_id: v.optional(v.string()), // For backward compatibility
   }).index("by_user", ["userId"]),
 
   // Learning Activities (For activity feed and detailed tracking)

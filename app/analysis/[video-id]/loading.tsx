@@ -1,40 +1,29 @@
-import { Skeleton } from '@/components/ui/skeleton';
+import { VideoContentSkeleton } from '@/components/analysis/video-content-skeleton';
+import { ArrowLeft } from "lucide-react";
 
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container py-6 space-y-8">
-        {/* Header Skeleton */}
-        <div className="space-y-4">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-96" />
+    <div className="h-full w-full flex flex-col bg-background overflow-hidden">
+      {/* Header - Matching the AnalysisHeader component */}
+      <header className="flex items-center justify-between h-16 px-4 border-b bg-background sticky top-0 z-20">
+        {/* Back Button */}
+        <div className="h-9 w-9">
+          <ArrowLeft className="h-4 w-4 text-muted-foreground" />
         </div>
 
-        {/* Content Area Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Input Section */}
-          <div className="space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-32 w-full" />
-            </div>
-          </div>
-
-          {/* Output Section */}
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-48" />
-            <div className="space-y-2">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-20 w-full" />
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Title */}
+        <div className="flex-1 text-center truncate px-4">
+          <h1 className="text-lg font-semibold truncate">
+            Video Analysis
+          </h1>
         </div>
-      </div>
+
+        {/* Placeholder for right actions */}
+        <div className="w-9"></div>
+      </header>
+
+      {/* Skeleton Content */}
+      <VideoContentSkeleton />
     </div>
   );
 }

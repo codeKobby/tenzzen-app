@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Youtube, Bot, Link as LinkIcon, VideoIcon, X, Loader2 } from "lucide-react"
+import { Youtube, Bot, Link as LinkIcon, VideoIcon, X, Loader2, Bookmark } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { VideoDiscoveryResults, VideoRecommendation } from "./video-discovery-results"
+import { toast } from "sonner"
 
 interface CourseGenerationModalProps {
   isOpen: boolean
@@ -21,7 +23,15 @@ const knowledgeLevels = [
   "Advanced"
 ] as const
 
+const videoLengths = [
+  "Any",
+  "Short (< 30 min)",
+  "Medium (30 min - 2 hr)",
+  "Long (> 2 hr)"
+] as const
+
 type KnowledgeLevel = (typeof knowledgeLevels)[number]
+type VideoLength = (typeof videoLengths)[number]
 type TabType = "link" | "discover"
 
 interface FormData {
@@ -29,6 +39,7 @@ interface FormData {
   knowledgeLevel: KnowledgeLevel
   preferredChannels: string[]
   additionalContext: string
+  videoLength: VideoLength
 }
 
 interface YouTubeUrlInfo {
@@ -46,9 +57,18 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
     title: "",
     knowledgeLevel: "Beginner",
     preferredChannels: [],
-    additionalContext: ""
+    additionalContext: "",
+    videoLength: "Any"
   })
   const [currentChannel, setCurrentChannel] = React.useState("")
+
+  // Discovery results state
+  const [showDiscoveryResults, setShowDiscoveryResults] = React.useState(false)
+  const [discoveryProgress, setDiscoveryProgress] = React.useState(0)
+  const [progressMessage, setProgressMessage] = React.useState("Searching for the best courses...")
+  const [recommendations, setRecommendations] = React.useState<VideoRecommendation[]>([])
+  const [savedVideos, setSavedVideos] = React.useState<VideoRecommendation[]>([])
+  const [showSavedVideos, setShowSavedVideos] = React.useState(false)
 
   const parseYoutubeUrl = React.useCallback((url: string): YouTubeUrlInfo | null => {
     const videoRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i
@@ -127,6 +147,7 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
         if (urlInfo) {
           // Show loading state for a moment before navigation
           await new Promise(resolve => setTimeout(resolve, 500))
+          // Use a clean URL without any query parameters
           await router.push(`/analysis/${urlInfo.id}`)
           onClose()
         }
@@ -135,16 +156,235 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
           setIsLoading(false)
           return
         }
-        // Process AI generation form - to be implemented
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        onClose()
+
+        // Process AI discovery form
+        setShowDiscoveryResults(true)
+        setDiscoveryProgress(10)
+        setProgressMessage("Searching for relevant videos...")
+
+        try {
+          // Create an AbortController for timeout management
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout - more reasonable for user experience
+
+          try {
+            // Call the video discovery API with timeout
+            const response = await fetch('/api/video-discovery', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                query: formData.title,
+                knowledgeLevel: formData.knowledgeLevel,
+                preferredChannels: formData.preferredChannels,
+                additionalContext: formData.additionalContext,
+                videoLength: formData.videoLength
+              }),
+              signal: controller.signal
+            });
+
+            // Clear the timeout once we have a response
+            clearTimeout(timeoutId);
+
+            setDiscoveryProgress(25)
+            setProgressMessage("Finding relevant videos...")
+
+            // Update progress during the potentially long operation
+            const progressInterval = setInterval(() => {
+              setDiscoveryProgress(prev => {
+                // Only increment if we're still in the searching/analyzing phase
+                if (prev < 70) {
+                  // Increment by small amounts to show activity
+                  const increment = Math.random() * 3 + 1; // Random increment between 1-4%
+                  return Math.min(70, prev + increment);
+                }
+                return prev;
+              });
+
+              // Cycle through progress messages to show activity
+              setProgressMessage(prev => {
+                if (prev === "Finding relevant videos...") return "Analyzing video content...";
+                if (prev === "Analyzing video content...") return "Evaluating educational value...";
+                if (prev === "Evaluating educational value...") return "Matching to your learning goals...";
+                return "Finding relevant videos...";
+              });
+            }, 5000); // Update every 5 seconds
+
+            let data;
+            try {
+              if (!response.ok) {
+                // For 504 Gateway Timeout errors
+                if (response.status === 504) {
+                  const errorData = await response.json();
+                  throw new Error(errorData.error || "The server took too long to respond. The AI analysis process might be taking longer than expected.");
+                } else {
+                  throw new Error(`Error: ${response.status} ${response.statusText}`);
+                }
+              }
+
+              data = await response.json();
+
+              // Check if there's an error message in the response even if status is 200
+              if (data.error && !data.recommendations?.length) {
+                throw new Error(data.error);
+              }
+
+              // If we have recommendations but also an error, show a warning toast
+              if (data.error && data.recommendations?.length) {
+                if (data.usingMockData) {
+                  toast.warning("Using sample recommendations due to timeout. For better results, try a more specific query.");
+                } else {
+                  toast.warning(data.error);
+                }
+              }
+
+              // Clear the progress interval
+              clearInterval(progressInterval);
+
+              setDiscoveryProgress(85)
+              setProgressMessage("Ranking courses by relevance...")
+
+              // Simulate a delay to show the progress
+              await new Promise(resolve => setTimeout(resolve, 1000))
+
+              setDiscoveryProgress(100)
+              setProgressMessage("Preparing results...")
+
+              // Update recommendations state
+              if (data.recommendations && Array.isArray(data.recommendations)) {
+                setRecommendations(data.recommendations);
+              } else {
+                setRecommendations([]);
+                toast.error("No matching courses found. Try adjusting your search criteria.");
+              }
+            } catch (error) {
+              // Clear the progress interval if there's an error
+              clearInterval(progressInterval);
+              throw error;
+            }
+
+            // Simulate a delay to show the completed progress
+            await new Promise(resolve => setTimeout(resolve, 500))
+          } catch (fetchError) {
+            // Clear the timeout to prevent memory leaks
+            clearTimeout(timeoutId);
+
+            // Handle AbortError (timeout)
+            if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
+              throw new Error("Request timed out. The AI analysis is taking longer than expected. Please try again with a more specific query.");
+            }
+
+            // Re-throw other errors
+            throw fetchError;
+          }
+
+        } catch (error) {
+          console.error("Failed to fetch video recommendations:", error);
+
+          // Provide more specific error messages based on the error
+          if (error instanceof Error) {
+            if (error.message.includes("timeout") || error.message.includes("too long")) {
+              toast.error("The AI analysis is taking longer than expected. Please try a more specific query with clear educational goals.");
+              setProgressMessage("Analysis timed out. For better results, try a more specific query like 'Learn Python for data science' or 'JavaScript fundamentals for web development'.");
+
+              // Always use mock data for timeouts to provide a better user experience
+              console.log("Using mock data for timeout case");
+              // Educational-focused mock data
+              const mainTopic = formData.title.split(' ')[0];
+              setRecommendations([
+                {
+                  videoId: "dQw4w9WgXcQ",
+                  title: `Learn ${mainTopic} - Step-by-Step Tutorial`,
+                  channelName: "Educational Channel",
+                  thumbnail: "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+                  duration: "10:30",
+                  views: "1.2M",
+                  publishDate: "2 years ago",
+                  relevanceScore: 9.5,
+                  benefit: `Learn essential ${mainTopic} concepts through hands-on exercises and real-world examples`
+                },
+                {
+                  videoId: "9bZkp7q19f0",
+                  title: `${mainTopic} Masterclass for ${formData.knowledgeLevel}s`,
+                  channelName: "Expert Academy",
+                  thumbnail: "https://i.ytimg.com/vi/9bZkp7q19f0/maxresdefault.jpg",
+                  duration: "15:45",
+                  views: "3.4M",
+                  publishDate: "1 year ago",
+                  relevanceScore: 8.7,
+                  benefit: `Master advanced ${mainTopic} techniques with practical projects and in-depth explanations`
+                }
+              ]);
+              setDiscoveryProgress(100);
+              setProgressMessage("Using sample recommendations. For actual results, try a more specific query.");
+              setShowDiscoveryResults(true);
+              toast.warning("Showing sample recommendations due to timeout. For better results, try a more specific query.");
+              return; // Exit early with mock data
+            } else if (error.message.includes("504")) {
+              toast.error("Server timeout. The AI service is currently busy. Please try again later.");
+              setProgressMessage("Server timeout. Please try again later.");
+            } else {
+              toast.error(error.message || "Failed to find courses. Please try again.");
+              setProgressMessage("Error occurred. Please try again.");
+            }
+          } else {
+            toast.error("Failed to find courses. Please try again.");
+            setProgressMessage("Error occurred. Please try again.");
+          }
+
+          // Keep the modal open but show error state
+          setDiscoveryProgress(0);
+          setIsLoading(false);
+        } finally {
+          setIsLoading(false);
+        }
       }
     } catch (error) {
       console.error("Failed to process:", error)
-    } finally {
       setIsLoading(false)
     }
-  }, [activeTab, youtubeUrl, formData.title, router, onClose, validateYoutubeUrl, parseYoutubeUrl])
+  }, [activeTab, youtubeUrl, formData, router, onClose, validateYoutubeUrl, parseYoutubeUrl])
+
+  // Handle selecting a video from the discovery results
+  const [isNavigating, setIsNavigating] = React.useState(false);
+
+  const handleSelectVideo = React.useCallback((video: VideoRecommendation) => {
+    if (!video || !video.videoId) {
+      console.error("Invalid video data");
+      return;
+    }
+
+    try {
+      setIsNavigating(true);
+      // Navigate to the analysis page for course generation
+      router.push(`/analysis/${video.videoId}`);
+      setShowDiscoveryResults(false);
+      onClose();
+    } catch (error) {
+      console.error("Navigation error:", error);
+      setIsNavigating(false);
+    }
+  }, [router, onClose])
+
+  // Handle saving a video for later
+  const handleSaveVideo = React.useCallback((video: VideoRecommendation) => {
+    // Check if the video is already saved
+    const isAlreadySaved = savedVideos.some(saved => saved.videoId === video.videoId)
+
+    if (isAlreadySaved) {
+      // Remove the video from saved videos
+      setSavedVideos(prev => prev.filter(saved => saved.videoId !== video.videoId))
+    } else {
+      // Add the video to saved videos
+      setSavedVideos(prev => [...prev, video])
+    }
+  }, [savedVideos])
+
+  // Toggle showing saved videos
+  const toggleSavedVideos = React.useCallback(() => {
+    setShowSavedVideos(prev => !prev)
+  }, [])
 
   // Utility function to conditionally join class names
   const cn = (...classes: (string | boolean | undefined)[]): string => {
@@ -152,16 +392,37 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[425px] mx-auto h-auto max-h-[85vh] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent bg-background shadow-lg border border-border rounded-lg">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-semibold leading-tight">
-            Generate New Course
-          </DialogTitle>
-          <DialogDescription className="text-base text-muted-foreground/90 mt-1.5">
-            Create a custom course from YouTube content or describe what you want to learn.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-[425px] mx-auto h-auto max-h-[85vh] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent bg-background shadow-lg border border-border rounded-lg">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <DialogTitle className="text-2xl font-semibold leading-tight">
+                  Generate New Course
+                </DialogTitle>
+                <DialogDescription className="text-base text-muted-foreground/90 mt-1.5">
+                  Create a custom course from YouTube content or describe what you want to learn.
+                </DialogDescription>
+              </div>
+
+              {savedVideos.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={toggleSavedVideos}
+                  title="View saved courses"
+                >
+                  <Bookmark className={cn(
+                    "h-4 w-4",
+                    savedVideos.length > 0 ? "fill-primary text-primary" : ""
+                  )} />
+                  <span className="hidden sm:inline">{savedVideos.length}</span>
+                </Button>
+              )}
+            </div>
+          </DialogHeader>
 
         <div>
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -282,6 +543,7 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                         >
                           {channel}
                           <button
+                            type="button"
                             onClick={() => removeChannel(channel)}
                             className="ml-2 hover:text-destructive focus:outline-none"
                           >
@@ -312,6 +574,29 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                   />
                   <p className="text-sm text-muted-foreground/80 mt-1">
                     Any specific preferences or requirements for the course
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="videoLength" className="text-base font-medium">
+                    Preferred Video Length
+                  </Label>
+                  <select
+                    id="videoLength"
+                    aria-label="Preferred Video Length"
+                    value={formData.videoLength}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      videoLength: e.target.value as VideoLength
+                    }))}
+                    className="w-full h-10 px-3 py-2 text-base bg-background border border-input rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    {videoLengths.map(length => (
+                      <option key={length} value={length}>{length}</option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-muted-foreground/80 mt-1">
+                    Choose your preferred video duration
                   </p>
                 </div>
               </div>
@@ -349,5 +634,31 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+
+    {/* Video Discovery Results Modal */}
+    <VideoDiscoveryResults
+      isOpen={showDiscoveryResults}
+      onClose={() => setShowDiscoveryResults(false)}
+      isLoading={isLoading}
+      progress={discoveryProgress}
+      progressMessage={progressMessage}
+      recommendations={recommendations}
+      onSelectVideo={handleSelectVideo}
+      onSaveVideo={handleSaveVideo}
+    />
+
+    {/* Saved Videos Modal */}
+    {showSavedVideos && savedVideos.length > 0 && (
+      <VideoDiscoveryResults
+        isOpen={showSavedVideos}
+        onClose={() => setShowSavedVideos(false)}
+        isLoading={false}
+        progress={100}
+        progressMessage=""
+        recommendations={savedVideos}
+        onSelectVideo={handleSelectVideo}
+        onSaveVideo={handleSaveVideo}
+      />
+    )}
+  </>)
 }
