@@ -3,9 +3,8 @@
 import React, { createContext, useContext, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from "@/components/custom-toast";
-import { api } from "@/convex/_generated/api";
-import { useMutation } from "convex/react";
-import { useAuth } from "@/hooks/use-auth"; // Corrected import path for the custom hook
+import { useAuth } from "@/hooks/use-auth";
+import { useSupabase } from "@/contexts/supabase-context";
 
 interface CoursePanelContextType {
     enrollUserInCourse: (courseData: any) => Promise<void>;
@@ -20,7 +19,7 @@ export const CoursePanelContext = createContext<CoursePanelContextType | undefin
 export function CoursePanelProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { user } = useAuth();
-    const enrollMutation = useMutation(api.courses.enrollUserInCourse);
+    const supabase = useSupabase();
     const [isEnrolling, setIsEnrolling] = useState(false);
 
     // Enroll user in a course
@@ -46,18 +45,59 @@ export function CoursePanelProvider({ children }: { children: React.ReactNode })
                 description: 'Please wait while we process your enrollment'
             });
 
-            // Prepare the course data for the mutation
-            const result = await enrollMutation({
-                courseData: {
-                    title: courseData.title,
-                    description: courseData.description || "",
-                    videoId: courseData.videoId,
-                    thumbnail: courseData.image,
-                    metadata: courseData.metadata,
-                    sections: courseData.courseItems || [] // Ensure we're using the right field
-                },
-                userId: user.id
-            });
+            // First, save the course to the courses table if it doesn't exist
+            const { data: existingCourse, error: checkError } = await supabase
+                .from('courses')
+                .select('id')
+                .eq('video_id', courseData.videoId)
+                .single();
+
+            let courseId;
+
+            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+                console.error('Error checking if course exists:', checkError);
+                throw new Error('Failed to check if course exists');
+            }
+
+            if (!existingCourse) {
+                // Course doesn't exist, create it
+                const { data: newCourse, error: insertError } = await supabase
+                    .from('courses')
+                    .insert({
+                        title: courseData.title,
+                        description: courseData.description || "",
+                        video_id: courseData.videoId,
+                        thumbnail: courseData.image || courseData.thumbnail,
+                        metadata: courseData.metadata || {},
+                        course_items: courseData.courseItems || []
+                    })
+                    .select()
+                    .single();
+
+                if (insertError) {
+                    console.error('Error creating course:', insertError);
+                    throw new Error('Failed to create course');
+                }
+
+                courseId = newCourse.id;
+            } else {
+                courseId = existingCourse.id;
+            }
+
+            // Now enroll the user in the course
+            const { error: enrollError } = await supabase
+                .from('user_courses')
+                .insert({
+                    user_id: user.id,
+                    course_id: courseId,
+                    status: 'in_progress',
+                    enrolled_at: new Date().toISOString()
+                });
+
+            if (enrollError) {
+                console.error('Error enrolling in course:', enrollError);
+                throw new Error('Failed to enroll in course');
+            }
 
             toast.success('Successfully enrolled in course!');
 

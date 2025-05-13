@@ -1,7 +1,6 @@
 "use client"
 
 import { useUser, useSession, useAuth as useClerkAuth } from "@clerk/nextjs"
-import { useConvexAuth } from "convex/react"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 
@@ -10,19 +9,20 @@ export function useAuth() {
   const { user } = useUser()
   const { session } = useSession()
   const { signOut } = useClerkAuth()
-  const { isAuthenticated, isLoading } = useConvexAuth()
   const [mounted, setMounted] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Ensure the component using this hook is mounted
   // before accessing browser APIs
   useEffect(() => {
     setMounted(true)
+    setIsLoading(false)
   }, [])
 
   return {
     user,
     session,
-    isAuthenticated,
+    isAuthenticated: !!user,
     loading: isLoading || !mounted,
     signIn: () => {
       if (mounted) {
@@ -34,10 +34,20 @@ export function useAuth() {
         router.push("/sign-up")
       }
     },
-    signOut: async () => {
+    signOut: async ({ redirectUrl }: { redirectUrl?: string } = {}) => {
       if (mounted) {
-        await signOut()
-        router.push("/sign-in")
+        try {
+          await signOut({ redirectUrl: redirectUrl || "/sign-in" })
+          // Clerk will handle the redirect
+        } catch (error) {
+          console.error("Error signing out:", error)
+          // If Clerk fails to redirect, do it manually
+          if (redirectUrl) {
+            router.push(redirectUrl)
+          } else {
+            router.push("/sign-in")
+          }
+        }
       }
     }
   }

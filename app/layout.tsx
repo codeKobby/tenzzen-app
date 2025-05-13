@@ -14,20 +14,18 @@ export const metadata: Metadata = {
   description: "Transform YouTube videos into structured learning experiences",
 }
 
-// Validate Clerk publishable key is set
-if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
-  throw new Error("Missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY")
-}
-
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Get the publishable key from environment variables
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '';
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ClerkProvider>
+        <ClerkProvider publishableKey={publishableKey}>
           <NextTopLoader
             color="#FF0000"
             height={2}

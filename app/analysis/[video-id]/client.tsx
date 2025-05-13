@@ -8,6 +8,7 @@ import { ResizablePanel } from "@/components/resizable-panel";
 import { MobileSheet } from "@/components/analysis/mobile-sheet";
 import { AnalysisHeader } from "@/components/analysis/header";
 import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context";
+import { CoursePanelProvider } from "@/components/analysis/course-panel-context";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -109,8 +110,10 @@ function Content({ initialContent, initialError }: ContentProps) {
     // Force re-render if we have course data but still showing generating
     if (courseData && courseGenerating) {
       console.log("[Content] CRITICAL FIX: Force setting courseGenerating to false because we have course data");
-      // Immediately set courseGenerating to false when we have course data
-      setCourseGenerating(false);
+      // Use setTimeout to avoid state updates during render phase
+      setTimeout(() => {
+        setCourseGenerating(false);
+      }, 0);
     }
 
     // Add additional debugging to check if courseData exists but is empty or invalid
@@ -169,7 +172,9 @@ function Content({ initialContent, initialError }: ContentProps) {
             {courseData ? (
               // Priority 1: Show course panel when we have data from API
               <div className="flex-1 z-10 w-full h-full">
-                <CoursePanel className="w-full h-full" />
+                <CoursePanelProvider courseData={courseData}>
+                  <CoursePanel className="w-full h-full" />
+                </CoursePanelProvider>
               </div>
             ) : courseGenerating ? (
               // Priority 2: Show skeleton when course is generating

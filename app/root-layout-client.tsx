@@ -5,7 +5,6 @@ import { useEffect, useState } from "react"
 import { AuthenticatedLayout } from "@/components/authenticated-layout"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CookieConsent } from "@/components/cookie-consent"
-import { UserInitializer } from "@/components/user-initializer"
 
 interface RootLayoutClientProps {
   children: React.ReactNode
@@ -25,7 +24,7 @@ export function RootLayoutClient({ children }: RootLayoutClientProps) {
   // This avoids hydration errors and blank pages
   if (!mounted) {
     return (
-      <div id="main">
+      <div className="root-layout-loading">
         <div className="min-h-screen flex items-center justify-center">
           <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
         </div>
@@ -35,10 +34,9 @@ export function RootLayoutClient({ children }: RootLayoutClientProps) {
 
   return (
     <>
-      {/* Include UserInitializer here to sync user data on all pages */}
-      <UserInitializer />
+      {/* User data is initialized in providers.tsx */}
 
-      <div id="main">
+      <main>
         {isAuthPage ? (
           // For auth pages, render directly without authenticated layout
           children
@@ -53,7 +51,7 @@ export function RootLayoutClient({ children }: RootLayoutClientProps) {
           <ThemeToggle />
         </div>
         <CookieConsent />
-      </div>
+      </main>
     </>
   )
 }

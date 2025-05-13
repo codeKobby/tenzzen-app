@@ -15,16 +15,20 @@ import { Badge } from '@/components/ui/badge'
 
 interface TabContentProps {
   course: any
-  activeTab: string
+  tab: string
+  activeTab?: string
   setCurrentLesson?: (sectionIndex: number, lessonIndex: number, lesson: any) => void
   completedLessons?: string[]
 }
 
-export function TabContent({ course, activeTab, setCurrentLesson, completedLessons = [] }: TabContentProps) {
+export function TabContent({ course, tab, activeTab, setCurrentLesson, completedLessons = [] }: TabContentProps) {
   if (!course) return null
-  
+
+  // Use the tab prop as the active tab if activeTab is not provided
+  const currentTab = activeTab || tab
+
   // Overview Tab
-  if (activeTab === "overview") {
+  if (currentTab === "overview") {
     return (
       <div className="space-y-6">
         {/* About this course */}
@@ -34,7 +38,7 @@ export function TabContent({ course, activeTab, setCurrentLesson, completedLesso
             {course.description}
           </p>
           <p className="text-muted-foreground mt-2">
-            {course.overview?.description || 
+            {course.overview?.description ||
               "This comprehensive course will take you from the fundamentals to advanced concepts. You'll learn through practical examples and gain valuable skills."}
           </p>
         </div>
@@ -117,15 +121,15 @@ export function TabContent({ course, activeTab, setCurrentLesson, completedLesso
       </div>
     )
   }
-  
+
   // Content Tab
-  if (activeTab === "content") {
+  if (currentTab === "content") {
     // Calculate total lessons
     const totalLessons = course.sections?.reduce(
       (acc: number, section: any) => acc + (section.lessons?.length || 0),
       0
     ) || 0;
-    
+
     // Calculate completed lessons count
     const completedLessonsCount = completedLessons.length;
     const progress = totalLessons > 0 ? Math.floor((completedLessonsCount / totalLessons) * 100) : 0;
@@ -145,7 +149,7 @@ export function TabContent({ course, activeTab, setCurrentLesson, completedLesso
       }
       return { completed, total: lessonCount }
     }
-    
+
     return (
       <div className="space-y-6">
         {/* Course Progress Summary */}
@@ -300,12 +304,12 @@ export function TabContent({ course, activeTab, setCurrentLesson, completedLesso
       </div>
     )
   }
-  
+
   // Resources Tab
-  if (activeTab === "resources") {
+  if (currentTab === "resources") {
     // Collect all resources from course sections and lessons
     const courseResources: any[] = [];
-    
+
     course.sections?.forEach((section: any) => {
       section.lessons?.forEach((lesson: any) => {
         if (lesson.resources?.length) {
@@ -320,7 +324,7 @@ export function TabContent({ course, activeTab, setCurrentLesson, completedLesso
         }
       })
     });
-    
+
     // Video sources (mock data if needed)
     const videoResources = [
       {
@@ -342,7 +346,7 @@ export function TabContent({ course, activeTab, setCurrentLesson, completedLesso
         sourceType: "official"
       }
     ];
-    
+
     return (
       <div className="space-y-6">
         {/* Source Resources */}
@@ -404,6 +408,6 @@ export function TabContent({ course, activeTab, setCurrentLesson, completedLesso
       </div>
     )
   }
-  
+
   return null;
 }

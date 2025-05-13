@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSearchParams } from 'next/navigation';
 import type { ContentDetails } from '@/types/youtube';
 import type { Course } from '@/types/course'; // Corrected import path
 import { toast } from '@/components/custom-toast';
@@ -161,6 +160,54 @@ export function AnalysisProvider({
 
       // Set the course data
       updateCourseData(courseData);
+
+      // Save the course to Supabase
+      try {
+        // Log the course data structure for debugging
+        console.log("[AnalysisProvider] Course data structure:", {
+          hasTitle: !!courseData.title,
+          hasDescription: !!courseData.description,
+          hasVideoId: !!courseData.videoId,
+          hasCourseItems: Array.isArray(courseData.courseItems) && courseData.courseItems.length > 0,
+          courseItemsCount: Array.isArray(courseData.courseItems) ? courseData.courseItems.length : 0,
+          hasMetadata: !!courseData.metadata,
+          metadataKeys: courseData.metadata ? Object.keys(courseData.metadata) : []
+        });
+
+        console.log("[AnalysisProvider] Saving course to Supabase...");
+        const saveResponse = await fetch('/api/supabase/courses/save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ courseData }),
+        });
+
+        if (!saveResponse.ok) {
+          const saveError = await saveResponse.json();
+          console.error('[AnalysisProvider] Failed to save course to Supabase:', saveError);
+
+          // Show a toast notification to the user
+          toast.error('Course saved locally but not to database', {
+            description: 'The course was generated successfully but could not be saved to the database. You can still view and use it in this session.'
+          });
+        } else {
+          const saveResult = await saveResponse.json();
+          console.log('[AnalysisProvider] Course saved to Supabase:', saveResult);
+
+          // Show a success toast
+          toast.success('Course saved successfully', {
+            description: 'The course has been generated and saved to the database.'
+          });
+        }
+      } catch (saveError) {
+        console.error('[AnalysisProvider] Error saving to Supabase:', saveError);
+
+        // Show a toast notification to the user
+        toast.error('Course saved locally but not to database', {
+          description: 'The course was generated successfully but could not be saved to the database. You can still view and use it in this session.'
+        });
+      }
 
     } catch (error) {
       console.error('Course generation error:', error);

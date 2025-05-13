@@ -1,12 +1,11 @@
 'use server';
 
 import { VideoDetails, PlaylistDetails } from "@/types/youtube";
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "@/convex/_generated/api";
 import { config } from "@/lib/config";
 import { identifyYoutubeIdType, getFetchOptions } from "@/lib/utils/youtube-server";
-import { formatViews, formatDuration } from "@/lib/utils/format";
+import { formatViews, formatDuration, parseDurationToSeconds } from "@/lib/utils/format";
 import { createLogger } from "@/lib/debug-logger";
+import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 
 const logger = createLogger("youtube-data");
 
@@ -25,13 +24,9 @@ function safeGet(obj: any, path: string, defaultValue: any = undefined) {
   }
 }
 
-// Initialize Convex client
-let convex: ConvexHttpClient;
-const getConvexClient = () => {
-  if (!convex) {
-    convex = new ConvexHttpClient(config.convex.url);
-  }
-  return convex;
+// Initialize Supabase client for caching videos
+const getSupabaseClient = () => {
+  return createAdminSupabaseClient();
 };
 
 // Fetch channel details including avatar
@@ -58,41 +53,42 @@ async function getFullVideoDetails(videoId: string): Promise<VideoDetails> {
   try {
     // Check cache first
     try {
-      const cachedVideo = await getConvexClient().query(api.videos.getCachedVideo, { youtubeId: videoId });
-      // Add checks for valid cache data and title
-      if (cachedVideo && !('expired' in cachedVideo) && cachedVideo.details && cachedVideo.details.title) {
+      const supabase = getSupabaseClient();
+      const { data: cachedVideo, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('video_id', videoId)
+        .single();
+
+      if (error) {
+        logger.warn(`Error retrieving from cache for videoId ${videoId}:`, error);
+      } else if (cachedVideo && cachedVideo.title) {
         logger.log(`Cache hit for videoId: ${videoId}`);
-        
-        // Check if video has transcripts directly in the video document
-        let hasTranscripts = false;
-        if (cachedVideo.transcripts && cachedVideo.transcripts.length > 0) {
-          hasTranscripts = true;
-          logger.log(`Video has ${cachedVideo.transcripts.length} transcripts embedded`);
+
+        // Check if video has transcript
+        const hasTranscripts = !!cachedVideo.transcript;
+        if (hasTranscripts) {
+          logger.log(`Video has transcript`);
         }
-        
-        // Return the full structure including new fields from cache
+
+        // Return the full structure from cache
         return {
           id: videoId,
           type: "video",
-          title: cachedVideo.details.title,
-          description: cachedVideo.details.description || '',
-          thumbnail: cachedVideo.details.thumbnail || '',
-          // Parse the ISO duration string from cache before formatting
-          duration: formatDuration(cachedVideo.details.duration || ''),
-          // Read new fields from cache, provide defaults if missing
-          channelId: cachedVideo.details.channelId || '',
-          channelName: cachedVideo.details.channelName || '',
-          channelAvatar: cachedVideo.details.channelAvatar || '',
-          views: cachedVideo.details.views || '0',
-          likes: cachedVideo.details.likes || '0',
-          publishDate: cachedVideo.details.publishDate || '',
-          // Add flag to indicate if transcripts are available
+          title: cachedVideo.title,
+          description: cachedVideo.description || '',
+          thumbnail: cachedVideo.thumbnail || '',
+          duration: formatDuration(cachedVideo.duration_raw || ''),
+          channelId: cachedVideo.channel_id || '',
+          channelName: cachedVideo.channel_title || '',
+          channelAvatar: cachedVideo.channel_avatar || '',
+          views: cachedVideo.view_count?.toString() || '0',
+          likes: cachedVideo.like_count?.toString() || '0',
+          publishDate: cachedVideo.published_at ? new Date(cachedVideo.published_at).toLocaleDateString() : '',
           hasTranscripts: hasTranscripts
         };
-      } else if (cachedVideo) {
-          logger.warn(`Invalid cache data for videoId: ${videoId}. Missing details or title. Refetching.`);
       } else {
-          logger.log(`Cache miss for videoId: ${videoId}. Fetching from API.`);
+        logger.log(`Cache miss for videoId: ${videoId}. Fetching from API.`);
       }
     } catch (cacheError) {
       logger.warn(`Error retrieving from cache for videoId ${videoId}:`, cacheError);
@@ -119,7 +115,7 @@ async function getFullVideoDetails(videoId: string): Promise<VideoDetails> {
     const channelAvatar = await getChannelAvatar(channelId);
     const formattedViews = formatViews(safeGet(video, 'statistics.viewCount', '0'));
     const formattedLikes = formatViews(safeGet(video, 'statistics.likeCount', '0'));
-    const formattedPublishDate = video.snippet?.publishedAt ? 
+    const formattedPublishDate = video.snippet?.publishedAt ?
         new Date(video.snippet.publishedAt).toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'long',
@@ -150,32 +146,83 @@ async function getFullVideoDetails(videoId: string): Promise<VideoDetails> {
     // Cache the video data only if the title is valid
     if (videoDetails.title && videoDetails.title !== 'Unknown title') {
       try {
-        const cacheData = {
-          youtubeId: videoId,
-          cachedAt: new Date().toISOString(),
-          details: {
-            // Ensure all fields expected by the cache schema are present
-            id: videoId,
-            type: "video",
-            title: videoDetails.title, // We know this is valid here
-            description: videoDetails.description,
-            thumbnail: videoDetails.thumbnail,
-            duration: video.contentDetails?.duration || "", // Store raw ISO duration
-            // Add the new fields to cache
-            channelId: videoDetails.channelId,
-            channelName: videoDetails.channelName,
-            channelAvatar: videoDetails.channelAvatar,
-            views: videoDetails.views, // Store formatted string
-            likes: videoDetails.likes, // Store formatted string
-            publishDate: videoDetails.publishDate // Store formatted string
-          }
-        };
 
         logger.log(`Attempting to cache videoId: ${videoId}`);
-        await getConvexClient().mutation(api.videos.cacheVideo, cacheData);
+
+        // Use Supabase directly to cache the video
+        const supabase = getSupabaseClient();
+
+        // Check if a video with this ID already exists
+        const { data: existingVideos, error: queryError } = await supabase
+          .from('videos')
+          .select('id')
+          .eq('video_id', videoId)
+          .limit(1);
+
+        if (queryError) {
+          logger.warn(`Error checking for existing video: ${queryError.message}`);
+          throw queryError;
+        }
+
+        // Prepare video data for insertion/update
+        const rawDuration = video.contentDetails?.duration || '';
+        const durationInSeconds = parseDurationToSeconds(rawDuration);
+
+        // Extract tags from the video
+        const tags = safeGet(video, 'snippet.tags', []);
+
+        // Extract comment count
+        const commentCount = parseInt(safeGet(video, 'statistics.commentCount', '0'), 10) || 0;
+
+        // Extract category ID
+        const categoryId = safeGet(video, 'snippet.categoryId', '');
+
+        const videoRecord = {
+          video_id: videoId,
+          title: videoDetails.title,
+          description: videoDetails.description || '',
+          thumbnail: videoDetails.thumbnail || '',
+          duration: durationInSeconds, // Store duration in seconds
+          duration_raw: rawDuration, // Store the raw ISO 8601 duration string
+          channel_id: videoDetails.channelId || '',
+          channel_title: videoDetails.channelName || '',
+          channel_avatar: channelAvatar, // Store the channel avatar URL
+          published_at: video.snippet?.publishedAt || null, // Store the raw ISO date
+          view_count: parseInt(safeGet(video, 'statistics.viewCount', '0'), 10) || 0, // Store raw count
+          like_count: parseInt(safeGet(video, 'statistics.likeCount', '0'), 10) || 0, // Store raw count
+          comment_count: commentCount,
+          category_id: categoryId,
+          tags: tags,
+          cached_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        if (existingVideos && existingVideos.length > 0) {
+          // Update existing video
+          const { error: updateError } = await supabase
+            .from('videos')
+            .update(videoRecord)
+            .eq('id', existingVideos[0].id);
+
+          if (updateError) {
+            logger.warn(`Error updating video: ${updateError.message}`);
+            throw updateError;
+          }
+        } else {
+          // Insert new video
+          const { error: insertError } = await supabase
+            .from('videos')
+            .insert(videoRecord);
+
+          if (insertError) {
+            logger.warn(`Error inserting video: ${insertError.message}`);
+            throw insertError;
+          }
+        }
+
         logger.log(`Successfully cached videoId: ${videoId}`);
       } catch (cacheError) {
-        // Log specific Convex validation errors if possible
+        // Log caching errors
         logger.warn(`Failed to cache videoId ${videoId}:`, cacheError);
       }
     } else {
@@ -262,7 +309,7 @@ async function getPlaylistById(playlistId: string): Promise<PlaylistDetails> {
     const playlist = playlistData.items[0];
     const channelId = safeGet(playlist, 'snippet.channelId', '');
     const channelAvatar = await getChannelAvatar(channelId);
-    
+
     // Get first few videos from the playlist
     const playlistItemsResponse = await fetch(
       `${config.youtube.apiUrl}/playlistItems?part=snippet,contentDetails&maxResults=10&playlistId=${playlistId}&key=${config.youtube.apiKey}`,
@@ -280,7 +327,7 @@ async function getPlaylistById(playlistId: string): Promise<PlaylistDetails> {
     const videoPromises = playlistItems.map(async (item: any) => {
       const videoId = safeGet(item, 'contentDetails.videoId', '');
       const position = safeGet(item, 'snippet.position', 0);
-      
+
       try {
         const videoDetails = await getFullVideoDetails(videoId);
         return {
@@ -295,8 +342,8 @@ async function getPlaylistById(playlistId: string): Promise<PlaylistDetails> {
           position,
           title: safeGet(item, 'snippet.title', 'Unknown video'),
           description: safeGet(item, 'snippet.description', ''),
-          thumbnail: safeGet(item, 'snippet.thumbnails.high.url') || 
-                    safeGet(item, 'snippet.thumbnails.medium.url') || 
+          thumbnail: safeGet(item, 'snippet.thumbnails.high.url') ||
+                    safeGet(item, 'snippet.thumbnails.medium.url') ||
                     safeGet(item, 'snippet.thumbnails.default.url') || '',
           duration: '00:00',
           channelId: channelId,
@@ -309,9 +356,9 @@ async function getPlaylistById(playlistId: string): Promise<PlaylistDetails> {
         };
       }
     });
-    
+
     const videos = await Promise.all(videoPromises);
-    
+
     const playlistDetails: PlaylistDetails = {
       id: playlistId,
       type: "playlist",

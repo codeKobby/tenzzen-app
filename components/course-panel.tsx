@@ -18,10 +18,9 @@ import {
     CollapsibleTrigger
 } from "@/components/ui/collapsible"
 import { toast } from "@/components/custom-toast"
-import { useMutation } from "convex/react"
-import { api } from "@/convex/_generated/api"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
+import { useSupabase } from "@/contexts/supabase-context"
 
 interface CoursePanelProps {
     className?: string
@@ -72,7 +71,7 @@ function normalizeCourseData(raw: any) {
 function ActionButtons({ className, course, onCancel }: { className?: string, course: any, onCancel: () => void }) {
     const router = useRouter();
     const { user } = useAuth();
-    const enrollMutation = useMutation(api.courses.enrollUserInCourse);
+    const supabase = useSupabase();
     const [enrolling, setEnrolling] = useState(false);
 
     const handleEnroll = async () => {
@@ -85,18 +84,59 @@ function ActionButtons({ className, course, onCancel }: { className?: string, co
                 description: 'Please wait while we process your enrollment'
             });
 
-            // Call the mutation
-            await enrollMutation({
-                courseData: {
-                    title: course.title,
-                    description: course.description || "",
-                    videoId: course.videoId,
-                    thumbnail: course.image,
-                    metadata: course.metadata,
-                    sections: course.courseItems || []
-                },
-                userId: user.id
-            });
+            // First, save the course to the courses table if it doesn't exist
+            const { data: existingCourse, error: checkError } = await supabase
+                .from('courses')
+                .select('id')
+                .eq('video_id', course.videoId)
+                .single();
+
+            let courseId;
+
+            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+                console.error('Error checking if course exists:', checkError);
+                throw new Error('Failed to check if course exists');
+            }
+
+            if (!existingCourse) {
+                // Course doesn't exist, create it
+                const { data: newCourse, error: insertError } = await supabase
+                    .from('courses')
+                    .insert({
+                        title: course.title,
+                        description: course.description || "",
+                        video_id: course.videoId,
+                        thumbnail: course.image || course.thumbnail,
+                        metadata: course.metadata || {},
+                        course_items: course.courseItems || []
+                    })
+                    .select()
+                    .single();
+
+                if (insertError) {
+                    console.error('Error creating course:', insertError);
+                    throw new Error('Failed to create course');
+                }
+
+                courseId = newCourse.id;
+            } else {
+                courseId = existingCourse.id;
+            }
+
+            // Now enroll the user in the course
+            const { error: enrollError } = await supabase
+                .from('user_courses')
+                .insert({
+                    user_id: user.id,
+                    course_id: courseId,
+                    status: 'in_progress',
+                    enrolled_at: new Date().toISOString()
+                });
+
+            if (enrollError) {
+                console.error('Error enrolling in course:', enrollError);
+                throw new Error('Failed to enroll in course');
+            }
 
             // Handle success
             toast.success('Successfully enrolled in course!');
@@ -144,7 +184,7 @@ function CourseSummary({ course, onCancel }: { course: any, onCancel: () => void
         0
     ) || 0;
 
-    // Use mock data for assignments and tests 
+    // Use mock data for assignments and tests
     const assignmentsCount = 6; // Mock data
     const testsCount = 3; // Mock data
 
@@ -290,9 +330,6 @@ export function CoursePanel({ className }: CoursePanelProps) {
 
     // Get authentication context
     const { user, isAuthenticated } = useAuth()
-
-    // Convex mutations
-    const enrollUserInCourse = useMutation(api.courses.enrollUserInCourse)
 
     // Use normalized AI or mock data
     const [normalizedCourseData, setNormalizedCourseData] = useState<any>(null);

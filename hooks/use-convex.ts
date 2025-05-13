@@ -31,6 +31,11 @@ export function useUpdateVideoCourseData() {
   return useMutation(api.videos.updateVideoCourseData)
 }
 
+// Add hook to save a generated course to the public database
+export function useSaveGeneratedCourseToPublic() {
+  return useMutation(api.courses.saveGeneratedCourseToPublic)
+}
+
 // Re-export useful types and functions
 export { api }
 export type { VideoDetails, PlaylistDetails } from "@/types/youtube"

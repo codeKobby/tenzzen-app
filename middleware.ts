@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { syncCurrentUserToSupabase } from './lib/user-sync';
 
 const isOnboardingRoute = createRouteMatcher(['/onboarding']);
 const isPublicRoute = createRouteMatcher(['/', '/sign-in', '/sign-up', '/explore']);
@@ -11,7 +12,18 @@ const isAnalysisRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  const { userId, sessionClaims } = await auth();
+  const authData = await auth();
+  const userId = authData.userId;
+  const sessionClaims = authData.sessionClaims;
+
+  // Sync user to Supabase if they're signed in
+  if (userId) {
+    try {
+      await syncCurrentUserToSupabase();
+    } catch (error) {
+      console.error('Error syncing user to Supabase:', error);
+    }
+  }
 
   // For analysis routes, require authentication but skip onboarding check
   if (isAnalysisRoute(req)) {

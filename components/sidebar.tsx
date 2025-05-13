@@ -6,7 +6,7 @@ import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
-import { useClerk } from "@clerk/nextjs"
+import { useClerk, SignOutButton } from "@clerk/nextjs"
 import {
   BookOpen,
   GraduationCap,
@@ -147,14 +147,17 @@ export function Sidebar({ className }: { className?: string }) {
 
   const handleSignOut = async () => {
     try {
+      // Use the redirectUrl option to specify where to redirect after sign-out
       await signOut()
       if (navigator.vibrate) navigator.vibrate([20])
       toast({
         title: "Signed out successfully",
         variant: "default",
       })
+      // Manually redirect to sign-in page
       router.push("/sign-in")
-    } catch {
+    } catch (error) {
+      console.error("Sign out error:", error)
       toast({
         title: "Error signing out",
         variant: "destructive",
@@ -425,14 +428,15 @@ export function Sidebar({ className }: { className?: string }) {
 
             <Separator />
 
-            <Button
-              variant="ghost"
-              onClick={handleSignOut}
-              className="w-full justify-start px-2 text-xs group"
-            >
-              <LogOut className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
-              Sign out
-            </Button>
+            <SignOutButton redirectUrl="/sign-in">
+              <Button
+                variant="ghost"
+                className="w-full justify-start px-2 text-xs group"
+              >
+                <LogOut className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
+                Sign out
+              </Button>
+            </SignOutButton>
           </div>
         </div>
       </aside>

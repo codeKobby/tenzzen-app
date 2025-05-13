@@ -189,9 +189,15 @@ export async function POST(req: NextRequest) {
         nestedDataKeys: courseData.data ? Object.keys(courseData.data) : []
       }, null, 2));
 
+      // Add the transcript to the course data for saving to the database
+      const courseDataWithTranscript = {
+        ...courseData,
+        transcript: requestBody.transcript || ''
+      };
+
       // Return the course data with a completion flag
       return NextResponse.json({
-        data: courseData,
+        data: courseDataWithTranscript,
         status: "complete",
         progress: 100
       });
@@ -223,76 +229,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * Creates mock course data for testing when the ADK service is unavailable
- * Format matches what the course panel expects
- */
-function createMockCourseData(videoTitle: string = 'YouTube Video') {
-  return {
-    title: `${videoTitle} - Course`,
-    description: "This is a generated course based on the YouTube video content.",
-    videoId: "", // Will be filled in by the caller
-    image: "", // Will use default
-    metadata: {
-      overviewText: "This is a mock course generated because the ADK service is unavailable. The course is based on the YouTube video content and provides a structured learning experience.",
-      difficulty: "Beginner",
-      duration: "1 hour",
-      prerequisites: ["No prerequisites"],
-      objectives: [
-        "Understand the key concepts presented in the video",
-        "Apply the knowledge gained from the video",
-        "Analyze the content critically"
-      ],
-      category: "Technology",
-      tags: ["YouTube", "Learning", "Mock Data"]
-    },
-    courseItems: [
-      {
-        type: "section",
-        title: "Introduction",
-        description: "Introduction to the course content",
-        lessons: [
-          {
-            title: "Overview",
-            description: "This lesson provides an overview of what will be covered in the course.",
-            duration: "10 minutes",
-            startTime: 0,
-            keyPoints: ["Introduction to the topic", "Overview of course structure"]
-          }
-        ]
-      },
-      {
-        type: "assessment_placeholder",
-        assessmentType: "quiz"
-      },
-      {
-        type: "section",
-        title: "Main Concepts",
-        description: "Core concepts from the video",
-        lessons: [
-          {
-            title: "Key Concept 1",
-            description: "Explanation of the first key concept from the video.",
-            duration: "15 minutes",
-            startTime: 600,
-            keyPoints: ["Definition of key concept", "Examples and applications"]
-          }
-        ]
-      }
-    ],
-    resources: [
-      {
-        title: "YouTube Documentation",
-        url: "https://www.youtube.com/",
-        description: "Official YouTube website for reference.",
-        type: "documentation"
-      }
-    ],
-    creatorResources: [],
-    creatorSocials: [],
-    project: {
-      type: "assessment_placeholder",
-      assessmentType: "project"
-    }
-  };
-}
+// Mock course data function removed as it's no longer used

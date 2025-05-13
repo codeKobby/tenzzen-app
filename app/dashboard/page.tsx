@@ -15,71 +15,14 @@ import {
   LucideIcon, Loader2, BookPlus
 } from 'lucide-react';
 import Image from 'next/image';
-import { useQuery } from 'convex/react';
-import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/clerk-react";
 import { EnhancedActivityChart } from '@/components/dashboard/enhanced-activity-chart';
 import { WeeklyCalendar } from '@/components/dashboard/weekly-calendar';
-import { Id } from "@/convex/_generated/dataModel";
 import { CourseGenerationModal } from '@/components/modals/course-generation-modal';
+import { useUserStats, useRecentCourses, useRecentActivities, useLearningTrends } from '@/hooks/use-supabase-dashboard';
 
-// Define interfaces for type safety
-interface Course {
-  _id: Id<"courses">;
-  title: string;
-  thumbnail?: string;
-  progress: number;
-  lastAccessedAt: number;
-  completedLessons?: string[];
-  sections?: {
-    title: string;
-    lessons?: {
-      id: string;
-      title: string;
-      type: string;
-    }[];
-  }[];
-  overview?: {
-    skills?: string[];
-    difficultyLevel?: string;
-    totalDuration?: string;
-  };
-}
-
-interface LearningActivity {
-  _id: Id<"learning_activities">;
-  type: string;
-  timestamp: number;
-  courseId?: Id<"courses">;
-  metadata?: any;
-  courseName?: string;
-  assessmentTitle?: string;
-  lastAccessedAt?: number;
-  completedLessons?: string[];
-  sections?: {
-    title: string;
-    lessons?: {
-      id: string;
-      title: string;
-      type: string;
-    }[];
-  }[];
-  overview?: {
-    skills?: string[];
-    difficultyLevel?: string;
-    totalDuration?: string;
-  };
-}
-
-interface UserStats {
-  totalLearningHours?: number;
-  coursesInProgress?: number;
-  coursesCompleted?: number;
-  projectsSubmitted?: number;
-  streakDays?: number;
-  longestStreak?: number;
-  weeklyActivity?: number[];
-}
+// Import interfaces from our hook
+import type { Course, LearningActivity, UserStats } from '@/hooks/use-supabase-dashboard';
 
 interface StatChange {
   value: string;
@@ -95,7 +38,7 @@ interface LearningStat {
 }
 
 interface Note {
-  id: string | Id<"learning_activities">;
+  id: string;
   title: string;
   course: string;
   date: string;
@@ -127,27 +70,22 @@ export default function DashboardPage() {
   // Clerk auth
   const { user, isLoaded: isUserLoaded, isSignedIn } = useUser();
 
-  // Convex data fetching
-  const userStats = useQuery(api.user_stats.getUserStats,
-    isUserLoaded && isSignedIn ? { userId: user?.id || '' } : 'skip'
-  ) as UserStats | undefined;
+  // Supabase data fetching
+  const { userStats, loading: statsLoading } = useUserStats();
+  const { recentCourses, loading: coursesLoading } = useRecentCourses(4);
+  const { activities: recentActivitiesData, loading: activitiesLoading } = useRecentActivities(10);
+  const { trends: learningTrends, loading: trendsLoading } = useLearningTrends('week');
 
-  const recentCourses = useQuery(api.courses.getRecentlyAddedCourses,
-    isUserLoaded && isSignedIn ? { userId: user?.id || '', limit: 4 } : 'skip'
-  ) as Course[] | undefined;
-
-  const recentActivities = useQuery(api.user_stats.getRecentActivities,
-    isUserLoaded && isSignedIn ? { userId: user?.id || '', limit: 10 } : 'skip'
-  ) as { activities: LearningActivity[], cursor?: string } | undefined;
-
-  const learningTrends = useQuery(api.user_stats.getLearningTrends,
-    isUserLoaded && isSignedIn ? { userId: user?.id || '', timeframe: 'week' } : 'skip'
-  ) as { weeklyActivity?: number[] } | undefined;
+  // Format activities to match the expected structure
+  const recentActivities = recentActivitiesData ? {
+    activities: recentActivitiesData,
+    cursor: undefined
+  } : undefined;
 
   // Set active course when data is loaded
   useEffect(() => {
     if (recentCourses && recentCourses.length > 0) {
-      setActiveCourse(recentCourses[0]._id);
+      setActiveCourse(recentCourses[0].id);
     }
   }, [recentCourses]);
 
@@ -261,33 +199,33 @@ export default function DashboardPage() {
   const learningStats: LearningStat[] = [
     {
       label: "Learning Hours",
-      value: `${userStats?.totalLearningHours?.toFixed(1) || '0'}h`,
+      value: `${userStats?.total_learning_hours?.toFixed(1) || '0'}h`,
       icon: Clock,
-      change: userStats?.totalLearningHours && userStats.totalLearningHours > 0
+      change: userStats?.total_learning_hours && userStats.total_learning_hours > 0
         ? { value: "+1.2h", type: "increase" as const }
         : undefined
     },
     {
       label: "Active Courses",
-      value: `${userStats?.coursesInProgress || '0'}`,
+      value: `${userStats?.courses_in_progress || '0'}`,
       icon: GraduationCap,
-      change: userStats?.coursesInProgress && userStats.coursesInProgress > 0
+      change: userStats?.courses_in_progress && userStats.courses_in_progress > 0
         ? { value: "+1", type: "increase" as const }
         : undefined
     },
     {
       label: "Completed",
-      value: `${userStats?.coursesCompleted || '0'}`,
+      value: `${userStats?.courses_completed || '0'}`,
       icon: Target,
-      change: userStats?.coursesCompleted && userStats.coursesCompleted > 0
+      change: userStats?.courses_completed && userStats.courses_completed > 0
         ? { value: "New", type: "increase" as const, showTrend: true }
         : undefined
     },
     {
       label: "Projects",
-      value: `${userStats?.projectsSubmitted || '0'}`,
+      value: `${userStats?.projects_submitted || '0'}`,
       icon: ListChecks,
-      change: userStats?.projectsSubmitted && userStats.projectsSubmitted > 0
+      change: userStats?.projects_submitted && userStats.projects_submitted > 0
         ? { value: "+1", type: "increase" as const }
         : undefined
     }
@@ -295,8 +233,8 @@ export default function DashboardPage() {
 
   // Get current streak info
   const streak = {
-    current: Math.max(userStats?.streakDays || 0, 1), // Ensure minimum streak of 1 for logged-in users
-    longest: Math.max(userStats?.longestStreak || 0, 1), // Also ensure minimum longest streak is 1
+    current: Math.max(userStats?.streak_days || 0, 1), // Ensure minimum streak of 1 for logged-in users
+    longest: Math.max(userStats?.longest_streak || 0, 1), // Also ensure minimum longest streak is 1
     today: {
       minutes: activeTime, // Now tracking active login time instead of learning time
       tasks: recentActivities?.activities?.filter(a => new Date(a.timestamp).toDateString() === new Date().toDateString()).length || 0
@@ -307,7 +245,7 @@ export default function DashboardPage() {
   const greeting = getGreeting();
 
   // Get selected course
-  const selectedCourse = recentCourses?.find(course => course._id === activeCourse);
+  const selectedCourse = recentCourses?.find(course => course.id === activeCourse);
 
   // Find or generate recent notes
   const recentNotes: Note[] = [
@@ -315,9 +253,9 @@ export default function DashboardPage() {
       ?.filter(activity => activity.type.includes('note'))
       ?.slice(0, 2)
       ?.map(activity => ({
-        id: activity._id,
+        id: activity.id,
         title: activity.metadata?.title || "Untitled Note",
-        course: activity.courseName || "General",
+        course: activity.course_name || "General",
         date: new Date(activity.timestamp).toLocaleDateString()
       })) || []),
     // Add placeholder if needed
@@ -338,7 +276,7 @@ export default function DashboardPage() {
       course.sections?.flatMap(section =>
         section.lessons?.filter(lesson =>
           lesson.type === 'assessment' &&
-          !course.completedLessons?.includes(lesson.id)
+          !course.completed_lessons?.includes(lesson.id)
         ).map(lesson => ({
           id: lesson.id,
           type: "assessment",
@@ -500,9 +438,9 @@ export default function DashboardPage() {
                 <div>
                   {recentCourses.map((course) => (
                     <div
-                      key={course._id}
-                      className={`group rounded-lg border bg-card p-3 hover:border-primary/50 transition-all mb-4 ${course._id === activeCourse ? 'border-primary' : ''}`}
-                      onClick={() => setActiveCourse(course._id)}
+                      key={course.id}
+                      className={`group rounded-lg border bg-card p-3 hover:border-primary/50 transition-all mb-4 ${course.id === activeCourse ? 'border-primary' : ''}`}
+                      onClick={() => setActiveCourse(course.id)}
                     >
                       <div className="flex gap-3">
                         <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-md sm:w-40">
@@ -524,14 +462,14 @@ export default function DashboardPage() {
                                 {course.title}
                               </h3>
                               <p className="text-xs text-muted-foreground">
-                                Last accessed {new Date(course.lastAccessedAt).toLocaleDateString()}
+                                Last accessed {new Date(course.last_accessed_at).toLocaleDateString()}
                               </p>
                             </div>
                             <Button
                               variant="secondary"
                               size="sm"
                               className="h-8 text-xs"
-                              onClick={() => window.location.href = `/courses/${course._id}`}
+                              onClick={() => window.location.href = `/courses/${course.id}`}
                             >
                               {course.progress === 0 ? 'Start' : course.progress === 100 ? 'Review' : 'Continue'}
                             </Button>
@@ -539,7 +477,7 @@ export default function DashboardPage() {
                           <div className="space-y-1">
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">
-                                {course.completedLessons?.length || 0}/{(course.sections?.flatMap(s => s.lessons)?.length || 0)} lessons
+                                {course.completed_lessons?.length || 0}/{(course.sections?.flatMap(s => s.lessons)?.length || 0)} lessons
                               </span>
                               <span>{course.progress || 0}%</span>
                             </div>
@@ -566,8 +504,8 @@ export default function DashboardPage() {
                             </div>
                             <Progress
                               value={
-                                (selectedCourse.completedLessons?.filter(
-                                  lessonId => section.lessons?.some(l => l.id === lessonId)
+                                (selectedCourse.completed_lessons?.filter(
+                                  (lessonId: string) => section.lessons?.some(l => l.id === lessonId)
                                 ).length || 0) / (section.lessons?.length || 1) * 100
                               }
                               className="h-1.5"
@@ -581,7 +519,7 @@ export default function DashboardPage() {
                           <Button
                             variant="link"
                             className="text-xs"
-                            onClick={() => window.location.href = `/courses/${selectedCourse._id}`}
+                            onClick={() => window.location.href = `/courses/${selectedCourse.id}`}
                           >
                             View all {selectedCourse.sections.length} sections
                           </Button>
@@ -612,9 +550,9 @@ export default function DashboardPage() {
                           <div className="text-xs">
                             <div className="flex items-center gap-1.5">
                               <Award className="h-3 w-3 text-primary" />
-                              <span>{selectedCourse.overview?.difficultyLevel || 'Beginner'}</span>
+                              <span>{selectedCourse.overview?.difficulty_level || 'Beginner'}</span>
                               <span className="text-muted-foreground">
-                                ({selectedCourse.overview?.totalDuration || 'Unknown duration'})
+                                ({selectedCourse.overview?.total_duration || 'Unknown duration'})
                               </span>
                             </div>
                           </div>
@@ -723,7 +661,7 @@ export default function DashboardPage() {
               {recentActivities?.activities && recentActivities.activities.length > 0 ? (
                 <div className="space-y-3">
                   {recentActivities.activities.slice(0, 5).map((activity) => (
-                    <div key={activity._id} className="flex items-start gap-2">
+                    <div key={activity.id} className="flex items-start gap-2">
                       <div className="mt-0.5">
                         {activity.type.includes('course') ? (
                           <BookOpen className="h-4 w-4 text-primary" />
@@ -742,7 +680,7 @@ export default function DashboardPage() {
                                   'Learning activity'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {activity.courseName || activity.metadata?.title || 'Learning journey'} • {new Date(activity.timestamp).toLocaleString()}
+                          {activity.course_name || activity.metadata?.title || 'Learning journey'} • {new Date(activity.timestamp).toLocaleString()}
                         </p>
                       </div>
                     </div>

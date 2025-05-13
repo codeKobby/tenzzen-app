@@ -50,14 +50,47 @@ GOOGLE_VERTEX_PROJECT=your-project-id
 GOOGLE_VERTEX_LOCATION=us-central1
 ```
 
-5. Run the setup script
+5. Set up Supabase:
+
+a. Create a Supabase project at [Supabase](https://supabase.com)
+b. Get your Supabase URL and anon key from the project settings
+c. Add them to your .env file:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+d. Set up the `execute_sql` function in Supabase:
+   - Go to the SQL Editor in your Supabase dashboard
+   - Copy the SQL from `sql/execute_sql_function.sql` in this repository
+   - Run the SQL to create the function
+
+6. Set up Clerk:
+a. Create a Clerk project at [Clerk](https://clerk.dev)
+b. Get your Clerk publishable key and secret key
+c. Add them to your .env file:
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your-clerk-publishable-key
+CLERK_SECRET_KEY=your-clerk-secret-key
+```
+d. Create a JWT template named "supabase" in your Clerk dashboard with the following claims:
+```json
+{
+  "sub": "{{user.id}}",
+  "aud": "authenticated",
+  "role": "authenticated",
+  "email": "{{user.primary_email_address}}",
+  "email_verified": "{{user.primary_email_address_verification.status}}"
+}
+```
+
+7. Run the setup script
 ```bash
 pnpm setup
 ```
 
 The script will verify your environment configuration and guide you through any missing steps.
 
-6. Start the development server
+8. Start the development server
 ```bash
 pnpm dev
 ```

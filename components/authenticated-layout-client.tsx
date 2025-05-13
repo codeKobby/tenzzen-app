@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { cn } from "@/lib/utils"
 import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
-import { Authenticated } from "convex/react"
 import { useState, useEffect, Suspense } from "react"
+import { useAuth } from "@/hooks/use-auth"
 
 interface AuthenticatedLayoutClientProps {
   children: React.ReactNode
@@ -75,6 +75,21 @@ function LoadingFallback() {
   )
 }
 
+// Authentication check component
+function AuthenticatedCheck({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingFallback />;
+  }
+
+  if (!isAuthenticated) {
+    return <LoadingFallback />;
+  }
+
+  return <>{children}</>;
+}
+
 export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClientProps) {
   const pathname = usePathname() || ""
   const publicPages = ['/', '/sign-in', '/sign-up', '/onboarding']
@@ -111,7 +126,6 @@ export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClien
     return <BaseLayout>{children}</BaseLayout>
   }
 
-  // For authenticated pages, wrap with Authenticated component
   // Use Suspense to handle loading states better
   return (
     <Suspense fallback={<LoadingFallback />}>
@@ -119,9 +133,9 @@ export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClien
         // Force render after timeout to prevent indefinite loading
         <AuthenticatedContent>{children}</AuthenticatedContent>
       ) : (
-        <Authenticated>
+        <AuthenticatedCheck>
           <AuthenticatedContent>{children}</AuthenticatedContent>
-        </Authenticated>
+        </AuthenticatedCheck>
       )}
     </Suspense>
   )

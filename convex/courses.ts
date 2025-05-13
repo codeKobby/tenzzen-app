@@ -1,9 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server"; // Removed action, QueryBuilder
-import { Id, Doc } from "./_generated/dataModel"; // Added Doc
-// Removed unused specific types: import { Section, Lesson, Assessment, Course } from "../types/course";
-import { api } from "./_generated/api"; // Import api
-import { DifficultyLevel, difficultyLevelValidator } from "./validation"; // Import difficultyLevelValidator
+import { mutation, query } from "./_generated/server";
+import { Id, Doc } from "./_generated/dataModel";
+import { DifficultyLevel, difficultyLevelValidator } from "./validation";
 
 // Generate a new course from video content
 export const generateCourse = mutation({
@@ -14,9 +12,9 @@ export const generateCourse = mutation({
       maxTokens: v.optional(v.number())
     }))
   },
-  async handler(ctx, { videoId, options }) { // Added ctx
+  async handler(ctx, { videoId }) { // Removed unused options parameter
     console.log("Starting course generation for video:", videoId);
-    
+
     // Define courseId at function level so it's accessible in the catch block
     let courseId: Id<"courses"> | null = null;
 
@@ -146,27 +144,55 @@ export const enrollUserInCourse = mutation({
         }))),
         tags: v.optional(v.array(v.string()))
       })),
-      sections: v.array(v.any()) // Keep as any for now, matches schema
+      // Accept either sections or courseItems
+      sections: v.optional(v.array(v.any())),
+      courseItems: v.optional(v.array(v.any()))
     }),
     userId: v.string()
   },
   async handler({ db }, { courseData, userId }) {
     try {
-      // First, check if the course already exists by title
-      const existingCourses = await db
-        .query("courses")
-        .filter((q) => q.eq(q.field("title"), courseData.title)) // Removed explicit type
-        .collect();
+      console.log("[enrollUserInCourse] Starting enrollment with data:", {
+        title: courseData.title,
+        videoId: courseData.videoId,
+        userId: userId,
+        hasSections: !!courseData.sections,
+        hasCourseItems: !!courseData.courseItems,
+        sectionsLength: courseData.sections ? courseData.sections.length : 0,
+        courseItemsLength: courseData.courseItems ? courseData.courseItems.length : 0
+      });
+
+      // First, check if the course already exists by videoId (more reliable than title)
+      let existingCourses: any[] = [];
+      if (courseData.videoId) {
+        const videoIdCourses = await db
+          .query("courses")
+          .filter((q) => q.eq(q.field("videoId"), courseData.videoId))
+          .collect();
+
+        existingCourses = videoIdCourses;
+        console.log(`[enrollUserInCourse] Found ${existingCourses.length} existing courses with videoId: ${courseData.videoId}`);
+      }
+
+      // If no courses found by videoId, try by title as fallback
+      if (existingCourses.length === 0) {
+        existingCourses = await db
+          .query("courses")
+          .filter((q) => q.eq(q.field("title"), courseData.title))
+          .collect();
+
+        console.log(`[enrollUserInCourse] Found ${existingCourses.length} existing courses with title: ${courseData.title}`);
+      }
 
       let courseId;
-
       const now = Date.now();
 
       if (existingCourses.length === 0) {
+        console.log("[enrollUserInCourse] Creating new course:", courseData.title);
+
         // Create a new course if one doesn't already exist
         courseId = await db.insert("courses", {
           title: courseData.title,
-          // subtitle: courseData.subtitle, // Assuming subtitle is not in courseData args
           description: courseData.description,
           videoId: courseData.videoId,
           thumbnail: courseData.thumbnail,
@@ -179,24 +205,26 @@ export const enrollUserInCourse = mutation({
             skills: [], // Assuming skills/tools are not part of courseData input
             tools: []
           },
-          sections: courseData.sections, // Keep as any
+          // Use courseItems as the primary source of truth for sections
+          sections: courseData.courseItems || courseData.sections || [],
           metadata: {
             ...courseData.metadata,
             category: courseData.metadata?.category || "Programming",
             sources: courseData.metadata?.sources || [],
             difficulty: courseData.metadata?.difficulty as DifficultyLevel, // Cast to DifficultyLevel
           },
-          isPublic: false, // Default new courses created via enrollment to private? Or should they be public? Assuming false.
+          isPublic: true, // Make courses public by default so they appear in the general database
           status: "ready",
           createdAt: now,
           updatedAt: now,
           enrollmentCount: 0, // Initialize enrollment count
-          // featured: false, // Default featured status
-          // popularity: 0, // Default popularity
         });
+
+        console.log("[enrollUserInCourse] Created new course with ID:", courseId);
       } else {
         // Use the existing course
         courseId = existingCourses[0]._id;
+        console.log("[enrollUserInCourse] Using existing course with ID:", courseId);
       }
 
       // Check if enrollment already exists
@@ -210,32 +238,65 @@ export const enrollUserInCourse = mutation({
 
       // If not already enrolled, create enrollment
       if (!existingEnrollment) {
-        const enrollmentId = await db.insert("enrollments", {
-          userId,
-          courseId,
-          enrolledAt: now,
-          lastAccessedAt: now,
-          completionStatus: "not_started", // Added required field
-          progress: 0,
-          isActive: true,
-          completedLessons: [],
-          // totalTimeSpent: 0 // Initialize time spent
-        });
+        console.log("[enrollUserInCourse] Creating new enrollment for user:", userId);
 
-        // Update the enrollment count
-        // Need to fetch the course again to safely increment
-        const courseToUpdate = await db.get(courseId);
-        const enrollmentCount = (courseToUpdate?.enrollmentCount || 0) + 1;
-        await db.patch(courseId, { enrollmentCount });
+        try {
+          const enrollmentId = await db.insert("enrollments", {
+            userId,
+            courseId,
+            enrolledAt: now,
+            lastAccessedAt: now,
+            completionStatus: "not_started",
+            progress: 0,
+            isActive: true,
+            completedLessons: [],
+          });
 
-        return {
-          success: true,
-          courseId,
-          enrollmentId,
-          newEnrollment: true
-        };
+          console.log("[enrollUserInCourse] Created enrollment with ID:", enrollmentId);
+
+          // Update the enrollment count
+          const courseToUpdate = await db.get(courseId);
+          if (!courseToUpdate) {
+            console.error("[enrollUserInCourse] Failed to fetch course for updating enrollment count");
+          } else {
+            // Use type assertion to handle the TypeScript error
+            const course = courseToUpdate as Doc<"courses">;
+            const enrollmentCount = (course.enrollmentCount || 0) + 1;
+            await db.patch(courseId, {
+              enrollmentCount,
+              updatedAt: now
+            });
+            console.log("[enrollUserInCourse] Updated course enrollment count to:", enrollmentCount);
+          }
+
+          // Log this activity
+          try {
+            await db.insert("learning_activities", {
+              userId,
+              type: "started_course",
+              courseId,
+              timestamp: now,
+              visible: true
+            });
+            console.log("[enrollUserInCourse] Created learning activity record");
+          } catch (activityError) {
+            console.error("[enrollUserInCourse] Failed to create learning activity:", activityError);
+            // Continue even if activity logging fails
+          }
+
+          return {
+            success: true,
+            courseId,
+            enrollmentId,
+            newEnrollment: true
+          };
+        } catch (enrollError) {
+          console.error("[enrollUserInCourse] Error creating enrollment:", enrollError);
+          throw enrollError;
+        }
       }
 
+      console.log("[enrollUserInCourse] User already enrolled, returning existing enrollment");
       return {
         success: true,
         courseId,
@@ -273,7 +334,7 @@ export const enrollInCourse = mutation({
         .first();
 
       const now = Date.now();
-      
+
       // If not already enrolled, create enrollment
       if (!existingEnrollment) {
         const enrollmentId = await db.insert("enrollments", {
@@ -289,7 +350,7 @@ export const enrollInCourse = mutation({
 
         // Update the enrollment count
         const enrollmentCount = (course.enrollmentCount || 0) + 1;
-        await db.patch(courseId, { 
+        await db.patch(courseId, {
           enrollmentCount,
           updatedAt: now
         });
@@ -446,10 +507,10 @@ export const getPublicCourses = query({
     const baseQuery = ctx.db
       .query("courses")
       .filter(q => q.eq(q.field("isPublic"), true));
-    
+
     // Collection of course IDs if filtering by category
     let categoryFilteredCourseIds: Id<"courses">[] = [];
-    
+
     // Apply category filter if provided
     if (args.categoryId) {
       // Get all course IDs in this category
@@ -468,7 +529,7 @@ export const getPublicCourses = query({
         };
       }
     }
-    
+
     // Handle search query separately to avoid reassignment issues
     let finalQuery;
     if (args.searchQuery && args.searchQuery.trim() !== "") {
@@ -476,7 +537,7 @@ export const getPublicCourses = query({
       // Use the search index
       finalQuery = ctx.db
         .query("courses")
-        .withSearchIndex("search_courses", (q) => 
+        .withSearchIndex("search_courses", (q) =>
           q.search("title", searchQuery).eq("isPublic", true)
         );
     } else {
@@ -491,14 +552,14 @@ export const getPublicCourses = query({
 
     // Apply post-query filtering for tags and categories if needed
     let filteredPage = results.page;
-    
+
     // Filter by category IDs if we have them
     if (categoryFilteredCourseIds.length > 0) {
-      filteredPage = filteredPage.filter((course: any) => 
+      filteredPage = filteredPage.filter((course: any) =>
         categoryFilteredCourseIds.includes(course._id)
       );
     }
-    
+
     // Filter by tags if provided
     if (args.tags && args.tags.length > 0) {
       filteredPage = filteredPage.filter((course: any) => {
@@ -572,7 +633,7 @@ export const updateGeneratedCourse = mutation({
     if (!existingCourse) {
       throw new Error("Course not found");
     }
-    
+
     // Update the course with generated content
     const now = Date.now();
     await ctx.db.patch(courseId, {
@@ -589,7 +650,7 @@ export const updateGeneratedCourse = mutation({
       status: "ready", // Change status from "generating" to "ready"
       updatedAt: now
     });
-    
+
     // If there are tags, ensure they exist in the tags table
     if (courseContent.tags && courseContent.tags.length > 0) {
       for (const tagName of courseContent.tags) {
@@ -597,20 +658,20 @@ export const updateGeneratedCourse = mutation({
         const existingTag = await ctx.db.query("tags")
           .withIndex("by_name", q => q.eq("name", tagName))
           .unique();
-        
+
         if (existingTag) {
           // Increment the use count for the tag
           await ctx.db.patch(existingTag._id, {
             useCount: (existingTag.useCount || 0) + 1
           });
-          
+
           // Create tag-course relationship if it doesn't exist
           const existingRelation = await ctx.db.query("course_tags")
-            .withIndex("by_course_tag", q => 
+            .withIndex("by_course_tag", q =>
               q.eq("courseId", courseId).eq("tagId", existingTag._id)
             )
             .unique();
-            
+
           if (!existingRelation) {
             await ctx.db.insert("course_tags", {
               courseId,
@@ -623,7 +684,7 @@ export const updateGeneratedCourse = mutation({
             name: tagName,
             useCount: 1
           });
-          
+
           // Create tag-course relationship
           await ctx.db.insert("course_tags", {
             courseId,
@@ -632,7 +693,7 @@ export const updateGeneratedCourse = mutation({
         }
       }
     }
-    
+
     // If there's a category in metadata, ensure the category-course relationship exists
     if (courseContent.metadata?.category) {
       const categoryName = courseContent.metadata.category;
@@ -641,7 +702,7 @@ export const updateGeneratedCourse = mutation({
       const existingCategory = await ctx.db.query("categories")
         .withIndex("by_name", q => q.eq("name", categoryName))
         .unique();
-      
+
       if (existingCategory) {
         categoryId = existingCategory._id;
         // Increment the course count for the category
@@ -657,14 +718,14 @@ export const updateGeneratedCourse = mutation({
           courseCount: 1
         });
       }
-      
+
       // Check if relationship already exists
       const existingRelation = await ctx.db.query("course_categories")
-        .withIndex("by_course_category", q => 
+        .withIndex("by_course_category", q =>
           q.eq("courseId", courseId).eq("categoryId", categoryId)
         )
         .unique();
-        
+
       if (!existingRelation) {
         // Create category-course relationship
         await ctx.db.insert("course_categories", {
@@ -673,8 +734,126 @@ export const updateGeneratedCourse = mutation({
         });
       }
     }
-    
+
     // Return the updated course
     return await ctx.db.get(courseId);
+  }
+});
+
+// Save a generated course to the general database
+export const saveGeneratedCourseToPublic = mutation({
+  args: {
+    courseData: v.object({
+      title: v.string(),
+      description: v.string(),
+      videoId: v.string(),
+      thumbnail: v.optional(v.string()),
+      courseItems: v.array(v.any()),
+      metadata: v.optional(v.object({
+        difficulty: v.optional(v.string()),
+        duration: v.optional(v.string()),
+        prerequisites: v.optional(v.array(v.string())),
+        objectives: v.optional(v.array(v.string())),
+        category: v.optional(v.string()),
+        sources: v.optional(v.array(v.any())),
+        overviewText: v.optional(v.string()),
+        tags: v.optional(v.array(v.string()))
+      }))
+    }),
+    userId: v.optional(v.string())
+  },
+  async handler({ db }, { courseData, userId }) {
+    try {
+      console.log("[saveGeneratedCourseToPublic] Starting with data:", {
+        title: courseData.title,
+        videoId: courseData.videoId,
+        userId: userId || "not provided"
+      });
+
+      // Check if a course with this videoId already exists
+      const existingCourses = await db
+        .query("courses")
+        .filter((q) => q.eq(q.field("videoId"), courseData.videoId))
+        .collect();
+
+      console.log(`[saveGeneratedCourseToPublic] Found ${existingCourses.length} existing courses with videoId: ${courseData.videoId}`);
+
+      const now = Date.now();
+      let courseId;
+
+      if (existingCourses.length === 0) {
+        console.log("[saveGeneratedCourseToPublic] Creating new public course");
+
+        // Create a new course in the general database
+        courseId = await db.insert("courses", {
+          title: courseData.title,
+          description: courseData.description,
+          videoId: courseData.videoId,
+          thumbnail: courseData.thumbnail,
+          overview: {
+            description: courseData.description,
+            prerequisites: courseData.metadata?.prerequisites || [],
+            learningOutcomes: courseData.metadata?.objectives || [],
+            totalDuration: courseData.metadata?.duration || "Unknown",
+            difficultyLevel: (courseData.metadata?.difficulty || "beginner") as DifficultyLevel,
+            skills: [],
+            tools: []
+          },
+          // Use courseItems directly as sections
+          sections: courseData.courseItems,
+          metadata: {
+            ...courseData.metadata,
+            category: courseData.metadata?.category || "General",
+            sources: courseData.metadata?.sources || [],
+            difficulty: courseData.metadata?.difficulty as DifficultyLevel,
+          },
+          isPublic: true, // Mark as public so it appears in the general database
+          status: "ready",
+          createdAt: now,
+          updatedAt: now,
+          enrollmentCount: 0,
+          creatorId: userId // Set the creator ID if provided
+        });
+
+        console.log(`[saveGeneratedCourseToPublic] Created new public course with ID: ${courseId}`);
+        return { success: true, courseId, isNew: true };
+      } else {
+        // Course already exists, update it
+        courseId = existingCourses[0]._id;
+        console.log(`[saveGeneratedCourseToPublic] Updating existing course with ID: ${courseId}`);
+
+        await db.patch(courseId, {
+          title: courseData.title,
+          description: courseData.description,
+          thumbnail: courseData.thumbnail,
+          overview: {
+            description: courseData.description,
+            prerequisites: courseData.metadata?.prerequisites || [],
+            learningOutcomes: courseData.metadata?.objectives || [],
+            totalDuration: courseData.metadata?.duration || "Unknown",
+            difficultyLevel: (courseData.metadata?.difficulty || "beginner") as DifficultyLevel,
+            skills: [],
+            tools: []
+          },
+          // Use courseItems directly as sections
+          sections: courseData.courseItems,
+          metadata: {
+            ...courseData.metadata,
+            category: courseData.metadata?.category || "General",
+            sources: courseData.metadata?.sources || [],
+            difficulty: courseData.metadata?.difficulty as DifficultyLevel,
+          },
+          isPublic: true,
+          status: "ready",
+          updatedAt: now
+        });
+
+        console.log(`[saveGeneratedCourseToPublic] Updated existing public course: ${courseData.title}`);
+        return { success: true, courseId, isNew: false };
+      }
+    } catch (error) {
+      console.error("Error saving generated course to public database:", error);
+      throw error;
+    }
   }
 });

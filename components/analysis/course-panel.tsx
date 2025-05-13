@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/custom-toast";
+import { useCoursePanelContext } from "@/components/analysis/course-panel-context";
 import {
   Collapsible,
   CollapsibleContent,
@@ -211,11 +212,38 @@ function normalizeCourseData(
 }
 
 // --- Action Buttons ---
-function ActionButtons({ className }: { className?: string }) {
+function ActionButtons({ className, course }: { className?: string, course: any }) {
+  const { handleEnroll, handleCancel, isEnrolling } = useCoursePanelContext();
+
+  const onEnrollClick = () => {
+    console.log("[ActionButtons] Enroll button clicked with course:", course);
+    if (course) {
+      handleEnroll(course);
+    } else {
+      console.error("[ActionButtons] Cannot enroll - course data is missing");
+    }
+  };
+
   return (
     <div className={cn("flex gap-2", className)}>
-      <Button className="gap-1.5" size="default"> <GraduationCap className="h-4 w-4" /> Enroll Now </Button>
-      <Button variant="outline" className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" size="default"> <XCircle className="h-4 w-4" /> Cancel </Button>
+      <Button
+        className="gap-1.5"
+        size="default"
+        onClick={onEnrollClick}
+        disabled={isEnrolling}
+      >
+        {isEnrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />}
+        Enroll Now
+      </Button>
+      <Button
+        variant="outline"
+        className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+        size="default"
+        onClick={handleCancel}
+      >
+        <XCircle className="h-4 w-4" />
+        Cancel
+      </Button>
     </div>
   );
 }
@@ -349,7 +377,7 @@ function CourseSummary({ course }: { course: any }) {
         <div className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" /><span>{totalLessons} Lesson{totalLessons !== 1 ? 's' : ''}</span></div>
       </div>
 
-      <ActionButtons className="flex-1 mt-3" />
+      <ActionButtons className="flex-1 mt-3" course={course} />
     </div>
   )
 }
@@ -633,7 +661,10 @@ export function CoursePanel({ className }: { className?: string }) {
       // Force courseGenerating to false if we have course data
       if (courseGenerating) {
         console.log("[CoursePanel] Setting courseGenerating to false because we have course data");
-        setCourseGenerating(false);
+        // Use setTimeout to avoid state updates during render phase
+        setTimeout(() => {
+          setCourseGenerating(false);
+        }, 0);
       }
 
       // Ensure we have a valid courseData object with required fields
@@ -701,6 +732,14 @@ export function CoursePanel({ className }: { className?: string }) {
     normalizedCourseData.videoId = videoData.id;
   }
 
+  // Log the normalized course data for debugging
+  console.log("[CoursePanel] Normalized course data:", {
+    title: normalizedCourseData.title,
+    videoId: normalizedCourseData.videoId,
+    hasMetadata: !!normalizedCourseData.metadata,
+    hasCourseItems: Array.isArray(normalizedCourseData.courseItems) && normalizedCourseData.courseItems.length > 0
+  });
+
   const thumbnailUrl = normalizedCourseData.image || "/placeholder-thumbnail.jpg";
 
   // Log the current state before rendering
@@ -711,11 +750,8 @@ export function CoursePanel({ className }: { className?: string }) {
     hasVideoId: courseData?.videoId ? true : false
   });
 
-  // Force courseGenerating to false if we have course data
-  if (courseData && courseGenerating) {
-    console.log("[CoursePanel] Setting courseGenerating to false in render phase");
-    setCourseGenerating(false);
-  }
+  // We should not update state during render phase
+  // State updates are handled in the useEffect hook above
 
   // We should always show the course content in this component
   // The parent component (client.tsx) handles the conditional rendering
