@@ -32,14 +32,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# convex
-convex/_generated
 
 # IDE
 .idea
 .vscode
 
-# Supabase (removing since migrating to Convex)
+# Supabase
 /supabase
 .supabase
 

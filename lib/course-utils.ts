@@ -19,7 +19,7 @@ export function formatEnrollmentToCourse(enrollment: any): Course {
     console.error("Enrollment missing courseData:", enrollment);
     return createDefaultCourse(enrollment.courseTitle || "Unknown Course");
   }
-  
+
   try {
     // Calculate total lessons
     const totalLessons = (enrollment.courseData.sections || []).reduce(
@@ -30,7 +30,7 @@ export function formatEnrollmentToCourse(enrollment: any): Course {
 
     // Generate a random rating between 4.5 and 5.0
     const rating = 4.5 + Math.random() * 0.5;
-    
+
     // Generate random enrollment count between 1000-10000
     const enrolledCount = Math.floor(1000 + Math.random() * 9000);
 
@@ -41,7 +41,7 @@ export function formatEnrollmentToCourse(enrollment: any): Course {
         if (typeof section.duration === 'number') {
           return total + section.duration;
         }
-        
+
         // Or add up lesson durations
         const sectionMinutes = (section.lessons || []).reduce(
           (acc: number, lesson: any) => {
@@ -51,15 +51,15 @@ export function formatEnrollmentToCourse(enrollment: any): Course {
             }
             return acc;
           }, 0);
-          
+
         return total + sectionMinutes;
       }, 0
     );
-    
+
     // Format duration in hours and minutes
     const durationHours = Math.floor(totalDurationMinutes / 60);
     const durationMinutes = totalDurationMinutes % 60;
-    const formattedDuration = totalDurationMinutes > 0 
+    const formattedDuration = totalDurationMinutes > 0
       ? `${durationHours > 0 ? durationHours + 'h' : ''}${durationMinutes > 0 ? ' ' + durationMinutes + 'm' : durationHours > 0 ? '' : '0m'}`
       : '1h 30m'; // Default fallback duration
 
@@ -69,17 +69,48 @@ export function formatEnrollmentToCourse(enrollment: any): Course {
       if (enrollment.courseId) {
         return enrollment.courseId;
       }
-      
+
       // Otherwise, generate an ID from the title
       const normalizedTitle = enrollment.courseTitle.replace(/\s+/g, '-').toLowerCase();
       return `local-${normalizedTitle}`;
     })();
-    
+
     // For debugging
     console.log("Generated course ID in formatEnrollmentToCourse:", courseId);
 
     // Extract video details from metadata if available
     const videoDetails = enrollment.courseData.metadata?.videoDetails || {};
+
+    // Extract video ID from various possible sources
+    const videoId = (() => {
+      // First try direct videoId field
+      if (enrollment.courseData.videoId) {
+        return enrollment.courseData.videoId;
+      }
+
+      // Try to extract from YouTube URL if available
+      if (enrollment.courseData.youtubeUrl) {
+        const ytRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/;
+        const match = enrollment.courseData.youtubeUrl.match(ytRegex);
+        if (match) {
+          return match[1];
+        }
+      }
+
+      // Try metadata
+      if (enrollment.courseData.metadata?.videoId) {
+        return enrollment.courseData.metadata.videoId;
+      }
+
+      // Try video_id (Supabase format)
+      if (enrollment.courseData.video_id) {
+        return enrollment.courseData.video_id;
+      }
+
+      return null;
+    })();
+
+    console.log("Extracted video ID:", videoId);
 
     const formattedCourse = {
       id: courseId,
@@ -88,6 +119,9 @@ export function formatEnrollmentToCourse(enrollment: any): Course {
       category: enrollment.courseData.metadata?.category || "Programming",
       image: enrollment.courseData.thumbnail || `/placeholders/course-thumbnail.jpg`,
       thumbnail: enrollment.courseData.thumbnail || `/placeholders/course-thumbnail.jpg`,
+      // Add video ID and URL
+      videoId: videoId,
+      youtubeUrl: enrollment.courseData.youtubeUrl || enrollment.courseData.youtube_url,
       // Add new video details - use || {} for safety
       channelName: videoDetails.channelTitle, // Assuming field name is channelTitle
       channelAvatar: videoDetails.channelAvatar, // Assuming field name
@@ -124,29 +158,23 @@ export function formatEnrollmentToCourse(enrollment: any): Course {
 // Helper to create a default course object when data is missing
 function createDefaultCourse(title: string = "Default Course"): Course {
   console.log("Creating default course with title:", title);
-  
+
   return {
-    id: `default-${Date.now()}`,
+    id: `error-${Date.now()}`,
     title: title,
-    description: "This course failed to load properly. Please try again.",
-    category: "General",
+    description: "This course failed to load properly. Please try refreshing the page or contact support if the issue persists.",
+    category: "Error",
     image: `/placeholders/course-thumbnail.jpg`,
     thumbnail: `/placeholders/course-thumbnail.jpg`,
+    videoId: null, // No default video
     progress: 0,
-    duration: "1h",
-    isEnrolled: true,
-    sections: [{
-      title: "Default Section",
-      lessons: [{
-        id: "default-lesson",
-        title: "Default Lesson",
-        content: "# Default Content\n\nThis is placeholder content."
-      }]
-    }],
+    duration: "N/A",
+    isEnrolled: false,
+    sections: [], // No default sections
     topics: {
       current: 0,
-      total: 1,
-      currentTitle: "Introduction"
+      total: 0,
+      currentTitle: "Error"
     }
   };
 }
@@ -154,21 +182,21 @@ function createDefaultCourse(title: string = "Default Course"): Course {
 // Format date for display
 export function formatDate(date: string | number | Date | undefined): string {
   if (!date) return '';
-  
+
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : new Date(date as any);
-    
+
     if (isNaN(dateObj.getTime())) return '';
-    
+
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - dateObj.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 1) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    
+
     return dateObj.toLocaleDateString();
   } catch (e) {
     return '';

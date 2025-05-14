@@ -1,12 +1,13 @@
 "use client";
 
-import { Id } from "@/convex/_generated/dataModel";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { Id } from "@/types/convex-types";
+import { useState, useEffect } from "react";
 import { AssessmentCard } from "./assessment-card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AssessmentBase } from "@/types/course";
+
+// TEMPORARY: This is a stub implementation until Supabase assessment functionality is implemented
 
 interface SectionAssessmentsProps {
   courseId: Id<"courses">;
@@ -19,12 +20,22 @@ export function SectionAssessments({
   sectionId,
   sectionContent
 }: SectionAssessmentsProps) {
-  const assessments = useQuery(api.assessments.getSectionAssessments, {
-    courseId,
-    sectionId
-  });
+  // Stub implementation - would fetch from Supabase in a real implementation
+  const [loading, setLoading] = useState(true);
+  const [assessments, setAssessments] = useState<AssessmentBase[]>([]);
 
-  if (assessments === undefined) {
+  useEffect(() => {
+    // Simulate loading
+    const timer = setTimeout(() => {
+      setLoading(false);
+      // Return empty array for now - would be replaced with actual Supabase query
+      setAssessments([]);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [courseId, sectionId]);
+
+  if (loading) {
     return (
       <div className="flex justify-center p-8">
         <LoadingSpinner size="lg" />
@@ -36,9 +47,9 @@ export function SectionAssessments({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>No Assessments</CardTitle>
+          <CardTitle>Assessments Coming Soon</CardTitle>
           <CardDescription>
-            There are no assessments available for this section yet.
+            Assessment functionality is currently being migrated to Supabase.
           </CardDescription>
         </CardHeader>
       </Card>

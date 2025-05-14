@@ -1,16 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useCallback, useMemo } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { Id } from "@/convex/_generated/dataModel";
-import { api } from "@/convex/_generated/api";
-import type { 
-  AssessmentBase, 
+import React, { createContext, useContext, useCallback, useMemo, useState } from "react";
+import { Id } from "@/types/convex-types";
+import type {
+  AssessmentBase,
   AssessmentContent,
   TestContent,
   AssignmentContent,
   ProjectContent
 } from "@/types/course";
+
+// TEMPORARY: This is a stub implementation until Supabase assessment functionality is implemented
 
 interface AssessmentState {
   isLoading: boolean;
@@ -27,7 +27,7 @@ interface AssessmentState {
 interface AssessmentContextType extends AssessmentState {
   // Assessment data with proper type union
   content: TestContent | AssignmentContent | ProjectContent | null;
-  
+
   // Actions
   generateContent: (context: string) => Promise<void>;
   unlockAssessment: () => Promise<void>;
@@ -52,84 +52,53 @@ export function AssessmentProvider({
   assessment: initialAssessment,
   children
 }: AssessmentProviderProps) {
-  // Queries
-  const content = useQuery(api.assessments.getAssessmentContent, {
-    courseId,
-    assessmentId
+  // Stub state (temporary until Supabase implementation)
+  const [content, setContent] = useState<AssessmentContent | null>(null);
+  const [progress, setProgress] = useState<{
+    status: "not_started" | "in_progress" | "completed" | "graded";
+    score?: number;
+    feedback?: string;
+  } | null>({
+    status: "not_started"
   });
 
-  const progress = useQuery(api.progress.getAssessmentProgress, {
-    courseId,
-    assessmentId
-  });
-
-  // Mutations
-  const generate = useMutation(api.assessments.generateAssessment);
-  const updateStatus = useMutation(api.assessments.updateAssessmentStatus);
-  const startProgress = useMutation(api.progress.startAssessment);
-  const submitProgress = useMutation(api.progress.submitAssessment);
-
-  // Generate content
+  // Generate content - stub implementation
   const generateContent = useCallback(async (context: string) => {
-    try {
-      await generate({
-        courseId,
-        sectionId,
-        assessmentId,
-        type: initialAssessment.type,
-        context
-      });
-    } catch (err) {
-      throw err instanceof Error ? err : new Error("Failed to generate content");
-    }
-  }, [courseId, sectionId, assessmentId, initialAssessment.type, generate]);
+    console.log('Stub implementation: generateContent', { courseId, sectionId, assessmentId, context });
+    // In a real implementation, this would call a Supabase API
+    return Promise.resolve();
+  }, [courseId, sectionId, assessmentId]);
 
-  // Unlock assessment
+  // Unlock assessment - stub implementation
   const unlockAssessment = useCallback(async () => {
-    try {
-      await updateStatus({
-        courseId,
-        sectionId,
-        assessmentId,
-        isLocked: false
-      });
-    } catch (err) {
-      throw err instanceof Error ? err : new Error("Failed to unlock assessment");
-    }
-  }, [courseId, sectionId, assessmentId, updateStatus]);
+    console.log('Stub implementation: unlockAssessment', { courseId, sectionId, assessmentId });
+    // In a real implementation, this would call a Supabase API
+    return Promise.resolve();
+  }, [courseId, sectionId, assessmentId]);
 
-  // Start assessment
+  // Start assessment - stub implementation
   const startAssessment = useCallback(async () => {
-    try {
-      await startProgress({
-        courseId,
-        assessmentId
-      });
-    } catch (err) {
-      throw err instanceof Error ? err : new Error("Failed to start assessment");
-    }
-  }, [courseId, assessmentId, startProgress]);
+    console.log('Stub implementation: startAssessment', { courseId, assessmentId });
+    setProgress(prev => ({ ...prev, status: "in_progress" }));
+    // In a real implementation, this would call a Supabase API
+    return Promise.resolve();
+  }, [courseId, assessmentId]);
 
-  // Submit assessment
+  // Submit assessment - stub implementation
   const submitAssessment = useCallback(async (submission: any) => {
-    try {
-      await submitProgress({
-        courseId,
-        assessmentId,
-        submission
-      });
-    } catch (err) {
-      throw err instanceof Error ? err : new Error("Failed to submit assessment");
-    }
-  }, [courseId, assessmentId, submitProgress]);
+    console.log('Stub implementation: submitAssessment', { courseId, assessmentId, submission });
+    setProgress(prev => ({ ...prev, status: "completed", score: 100 }));
+    // In a real implementation, this would call a Supabase API
+    return Promise.resolve();
+  }, [courseId, assessmentId]);
 
-  // Context value
+  // Context value - stub implementation
   const value = useMemo<AssessmentContextType>(() => ({
-    content: (content as AssessmentContent) ?? null,
-    isLoading: content === undefined || progress === undefined,
+    content: content,
+    isLoading: false, // Set to false since we're using stub data
     isGenerating: false,
     isLocked: initialAssessment.isLocked,
-    progress: progress ?? null,
+    progress: progress,
     generateContent,
     unlockAssessment,
     startAssessment,

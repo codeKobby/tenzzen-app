@@ -20,24 +20,24 @@ export function getLocalEnrollments(): LocalEnrollment[] {
     console.log("getLocalEnrollments called in server context, returning empty array");
     return [];
   }
-  
+
   try {
     const enrollmentsJson = localStorage.getItem('enrollments');
     console.log("Raw enrollments from localStorage:", enrollmentsJson);
-    
+
     if (!enrollmentsJson) {
       console.log("No enrollments found in localStorage");
       return [];
     }
-    
+
     const enrollments = JSON.parse(enrollmentsJson);
     console.log("Parsed enrollments:", enrollments.length, "items found");
-    
+
     if (!Array.isArray(enrollments)) {
       console.error("Enrollments is not an array:", enrollments);
       return [];
     }
-    
+
     return enrollments;
   } catch (e) {
     console.error('Error parsing local enrollments', e);
@@ -48,19 +48,19 @@ export function getLocalEnrollments(): LocalEnrollment[] {
 // Get enrollments for a specific user with more debugging
 export function getUserEnrollments(userId: string): LocalEnrollment[] {
   console.log("getUserEnrollments called for userId:", userId);
-  
+
   if (!userId) {
     console.error("getUserEnrollments called with empty userId");
     return [];
   }
-  
+
   const enrollments = getLocalEnrollments();
-  
+
   // Filter for this user
   console.log(`Filtering ${enrollments.length} enrollments for user ${userId}`);
   const userEnrollments = enrollments.filter(enrollment => enrollment.userId === userId);
   console.log(`Found ${userEnrollments.length} enrollments for user ${userId}`);
-  
+
   // Log all enrollments for debugging
   userEnrollments.forEach((enrollment, i) => {
     console.log(`Enrollment ${i+1}:`, {
@@ -69,7 +69,7 @@ export function getUserEnrollments(userId: string): LocalEnrollment[] {
       sections: enrollment.courseData?.sections?.length || 0
     });
   });
-  
+
   // Add courseId to each enrollment if it doesn't exist
   return userEnrollments.map(enrollment => {
     if (!enrollment.courseId) {
@@ -84,15 +84,15 @@ export function getUserEnrollments(userId: string): LocalEnrollment[] {
 // Save an enrollment to local storage
 export function saveEnrollment(enrollment: LocalEnrollment): void {
   if (typeof window === 'undefined') return;
-  
+
   try {
     const enrollments = getLocalEnrollments();
-    
+
     // Check if enrollment already exists
     const existingIndex = enrollments.findIndex(
       e => e.userId === enrollment.userId && e.courseTitle === enrollment.courseTitle
     );
-    
+
     if (existingIndex >= 0) {
       // Update existing enrollment
       enrollments[existingIndex] = {
@@ -104,7 +104,7 @@ export function saveEnrollment(enrollment: LocalEnrollment): void {
       // Add new enrollment
       enrollments.push(enrollment);
     }
-    
+
     localStorage.setItem('enrollments', JSON.stringify(enrollments));
   } catch (e) {
     console.error('Error saving enrollment to local storage', e);
@@ -119,13 +119,13 @@ export function updateEnrollmentProgress(
   completedLessons?: string[]
 ): void {
   if (typeof window === 'undefined') return;
-  
+
   try {
     const enrollments = getLocalEnrollments();
     const existingIndex = enrollments.findIndex(
       e => e.userId === userId && e.courseTitle === courseTitle
     );
-    
+
     if (existingIndex >= 0) {
       // Update progress and last accessed time
       enrollments[existingIndex] = {
@@ -134,7 +134,7 @@ export function updateEnrollmentProgress(
         lastAccessedAt: Date.now(),
         ...(completedLessons ? { completedLessons } : {})
       };
-      
+
       localStorage.setItem('enrollments', JSON.stringify(enrollments));
     }
   } catch (e) {
@@ -145,7 +145,7 @@ export function updateEnrollmentProgress(
 // Get recently added enrollments
 export function getRecentEnrollments(userId: string, limit: number = 4): LocalEnrollment[] {
   const userEnrollments = getUserEnrollments(userId);
-  
+
   // Sort by enrolled date (most recent first) and limit
   return userEnrollments
     .sort((a, b) => b.enrolledAt - a.enrolledAt)
@@ -161,10 +161,10 @@ export function clearEnrollments(): void {
 // Delete an enrollment from local storage
 export function deleteUserEnrollment(userId: string, courseId: string): void {
   if (typeof window === 'undefined') return;
-  
+
   try {
     const enrollments = getLocalEnrollments();
-    
+
     // Log for debugging
     console.log(`Attempting to delete course: ${courseId}`);
     console.log(`Available courses:`, enrollments.map(e => ({
@@ -172,26 +172,26 @@ export function deleteUserEnrollment(userId: string, courseId: string): void {
       title: e.courseTitle,
       formattedId: `local-${e.courseTitle.replace(/\s+/g, '-').toLowerCase()}`
     })));
-    
+
     // Filter out the enrollment to delete - check multiple formats for courseId
     const filteredEnrollments = enrollments.filter(enrollment => {
       if (enrollment.userId !== userId) return true;
-      
+
       const formattedId = `local-${enrollment.courseTitle.replace(/\s+/g, '-').toLowerCase()}`;
       const simpleId = enrollment.courseTitle.replace(/\s+/g, '-').toLowerCase();
-      
-      return !(formattedId === courseId || 
-              simpleId === courseId || 
-              enrollment.courseTitle === courseId || 
+
+      return !(formattedId === courseId ||
+              simpleId === courseId ||
+              enrollment.courseTitle === courseId ||
               enrollment.courseId === courseId);
     });
-    
+
     if (filteredEnrollments.length === enrollments.length) {
       // No enrollment was removed
       console.warn("No enrollment found to delete:", { userId, courseId });
       return;
     }
-    
+
     localStorage.setItem('enrollments', JSON.stringify(filteredEnrollments));
   } catch (e) {
     console.error('Error deleting enrollment from local storage', e);
@@ -202,11 +202,11 @@ export function deleteUserEnrollment(userId: string, courseId: string): void {
 // Initialize default enrollments if none exist (useful for testing)
 export function initDefaultEnrollmentsIfEmpty(userId: string): void {
   if (typeof window === 'undefined') return;
-  
+
   const enrollments = getLocalEnrollments();
   if (enrollments.length === 0) {
     console.log("No enrollments found, initializing default enrollment for testing");
-    
+
     const defaultEnrollment = {
       userId,
       courseTitle: "Getting Started with JavaScript",
@@ -256,8 +256,10 @@ export function initDefaultEnrollmentsIfEmpty(userId: string): void {
       progress: 0,
       completedLessons: []
     };
-    
+
     localStorage.setItem('enrollments', JSON.stringify([defaultEnrollment]));
     console.log("Default enrollment created");
   }
 }
+
+// Note: The addWebDevelopmentCourse function has been removed to prevent hardcoded courses

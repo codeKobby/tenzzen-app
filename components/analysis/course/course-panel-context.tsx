@@ -2,11 +2,9 @@
 
 import React, { createContext, useContext, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from 'convex/react';
-import { api } from '@/convex/_generated/api';
 import { toast } from '@/components/custom-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { useSaveGeneratedCourseToPublic } from '@/hooks/use-convex';
+import { useSupabase } from '@/contexts/supabase-context';
 
 // Define the shape of the context
 interface CoursePanelContextType {
@@ -32,35 +30,43 @@ export const CoursePanelProvider = ({
 }) => {
     const router = useRouter();
     const { user } = useAuth();
-    const enrollMutation = useMutation(api.courses.enrollUserInCourse);
-    const saveGeneratedCourseToPublic = useSaveGeneratedCourseToPublic();
+    const supabase = useSupabase();
     const [isEnrolling, setIsEnrolling] = useState(false);
 
     const handleEnroll = async (course: any) => {
         console.log("[CoursePanelContext] handleEnroll called with course:", course);
 
         if (!user) {
-            toast.error('Authentication required', {
-                description: 'Please sign in to enroll in this course.'
-            });
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.error('Authentication required', {
+                    description: 'Please sign in to enroll in this course.'
+                });
+            }, 0);
             return;
         }
 
         const courseToUse = course || courseData;
 
         if (!courseToUse) {
-            toast.error('Invalid course data', {
-                description: 'Cannot enroll in this course due to missing data.'
-            });
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.error('Invalid course data', {
+                    description: 'Cannot enroll in this course due to missing data.'
+                });
+            }, 0);
             return;
         }
 
         try {
             setIsEnrolling(true);
             // Show loading toast
-            toast.info('Enrolling in course...', {
-                description: 'Please wait while we process your enrollment'
-            });
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.info('Enrolling in course...', {
+                    description: 'Please wait while we process your enrollment'
+                });
+            }, 0);
 
             // First, ensure the course is saved to the public database
             console.log("[CoursePanelContext] Saving course to public database:", courseToUse.title);
@@ -82,70 +88,78 @@ export const CoursePanelProvider = ({
                     hasMetadata: !!courseToUse.metadata
                 });
 
-                await saveGeneratedCourseToPublic({
-                    courseData: {
+                // Save course to public database using Supabase
+                const { data: publicCourse, error: saveError } = await supabase
+                    .from('courses')
+                    .insert({
                         title: courseToUse.title,
                         description: courseToUse.description || "",
-                        videoId: courseToUse.videoId,
+                        video_id: courseToUse.videoId,
+                        youtube_url: courseToUse.youtubeUrl || "",
                         thumbnail: courseToUse.image,
-                        courseItems: courseToUse.courseItems || [],
+                        is_public: true,
+                        created_by: user.id,
+                        status: 'published',
+                        difficulty: courseToUse.difficulty || 'beginner',
+                        course_items: courseToUse.courseItems || [],
+                        transcript: courseToUse.transcript || '',
                         metadata: courseToUse.metadata || {}
-                    },
-                    userId: user.id
-                });
-                console.log("[CoursePanelContext] Course saved to public database successfully");
-            } catch (saveError) {
-                console.error("[CoursePanelContext] Error saving to public database:", saveError);
-                // Continue with enrollment even if public save fails
+                    })
+                    .select('id')
+                    .single();
+
+                if (saveError) {
+                    throw saveError;
+                }
+
+                console.log("[CoursePanelContext] Course saved to public database successfully:", publicCourse);
+
+                // Enroll user in the course
+                console.log("[CoursePanelContext] Enrolling user in course:", courseToUse.title);
+
+                const { error: enrollError } = await supabase
+                    .from('user_courses')
+                    .insert({
+                        user_id: user.id,
+                        course_id: publicCourse.id,
+                        status: 'enrolled',
+                        progress: 0,
+                        enrolled_at: new Date().toISOString()
+                    });
+
+                if (enrollError) {
+                    throw enrollError;
+                }
+
+                console.log("[CoursePanelContext] User enrolled in course successfully");
+
+                // Store the result for logging
+                const enrollmentResult = { success: true, courseId: publicCourse.id };
+                console.log("[CoursePanelContext] Enrollment successful:", enrollmentResult);
+            } catch (error) {
+                console.error("[CoursePanelContext] Error saving to database or enrolling:", error);
+                throw error; // Re-throw to be caught by the outer try/catch
             }
 
-            // Call the enrollment mutation
-            console.log("[CoursePanelContext] Enrolling user in course:", courseToUse.title);
-            console.log("[CoursePanelContext] Course data for enrollment:", {
-                title: courseToUse.title,
-                videoId: courseToUse.videoId,
-                hasCourseItems: Array.isArray(courseToUse.courseItems) && courseToUse.courseItems.length > 0
-            });
+            // Handle success - use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.success('Successfully enrolled in course!');
 
-            // Log the course data structure for debugging
-            console.log("[CoursePanelContext] Course data structure for enrollment:", {
-                hasTitle: !!courseToUse.title,
-                hasDescription: !!courseToUse.description,
-                hasVideoId: !!courseToUse.videoId,
-                hasCourseItems: Array.isArray(courseToUse.courseItems) && courseToUse.courseItems.length > 0,
-                courseItemsCount: Array.isArray(courseToUse.courseItems) ? courseToUse.courseItems.length : 0,
-                hasMetadata: !!courseToUse.metadata
-            });
-
-            // Make sure we're using the correct data structure for enrollment
-            // The enrollUserInCourse mutation accepts either sections or courseItems
-            const result = await enrollMutation({
-                courseData: {
-                    title: courseToUse.title,
-                    description: courseToUse.description || "",
-                    videoId: courseToUse.videoId,
-                    thumbnail: courseToUse.image,
-                    metadata: courseToUse.metadata,
-                    // Pass courseItems as both sections and courseItems to ensure compatibility
-                    sections: courseToUse.courseItems || [],
-                    courseItems: courseToUse.courseItems || []
-                },
-                userId: user.id
-            });
-
-            console.log("[CoursePanelContext] Enrollment successful:", result);
-
-            // Handle success
-            toast.success('Successfully enrolled in course!');
-
-            // Redirect to courses page after enrollment
-            console.log("[CoursePanelContext] Redirecting to courses page");
-            router.push('/courses');
+                // Add a small delay to ensure the toast is visible before navigation
+                setTimeout(() => {
+                    // Redirect to courses page after enrollment
+                    console.log("[CoursePanelContext] Redirecting to courses page");
+                    router.push('/courses');
+                }, 1000); // 1 second delay
+            }, 0);
         } catch (error) {
             console.error("[CoursePanelContext] Error enrolling in course:", error);
-            toast.error("Failed to enroll in course", {
-                description: "Please try again later."
-            });
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.error("Failed to enroll in course", {
+                    description: "Please try again later."
+                });
+            }, 0);
         } finally {
             setIsEnrolling(false);
         }

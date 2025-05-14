@@ -1,7 +1,6 @@
 "use client"
 
 import { ThemeProvider as NextThemeProvider } from "next-themes"
-import { Toaster } from "@/components/ui/toaster"
 import { useEffect, useState } from "react"
 import { SupabaseProvider } from "@/contexts/supabase-context"
 import { UserInitializer } from "@/components/user-initializer"
@@ -32,8 +31,7 @@ export function Providers({ children }: ProvidersProps) {
 
         {mounted ? children : null}
 
-        {/* Toast notifications */}
-        <Toaster />
+        {/* Toast notifications - using only one toast system */}
         <ToastContainer />
       </SupabaseProvider>
     </NextThemeProvider>

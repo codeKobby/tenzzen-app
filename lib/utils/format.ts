@@ -20,7 +20,7 @@ export function formatViews(viewCount: string | number): string {
 }
 
 /**
- * Parse ISO 8601 duration string to human readable format
+ * Parse ISO 8601 duration string to human readable format in YouTube style
  */
 export function formatDuration(isoDuration: string): string {
   try {
@@ -28,24 +28,21 @@ export function formatDuration(isoDuration: string): string {
     const duration = isoDuration.replace('PT', '');
 
     // Extract hours, minutes, seconds
-    const hours = duration.match(/(\d+)H/)?.at(1);
-    const minutes = duration.match(/(\d+)M/)?.at(1);
-    const seconds = duration.match(/(\d+)S/)?.at(1);
+    const hours = parseInt(duration.match(/(\d+)H/)?.at(1) || '0', 10);
+    const minutes = parseInt(duration.match(/(\d+)M/)?.at(1) || '0', 10);
+    const seconds = parseInt(duration.match(/(\d+)S/)?.at(1) || '0', 10);
 
-    // Build time parts array
-    const parts: string[] = [];
+    // Format with leading zeros
+    const formattedMinutes = minutes.toString().padStart(2, '0');
+    const formattedSeconds = seconds.toString().padStart(2, '0');
 
-    if (hours) {
-      parts.push(`${hours}:${minutes?.padStart(2, '0') || '00'}`);
+    // If hours > 0, include hours in the format (HH:MM:SS)
+    if (hours > 0) {
+      return `${hours}:${formattedMinutes}:${formattedSeconds}`;
     }
 
-    if (minutes && !hours) {
-      parts.push(minutes);
-    }
-
-    parts.push(seconds?.padStart(2, '0') || '00');
-
-    return parts.join(':');
+    // Otherwise just show minutes:seconds (MM:SS)
+    return `${formattedMinutes}:${formattedSeconds}`;
   } catch (error) {
     return '00:00';
   }

@@ -27,10 +27,34 @@ interface BreadcrumbItem {
 function getBreadcrumbFromPath(path: string): BreadcrumbItem[] {
   if (path === "/") return []
   const segments = path.split("/").filter(Boolean)
-  return segments.map((segment, index) => ({
-    label: segment.charAt(0).toUpperCase() + segment.slice(1),
-    href: "/" + segments.slice(0, index + 1).join("/"),
-  }))
+
+  return segments.map((segment, index) => {
+    let label = segment.charAt(0).toUpperCase() + segment.slice(1)
+
+    // Format course IDs in a more readable way
+    if (index === segments.length - 1 && segment.startsWith("local-")) {
+      // Extract the title from the URL format (e.g., "local-introduction-to-web-development")
+      label = segment.substring(6).replace(/-/g, ' ');
+      // Capitalize each word
+      label = label.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
+    // Special case for learn path
+    else if (segment === "learn") {
+      label = "Learn"
+    }
+    // Format other segments by replacing hyphens with spaces and capitalizing words
+    else if (segment.includes("-")) {
+      label = segment
+        .split("-")
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ")
+    }
+
+    return {
+      label,
+      href: "/" + segments.slice(0, index + 1).join("/"),
+    }
+  })
 }
 
 export function PageHeader() {

@@ -18,6 +18,7 @@ export interface Course {
   instructor?: string
   isPublic?: boolean
   isEnrolled?: boolean // Add isEnrolled property
+  enrolledAt?: string | number | Date // Add enrolledAt property for enrollment date
   sources?: Array<{
     name: string
     avatar: string
@@ -30,6 +31,7 @@ export interface Course {
     targetAudience?: string[]
     sources?: any[]
     difficulty?: string
+    courseItems?: any[] // Add courseItems to metadata type
   }
   topics?: {
     current: number
@@ -37,7 +39,7 @@ export interface Course {
     currentTitle: string
   }
   totalLessons?: number
-  completedLessons?: number
+  completedLessons?: number | string[] | any[]
   // Stats for public courses
   rating?: number
   averageRating?: number // Add averageRating property
@@ -56,8 +58,12 @@ export interface Course {
     }>
     duration?: number
   }>
+  courseItems?: any[] // Optional courseItems for backward compatibility
   lessonsCompleted?: number
   isNew?: boolean
+  estimatedHours?: number // Add estimatedHours property for duration calculation
+  durationMinutes?: number // Add durationMinutes property for YouTube-style duration format
+  estimated_duration?: string | number // Add estimated_duration property from database (interval as string)
 }
 
 export type CourseFilter = "all" | "in-progress" | "completed" | "not-started"

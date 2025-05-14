@@ -21,20 +21,17 @@ import {
   X,
   Loader2
 } from "lucide-react"
-import { useState, useMemo, useRef, useEffect } from "react"
+import { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { cn } from "@/lib/utils"
 import { CourseCard } from "./components/course-card"
 import { Course, CourseFilter, CourseCategory } from "./types"
-import { sampleCourses } from "./data"
 import { CourseGenerationModal } from "@/components/modals/course-generation-modal"
 import { useAuth } from "@clerk/nextjs"
-import { useQuery } from "convex/react"
-import { api } from "@/convex/_generated/api"
-import { toast } from "sonner"
-import { getLocalEnrollments, getUserEnrollments, getRecentEnrollments, deleteUserEnrollment } from "@/lib/local-storage"
-import { formatEnrollmentToCourse } from "@/lib/course-utils"
+import { toast } from "@/components/custom-toast"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { useSupabase } from "@/contexts/supabase-context"
+import { useUserCourses } from "./hooks/use-user-courses"
 
 // Filters for course status
 const filters: { id: CourseFilter; label: string }[] = [
@@ -58,30 +55,40 @@ export default function CoursesPage() {
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState<CourseCategory>("all")
   const [showGenerateModal, setShowGenerateModal] = useState(false)
-  const [sortBy, setSortBy] = useState<"title" | "lastAccessed" | "progress">("lastAccessed")
+  const [sortBy, setSortBy] = useState<"title" | "lastAccessed" | "progress" | "recentlyAdded">("recentlyAdded")
   const [showScrollButtons, setShowScrollButtons] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
-  const [isLoadingCourses, setIsLoadingCourses] = useState(true)
-  const [formattedCourses, setFormattedCourses] = useState<Course[]>([])
-  const [formattedRecentCourses, setFormattedRecentCourses] = useState<Course[]>([])
+  const [page, setPage] = useState<number>(1)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const { userId } = useAuth();
   const router = useRouter()
 
-  // Fetch categories from the database
-  const dbCategories = useQuery(api.categories.getPopularCategories, {
-    limit: 10
-  });
-
-  // Refresh trigger to reload courses when needed (like after deletion)
-  const [refreshTrigger, setRefreshTrigger] = useState(0)
-
   // Function to trigger a refresh of courses
   const refreshCourses = () => {
     setRefreshTrigger(prev => prev + 1)
   }
+
+  // Use our new hook to fetch user courses
+  const {
+    courses: formattedCourses,
+    recentCourses: formattedRecentCourses,
+    categories: availableCourseCategories,
+    loading: isLoadingCourses,
+    error: coursesError,
+    totalCount
+  } = useUserCourses({
+    category: category !== 'all' ? category : undefined,
+    sortBy,
+    filter,
+    searchQuery: search,
+    page,
+    limit: 12
+  })
 
   // Selection mode state
   const [selectionMode, setSelectionMode] = useState(false)
@@ -117,31 +124,68 @@ export default function CoursesPage() {
 
   // Handle bulk delete
   const handleBulkDelete = async () => {
-    if (!userId || selectedCourses.size === 0) return
+    if (!userId || selectedCourses.size === 0 || !supabase) return
 
     try {
-      // Delete each selected course
-      let deleteCount = 0
-      selectedCourses.forEach(courseId => {
-        deleteUserEnrollment(userId as string, courseId)
-        deleteCount++
-      })
+      // First get the Supabase user ID from the Clerk ID
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('clerk_id', userId)
+        .single();
 
-      // Show success message
-      toast.success(
-        deleteCount === 1
-          ? "Course deleted successfully"
-          : `${deleteCount} courses deleted successfully`
-      )
+      if (userError) {
+        console.error("Error getting user from Supabase:", userError);
+        throw new Error("Failed to get user data");
+      }
+
+      if (!userData) {
+        console.log("No user found in Supabase");
+        return;
+      }
+
+      // Delete each selected course enrollment
+      let deleteCount = 0;
+      const deletePromises = Array.from(selectedCourses).map(async (courseId) => {
+        console.log(`Deleting enrollment for course ${courseId}`);
+        const { error } = await supabase
+          .from('enrollments')
+          .delete()
+          .eq('user_id', userData.id)
+          .eq('course_id', courseId);
+
+        if (error) {
+          console.error(`Error deleting enrollment for course ${courseId}:`, error);
+          return false;
+        }
+
+        deleteCount++;
+        return true;
+      });
+
+      // Wait for all delete operations to complete
+      await Promise.all(deletePromises);
+
+      // Show success message - use setTimeout to avoid React state updates during rendering
+      setTimeout(() => {
+        toast.success(
+          deleteCount === 1
+            ? "Course deleted successfully"
+            : `${deleteCount} courses deleted successfully`
+        );
+      }, 0);
 
       // Exit selection mode and refresh data
-      setSelectionMode(false)
-      setSelectedCourses(new Set())
-      refreshCourses()
+      setSelectionMode(false);
+      setSelectedCourses(new Set());
+      refreshCourses();
 
     } catch (error) {
-      console.error("Failed to delete courses:", error)
-      toast.error("Failed to delete some courses")
+      console.error("Failed to delete courses:", error);
+      // Use setTimeout to avoid React state updates during rendering
+      setTimeout(() => {
+        toast.error("Failed to delete some courses");
+      }, 0);
     }
   }
 
@@ -149,22 +193,10 @@ export default function CoursesPage() {
   const selectAllCourses = () => {
     const courseIds = new Set<string>()
 
-    // Add course IDs from all visible sections
-    if (formattedRecentCourses.length > 0) {
-      formattedRecentCourses.forEach(course => {
-        if (course.isEnrolled) courseIds.add(course.id)
-      })
-    }
-
-    if (inProgressCourses.length > 0) {
-      inProgressCourses.forEach(course => courseIds.add(course.id))
-    }
-
-    if (otherCourses.length > 0) {
-      otherCourses.forEach(course => {
-        if (course.isEnrolled) courseIds.add(course.id)
-      })
-    }
+    // Add course IDs from all visible courses
+    formattedCourses.forEach(course => {
+      if (course.isEnrolled) courseIds.add(course.id)
+    })
 
     setSelectedCourses(courseIds)
   }
@@ -172,62 +204,53 @@ export default function CoursesPage() {
   // Count of selected enrolled courses
   const selectedCount = selectedCourses.size
 
-  // Load courses from API or localStorage
+  // Import Supabase context
+  const supabase = useSupabase();
+
+  // Show error toast if there's an error loading courses
   useEffect(() => {
-    const fetchCourses = async () => {
-      setIsLoadingCourses(true);
-
-      try {
-        // Check if we have userId
-        if (typeof window !== 'undefined' && userId) {
-          // Get user enrollments from API with localStorage fallback
-          // const userEnrollments = await safelyGetUserEnrollments(userId, false);
-          // Fallback: show empty state or use getUserEnrollments if needed
-
-          const userEnrollments: any[] = []; // No API-wrapper fallback
-
-          if (userEnrollments.length > 0) {
-            console.log("User enrollments found:", userEnrollments.length);
-
-            // Format recent courses from enrollments
-            const recentEnrollments = userEnrollments
-              .sort((a, b) => b.enrolledAt - a.enrolledAt)
-              .slice(0, 2);
-
-            const recentCourses = recentEnrollments.map(enrollment =>
-              formatEnrollmentToCourse(enrollment)
-            );
-
-            setFormattedRecentCourses(recentCourses);
-
-            // Format all courses from enrollments
-            const allCourses = userEnrollments.map(enrollment =>
-              formatEnrollmentToCourse(enrollment)
-            );
-
-            setFormattedCourses(allCourses);
-          } else {
-            // No user enrollments, show empty state
-            console.log("No user enrollments found");
-            setFormattedCourses([]);
-            setFormattedRecentCourses([]);
-          }
-        } else {
-          // Not logged in or SSR, show empty state
-          setFormattedCourses([]);
-          setFormattedRecentCourses([]);
-        }
-      } catch (error) {
-        console.error("Failed to load courses:", error);
+    if (coursesError) {
+      // Use setTimeout to avoid React state updates during rendering
+      setTimeout(() => {
         toast.error("Failed to load courses");
-        setFormattedCourses([]);
-      } finally {
-        setIsLoadingCourses(false);
-      }
-    };
+      }, 0);
+    }
+  }, [coursesError]);
 
-    fetchCourses();
-  }, [userId, refreshTrigger]);
+  // Update hasMore when totalCount changes
+  useEffect(() => {
+    setHasMore(formattedCourses.length < totalCount);
+  }, [formattedCourses.length, totalCount]);
+
+  // Load more courses function
+  const loadMoreCourses = useCallback(() => {
+    if (isLoadingCourses || !hasMore) return;
+    setPage(prev => prev + 1);
+  }, [isLoadingCourses, hasMore]);
+
+  // Setup intersection observer for infinite scrolling
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoadingCourses && hasMore) {
+          loadMoreCourses();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [loadMoreCourses, isLoadingCourses, hasMore]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+  }, [search, category, filter, sortBy]);
 
   // Scroll logic
   useEffect(() => {
@@ -267,7 +290,16 @@ export default function CoursesPage() {
     }
   };
 
-  // Filter courses based on search, category, and filter
+  // Update scroll state when scrolling the tabs
+  const handleTabsScroll = () => {
+    if (scrollContainerRef.current) {
+      const { scrollWidth, clientWidth, scrollLeft } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth);
+    }
+  };
+
+  // Filter and sort courses based on search, category, and filter
   const filteredCourses = useMemo(() => {
     const filtered = formattedCourses.filter(course => {
       // Skip courses that aren't enrolled for "in-progress" and "completed" filters
@@ -291,7 +323,7 @@ export default function CoursesPage() {
     });
 
     // Sort filtered courses
-    const sorted = [...filtered].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       switch (sortBy) {
         case "title":
           return a.title.localeCompare(b.title);
@@ -299,74 +331,36 @@ export default function CoursesPage() {
           return new Date(b.lastAccessed || 0).getTime() - new Date(a.lastAccessed || 0).getTime();
         case "progress":
           return b.progress - a.progress;
+        case "recentlyAdded":
+          return new Date(b.enrolledAt || 0).getTime() - new Date(a.enrolledAt || 0).getTime();
         default:
-          return 0;
+          // Default to recently added
+          return new Date(b.enrolledAt || 0).getTime() - new Date(a.enrolledAt || 0).getTime();
       }
     });
-
-    const inProgressCourses = sorted.filter(c => c.isEnrolled && c.progress > 0 && c.progress < 100);
-    const otherCourses = sorted.filter(c => !c.isEnrolled || c.progress === 0 || c.progress === 100);
-
-    return { inProgressCourses, otherCourses };
   }, [formattedCourses, search, category, filter, sortBy]);
 
-  // Get the filtered courses
-  const { inProgressCourses, otherCourses } = filteredCourses;
-
-  // Instead of using fixed categories, derive them from available courses or database
-  const availableCategories = useMemo(() => {
-    // Map database categories to the expected format (id, label), or use fallback
-    // Handle possible undefined state during initial loading
-    const categoriesFromDb = dbCategories
-      ? dbCategories.map(dbCat => ({
-        id: dbCat.slug as string, // Use slug as id since it's a string identifier
-        label: dbCat.name as string // Use name as label
-      }))
-      : fallbackCategories;
-
+  // Create category pills from available categories using the same logic as explore page
+  const categoryPills = useMemo(() => {
     // If no courses or only one course, don't show categories
-    if (formattedCourses.length <= 1) {
-      return [];
-    }
-
-    // Get unique categories from available courses
-    const uniqueCategories = new Set<string>();
-    formattedCourses.forEach(course => {
-      if (course.category) {
-        uniqueCategories.add(course.category.toLowerCase());
-      }
-    });
-
-    // If there's only one unique category (or none), don't show category pills
-    if (uniqueCategories.size <= 1) {
+    if (formattedCourses.length <= 1 || availableCourseCategories.length === 0) {
       return [];
     }
 
     // Always include "all" category first, then add course-specific categories
-    const categories: { id: CourseCategory; label: string }[] = [{ id: "all", label: "All" }];
+    return [
+      { id: "all", label: "All Categories" },
+      ...availableCourseCategories.map(category => ({
+        id: category.toLowerCase() as CourseCategory,
+        label: category
+      }))
+    ];
+  }, [formattedCourses, availableCourseCategories]);
 
-    // Match course categories with predefined ones when possible
-    categoriesFromDb.forEach(predefinedCategory => {
-      if (predefinedCategory.id !== "all" && uniqueCategories.has(predefinedCategory.id.toLowerCase())) {
-        categories.push(predefinedCategory);
-        uniqueCategories.delete(predefinedCategory.id.toLowerCase());
-      }
-    });
-
-    // Add any remaining unique categories that weren't in predefined list
-    Array.from(uniqueCategories).sort().forEach(categoryId => {
-      // Capitalize first letter for label
-      const label = categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
-      categories.push({ id: categoryId as CourseCategory, label });
-    });
-
-    return categories;
-  }, [formattedCourses, dbCategories]);
-
-  // Handle course click - navigate to course page instead of opening dialog
+  // Handle course click - navigate to course page
   const handleCourseClick = (courseId: string) => {
     if (!selectionMode) {
-      router.push(`/courses/${courseId}`)
+      router.push(`/course/${courseId}`)
     }
   }
 
@@ -458,6 +452,14 @@ export default function CoursesPage() {
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel>Sort By</DropdownMenuLabel>
                       <DropdownMenuItem
+                        onClick={() => setSortBy("recentlyAdded")}
+                        className={cn(
+                          "cursor-pointer",
+                          sortBy === "recentlyAdded" && "bg-muted"
+                        )}>
+                        Recently Added
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         onClick={() => setSortBy("lastAccessed")}
                         className={cn(
                           "cursor-pointer",
@@ -518,57 +520,76 @@ export default function CoursesPage() {
           </div>
 
           {/* Category Pills - Only show when there are courses and not in selection mode */}
-          {!selectionMode && availableCategories.length > 0 && (
-            <div className="relative">
-              <div className="overflow-hidden">
-                <div className="relative py-2 sm:py-3">
-                  <div
-                    ref={scrollContainerRef}
-                    className="flex gap-3 overflow-x-hidden scroll-smooth"
-                  >
-                    {availableCategories.map((cat) => (
-                      <Button
-                        key={cat.id}
-                        variant={category === cat.id ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setCategory(cat.id)}
-                        className={cn(
-                          "h-8 rounded-lg font-normal transition-all whitespace-nowrap",
-                          category === cat.id
-                            ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90"
-                            : "hover:bg-secondary"
-                        )}>
-                        {cat.label}
-                      </Button>
-                    ))}
-                  </div>
-
-                  {/* Navigation Arrows - only show if we have navigation needed */}
-                  {showScrollButtons && (
-                    <>
-                      {canScrollLeft && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md"
-                          onClick={() => scroll('left')}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
+          {!selectionMode && categoryPills.length > 0 && (
+            <div className="relative py-2 sm:py-3">
+              <div
+                ref={scrollContainerRef}
+                className="overflow-hidden relative isolate"
+                onScroll={handleTabsScroll}
+              >
+                {/* Scroll Indicators */}
+                <div className={cn(
+                  "absolute left-0 top-0 bottom-0 w-[80px] pointer-events-none z-10",
+                  "bg-gradient-to-r from-background to-transparent",
+                  "opacity-0 transition-opacity duration-300",
+                  canScrollLeft && "opacity-100"
+                )} />
+                <div className={cn(
+                  "absolute right-0 top-0 bottom-0 w-[80px] pointer-events-none z-10",
+                  "bg-gradient-to-l from-background to-transparent",
+                  "opacity-0 transition-opacity duration-300",
+                  canScrollRight && "opacity-100"
+                )} />
+                <div className="flex gap-3">
+                  {categoryPills.map((tag) => (
+                    <button
+                      type="button"
+                      key={`category-${tag.id}`}
+                      onClick={() => setCategory(tag.id)}
+                      className={cn(
+                        "h-8 px-4 rounded-lg font-normal transition-all whitespace-nowrap text-sm select-none",
+                        category === tag.id
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                       )}
-                      {canScrollRight && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md"
-                          onClick={() => scroll('right')}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </>
-                  )}
+                    >
+                      {tag.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
+
+              {/* Navigation Arrows */}
+              <div className={cn(
+                "transition-opacity duration-200",
+                !showScrollButtons && "opacity-0 pointer-events-none"
+              )}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md z-20",
+                    "transition-opacity duration-200",
+                    !canScrollLeft && "opacity-0 pointer-events-none",
+                    canScrollLeft && "opacity-100"
+                  )}
+                  onClick={() => scroll('left')}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md z-20",
+                    "transition-opacity duration-200",
+                    !canScrollRight && "opacity-0 pointer-events-none",
+                    canScrollRight && "opacity-100"
+                  )}
+                  onClick={() => scroll('right')}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           )}
@@ -590,33 +611,11 @@ export default function CoursesPage() {
             </div>
           ) : (
             <>
-              {/* Recently Added Section - only show if there are recent courses */}
-              {formattedRecentCourses.length > 0 && (
+              {/* All Courses Section - auto sorted by recently added */}
+              {filteredCourses.length > 0 && (
                 <section>
-                  <h2 className="font-medium text-lg mb-4">Recently Added</h2>
                   <div className="grid gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
-                    {formattedRecentCourses.map((course) => (
-                      <CourseCard
-                        key={`recent-${course.id}`}
-                        course={course}
-                        onClick={() => handleCourseClick(course.id)}
-                        className="animate-in fade-in-50 duration-500"
-                        selected={selectedCourses.has(course.id)}
-                        onSelect={handleCourseSelection}
-                        selectionMode={selectionMode}
-                        onLongPress={handleLongPress}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Continue Learning Section - only show if there are in-progress courses */}
-              {inProgressCourses.length > 0 && (
-                <section>
-                  <h2 className="font-medium text-lg mb-4">Continue Learning</h2>
-                  <div className="grid gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
-                    {inProgressCourses.map((course) => (
+                    {filteredCourses.map((course) => (
                       <CourseCard
                         key={course.id}
                         course={course}
@@ -629,36 +628,20 @@ export default function CoursesPage() {
                       />
                     ))}
                   </div>
-                </section>
-              )}
-
-              {/* Other Courses Section - only show if there are other courses */}
-              {otherCourses.length > 0 && (
-                <section>
-                  <h2 className="font-medium text-lg mb-4">
-                    {filter === "completed" ? "Completed" :
-                      filter === "not-started" ? "Start Learning" :
-                        "All Courses"}
-                  </h2>
-                  <div className="grid gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
-                    {otherCourses.map((course) => (
-                      <CourseCard
-                        key={course.id}
-                        course={course}
-                        onClick={() => handleCourseClick(course.id)}
-                        className="animate-in fade-in-50 duration-500"
-                        selected={selectedCourses.has(course.id)}
-                        onSelect={handleCourseSelection}
-                        selectionMode={selectionMode}
-                        onLongPress={handleLongPress}
-                      />
-                    ))}
+                  <div ref={loadMoreRef} className="py-8 flex justify-center">
+                    {isLoadingCourses && page > 1 ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    ) : hasMore ? (
+                      <div className="h-8" />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No more courses to load</p>
+                    )}
                   </div>
                 </section>
               )}
 
               {/* Enhanced empty state - show prominently when no courses */}
-              {!isLoadingCourses && inProgressCourses.length === 0 && otherCourses.length === 0 && formattedRecentCourses.length === 0 && (
+              {!isLoadingCourses && filteredCourses.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="bg-muted/40 rounded-xl p-8 max-w-md w-full">
                     <div className="relative w-24 h-24 mx-auto mb-6">

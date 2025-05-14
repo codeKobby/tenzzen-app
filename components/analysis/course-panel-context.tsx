@@ -38,18 +38,24 @@ export const CoursePanelProvider = ({
 
         if (!user) {
             console.log("[CoursePanelContext] No user found, showing authentication required toast");
-            toast.error('Authentication required', {
-                description: 'Please sign in to enroll in this course.'
-            });
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.error('Authentication required', {
+                    description: 'Please sign in to enroll in this course.'
+                });
+            }, 0);
             return;
         }
         console.log("[CoursePanelContext] User authenticated:", user.id);
 
         if (!courseData) {
             console.log("[CoursePanelContext] No course data provided");
-            toast.error('Invalid course data', {
-                description: 'Cannot enroll in this course due to missing data.'
-            });
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.error('Invalid course data', {
+                    description: 'Cannot enroll in this course due to missing data.'
+                });
+            }, 0);
             return;
         }
         console.log("[CoursePanelContext] Course data validated:", {
@@ -61,9 +67,12 @@ export const CoursePanelProvider = ({
             setIsEnrolling(true);
             // Show loading toast
             console.log("[CoursePanelContext] Setting isEnrolling to true and showing loading toast");
-            toast.info('Enrolling in course...', {
-                description: 'Please wait while we process your enrollment'
-            });
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.info('Enrolling in course...', {
+                    description: 'Please wait while we process your enrollment'
+                });
+            }, 0);
 
             console.log("[CoursePanelContext] Enrolling user in course:", {
                 title: courseData.title,
@@ -116,16 +125,18 @@ export const CoursePanelProvider = ({
             const enrollResult = await enrollResponse.json();
             console.log('[CoursePanelContext] Enrolled in Supabase course:', enrollResult);
 
-            // Handle success
-            toast.success('Successfully enrolled in course!');
-
-            // Add a small delay to ensure the toast is visible before navigation
-            console.log("[CoursePanelContext] Setting timeout for navigation");
+            // Handle success - use setTimeout to avoid React state updates during rendering
             setTimeout(() => {
-                // Redirect to courses page after enrollment
-                console.log("[CoursePanelContext] Navigating to courses page");
-                router.push('/courses');
-            }, 1500); // 1.5 second delay
+                toast.success('Successfully enrolled in course!');
+
+                // Add a small delay to ensure the toast is visible before navigation
+                console.log("[CoursePanelContext] Setting timeout for navigation");
+                setTimeout(() => {
+                    // Redirect to courses page after enrollment
+                    console.log("[CoursePanelContext] Navigating to courses page");
+                    router.push('/courses');
+                }, 1500); // 1.5 second delay
+            }, 0);
         } catch (error) {
             console.error("[CoursePanelContext] Error enrolling in course:", error);
 
@@ -142,9 +153,12 @@ export const CoursePanelProvider = ({
                 console.error("[CoursePanelContext] Non-Error object thrown:", error);
             }
 
-            toast.error("Failed to enroll in course", {
-                description: errorMessage
-            });
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.error("Failed to enroll in course", {
+                    description: errorMessage
+                });
+            }, 0);
         } finally {
             console.log("[CoursePanelContext] Setting isEnrolling back to false");
             setIsEnrolling(false);

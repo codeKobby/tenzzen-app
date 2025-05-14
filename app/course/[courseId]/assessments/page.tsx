@@ -1,33 +1,33 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useState, useEffect } from "react";
 import { SectionAssessmentsList } from "@/components/assessment/section-assessments";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+// TEMPORARY: This is a stub implementation until Supabase assessment functionality is implemented
 
 export default function CourseAssessmentsPage() {
   const { courseId } = useParams();
-  
-  // Get course data
-  const course = useQuery(api.courses.getCourse, { 
-    id: courseId as string 
-  });
+  const [loading, setLoading] = useState(true);
 
-  if (!course) {
+  // Simulate loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <LoadingSpinner size="lg" />
       </div>
     );
   }
-
-  // Format sections for the list component
-  const sections = course.sections.map(section => ({
-    id: section.title, // Using title as ID since that's what we set up
-    title: section.title,
-    content: section.lessons.map(l => l.content).join('\n')
-  }));
 
   return (
     <div className="container max-w-4xl py-8">
@@ -38,18 +38,19 @@ export default function CourseAssessmentsPage() {
         </p>
       </div>
 
-      {sections.length > 0 ? (
-        <SectionAssessmentsList
-          courseId={courseId as string}
-          sections={sections}
-        />
-      ) : (
-        <div className="text-center p-8 border rounded-lg bg-muted">
-          <p className="text-muted-foreground">
-            No sections available in this course yet.
+      <Card>
+        <CardHeader>
+          <CardTitle>Assessments Coming Soon</CardTitle>
+          <CardDescription>
+            Assessment functionality is currently being migrated to Supabase.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            We're working on bringing a better assessment experience to you. Check back soon!
           </p>
-        </div>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

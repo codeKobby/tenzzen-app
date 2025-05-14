@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Id } from "@/convex/_generated/dataModel";
+import { Id } from "@/types/convex-types";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Icons } from "@/components/ui/icons";
 import { AssessmentProvider, useAssessment } from "@/hooks/use-assessment-provider";
@@ -203,8 +203,8 @@ function AssessmentCardInner({
             <Button
               onClick={handleStart}
               disabled={
-                isLoading || 
-                isGenerating || 
+                isLoading ||
+                isGenerating ||
                 progress?.status === "completed"
               }
             >

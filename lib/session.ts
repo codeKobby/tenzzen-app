@@ -1,8 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
-import { UserRole } from "@/convex/validation";
+import { createClient } from '@supabase/supabase-js';
+import { Id } from "@/types/convex-types";
+
+// Define user role type
+export type UserRole = "user" | "admin" | "moderator" | "instructor";
 
 // Define user type for getCurrentUser function
 interface User {
@@ -15,28 +16,36 @@ interface User {
 
 export async function getCurrentUser(): Promise<User | null> {
   const { userId } = await auth();
-  
+
   if (!userId) {
     return null;
   }
-  
-  // Create a Convex HTTP client for server-side operations
-  const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-  
+
+  // Create a Supabase client for server-side operations
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
   try {
-    // Get user information from Convex using the Clerk ID
-    const userData = await convex.query(api.users.getCurrentUser, { clerkId: userId });
-    
-    if (!userData || !userData.user) {
+    // Get user information from Supabase using the Clerk ID
+    const { data: userData, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('clerk_id', userId)
+      .single();
+
+    if (error || !userData) {
+      console.error("Error fetching user from Supabase:", error);
       return null;
     }
-    
+
     return {
-      id: userData.user._id,
-      name: userData.user.name,
-      email: userData.user.email,
-      role: userData.user.role || "user", // Default to "user" if role is not set
-      image: userData.user.imageUrl
+      id: userData.id,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role || "user", // Default to "user" if role is not set
+      image: userData.image_url
     };
   } catch (error) {
     console.error("Error getting user:", error);

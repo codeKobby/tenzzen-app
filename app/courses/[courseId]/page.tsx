@@ -34,10 +34,11 @@ import { CoursePlayer } from "./components/course-player"
 import { DebugButton } from "./components/debug-button"
 
 export default function CoursePage() {
-  const { courseId } = useParams() as { courseId: string }
+  const params = useParams();
+  const courseId = typeof params.courseId === 'string' ? params.courseId : '';
   const router = useRouter()
   const { userId } = useAuth()
-  
+
   const [course, setCourse] = useState<any>(null)
   const [courseEnrollment, setCourseEnrollment] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -62,23 +63,23 @@ export default function CoursePage() {
 
       try {
         console.log("Fetching course with ID:", courseId);
-        
+
         // Get enrollments from localStorage
         const userEnrollments = getUserEnrollments(userId);
         console.log(`Found ${userEnrollments.length} enrollments for user:`, userEnrollments);
-        
+
         if (userEnrollments.length === 0) {
           console.log("No enrollments found, redirecting to courses page");
           router.replace('/courses');
           return;
         }
-        
+
         // Try to find the exact course
         let enrollment = null;
-        
+
         // First try direct match
         enrollment = userEnrollments.find(e => e.courseId === courseId);
-        
+
         // If not found, try formatted ID match
         if (!enrollment) {
           for (const e of userEnrollments) {
@@ -89,42 +90,42 @@ export default function CoursePage() {
             }
           }
         }
-        
+
         // If still not found, use the first enrollment
         if (!enrollment && userEnrollments.length > 0) {
           enrollment = userEnrollments[0];
           const firstCourseId = `local-${enrollment.courseTitle.replace(/\s+/g, '-').toLowerCase()}`;
-          
+
           if (firstCourseId !== courseId) {
             console.log(`Redirecting to first available course: ${firstCourseId}`);
-            router.replace(`/courses/${firstCourseId}`);
+            router.replace(`/course/${firstCourseId}`);
             return;
           }
         }
-        
+
         if (!enrollment) {
           setError("Course not found in your enrollments");
           setLoading(false);
           return;
         }
-        
+
         // We have a valid enrollment now!
         console.log("Using enrollment:", enrollment);
-        
+
         // Store the raw enrollment data
         setCourseEnrollment(enrollment);
-        
+
         // Format the course for display
         const formattedCourse = formatEnrollmentToCourse(enrollment);
         console.log("Formatted course:", formattedCourse);
         setCourse(formattedCourse);
-        
+
         // Set current lesson
         const sections = enrollment.courseData.sections || [];
         if (sections.length > 0 && sections[0].lessons?.length > 0) {
           setCurrentLesson(sections[0].lessons[0]);
         }
-        
+
         setLoading(false);
       } catch (error) {
         console.error("Error loading course:", error);
@@ -139,15 +140,15 @@ export default function CoursePage() {
   // Navigation functions
   const navigateLesson = (direction: 'next' | 'prev') => {
     if (!courseEnrollment?.courseData?.sections) return;
-    
+
     const sections = courseEnrollment.courseData.sections;
     let newSectionIndex = currentSectionIndex;
     let newLessonIndex = currentLessonIndex;
-    
+
     if (direction === 'next') {
       if (newLessonIndex < sections[newSectionIndex].lessons.length - 1) {
         newLessonIndex++;
-      } 
+      }
       else if (newSectionIndex < sections.length - 1) {
         newSectionIndex++;
         newLessonIndex = 0;
@@ -155,20 +156,20 @@ export default function CoursePage() {
     } else {
       if (newLessonIndex > 0) {
         newLessonIndex--;
-      } 
+      }
       else if (newSectionIndex > 0) {
         newSectionIndex--;
         newLessonIndex = sections[newSectionIndex].lessons.length - 1;
       }
     }
-    
+
     if (newSectionIndex !== currentSectionIndex || newLessonIndex !== currentLessonIndex) {
       setCurrentSectionIndex(newSectionIndex);
       setCurrentLessonIndex(newLessonIndex);
       setCurrentLesson(sections[newSectionIndex].lessons[newLessonIndex]);
     }
   };
-  
+
   // Mark lesson complete
   const markLessonComplete = () => {
     // Add implementation here
@@ -208,11 +209,11 @@ export default function CoursePage() {
         <div className="bg-background border-b sticky top-0 z-10">
           <div className="container max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
             <h1 className="text-lg font-medium truncate max-w-[50%]">{currentLesson.title}</h1>
-            
+
             <div className="flex items-center gap-2">
-              <Progress 
-                value={course.progress} 
-                className="w-36 h-2" 
+              <Progress
+                value={course.progress}
+                className="w-36 h-2"
               />
               <span className="text-xs font-medium">{course.progress}%</span>
             </div>
@@ -231,7 +232,7 @@ export default function CoursePage() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background via-background/95 to-background/70" />
           </div>
-          
+
           <div className="container relative z-10 py-8 px-4 mx-auto max-w-7xl">
             {/* Course Title & Info */}
             <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-start">
@@ -352,13 +353,13 @@ export default function CoursePage() {
       <div className="container mx-auto px-4 py-6 max-w-7xl flex-1 flex flex-col">
         {activeTab === "content" && currentLesson ? (
           <div className="flex-1 flex flex-col">
-            <CoursePlayer 
+            <CoursePlayer
               lesson={currentLesson}
               onComplete={markLessonComplete}
               onNext={() => navigateLesson('next')}
               onPrevious={() => navigateLesson('prev')}
-              hasNext={currentSectionIndex < (courseEnrollment?.courseData?.sections?.length - 1) || 
-                      currentLessonIndex < (courseEnrollment?.courseData?.sections[currentSectionIndex]?.lessons?.length - 1)}
+              hasNext={currentSectionIndex < (courseEnrollment?.courseData?.sections?.length - 1) ||
+                currentLessonIndex < (courseEnrollment?.courseData?.sections[currentSectionIndex]?.lessons?.length - 1)}
               hasPrevious={currentSectionIndex > 0 || currentLessonIndex > 0}
             />
           </div>
@@ -382,11 +383,11 @@ export default function CoursePage() {
                 <span className="whitespace-nowrap">Settings</span>
               </TabsTrigger>
             </TabsList>
-            
+
             <div className="mt-6">
               <TabsContent value="content" className="mt-0">
-                <CourseContent 
-                  course={course} 
+                <CourseContent
+                  course={course}
                   rawCourse={courseEnrollment?.courseData}
                   onSelectLesson={(sectionIndex, lessonIndex, lesson) => {
                     setCurrentSectionIndex(sectionIndex);
@@ -397,15 +398,15 @@ export default function CoursePage() {
                   completedLessons={courseEnrollment?.completedLessons || []}
                 />
               </TabsContent>
-              
+
               <TabsContent value="overview" className="mt-0">
                 <CourseOverview course={course} />
               </TabsContent>
-              
+
               <TabsContent value="resources" className="mt-0">
                 <CourseResources course={course} />
               </TabsContent>
-              
+
               <TabsContent value="settings" className="mt-0">
                 <CourseSettings course={course} />
               </TabsContent>
@@ -425,7 +426,7 @@ function CoursePageSkeleton() {
     <div className="flex flex-col w-full">
       <div className="relative bg-gradient-to-b from-black to-background">
         <div className="absolute inset-0 bg-background/80" />
-        
+
         <div className="container relative z-10 py-8 px-4 mx-auto max-w-7xl">
           <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-start">
             {/* Thumbnail Skeleton */}
@@ -469,7 +470,7 @@ function CoursePageSkeleton() {
       {/* Content Skeleton */}
       <div className="container mx-auto px-4 py-6 max-w-7xl">
         <Skeleton className="h-10 w-full max-w-md mb-6" />
-        
+
         <div className="space-y-4">
           {Array(3).fill(0).map((_, i) => (
             <div key={i} className="space-y-2">

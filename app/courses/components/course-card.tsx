@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
-  Users, Star, Plus, Lock, MoreVertical, BookmarkPlus, Share2, Trash2, Check
+  Plus, Lock, MoreVertical, BookmarkPlus, Share2, Trash2, Check
 } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
@@ -44,15 +44,6 @@ import { useAuth } from "@clerk/nextjs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useRouter } from "next/navigation"
 
-const formatNumber = (num: number): string => {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'm'
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'k'
-  }
-  return num.toString()
-}
 
 interface CourseCardProps {
   course: Course
@@ -188,37 +179,100 @@ export function CourseCard({
     } else if (onClick) {
       onClick()
     } else {
-      // Navigate to course detail page if no onClick is provided
-      // Make sure we're navigating to the correct courseId format
-      console.log("Navigating to course:", course.id);
-      router.push(`/courses/${course.id}`)
+      // Navigate to course detail page
+      console.log("Navigating to course detail page for course:", course.id);
+      router.push(`/course/${course.id}`)
     }
   }
 
-  // Extract duration from either direct property or metadata
-  // Format the duration to ensure it shows hours/minutes format
-  const displayDuration = (() => {
-    const rawDuration = course.duration || course.metadata?.duration;
-
-    // If duration already has a proper format with 'h' or 'm', use it
-    if (typeof rawDuration === 'string' &&
-      (rawDuration.includes('h') || rawDuration.includes('m'))) {
-      return rawDuration;
+  // Helper function to format seconds into simplified duration (H:MM or MM:SS)
+  const formatYouTubeDuration = (totalSeconds: number) => {
+    // Ensure totalSeconds is a valid number
+    if (typeof totalSeconds !== 'number' || isNaN(totalSeconds) || totalSeconds < 0) {
+      totalSeconds = 0;
     }
 
-    // If it's a number, assume minutes and format appropriately
-    if (typeof rawDuration === 'number') {
-      if (rawDuration >= 60) {
-        const hours = Math.floor(rawDuration / 60);
-        const minutes = rawDuration % 60;
-        return `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}`;
-      } else {
-        return `${rawDuration}m`;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+
+    // Format with leading zeros for seconds
+    const formattedSeconds = seconds.toString().padStart(2, '0');
+
+    // If hours > 0, show hours:minutes format (H:MM)
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}`;
+    }
+
+    // Otherwise show minutes:seconds format (M:SS)
+    return `${minutes}:${formattedSeconds}`;
+  };
+
+  // Extract duration from either direct property or metadata
+  // Format the duration to ensure it shows YouTube-style format
+  const displayDuration = (() => {
+    // If we have a direct estimated_duration as an interval string (HH:MM:SS), parse it
+    if (typeof course.estimated_duration === 'string' && course.estimated_duration.includes(':')) {
+      // Parse the interval format (HH:MM:SS) or (HH:MM:SS.MS)
+      // First, remove any milliseconds part if present
+      const cleanDuration = course.estimated_duration.split('.')[0];
+      const parts = cleanDuration.split(':');
+
+      if (parts.length === 3) {
+        const hours = parseInt(parts[0], 10);
+        const minutes = parseInt(parts[1], 10);
+        const seconds = parseInt(parts[2], 10);
+
+        // For simplified display, we want to show just H:MM or MM:SS without seconds
+        if (hours === 0) {
+          // Just show minutes:seconds (without seconds)
+          return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        } else {
+          // Show hours:minutes (without seconds)
+          return `${hours}:${minutes.toString().padStart(2, '0')}`;
+        }
       }
     }
 
-    // Default fallback if no proper duration format is available
-    return course.duration || '1h 30m';
+    // If we have a direct estimated_duration as a number (seconds), use it directly
+    if (typeof course.estimated_duration === 'number') {
+      return formatYouTubeDuration(course.estimated_duration);
+    }
+
+    // Get the raw duration from various possible sources
+    const rawDuration = course.duration || course.metadata?.duration;
+    let totalSeconds = 0;
+
+    // If duration is a string with 'h' or 'm', parse it
+    if (typeof rawDuration === 'string') {
+      if (rawDuration.includes('h') || rawDuration.includes('m')) {
+        // Parse hours
+        const hoursMatch = rawDuration.match(/(\d+)h/);
+        const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+
+        // Parse minutes
+        const minutesMatch = rawDuration.match(/(\d+)m/);
+        const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
+
+        // Convert to seconds
+        totalSeconds = (hours * 3600) + (minutes * 60);
+      } else if (!isNaN(parseFloat(rawDuration))) {
+        // If it's a numeric string, assume seconds for YouTube videos
+        totalSeconds = parseFloat(rawDuration);
+      }
+    }
+    // If it's a number, assume it's seconds (for YouTube video durations)
+    else if (typeof rawDuration === 'number') {
+      totalSeconds = rawDuration;
+    }
+    // Default fallback
+    else {
+      // Default to 5 minutes = 300 seconds
+      totalSeconds = 300;
+    }
+
+    // Format the seconds into YouTube-style duration
+    return formatYouTubeDuration(totalSeconds);
   })();
 
   // Format the lastAccessed date - use our utility function
@@ -226,6 +280,39 @@ export function CourseCard({
 
   // Generate default sources if none provided
   const courseSources = course.sources || course.metadata?.sources || [];
+
+  // Calculate total lessons first (to avoid circular reference)
+  const getTotalLessons = () => {
+    if (typeof course.totalLessons === 'number') return course.totalLessons;
+    if (Array.isArray(course.sections)) {
+      return course.sections.reduce((total, section) => total + (section.lessons?.length || 0), 0);
+    }
+    // If we have metadata with courseItems, try to calculate from there
+    if (course.metadata?.courseItems && Array.isArray(course.metadata.courseItems)) {
+      return course.metadata.courseItems.reduce((total: number, item: any) => {
+        if (item.type === 'section' && Array.isArray(item.lessons)) {
+          return total + item.lessons.length;
+        }
+        return total;
+      }, 0);
+    }
+    return 5; // Default to 5 if no data available - better than showing 0
+  };
+
+  // Calculate completed lessons (after getTotalLessons to avoid circular reference)
+  const getCompletedLessons = () => {
+    if (typeof course.lessonsCompleted === 'number') return course.lessonsCompleted;
+    if (typeof course.completedLessons === 'number') return course.completedLessons;
+    if (course.completedLessons && Array.isArray(course.completedLessons)) {
+      return course.completedLessons.length;
+    }
+    // For public courses, calculate a reasonable value based on progress
+    if (course.progress && typeof course.progress === 'number') {
+      const total = getTotalLessons();
+      return Math.round((course.progress / 100) * total);
+    }
+    return 0;
+  };
 
   return (
     <div
@@ -281,13 +368,16 @@ export function CourseCard({
                 Last accessed {formattedLastAccessed}
               </div>
             )}
-            {course.topics && (
-              <div className="absolute bottom-1 right-2 flex items-center gap-2">
-                <div className="text-white text-xs drop-shadow-lg leading-none">
-                  {course.topics.current}/{course.topics.total} • {displayDuration}
-                </div>
+            <div className="absolute bottom-1 left-2 flex items-center gap-2">
+              <div className="text-white text-xs drop-shadow-lg leading-none">
+                {displayDuration}
               </div>
-            )}
+            </div>
+            <div className="absolute bottom-1 right-2 flex items-center gap-2">
+              <div className="text-white text-xs drop-shadow-lg leading-none">
+                {getCompletedLessons() || 0}/{getTotalLessons() || 0}
+              </div>
+            </div>
           </>
         )}
 
@@ -385,6 +475,7 @@ export function CourseCard({
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
+                                  type="button"
                                   className={cn(
                                     "relative h-4 w-4 rounded-full overflow-hidden border border-background transition-transform hover:z-10",
                                     i > 0 && "-ml-1.5 hover:translate-x-0.5"
@@ -445,21 +536,7 @@ export function CourseCard({
               </>
             )}
 
-            {course.isPublic !== false ? (
-              <>
-                <div className="ml-auto flex items-center gap-1 shrink-0 min-w-0">
-                  <Users className="h-3 w-3 shrink-0" />
-                  <span className="truncate">
-                    {formatNumber(course.enrollmentCount || course.enrolledCount || 0)}
-                  </span>
-                </div>
-                <span className="shrink-0">•</span>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Star className="h-3 w-3 text-yellow-500 shrink-0" />
-                  <span>{(course.rating || course.averageRating || 0).toFixed(1)}</span>
-                </div>
-              </>
-            ) : (
+            {course.isPublic === false && (
               <div className="ml-auto flex items-center gap-1 text-muted-foreground shrink-0">
                 <Lock className="h-3 w-3" />
                 <span>Private</span>
@@ -468,12 +545,9 @@ export function CourseCard({
           </div>
         )}
 
-        {/* Category and CTA Row for explore view - hide in selection mode */}
+        {/* CTA Row for explore view - hide in selection mode (category badge removed) */}
         {variant === "explore" && !selectionMode && (
-          <div className="flex items-center justify-between mt-1">
-            <Badge variant="secondary" className="text-[10px] px-2 py-0 h-4 font-normal">
-              {course.category}
-            </Badge>
+          <div className="flex items-center justify-end mt-1">
             <Button
               size="sm"
               variant="default"

@@ -1,7 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useState, useEffect, use } from "react";
+import { useSupabase } from "@/contexts/supabase-context";
 import { Icons } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -31,17 +33,89 @@ const tabs = [
 
 interface CourseLayoutProps {
   children: React.ReactNode;
-  params: {
+  params: Promise<{
     courseId: string;
-  };
+  }>;
 }
 
 export default function CourseLayout({
   children,
-  params: { courseId }
+  params
 }: CourseLayoutProps) {
-  // Get course data for navigation
-  const course = useQuery(api.courses.getCourse, { id: courseId });
+  const { courseId } = use(params);
+  const supabase = useSupabase();
+  const [course, setCourse] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch course data from Supabase
+  useEffect(() => {
+    async function fetchCourse() {
+      try {
+        console.log('Fetching course with ID:', courseId);
+
+        // Check if courseId is valid
+        if (!courseId) {
+          console.error('Error fetching course: Invalid courseId');
+          setLoading(false);
+          return;
+        }
+
+        // Add error handling for Supabase connection
+        if (!supabase) {
+          console.error('Error fetching course: Supabase client not initialized');
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('courses')
+          .select('*')
+          .eq('id', courseId)
+          .single();
+
+        if (error) {
+          console.error('Error fetching course:', {
+            code: error.code,
+            message: error.message,
+            details: error.details
+          });
+          setLoading(false);
+          return;
+        }
+
+        if (!data) {
+          console.error('No course found with ID:', courseId);
+          setLoading(false);
+          return;
+        }
+
+        console.log('Course fetched successfully:', data.id);
+        setCourse(data);
+      } catch (err) {
+        // Improved error logging
+        if (err instanceof Error) {
+          console.error('Error fetching course:', {
+            message: err.message,
+            stack: err.stack
+          });
+        } else {
+          console.error('Error fetching course:', err);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCourse();
+  }, [courseId, supabase]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   if (!course) {
     return notFound();
@@ -98,10 +172,13 @@ export default function CourseLayout({
       <footer className="border-t py-6">
         <div className="container flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            {course.overview.difficultyLevel} · {course.overview.totalDuration}
+            {course.difficulty_level || 'Beginner'} · {course.estimated_duration || '1 hour'}
           </p>
           <div className="flex items-center space-x-4">
-            <button className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <button
+              type="button"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
               <Icons.help className="mr-2 h-4 w-4" />
               Support
             </button>

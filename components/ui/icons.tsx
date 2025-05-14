@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   ArrowRight,
+  BarChart,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -63,5 +64,7 @@ export const Icons = {
   rocket: Rocket,
   lock: Lock,
   play: Play,
-  clock: Clock
+  clock: Clock,
+  chart: BarChart,
+  fileText: FileText
 } as const;

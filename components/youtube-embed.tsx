@@ -108,24 +108,47 @@ export function YouTubeEmbed({
     // Build embed URL based on platform type
     const getEmbedUrl = (id: string, start: number = 0, end?: number) => {
         if (type === 'youtube') {
+            console.log(`Creating YouTube embed with ID: ${id}, start: ${start}, end: ${end || 'none'}`);
+
+            // Ensure we have a valid video ID
+            if (!id || id.trim() === '') {
+                console.warn("Invalid YouTube video ID, using fallback");
+                id = "dQw4w9WgXcQ"; // Default fallback video
+            }
+
             const params = new URLSearchParams({
                 rel: '0',
                 showinfo: '0',
                 modestbranding: '1',
                 enablejsapi: '1',
                 origin: typeof window !== "undefined" ? window.location.origin : '',
-                start: start.toString(),
+                controls: '1',
+                iv_load_policy: '3', // Hide annotations
+                fs: '1', // Allow fullscreen
+                playsinline: '1', // Play inline on mobile
+                disablekb: '0', // Enable keyboard controls
             })
 
-            // Add end time if specified
+            // Add start time if specified and greater than 0
+            if (start > 0) {
+                params.append('start', Math.floor(start).toString())
+            }
+
+            // Add end time if specified and greater than start
             if (end && end > start) {
-                params.append('end', end.toString())
+                params.append('end', Math.floor(end).toString())
             }
 
             if (autoplay) params.append('autoplay', '1')
             if (mute) params.append('mute', '1')
 
-            return `https://www.youtube.com/embed/${id}?${params.toString()}`
+            // Add playlist parameter with the same video ID to enable looping
+            // This is required for the 'end' parameter to work properly
+            params.append('playlist', id)
+
+            const embedUrl = `https://www.youtube.com/embed/${id}?${params.toString()}`;
+            console.log(`YouTube embed URL: ${embedUrl}`);
+            return embedUrl;
         } else if (type === 'vimeo') {
             const params = new URLSearchParams({
                 title: '0',
@@ -422,18 +445,31 @@ export function YouTubeEmbed({
             >
                 {/* Create the iframe in the main container initially */}
                 {!isPiP && (
-                    <iframe
-                        key="video-player"
-                        id="youtube-player" // Add an ID for the Player constructor
-                        ref={iframeRef}
-                        className="w-full h-full"
-                        src={getEmbedUrl(videoId, startTime, endTime)}
-                        title={title}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        onLoad={handleIframeLoad}
-                    />
+                    <>
+                        <iframe
+                            key={`video-player-${videoId}`} // Add videoId to key to force re-render when it changes
+                            id="youtube-player" // Add an ID for the Player constructor
+                            ref={iframeRef}
+                            className="w-full h-full"
+                            src={getEmbedUrl(videoId, startTime, endTime)}
+                            title={title}
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            onLoad={handleIframeLoad}
+                        />
+                        {/* Fallback direct link in case iframe doesn't load */}
+                        <div className="absolute bottom-2 right-2 z-10 opacity-70 hover:opacity-100">
+                            <a
+                                href={`https://www.youtube.com/watch?v=${videoId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs bg-black/70 text-white px-2 py-1 rounded-md"
+                            >
+                                Open in YouTube
+                            </a>
+                        </div>
+                    </>
                 )}
 
                 {!iframeLoaded && !isPiP && (

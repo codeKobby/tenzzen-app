@@ -12,7 +12,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
 export default function AssessmentPage() {
-  const { courseId, assessmentId } = useParams();
+  const params = useParams();
+  const courseId = typeof params.courseId === 'string' ? params.courseId : '';
+  const assessmentId = typeof params.assessmentId === 'string' ? params.assessmentId : '';
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -91,7 +93,7 @@ export default function AssessmentPage() {
           <CardHeader>
             <CardTitle>Assessment Complete</CardTitle>
             <CardDescription>
-              {progress?.score !== undefined 
+              {progress?.score !== undefined
                 ? `Your score: ${progress.score}%`
                 : "Your submission is being reviewed."
               }
@@ -140,9 +142,9 @@ export default function AssessmentPage() {
                 >
                   {question.options.map((option, optIndex) => (
                     <div key={optIndex} className="flex items-center space-x-2">
-                      <RadioGroupItem 
-                        value={option} 
-                        id={`q${index}-opt${optIndex}`} 
+                      <RadioGroupItem
+                        value={option}
+                        id={`q${index}-opt${optIndex}`}
                       />
                       <Label htmlFor={`q${index}-opt${optIndex}`}>
                         {option}

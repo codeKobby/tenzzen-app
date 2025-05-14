@@ -4,7 +4,6 @@ import "./globals.css"
 import { RootLayoutClient } from "./root-layout-client"
 import NextTopLoader from "nextjs-toploader"
 import { Providers } from "@/app/providers"
-import { ToastContainer } from '@/components/custom-toast'
 import { ClerkProvider } from "@clerk/nextjs"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -25,7 +24,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ClerkProvider publishableKey={publishableKey}>
+        <ClerkProvider
+          publishableKey={publishableKey}
+          afterSignInUrl="/dashboard"
+          afterSignUpUrl="/dashboard"
+        >
           <NextTopLoader
             color="#FF0000"
             height={2}
@@ -36,7 +39,6 @@ export default function RootLayout({
           <Providers>
             <RootLayoutClient>
               {children}
-              <ToastContainer />
             </RootLayoutClient>
           </Providers>
         </ClerkProvider>

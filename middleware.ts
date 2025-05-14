@@ -14,12 +14,11 @@ const isAnalysisRoute = createRouteMatcher([
 export default clerkMiddleware(async (auth, req) => {
   const authData = await auth();
   const userId = authData.userId;
-  const sessionClaims = authData.sessionClaims;
 
   // Sync user to Supabase if they're signed in
   if (userId) {
     try {
-      await syncCurrentUserToSupabase();
+      await syncCurrentUserToSupabase(authData);
     } catch (error) {
       console.error('Error syncing user to Supabase:', error);
     }
@@ -69,6 +68,8 @@ export const config = {
     // Skip Next.js internals and all static files
     '/((?!_next|[^?]*\\.[^?]*$).*)',
     // Always run for API routes
-    '/(api|trpc)(.*)'
+    '/(api|trpc)(.*)',
+    // Explicitly include course routes
+    '/course/:path*'
   ],
 };

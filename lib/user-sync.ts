@@ -1,11 +1,17 @@
 import { createServerSupabaseClient } from './supabase-server';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { currentUser } from '@clerk/nextjs/server';
+import type { AuthObject } from '@clerk/nextjs/server';
 
 /**
  * Synchronizes the current Clerk user to Supabase
+ * @param authData - The auth object from Clerk middleware
  */
-export async function syncCurrentUserToSupabase() {
-  const authData = await auth();
+export async function syncCurrentUserToSupabase(authData?: AuthObject) {
+  if (!authData) {
+    console.error('No auth data provided to syncCurrentUserToSupabase');
+    return null;
+  }
+
   const userId = authData.userId;
   if (!userId) return null;
 

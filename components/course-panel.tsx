@@ -79,74 +79,82 @@ function ActionButtons({ className, course, onCancel }: { className?: string, co
 
         try {
             setEnrolling(true);
-            // Show loading toast
-            toast.info('Enrolling in course...', {
-                description: 'Please wait while we process your enrollment'
-            });
+            console.log("[CoursePanel] Enrolling in course...");
 
-            // First, save the course to the courses table if it doesn't exist
-            const { data: existingCourse, error: checkError } = await supabase
-                .from('courses')
-                .select('id')
-                .eq('video_id', course.videoId)
-                .single();
+            // We'll show the toast in a setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                // Show loading toast
+                toast.info('Enrolling in course...', {
+                    description: 'Please wait while we process your enrollment'
+                });
+            }, 0);
 
-            let courseId;
-
-            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-                console.error('Error checking if course exists:', checkError);
-                throw new Error('Failed to check if course exists');
-            }
-
-            if (!existingCourse) {
-                // Course doesn't exist, create it
-                const { data: newCourse, error: insertError } = await supabase
-                    .from('courses')
-                    .insert({
+            console.log("[CoursePanel] Saving course to Supabase...");
+            // First, save the course to Supabase using the API route
+            const saveResponse = await fetch('/api/supabase/courses/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    courseData: {
                         title: course.title,
                         description: course.description || "",
-                        video_id: course.videoId,
-                        thumbnail: course.image || course.thumbnail,
+                        videoId: course.videoId,
+                        thumbnail: course.image || course.thumbnail || null,
                         metadata: course.metadata || {},
-                        course_items: course.courseItems || []
-                    })
-                    .select()
-                    .single();
+                        courseItems: course.courseItems || []
+                    }
+                }),
+            });
 
-                if (insertError) {
-                    console.error('Error creating course:', insertError);
-                    throw new Error('Failed to create course');
-                }
-
-                courseId = newCourse.id;
-            } else {
-                courseId = existingCourse.id;
+            if (!saveResponse.ok) {
+                const errorData = await saveResponse.json();
+                console.error('[CoursePanel] Failed to save course to Supabase:', errorData);
+                throw new Error(errorData.error || 'Failed to save course');
             }
 
-            // Now enroll the user in the course
-            const { error: enrollError } = await supabase
-                .from('user_courses')
-                .insert({
-                    user_id: user.id,
-                    course_id: courseId,
-                    status: 'in_progress',
-                    enrolled_at: new Date().toISOString()
-                });
+            const saveResult = await saveResponse.json();
+            console.log('[CoursePanel] Course saved to Supabase:', saveResult);
 
-            if (enrollError) {
-                console.error('Error enrolling in course:', enrollError);
-                throw new Error('Failed to enroll in course');
+            // Now enroll the user in the course using the API route
+            console.log("[CoursePanel] Enrolling user in Supabase course:", saveResult.courseId);
+            const enrollResponse = await fetch('/api/supabase/courses/enroll', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ courseId: saveResult.courseId }),
+            });
+
+            if (!enrollResponse.ok) {
+                const errorData = await enrollResponse.json();
+                console.error('[CoursePanel] Failed to enroll in Supabase course:', errorData);
+                throw new Error(errorData.error || 'Failed to enroll in course');
             }
 
-            // Handle success
-            toast.success('Successfully enrolled in course!');
-            router.push('/courses');
+            const enrollResult = await enrollResponse.json();
+            console.log('[CoursePanel] Enrolled in Supabase course:', enrollResult);
+
+            // Handle success - use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.success('Successfully enrolled in course!');
+            }, 0);
+
+            // Add a small delay to ensure the toast is visible before navigation
+            setTimeout(() => {
+                // Redirect to courses page after enrollment
+                console.log("[CoursePanel] Navigating to courses page");
+                router.push('/courses');
+            }, 1000); // 1 second delay
         } catch (error) {
             console.error("Error enrolling in course:", error);
-            // Show error toast
-            toast.error("Failed to enroll in course", {
-                description: "Please try again later."
-            });
+            // Show error toast - use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.error("Failed to enroll in course", {
+                    description: "Please try again later."
+                });
+            }, 0);
         } finally {
             setEnrolling(false);
         }
@@ -347,9 +355,12 @@ export function CoursePanel({ className }: CoursePanelProps) {
         if (courseGenerating) {
             // If generation is in progress, cancel it
             cancelGeneration();
-            toast.info("Generation canceled", {
-                description: "Course generation has been canceled."
-            });
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.info("Generation canceled", {
+                    description: "Course generation has been canceled."
+                });
+            }, 0);
         } else {
             // If viewing a course, go back or close panel
             router.back();
