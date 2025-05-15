@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        signal: AbortSignal.timeout(300000) // 5 minute timeout (300,000 ms) for health check
+        // No timeout for health check
       });
 
       if (testResponse.ok) {
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
           transcript: 'This is a test transcript',
           video_data: {},
         }),
-        signal: AbortSignal.timeout(300000) // 5 minute timeout (300,000 ms) for test
+        // No timeout for test connection
       });
 
       if (testConnectionResponse.ok) {

@@ -15,10 +15,7 @@ export async function POST(req: NextRequest) {
 
     console.log('[video-discovery route] Processing discovery request for query:', query);
 
-    // Call the ADK service with an extended timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout (300,000 ms)
-
+    // Call the ADK service without a timeout
     try {
       const response = await fetch('http://localhost:8001/recommend-videos', {
         method: 'POST',
@@ -26,12 +23,8 @@ export async function POST(req: NextRequest) {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal
+        body: JSON.stringify(requestBody)
       });
-
-      // Clear the timeout once we have a response
-      clearTimeout(timeoutId);
 
       // Check the content type to detect HTML responses
       const contentType = response.headers.get('content-type') || '';
@@ -91,50 +84,7 @@ export async function POST(req: NextRequest) {
       }
 
     } catch (fetchError) {
-      // Clear the timeout to prevent memory leaks
-      clearTimeout(timeoutId);
-
-      // Check if it's an AbortError (timeout)
-      if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
-        console.error('[video-discovery route] Request timeout exceeded 5 minutes (300 seconds)');
-
-        // Create educational-focused mock data for timeout cases
-        const mainTopic = query.split(' ')[0];
-        const mockRecommendations = [
-          {
-            videoId: "dQw4w9WgXcQ",
-            title: `Learn ${mainTopic} - Step-by-Step Tutorial`,
-            channelName: "Educational Channel",
-            thumbnail: "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-            duration: "10:30",
-            views: "1.2M",
-            publishDate: "2 years ago",
-            relevanceScore: 9.5,
-            benefit: `Learn essential ${mainTopic} concepts through hands-on exercises and real-world examples`
-          },
-          {
-            videoId: "9bZkp7q19f0",
-            title: `${mainTopic} Masterclass for ${requestBody.knowledgeLevel || 'Beginners'}`,
-            channelName: "Expert Academy",
-            thumbnail: "https://i.ytimg.com/vi/9bZkp7q19f0/maxresdefault.jpg",
-            duration: "15:45",
-            views: "3.4M",
-            publishDate: "1 year ago",
-            relevanceScore: 8.7,
-            benefit: `Master advanced ${mainTopic} techniques with practical projects and in-depth explanations`
-          }
-        ];
-
-        return NextResponse.json(
-          {
-            error: 'Request timed out. For better results, try a more specific query with clear educational goals like "Learn Python for data science" or "JavaScript fundamentals for web development".',
-            recommendations: mockRecommendations,
-            timeout: true,
-            usingMockData: true
-          },
-          { status: 200 } // Return 200 instead of 504 to allow the client to use the mock data
-        );
-      }
+      // Handle fetch errors without timeout logic
 
       // Other fetch errors
       console.error('[video-discovery route] Fetch error:', fetchError);

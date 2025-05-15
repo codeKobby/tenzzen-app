@@ -65,13 +65,11 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files
-    '/((?!_next|[^?]*\\.[^?]*$).*)',
-    // Always run for API routes
+    // Match all request paths except static files and Next.js internals
+    '/((?!_next|favicon.ico|.*\\.[^/]*$).*)',
+    // Always run for API routes (even if they match the above exclusion)
     '/(api|trpc)(.*)',
     // Explicitly include course routes
     '/course/:path*',
-    // Skip ADK service routes in production (handled by separate service)
-    '/((?!adk-service).*)'
   ],
 };

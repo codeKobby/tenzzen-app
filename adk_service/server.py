@@ -47,27 +47,10 @@ def initialize_gemini_models():
         print(f"ERROR initializing Gemini 1.5 Flash model: {e}")
         gemini_1_5_model = None
 
-    # Initialize Gemini 2.5 for course generation (more advanced capabilities)
-    try:
-        gemini_2_5_model = genai.GenerativeModel(
-            model_name="models/gemini-2.5-pro-exp-03-25",
-            generation_config={
-                "temperature": 0.7,
-                "top_p": 0.95,
-                "top_k": 64,
-                "max_output_tokens": 8192,
-            },
-            safety_settings={
-                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            }
-        )
-        print("Initialized Gemini 2.5 Pro Experimental model for course generation")
-    except Exception as e:
-        print(f"ERROR initializing Gemini 2.5 Pro Experimental model: {e}")
-        gemini_2_5_model = None
+    # We'll use Gemini 1.5 for both video recommendations and course generation
+    # No need to initialize a separate model for course generation
+    # The agent.py file already initializes its own model
+    gemini_2_5_model = None  # Keep this variable but set it to None for compatibility
 
     return gemini_1_5_model, gemini_2_5_model
 
@@ -309,18 +292,63 @@ async def recommend_videos(request_body: RecommendVideosRequest):
         Example: ["complete python for beginners tutorial step by step"]
         """
 
-        # Generate search queries using Gemini 1.5 (faster model)
+        # Generate search queries using Gemini 1.5 (faster model) with retry logic
         try:
-            if gemini_1_5_model:
-                print("API Server: Using Gemini 1.5 Flash model for search query generation")
-                response = await gemini_1_5_model.generate_content_async(search_prompt)
-                response_text = response.text.strip()
-            else:
-                # Fallback to direct_genai_model if Gemini 1.5 initialization failed
-                print("API Server: Falling back to direct_genai_model for search query generation")
-                from agent import direct_genai_model
-                response = await direct_genai_model.generate_content_async(search_prompt)
-                response_text = response.text.strip()
+            # Retry parameters
+            max_retries = 5
+            base_delay = 6  # Start with the retry delay from the error message (6 seconds)
+            retry_count = 0
+            last_error = None
+
+            while retry_count <= max_retries:
+                try:
+                    print(f"API Server: Search query generation attempt {retry_count + 1}/{max_retries + 1}")
+
+                    if gemini_1_5_model:
+                        print("API Server: Using Gemini 1.5 Flash model for search query generation")
+                        response = await gemini_1_5_model.generate_content_async(search_prompt)
+                    else:
+                        # Fallback to direct_genai_model if Gemini 1.5 initialization failed
+                        print("API Server: Falling back to direct_genai_model for search query generation")
+                        from agent import direct_genai_model
+                        response = await direct_genai_model.generate_content_async(search_prompt)
+
+                    response_text = response.text.strip()
+                    print("API Server: Successfully generated search query")
+                    break  # Success, exit the retry loop
+
+                except Exception as e:
+                    last_error = e
+                    retry_count += 1
+
+                    # Check if it's a quota error
+                    error_str = str(e).lower()
+                    if "quota" in error_str or "rate limit" in error_str or "429" in error_str:
+                        # Calculate exponential backoff delay
+                        delay = base_delay * (2 ** (retry_count - 1))
+
+                        # Extract retry delay from error message if available
+                        retry_delay_match = re.search(r'retry_delay\s*{\s*seconds:\s*(\d+)', str(e))
+                        if retry_delay_match:
+                            suggested_delay = int(retry_delay_match.group(1))
+                            delay = max(delay, suggested_delay)  # Use the larger of the two
+
+                        print(f"API Server: Rate limit exceeded. Retrying in {delay} seconds...")
+                        await asyncio.sleep(delay)
+                        continue
+
+                    # For non-quota errors, or if we've exhausted retries
+                    if retry_count > max_retries:
+                        print(f"API Server: Max retries exceeded. Last error: {e}")
+                        raise e
+
+                    # For other errors, use a shorter delay
+                    print(f"API Server: Error: {e}. Retrying in {base_delay} seconds...")
+                    await asyncio.sleep(base_delay)
+
+            # If we've exhausted retries without success
+            if retry_count > max_retries and last_error:
+                raise last_error
 
             # Extract the JSON array from the response
             if response_text.startswith("```json"):
@@ -913,233 +941,94 @@ async def recommend_videos(request_body: RecommendVideosRequest):
             import asyncio
             from concurrent.futures import TimeoutError
 
-            # Generate analysis using Gemini 1.5 (faster model) with a timeout
+            # Generate analysis using Gemini 1.5 (faster model) with retry logic
             print("API Server: Sending analysis request to Gemini API")
 
-            # Use Gemini 1.5 for video analysis if available
-            if gemini_1_5_model:
-                print("API Server: Using Gemini 1.5 Flash model for video analysis")
-                analysis_task = gemini_1_5_model.generate_content_async(analysis_prompt)
-            else:
-                # Fallback to direct_genai_model if Gemini 1.5 initialization failed
-                print("API Server: Falling back to direct_genai_model for video analysis")
-                from agent import direct_genai_model
-                analysis_task = direct_genai_model.generate_content_async(analysis_prompt)
+            # Retry parameters
+            max_retries = 5
+            base_delay = 6  # Start with the retry delay from the error message (6 seconds)
+            retry_count = 0
+            last_error = None
+            analysis_text = None
 
-            # Wait for the analysis with a longer timeout (30 seconds)
-            try:
-                analysis_response = await asyncio.wait_for(analysis_task, timeout=30)
-                analysis_text = analysis_response.text.strip()
-                print("API Server: Successfully received analysis from Gemini API")
-                print(f"API Server: Analysis text preview: {analysis_text[:100]}...")
-            except (TimeoutError, asyncio.TimeoutError):
-                print("API Server Warning: Gemini API analysis timed out, using fallback ranking")
-                # Create an improved fallback analysis based on multiple factors
-                fallback_analysis = []
-                for video in video_data:
-                    # Calculate a more sophisticated relevance score
-                    query_terms = request_body.query.lower().split()
-                    title_lower = video['title'].lower()
+            while retry_count <= max_retries:
+                try:
+                    print(f"API Server: Video analysis attempt {retry_count + 1}/{max_retries + 1}")
 
-                    # Base score from title match
-                    matching_terms = sum(1 for term in query_terms if term in title_lower)
-                    title_match_score = min(5.0, 2.0 + matching_terms * 0.5)
-
-                    # Bonus for exact phrase match
-                    phrase_match_bonus = 2.0 if request_body.query.lower() in title_lower else 0.0
-
-                    # Bonus for educational terms in title
-                    educational_terms = ['tutorial', 'course', 'learn', 'guide', 'introduction', 'explained', 'basics']
-                    edu_term_bonus = 1.0 if any(term in title_lower for term in educational_terms) else 0.0
-
-                    # Bonus for level match
-                    level_terms = {
-                        'Beginner': ['beginner', 'basic', 'introduction', 'start', 'fundamental'],
-                        'Intermediate': ['intermediate', 'advanced', 'improve', 'enhance'],
-                        'Advanced': ['advanced', 'expert', 'professional', 'mastery']
-                    }
-                    level_match_terms = level_terms.get(request_body.knowledgeLevel, [])
-                    level_bonus = 1.0 if any(term in title_lower for term in level_match_terms) else 0.0
-
-                    # Calculate final score (max 10.0)
-                    final_score = min(10.0, title_match_score + phrase_match_bonus + edu_term_bonus + level_bonus)
-
-                    # Generate a more specific benefit description focused on learning outcomes
-                    main_topic = request_body.query.split()[0]
-                    if final_score >= 8.0:
-                        benefit = f"Learn advanced {main_topic} concepts with practical examples"
-                    elif final_score >= 6.0:
-                        benefit = f"Master the fundamentals of {main_topic} through step-by-step instruction"
+                    # Use Gemini 1.5 for video analysis if available
+                    if gemini_1_5_model:
+                        print("API Server: Using Gemini 1.5 Flash model for video analysis")
+                        analysis_task = gemini_1_5_model.generate_content_async(analysis_prompt)
                     else:
-                        benefit = f"Understand basic {main_topic} principles for beginners"
+                        # Fallback to direct_genai_model if Gemini 1.5 initialization failed
+                        print("API Server: Falling back to direct_genai_model for video analysis")
+                        from agent import direct_genai_model
+                        analysis_task = direct_genai_model.generate_content_async(analysis_prompt)
 
-                    fallback_analysis.append({
-                        "videoId": video['videoId'],
-                        "relevanceScore": final_score,
-                        "benefit": benefit
-                    })
+                    # Wait for the analysis with a longer timeout (30 seconds)
+                    analysis_response = await asyncio.wait_for(analysis_task, timeout=30)
+                    analysis_text = analysis_response.text.strip()
+                    print("API Server: Successfully received analysis from Gemini API")
+                    print(f"API Server: Analysis text preview: {analysis_text[:100]}...")
+                    break  # Success, exit the retry loop
 
-                # Use the fallback analysis instead
-                return JSONResponse(content={
-                    "recommendations": [
-                        {
-                            "videoId": item["videoId"],
-                            "title": next((v["title"] for v in video_data if v["videoId"] == item["videoId"]), ""),
-                            "channelName": next((v["channelName"] for v in video_data if v["videoId"] == item["videoId"]), ""),
-                            "thumbnail": next((v["thumbnail"] for v in video_data if v["videoId"] == item["videoId"]), ""),
-                            "duration": next((v["duration"] for v in video_data if v["videoId"] == item["videoId"]), ""),
-                            "views": next((v["views"] for v in video_data if v["videoId"] == item["videoId"]), ""),
-                            "publishDate": next((v["publishDate"] for v in video_data if v["videoId"] == item["videoId"]), ""),
-                            "relevanceScore": item["relevanceScore"],
-                            "benefit": item["benefit"]
-                        }
-                        for item in sorted(fallback_analysis, key=lambda x: x["relevanceScore"], reverse=True)[:5]
-                    ]
-                })
-        except Exception as analysis_error:
-            print(f"API Server Error: Failed to analyze videos: {analysis_error}")
-            # Create a simple fallback without AI analysis
-            return JSONResponse(content={
-                "recommendations": [
-                    {
-                        "videoId": video["videoId"],
-                        "title": video["title"],
-                        "channelName": video["channelName"],
-                        "thumbnail": video["thumbnail"],
-                        "duration": video["duration"],
-                        "views": video["views"],
-                        "publishDate": video["publishDate"],
-                        "relevanceScore": 5.0,
-                        "benefit": f"Video about {request_body.query}."
-                    }
-                    for video in video_data[:10]
-                ]
-            })
+                except (TimeoutError, asyncio.TimeoutError) as e:
+                    print("API Server Warning: Gemini API analysis timed out")
+                    # For timeouts, we'll break and use the fallback ranking
+                    last_error = e
+                    break
 
-        # Extract the JSON array from the response
-        # Make sure analysis_text is defined
-        if not 'analysis_text' in locals():
-            print("API Server Warning: analysis_text not defined, using fallback ranking")
-            # Create a simple fallback without AI analysis
-            return JSONResponse(content={
-                "recommendations": [
-                    {
-                        "videoId": video["videoId"],
-                        "title": video["title"],
-                        "channelName": video["channelName"],
-                        "thumbnail": video["thumbnail"],
-                        "duration": video["duration"],
-                        "views": video["views"],
-                        "publishDate": video["publishDate"],
-                        "relevanceScore": 5.0,
-                        "benefit": f"Video about {request_body.query}."
-                    }
-                    for video in video_data[:10]
-                ]
-            })
+                except Exception as e:
+                    last_error = e
+                    retry_count += 1
 
-        # Clean up the response text to extract JSON more reliably
-        clean_text = analysis_text
+                    # Check if it's a quota error
+                    error_str = str(e).lower()
+                    if "quota" in error_str or "rate limit" in error_str or "429" in error_str:
+                        # Calculate exponential backoff delay
+                        delay = base_delay * (2 ** (retry_count - 1))
 
-        # Remove markdown code blocks if present
-        if clean_text.startswith("```json"):
-            clean_text = clean_text.replace("```json", "").replace("```", "").strip()
-        elif clean_text.startswith("```"):
-            clean_text = clean_text.replace("```", "").strip()
+                        # Extract retry delay from error message if available
+                        retry_delay_match = re.search(r'retry_delay\s*{\s*seconds:\s*(\d+)', str(e))
+                        if retry_delay_match:
+                            suggested_delay = int(retry_delay_match.group(1))
+                            delay = max(delay, suggested_delay)  # Use the larger of the two
 
-        # Find JSON array in the text if it's not a pure JSON response
-        if not clean_text.strip().startswith('['):
-            # Look for the start of a JSON array
-            array_start = clean_text.find('[')
-            if array_start >= 0:
-                # Find the matching closing bracket
-                bracket_count = 0
-                for i in range(array_start, len(clean_text)):
-                    if clean_text[i] == '[':
-                        bracket_count += 1
-                    elif clean_text[i] == ']':
-                        bracket_count -= 1
-                        if bracket_count == 0:
-                            clean_text = clean_text[array_start:i+1]
-                            break
+                        print(f"API Server: Rate limit exceeded. Retrying in {delay} seconds...")
+                        await asyncio.sleep(delay)
+                        continue
 
-        analysis_text = clean_text
-        # Log the cleaned text for debugging
-        print(f"API Server: Cleaned analysis text: {analysis_text[:100]}...")
+                    # For non-quota errors, or if we've exhausted retries
+                    if retry_count > max_retries:
+                        print(f"API Server: Max retries exceeded. Last error: {e}")
+                        break  # We'll use the fallback ranking
 
-        try:
-            # Try to parse the JSON response with error handling
-            try:
-                video_analysis = json.loads(analysis_text)
+                    # For other errors, use a shorter delay
+                    print(f"API Server: Error: {e}. Retrying in {base_delay} seconds...")
+                    await asyncio.sleep(base_delay)
 
-                # Ensure we got a list of objects with the expected fields
-                if not isinstance(video_analysis, list):
-                    print("API Server Warning: Analysis result is not a list, using fallback")
-                    raise ValueError("Analysis result is not a list")
+            # If we have analysis text, proceed with it
+            if analysis_text:
+                # Process the analysis text
+                try:
+                    # Parse the analysis text as JSON
+                    analysis_data = json.loads(analysis_text)
 
-                # Create a map of video analysis by ID
-                analysis_map = {item.get('videoId'): item for item in video_analysis if isinstance(item, dict)}
+                    # Extract the recommendations
+                    if isinstance(analysis_data, dict) and "recommendations" in analysis_data:
+                        recommendations = analysis_data["recommendations"]
+                        print(f"API Server: Successfully parsed {len(recommendations)} recommendations from analysis")
 
-                # Check if we have valid analysis for at least some videos
-                if not analysis_map:
-                    print("API Server Warning: No valid video analysis found, using fallback")
-                    raise ValueError("No valid video analysis found")
+                        # Return the recommendations
+                        return JSONResponse(content=analysis_data)
+                    else:
+                        print("API Server Warning: Analysis data does not contain recommendations")
+                except Exception as parse_error:
+                    print(f"API Server Warning: Failed to parse analysis data: {parse_error}")
 
-                # Update video data with analysis results
-                recommendations = []
-                for video in video_data:
-                    video_id = video['videoId']
-                    analysis = analysis_map.get(video_id, {})
-
-                    # Use a default score if none provided or invalid
-                    relevance_score = analysis.get('relevanceScore', 5.0)
-                    try:
-                        relevance_score = float(relevance_score)
-                        # Ensure score is within valid range
-                        relevance_score = max(1.0, min(10.0, relevance_score))
-                    except (ValueError, TypeError):
-                        relevance_score = 5.0
-
-                    recommendations.append({
-                        "videoId": video_id,
-                        "title": video['title'],
-                        "channelName": video['channelName'],
-                        "thumbnail": video['thumbnail'],
-                        "duration": video['duration'],
-                        "views": video['views'],
-                        "publishDate": video['publishDate'],
-                        "relevanceScore": relevance_score,
-                        "benefit": analysis.get('benefit', f"Video about {request_body.query}.")
-                    })
-
-                # Sort recommendations by relevance score (highest first)
-                recommendations.sort(key=lambda x: x['relevanceScore'], reverse=True)
-
-                # Limit to top 2-5 most relevant recommendations
-                # Only include videos with relevance score >= 6.0 to ensure quality
-                filtered_recommendations = [r for r in recommendations if r['relevanceScore'] >= 6.0]
-
-                # Take at least 2 videos (if available) but no more than 5
-                if len(filtered_recommendations) < 2 and len(recommendations) >= 2:
-                    # If we don't have enough high-quality videos, take the top 2
-                    recommendations = recommendations[:2]
-                else:
-                    # Otherwise use the filtered high-quality recommendations (up to 5)
-                    recommendations = filtered_recommendations[:5]
-
-                print(f"API Server: Returning {len(recommendations)} ranked video recommendations")
-                return JSONResponse(content={"recommendations": recommendations})
-
-            except (json.JSONDecodeError, ValueError) as json_error:
-                print(f"API Server Warning: Failed to parse analysis result: {json_error}")
-                print(f"API Server Warning: Analysis text preview: {analysis_text[:500]}")
-                raise ValueError(f"Failed to parse analysis result: {json_error}")
-
-        except Exception as e:
-            print(f"API Server Warning: Error processing analysis results: {e}")
-
+            # If we don't have valid analysis text or couldn't parse it, use fallback ranking
+            print("API Server Warning: Using fallback ranking for video recommendations")
             # Create an improved fallback analysis based on multiple factors
-            print("API Server: Using enhanced fallback ranking algorithm")
             fallback_analysis = []
             for video in video_data:
                 # Calculate a more sophisticated relevance score
@@ -1184,7 +1073,7 @@ async def recommend_videos(request_body: RecommendVideosRequest):
                     "benefit": benefit
                 })
 
-            # Return the fallback recommendations
+            # Use the fallback analysis instead
             return JSONResponse(content={
                 "recommendations": [
                     {
@@ -1199,6 +1088,25 @@ async def recommend_videos(request_body: RecommendVideosRequest):
                         "benefit": item["benefit"]
                     }
                     for item in sorted(fallback_analysis, key=lambda x: x["relevanceScore"], reverse=True)[:5]
+                ]
+            })
+        except Exception as analysis_error:
+            print(f"API Server Error: Failed to analyze videos: {analysis_error}")
+            # Create a simple fallback without AI analysis
+            return JSONResponse(content={
+                "recommendations": [
+                    {
+                        "videoId": video["videoId"],
+                        "title": video["title"],
+                        "channelName": video["channelName"],
+                        "thumbnail": video["thumbnail"],
+                        "duration": video["duration"],
+                        "views": video["views"],
+                        "publishDate": video["publishDate"],
+                        "relevanceScore": 5.0,
+                        "benefit": f"Video about {request_body.query}."
+                    }
+                    for video in video_data[:10]
                 ]
             })
 

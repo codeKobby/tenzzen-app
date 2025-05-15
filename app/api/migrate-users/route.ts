@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { migrateUsers } from '@/scripts/migrate-users';
+import { migrateUsers } from '../../../scripts/migrate-users';
 
 export async function POST(req: NextRequest) {
   const authData = await auth();

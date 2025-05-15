@@ -16,14 +16,15 @@ const nextConfig = {
   output: 'standalone',
   // Configure image domains for next/image
   images: {
-    domains: ['images.unsplash.com', 'i.ytimg.com', 'img.youtube.com'],
-  },
-  // Increase timeout for API routes
-  api: {
-    responseLimit: '8mb',
-    bodyParser: {
-      sizeLimit: '8mb',
-    },
+    domains: [
+      'images.unsplash.com',
+      'i.ytimg.com',
+      'img.youtube.com',
+      'yt3.ggpht.com',       // YouTube channel thumbnails
+      'yt3.googleusercontent.com', // YouTube profile pictures
+      'i.ytimg.com',         // YouTube video thumbnails
+      'ytimg.googleusercontent.com'
+    ],
   },
   // Configure webpack
   webpack: (config) => {

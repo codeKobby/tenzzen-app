@@ -163,12 +163,8 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
         setProgressMessage("Searching for relevant videos...")
 
         try {
-          // Create an AbortController for timeout management
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout - more reasonable for user experience
-
           try {
-            // Call the video discovery API with timeout
+            // Call the video discovery API without timeout
             const response = await fetch('/api/video-discovery', {
               method: 'POST',
               headers: {
@@ -180,12 +176,8 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                 preferredChannels: formData.preferredChannels,
                 additionalContext: formData.additionalContext,
                 videoLength: formData.videoLength
-              }),
-              signal: controller.signal
+              })
             });
-
-            // Clear the timeout once we have a response
-            clearTimeout(timeoutId);
 
             setDiscoveryProgress(25)
             setProgressMessage("Finding relevant videos...")
@@ -267,67 +259,17 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
             // Simulate a delay to show the completed progress
             await new Promise(resolve => setTimeout(resolve, 500))
           } catch (fetchError) {
-            // Clear the timeout to prevent memory leaks
-            clearTimeout(timeoutId);
-
-            // Handle AbortError (timeout)
-            if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
-              throw new Error("Request timed out. The AI analysis is taking longer than expected. Please try again with a more specific query.");
-            }
-
-            // Re-throw other errors
+            // Re-throw errors
             throw fetchError;
           }
 
         } catch (error) {
           console.error("Failed to fetch video recommendations:", error);
 
-          // Provide more specific error messages based on the error
+          // Provide error messages based on the error
           if (error instanceof Error) {
-            if (error.message.includes("timeout") || error.message.includes("too long")) {
-              toast.error("The AI analysis is taking longer than expected. Please try a more specific query with clear educational goals.");
-              setProgressMessage("Analysis timed out. For better results, try a more specific query like 'Learn Python for data science' or 'JavaScript fundamentals for web development'.");
-
-              // Always use mock data for timeouts to provide a better user experience
-              console.log("Using mock data for timeout case");
-              // Educational-focused mock data
-              const mainTopic = formData.title.split(' ')[0];
-              setRecommendations([
-                {
-                  videoId: "dQw4w9WgXcQ",
-                  title: `Learn ${mainTopic} - Step-by-Step Tutorial`,
-                  channelName: "Educational Channel",
-                  thumbnail: "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-                  duration: "10:30",
-                  views: "1.2M",
-                  publishDate: "2 years ago",
-                  relevanceScore: 9.5,
-                  benefit: `Learn essential ${mainTopic} concepts through hands-on exercises and real-world examples`
-                },
-                {
-                  videoId: "9bZkp7q19f0",
-                  title: `${mainTopic} Masterclass for ${formData.knowledgeLevel}s`,
-                  channelName: "Expert Academy",
-                  thumbnail: "https://i.ytimg.com/vi/9bZkp7q19f0/maxresdefault.jpg",
-                  duration: "15:45",
-                  views: "3.4M",
-                  publishDate: "1 year ago",
-                  relevanceScore: 8.7,
-                  benefit: `Master advanced ${mainTopic} techniques with practical projects and in-depth explanations`
-                }
-              ]);
-              setDiscoveryProgress(100);
-              setProgressMessage("Using sample recommendations. For actual results, try a more specific query.");
-              setShowDiscoveryResults(true);
-              toast.warning("Showing sample recommendations due to timeout. For better results, try a more specific query.");
-              return; // Exit early with mock data
-            } else if (error.message.includes("504")) {
-              toast.error("Server timeout. The AI service is currently busy. Please try again later.");
-              setProgressMessage("Server timeout. Please try again later.");
-            } else {
-              toast.error(error.message || "Failed to find courses. Please try again.");
-              setProgressMessage("Error occurred. Please try again.");
-            }
+            toast.error(error.message || "Failed to find courses. Please try again.");
+            setProgressMessage("Error occurred. Please try again.");
           } else {
             toast.error("Failed to find courses. Please try again.");
             setProgressMessage("Error occurred. Please try again.");
