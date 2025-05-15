@@ -70,6 +70,8 @@ export const config = {
     // Always run for API routes
     '/(api|trpc)(.*)',
     // Explicitly include course routes
-    '/course/:path*'
+    '/course/:path*',
+    // Skip ADK service routes in production (handled by separate service)
+    '/((?!adk-service).*)'
   ],
 };

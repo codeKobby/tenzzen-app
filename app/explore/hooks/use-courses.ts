@@ -41,7 +41,18 @@ export function useCourses(options: UseCourseOptions = {}) {
 
         // Apply category filter if provided
         if (options.category && options.category !== 'all') {
-          query = query.eq('category', options.category);
+          // Use the new course_categories junction table
+          query = query.in('id',
+            supabase
+              .from('course_categories')
+              .select('course_id')
+              .in('category_id',
+                supabase
+                  .from('categories')
+                  .select('id')
+                  .eq('slug', options.category)
+              )
+          );
         }
 
         // Apply search query if provided
@@ -166,28 +177,19 @@ export function useCourses(options: UseCourseOptions = {}) {
         setCourses(mappedCourses);
         setTotalCount(count || 0);
 
-        // Fetch unique categories and tags
+        // Fetch categories from the new categories table
         const { data: categoryData, error: categoryError } = await supabase
-          .from('courses')
-          .select('category, tags')
-          .eq('is_public', true)
-          .not('category', 'is', null);
+          .from('categories')
+          .select('name, slug, course_count')
+          .gt('course_count', 0)
+          .order('course_count', { ascending: false });
 
         if (categoryError) throw categoryError;
 
-        // Normalize and extract unique categories
-        const normalizedCategories = categoryData.map(item =>
-          normalizeCategory(
-            item.category || "",
-            Array.isArray(item.tags) ? item.tags : []
-          )
-        );
+        // Extract category names
+        const categoryNames = categoryData.map(item => item.name);
 
-        const uniqueCategories = Array.from(
-          new Set(normalizedCategories)
-        ).filter(Boolean);
-
-        setCategories(uniqueCategories);
+        setCategories(categoryNames);
       } catch (err) {
         console.error('Error fetching courses:', err);
         // Provide more detailed error information

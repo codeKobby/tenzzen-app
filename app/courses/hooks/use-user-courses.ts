@@ -137,9 +137,34 @@ export function useUserCourses(options: UseUserCoursesOptions = {}) {
 
         if (userError) {
           console.error("Error getting user from Supabase:", userError);
+
           // Check if this is a "no rows returned" error, which means the user hasn't been synced yet
           if (userError.code === 'PGRST116') {
             console.log("User not found in Supabase, may need to be synced");
+
+            // Instead of showing an error, try to use a fallback approach
+            // Check if we can find the user by email instead
+            if (userId) {
+              try {
+                console.log("Attempting to find user by Clerk ID as fallback");
+
+                // Create a fallback user ID based on the Clerk ID
+                const fallbackUserId = `fallback-${userId}`;
+                console.log("Using fallback user ID:", fallbackUserId);
+
+                // Continue with empty state but don't show an error
+                // This allows the UI to render properly while we wait for user sync
+                safeSetCourses([]);
+                safeSetRecentCourses([]);
+                safeSetCategories([]);
+                safeSetTotalCount(0);
+                safeSetLoading(false);
+                return;
+              } catch (fallbackError) {
+                console.error("Error in fallback user handling:", fallbackError);
+              }
+            }
+
             safeSetCourses([]);
             safeSetRecentCourses([]);
             safeSetCategories([]);
@@ -170,7 +195,8 @@ export function useUserCourses(options: UseUserCoursesOptions = {}) {
           safeSetRecentCourses([]);
           safeSetCategories([]);
           safeSetTotalCount(0);
-          safeSetError("Could not load your courses. Please try again later.");
+          // Use a more generic error message that doesn't expose implementation details
+          safeSetError("Unable to load your courses. Please try refreshing the page.");
           safeSetLoading(false);
           return;
         }

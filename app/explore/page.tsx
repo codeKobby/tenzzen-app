@@ -8,11 +8,10 @@ import {
     Sparkles,
     SlidersHorizontal,
     Filter,
-    ChevronLeft,
-    ChevronRight,
     X,
     Loader2
 } from "lucide-react"
+import { CategoryPills } from "@/components/category-pills"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -31,8 +30,10 @@ import { cn } from "@/lib/utils"
 import { AnimatePresence, motion } from "framer-motion"
 import Link from "next/link"
 import { useCourses } from "./hooks/use-courses"
+import { useCategoryCourses } from "./hooks/use-category-courses"
 import { useUserCourses } from "../courses/hooks/use-user-courses"
 import { getTrendingCourses, getRecommendedCourses } from "./utils/course-display-algorithms"
+import { CourseCardSkeleton } from "@/components/ui/course-card-skeleton"
 
 const sortOptions = [
     { id: "enrollments", label: "Most Enrolled" },
@@ -50,109 +51,35 @@ const filterOptions = [
 export default function ExplorePage() {
     const { user } = useAuth()
     const [searchQuery, setSearchQuery] = useState("")
-    const [selectedCategory, setSelectedCategory] = useState("all")
     const [sortBy, setSortBy] = useState("enrollments")
     const [statusFilter, setStatusFilter] = useState("all")
     const [showGenerateModal, setShowGenerateModal] = useState(false)
     const [showAuthPrompt, setShowAuthPrompt] = useState(false)
     const [showSearch, setShowSearch] = useState(false)
-    const [page, setPage] = useState<number>(1)
-    const [displayedCourses, setDisplayedCourses] = useState<Array<Course>>([])
-    const [hasMore, setHasMore] = useState(true)
     const loadMoreRef = useRef<HTMLDivElement>(null)
 
-    // Fetch courses from Supabase
+    // Use our new hook for category-based course loading with infinite scroll
     const {
-        courses: fetchedCourses,
-        categories: availableCategories,
+        courses: displayedCourses,
         loading: isLoading,
-        totalCount
-    } = useCourses({
-        category: selectedCategory,
+        loadingMore,
+        hasMore,
+        totalCount,
+        currentCategory,
+        loadMore: loadMoreCourses,
+        categories: availableCategories
+    } = useCategoryCourses({
         sortBy,
         filter: statusFilter,
         searchQuery,
-        page,
         limit: 12
-    })
-
-    // Create dynamic category pills
-    const categoryPills = useMemo(() => [
-        { id: "all", label: "All Categories" },
-        ...availableCategories.map(category => ({
-            id: category.toLowerCase(),
-            label: category
-        }))
-    ], [availableCategories])
-
-    // For category pills scrolling
-    const tabsRef = useRef<HTMLDivElement>(null)
-    const [showScrollButtons, setShowScrollButtons] = useState(false)
-    const [canScrollLeft, setCanScrollLeft] = useState(false)
-    const [canScrollRight, setCanScrollRight] = useState(false)
-
-    // Check scroll capability on mount and resize
-    useEffect(() => {
-        const checkScroll = () => {
-            if (tabsRef.current) {
-                const { scrollWidth, clientWidth, scrollLeft } = tabsRef.current
-                setShowScrollButtons(scrollWidth > clientWidth)
-                setCanScrollLeft(scrollLeft > 0)
-                setCanScrollRight(scrollLeft + clientWidth < scrollWidth)
-            }
-        }
-
-        checkScroll()
-        window.addEventListener("resize", checkScroll)
-        return () => window.removeEventListener("resize", checkScroll)
-    }, [])
-
-    // Update scroll state when scrolling the tabs
-    const handleTabsScroll = () => {
-        if (tabsRef.current) {
-            const { scrollWidth, clientWidth, scrollLeft } = tabsRef.current
-            setCanScrollLeft(scrollLeft > 0)
-            setCanScrollRight(scrollLeft + clientWidth < scrollWidth)
-        }
-    }
-
-    // Handle scroll button clicks
-    const scrollTabs = (direction: 'left' | 'right') => {
-        if (tabsRef.current) {
-            const scrollAmount = direction === 'left' ? -200 : 200
-            tabsRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' })
-        }
-    }
-
-    // Load more courses when scrolling
-    const loadMoreCourses = useCallback(() => {
-        if (isLoading || !hasMore) return;
-        setPage(prev => prev + 1);
-    }, [isLoading, hasMore]);
-
-    // Update displayed courses when fetched courses change
-    useEffect(() => {
-        if (fetchedCourses.length > 0) {
-            if (page === 1) {
-                setDisplayedCourses(fetchedCourses);
-            } else {
-                setDisplayedCourses(prev => [...prev, ...fetchedCourses]);
-            }
-        } else if (!isLoading && page === 1) {
-            // If there are no courses and we're not loading, set displayed courses to empty array
-            setDisplayedCourses([]);
-        }
-
-        // Check if there are more courses to load - use totalCount directly
-        // This fixes the issue where hasMore is calculated incorrectly
-        setHasMore(fetchedCourses.length > 0 && displayedCourses.length < totalCount);
-    }, [fetchedCourses, page, totalCount, displayedCourses.length, isLoading]);
+    });
 
     // Setup intersection observer for infinite scrolling
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting && !isLoading && hasMore) {
+                if (entries[0].isIntersecting && !isLoading && !loadingMore && hasMore) {
                     loadMoreCourses();
                 }
             },
@@ -164,17 +91,10 @@ export default function ExplorePage() {
         }
 
         return () => observer.disconnect();
-    }, [loadMoreCourses, isLoading, hasMore]);
-
-    // Reset pagination when filters change
-    useEffect(() => {
-        setDisplayedCourses([]);
-        setPage(1);
-        setHasMore(true);
-    }, [searchQuery, selectedCategory, sortBy, statusFilter]);
+    }, [loadMoreCourses, isLoading, loadingMore, hasMore]);
 
     // Get all courses for trending and recommendation algorithms
-    const { courses: allCourses, loading: allCoursesLoading } = useCourses({
+    const { courses: allCourses } = useCourses({
         limit: 100, // Get a larger set of courses for our algorithms
         sortBy: 'enrollments',
     });
@@ -352,76 +272,14 @@ export default function ExplorePage() {
                     </div>
 
                     {/* Category Pills */}
-                    <div className="relative py-2 sm:py-3">
-                        <div
-                            ref={tabsRef}
-                            className="overflow-hidden relative isolate"
-                            onScroll={handleTabsScroll}
-                        >
-                            {/* Scroll Indicators */}
-                            <div className={cn(
-                                "absolute left-0 top-0 bottom-0 w-[80px] pointer-events-none z-10",
-                                "bg-gradient-to-r from-background to-transparent",
-                                "opacity-0 transition-opacity duration-300",
-                                canScrollLeft && "opacity-100"
-                            )} />
-                            <div className={cn(
-                                "absolute right-0 top-0 bottom-0 w-[80px] pointer-events-none z-10",
-                                "bg-gradient-to-l from-background to-transparent",
-                                "opacity-0 transition-opacity duration-300",
-                                canScrollRight && "opacity-100"
-                            )} />
-                            <div className="flex gap-3">
-                            {categoryPills.map((tag) => (
-                                <button
-                                    type="button"
-                                    key={`category-${tag.id}`}
-                                    onClick={() => setSelectedCategory(tag.id)}
-                                    className={cn(
-                                        "h-8 px-4 rounded-lg font-normal transition-all whitespace-nowrap text-sm select-none",
-                                        selectedCategory === tag.id
-                                            ? "bg-primary text-primary-foreground shadow-sm"
-                                            : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                                    )}
-                                >
-                                    {tag.label}
-                                </button>
-                            ))}
-                            </div>
-                        </div>
-
-                        {/* Navigation Arrows */}
-                        <div className={cn(
-                            "transition-opacity duration-200",
-                            !showScrollButtons && "opacity-0 pointer-events-none"
-                        )}>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className={cn(
-                                    "absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md z-20",
-                                    "transition-opacity duration-200",
-                                    !canScrollLeft && "opacity-0 pointer-events-none",
-                                    canScrollLeft && "opacity-100"
-                                )}
-                                onClick={() => scrollTabs('left')}
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className={cn(
-                                    "absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md z-20",
-                                    "transition-opacity duration-200",
-                                    !canScrollRight && "opacity-0 pointer-events-none",
-                                    canScrollRight && "opacity-100"
-                                )}
-                                onClick={() => scrollTabs('right')}
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
+                    <div className="py-2 sm:py-3">
+                        <CategoryPills
+                            customCategories={availableCategories?.map(cat => ({
+                                name: cat.name,
+                                slug: cat.slug,
+                                courseCount: cat.courseCount
+                            }))}
+                        />
                     </div>
                 </div>
             </div>
@@ -444,7 +302,7 @@ export default function ExplorePage() {
                                     key={course.id}
                                     course={course}
                                     variant="explore"
-                                    onClick={() => {}} // Handle course selection
+                                    onClick={() => { }} // Handle course selection
                                 />
                             ))}
                         </div>
@@ -464,7 +322,7 @@ export default function ExplorePage() {
                                     key={course.id}
                                     course={course}
                                     variant="explore"
-                                    onClick={() => {}} // Handle course selection
+                                    onClick={() => { }} // Handle course selection
                                 />
                             ))}
                         </div>
@@ -473,36 +331,83 @@ export default function ExplorePage() {
 
                 {/* All Courses */}
                 <section className="space-y-4">
-                    <h2 className="text-xl font-semibold">All Courses</h2>
-                    {displayedCourses.length > 0 ? (
+                    <h2 className="text-xl font-semibold">
+                        {currentCategory === 'all'
+                          ? 'All Courses'
+                          : `${availableCategories.find(cat => cat.slug === currentCategory)?.name || currentCategory.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Courses`}
+                    </h2>
+
+                    {isLoading && displayedCourses.length === 0 ? (
+                        // Initial loading state - reduced to 1-2 rows (4-8 cards)
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {Array(8).fill(0).slice(0, 8).map((_, index) => (
+                                <CourseCardSkeleton key={index} className={cn(
+                                    // Only show 1-2 rows based on screen size
+                                    index >= 4 && "hidden xl:block", // Show 8 on xl screens (2 rows of 4)
+                                    index >= 3 && "hidden lg:block xl:block", // Show 6 on lg screens (2 rows of 3)
+                                    index >= 2 && "hidden sm:block lg:block xl:block", // Show 4 on sm screens (2 rows of 2)
+                                )} />
+                            ))}
+                        </div>
+                    ) : displayedCourses.length > 0 ? (
                         <>
                             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                {displayedCourses.map((course) => (
-                                    <CourseCard
-                                        key={course.id}
-                                        course={course}
-                                        variant="explore"
-                                        onClick={() => {}} // Handle course selection
-                                    />
-                                ))}
+                                <AnimatePresence mode="sync">
+                                    {displayedCourses.map((course) => (
+                                        <motion.div
+                                            key={course.id}
+                                            layout
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.9 }}
+                                            transition={{
+                                                opacity: { duration: 0.2 },
+                                                layout: { duration: 0.3, type: "spring" }
+                                            }}
+                                        >
+                                            <CourseCard
+                                                course={course}
+                                                variant="explore"
+                                                onClick={() => { }} // Handle course selection
+                                            />
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
                             </div>
                             <div ref={loadMoreRef} className="py-8 flex justify-center">
-                                {isLoading ? (
+                                {loadingMore ? (
                                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                 ) : hasMore ? (
                                     <div className="h-8" /> // Spacer for intersection observer
                                 ) : (
-                                    <p className="text-sm text-muted-foreground">No more courses to load</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {displayedCourses.length > 0
+                                            ? "No more courses to load"
+                                            : "No courses found"}
+                                    </p>
                                 )}
                             </div>
                         </>
-                    ) : isLoading ? (
-                        <div className="py-12 flex justify-center">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
                     ) : (
-                        <div className="text-center py-12">
-                            <p className="text-muted-foreground">No courses found matching your criteria</p>
+                        <div className="text-center py-12 border border-dashed rounded-lg border-muted-foreground/20 bg-muted/5">
+                            <p className="text-muted-foreground">
+                                {currentCategory === 'all'
+                                    ? "No courses found"
+                                    : `No courses found in ${currentCategory.replace(/-/g, ' ')}`}
+                            </p>
+                            <Button
+                                variant="link"
+                                className="mt-2"
+                                onClick={() => {
+                                    // Reset to all categories
+                                    const url = new URL(window.location.href);
+                                    url.searchParams.delete('category');
+                                    window.history.pushState({}, '', url.toString());
+                                    window.location.reload();
+                                }}
+                            >
+                                View all courses
+                            </Button>
                         </div>
                     )}
                 </section>

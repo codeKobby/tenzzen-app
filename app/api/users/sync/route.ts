@@ -7,6 +7,14 @@ import { createClient } from '@supabase/supabase-js';
  */
 // Ensure we always return JSON
 export async function POST(req: NextRequest) {
+  // Always set proper content type and cache control headers
+  const responseHeaders = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  };
+
   try {
     // Get user data from request
     let userInput;
@@ -18,7 +26,7 @@ export async function POST(req: NextRequest) {
         JSON.stringify({ error: 'Invalid JSON in request body', success: false }),
         {
           status: 400,
-          headers: { 'Content-Type': 'application/json' }
+          headers: responseHeaders
         }
       );
     }
@@ -29,12 +37,7 @@ export async function POST(req: NextRequest) {
         JSON.stringify({ error: 'Missing clerk_id', success: false }),
         {
           status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
+          headers: responseHeaders
         }
       );
     }
@@ -46,12 +49,7 @@ export async function POST(req: NextRequest) {
         JSON.stringify({ error: 'Server configuration error: Missing Supabase URL', success: false }),
         {
           status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
+          headers: responseHeaders
         }
       );
     }
@@ -62,12 +60,7 @@ export async function POST(req: NextRequest) {
         JSON.stringify({ error: 'Server configuration error: Missing Supabase service role key', success: false }),
         {
           status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
+          headers: responseHeaders
         }
       );
     }
@@ -105,12 +98,7 @@ export async function POST(req: NextRequest) {
         }),
         {
           status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
+          headers: responseHeaders
         }
       );
     }
@@ -153,12 +141,7 @@ export async function POST(req: NextRequest) {
           }),
           {
             status: 500,
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            }
+            headers: responseHeaders
           }
         );
       }
@@ -194,12 +177,7 @@ export async function POST(req: NextRequest) {
           }),
           {
             status: 500,
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            }
+            headers: responseHeaders
           }
         );
       }
@@ -246,12 +224,7 @@ export async function POST(req: NextRequest) {
         }),
         {
           status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
+          headers: responseHeaders
         }
       );
     }
@@ -269,12 +242,7 @@ export async function POST(req: NextRequest) {
       }),
       {
         status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
+        headers: responseHeaders
       }
     );
   } catch (error) {
@@ -299,12 +267,7 @@ export async function POST(req: NextRequest) {
         }),
         {
           status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
+          headers: responseHeaders
         }
       );
     } catch (responseError) {
@@ -314,12 +277,7 @@ export async function POST(req: NextRequest) {
         '{"error":"Internal server error","success":false}',
         {
           status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
+          headers: responseHeaders
         }
       );
     }

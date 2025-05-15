@@ -14,17 +14,17 @@ import {
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { NormalizedCourse, NormalizedLesson, NormalizedSection } from "@/hooks/use-normalized-course"
 
 interface CourseContentProps {
-    course: any
-    rawCourse?: any
-    onSelectLesson?: (sectionIndex: number, lessonIndex: number, lesson: any) => void
+    course: NormalizedCourse
+    onSelectLesson?: (sectionIndex: number, lessonIndex: number, lesson: NormalizedLesson) => void
     completedLessons?: string[]
 }
 
-export function CourseContent({ course, rawCourse, onSelectLesson, completedLessons = [] }: CourseContentProps) {
-    // Get sections from raw course data if available, or from formatted course
-    const sections = rawCourse?.sections || course.sections || []
+export function CourseContent({ course, onSelectLesson, completedLessons = [] }: CourseContentProps) {
+    // Get sections from the normalized course
+    const sections = course.sections || []
 
     // Calculate section completion
     const getSectionCompletion = (sectionIndex: number, lessonCount: number) => {

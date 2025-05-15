@@ -15,10 +15,18 @@ export async function syncCurrentUserToSupabase(authData?: AuthObject) {
   const userId = authData.userId;
   if (!userId) return null;
 
-  const clerkUser = await currentUser();
-  if (!clerkUser) return null;
+  try {
+    // Get the user directly from currentUser()
+    const clerkUser = await currentUser();
+    if (clerkUser) {
+      return syncUserToSupabase(clerkUser);
+    }
+  } catch (error) {
+    console.error('Failed to get user from currentUser():', error);
+  }
 
-  return syncUserToSupabase(clerkUser);
+  // If we couldn't get the user, return null
+  return null;
 }
 
 /**

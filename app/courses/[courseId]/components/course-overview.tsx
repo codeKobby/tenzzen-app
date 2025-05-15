@@ -2,31 +2,32 @@
 
 import { CheckCircle, Code, Layers, Briefcase } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { NormalizedCourse } from "@/hooks/use-normalized-course"
 
 interface CourseOverviewProps {
-    course: any
+    course: NormalizedCourse
 }
 
 export function CourseOverview({ course }: CourseOverviewProps) {
     const prerequisites = course.metadata?.prerequisites || [
-        "Basic understanding of HTML, CSS and JavaScript",
-        "Familiarity with web development concepts",
-        "A computer with a modern web browser"
+        "Basic understanding of the subject",
+        "Interest in learning new concepts",
+        "A computer with internet access"
     ]
 
     const objectives = course.metadata?.objectives || [
-        "Build responsive websites using HTML5 and CSS3",
-        "Create interactive web pages with JavaScript",
-        "Implement popular front-end frameworks",
-        "Deploy websites to production environments",
-        "Optimize websites for performance and accessibility"
+        "Understand core concepts of the subject",
+        "Apply knowledge to practical scenarios",
+        "Develop problem-solving skills",
+        "Complete hands-on projects",
+        "Build a foundation for advanced learning"
     ]
 
     const targetAudience = course.metadata?.targetAudience || [
-        "Beginner web developers",
-        "Design professionals transitioning to development",
-        "Students learning web technologies",
-        "Anyone interested in building websites"
+        "Beginners interested in the subject",
+        "Students looking to expand their knowledge",
+        "Professionals seeking to update their skills",
+        "Anyone curious about the topic"
     ]
 
     return (
@@ -36,8 +37,8 @@ export function CourseOverview({ course }: CourseOverviewProps) {
                 <h3 className="text-xl font-semibold mb-3">About This Course</h3>
                 <p className="text-muted-foreground whitespace-pre-line">
                     {course.description ||
-                        `This comprehensive course is designed to take you from the fundamentals to advanced concepts in web development. 
-            
+                        `This comprehensive course is designed to take you from the fundamentals to advanced concepts in web development.
+
             You'll learn how to create modern, responsive websites using the latest technologies and best practices. Through hands-on projects and practical examples, you'll gain the skills needed to build professional web applications.`}
                 </p>
             </section>

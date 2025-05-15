@@ -1,321 +1,86 @@
-# Tenzzen Database Structure and User Flows
+# Tenzzen Database Architecture
 
-This document provides an overview of the Tenzzen learning platform's database structure, entity relationships, and key user flows.
+This document provides a comprehensive overview of the Tenzzen learning platform's database structure, entity relationships, and key user flows.
 
 ## Database Schema Diagram
 
 ```mermaid
 erDiagram
-    USERS ||--o{ USER_PROFILES : has
     USERS ||--o{ USER_STATS : has
+    USERS ||--o{ COURSES : creates
     USERS ||--o{ ENROLLMENTS : enrolls_in
-    USERS ||--o{ NOTES : creates
-    USERS ||--o{ RESOURCES : creates
-    USERS ||--o{ RATINGS : submits
-    USERS ||--o{ LEARNING_ACTIVITIES : generates
-    USERS ||--o{ USER_INTERESTS : has
-    USERS ||--o{ PROGRESS : tracks
-    USERS ||--o{ ACHIEVEMENTS : earns
-    USERS ||--o{ RECOMMENDATIONS : receives
-    USERS ||--o{ PROJECT_SUBMISSIONS : submits
 
     COURSES ||--o{ ENROLLMENTS : has
-    COURSES ||--o{ ASSESSMENTS : contains
-    COURSES ||--o{ NOTES : referenced_in
-    COURSES ||--o{ RESOURCES : referenced_in
-    COURSES ||--o{ RATINGS : receives
-    COURSES ||--o{ COURSE_TAGS : has
-    COURSES ||--o{ COURSE_CATEGORIES : belongs_to
-    COURSES ||--o{ COURSE_GROUP_MEMBERS : part_of
-
-    CATEGORIES ||--o{ COURSE_CATEGORIES : in
-    TAGS ||--o{ COURSE_TAGS : in
-
-    ASSESSMENTS ||--o{ PROGRESS : for
-    ASSESSMENTS ||--o{ PROJECT_SUBMISSIONS : receives
-
-    VIDEOS }|--o{ PLAYLIST_VIDEOS : included_in
-    PLAYLISTS ||--o{ PLAYLIST_VIDEOS : contains
-
-    COURSE_GROUPS ||--o{ COURSE_GROUP_MEMBERS : has
 
     USERS {
-        string clerkId
-        string email
-        string name
-        string imageUrl
-        string authProvider
-        string role
-        string status
-        number createdAt
-        number updatedAt
-        object lastLogin
-    }
-
-    USER_PROFILES {
-        string userId
-        string bio
-        string timezone
-        string language
-        object preferences
-        object learningPreferences
-        number updatedAt
+        uuid id PK
+        text clerk_id
+        text email
+        text name
+        text image_url
+        text auth_provider
+        text role
+        text status
+        timestamp created_at
+        timestamp updated_at
     }
 
     USER_STATS {
-        string userId
-        number totalLearningHours
-        number coursesCompleted
-        number coursesInProgress
-        number assessmentsCompleted
-        number projectsSubmitted
-        number lastActiveAt
-        number streakDays
-        number longestStreak
-        number totalPoints
-        array weeklyActivity
-        array badges
-        number level
-        string learningStyle
-        array topCategories
+        uuid id PK
+        uuid user_id FK
+        integer courses_completed
+        integer courses_in_progress
+        integer total_learning_time
+        jsonb achievements
+        timestamp created_at
+        timestamp updated_at
     }
 
     COURSES {
-        string title
-        string subtitle
-        string description
-        string videoId
-        string thumbnail
-        boolean isPublic
-        string creatorId
-        number avgRating
-        number enrollmentCount
-        object overview
-        array sections
-        object metadata
-        string status
-        number createdAt
-        number updatedAt
-        number estimatedHours
-        array tags
+        uuid id PK
+        text title
+        text subtitle
+        text description
+        text video_id
+        text youtube_url
+        text thumbnail
+        boolean is_public
+        uuid created_by FK
+        text creator_id
+        float avg_rating
+        integer enrollment_count
+        text status
+        text difficulty_level
+        interval estimated_duration
+        float estimated_hours
+        timestamp created_at
+        timestamp updated_at
+        text[] tags
+        text category
         boolean featured
-        number popularity
-    }
-
-    CATEGORIES {
-        string name
-        string description
-        string icon
-        string color
-        string slug
-        number courseCount
-    }
-
-    COURSE_CATEGORIES {
-        id courseId
-        id categoryId
-    }
-
-    TAGS {
-        string name
-        number useCount
-    }
-
-    COURSE_TAGS {
-        id courseId
-        id tagId
+        float popularity
+        jsonb metadata
+        text generated_summary
+        text transcript
+        jsonb course_items
     }
 
     ENROLLMENTS {
-        string userId
-        id courseId
-        number enrolledAt
-        number lastAccessedAt
-        string completionStatus
-        number progress
-        boolean isActive
-        array completedLessons
-        string lastLessonId
-        number totalTimeSpent
-        string notes
-        boolean reminderEnabled
-        string reminderFrequency
-        object learningGoal
-    }
-
-    RATINGS {
-        string userId
-        id courseId
-        number rating
-        string review
-        number createdAt
-        number updatedAt
-        number helpful
-        boolean reported
-        boolean verified
-    }
-
-    ASSESSMENTS {
-        string title
-        string description
-        id courseId
-        string type
-        array questions
-        string instructions
-        array projectRequirements
-        string submissionType
-        array resources
-        number deadline
-        number createdAt
-        string difficulty
-        number estimatedTime
-        number passingScore
-        boolean allowRetries
-        number maxRetries
-    }
-
-    PROGRESS {
-        string userId
-        id assessmentId
-        string status
-        number score
-        any feedback
-        any submission
-        number startedAt
-        number completedAt
-        number attemptNumber
-        number timeSpent
-    }
-
-    PROJECT_SUBMISSIONS {
-        string userId
-        id assessmentId
-        string submissionUrl
-        array fileIds
-        string notes
-        string status
-        string feedback
-        number grade
-        number submittedAt
-        number reviewedAt
-        string reviewerNotes
-        number revisionCount
-    }
-
-    NOTES {
-        string userId
-        string title
-        string content
-        id courseId
-        string lessonId
-        array tags
-        number createdAt
-        number updatedAt
-        boolean isPublic
-        string aiSummary
-        array highlights
-        boolean isFavorite
-    }
-
-    RESOURCES {
-        string userId
-        string title
-        string type
-        string url
-        string content
-        id courseId
-        string lessonId
-        string description
-        array tags
-        number createdAt
-        number updatedAt
-        boolean isPublic
-        number views
-        boolean isFavorite
-        string sourceType
-    }
-
-    LEARNING_ACTIVITIES {
-        string userId
-        string type
-        id courseId
-        string lessonId
-        id assessmentId
-        number timestamp
-        any metadata
-        boolean visible
-    }
-
-    USER_INTERESTS {
-        string userId
-        id categoryId
-        number interestLevel
-        number createdAt
-        number updatedAt
-        string source
-    }
-
-    VIDEOS {
-        string youtubeId
-        object details
-        array transcripts
-        string cachedAt
-    }
-
-    PLAYLISTS {
-        string youtubeId
-        string title
-        string description
-        string thumbnail
-        number itemCount
-        string cachedAt
-    }
-
-    PLAYLIST_VIDEOS {
-        id playlistId
-        id videoId
-        number position
-    }
-
-    RECOMMENDATIONS {
-        string userId
-        id courseId
-        number score
-        string reason
-        number createdAt
-        boolean viewed
-        boolean dismissed
-    }
-
-    ACHIEVEMENTS {
-        string userId
-        string type
-        string title
-        string description
-        number awardedAt
-        number points
-        string icon
-        number level
-        any metadata
-    }
-
-    COURSE_GROUPS {
-        string title
-        string description
-        string thumbnail
-        string creatorId
-        boolean isPublic
-        number createdAt
-        number updatedAt
-        number courseCount
-        array tags
-        string slug
-    }
-
-    COURSE_GROUP_MEMBERS {
-        id groupId
-        id courseId
-        number position
+        uuid id PK
+        uuid user_id FK
+        uuid course_id FK
+        timestamp enrolled_at
+        timestamp last_accessed_at
+        text completion_status
+        float progress
+        boolean is_active
+        text[] completed_lessons
+        text last_lesson_id
+        float total_time_spent
+        text notes
+        boolean reminder_enabled
+        text reminder_frequency
+        jsonb learning_goal
     }
 ```
 
@@ -323,32 +88,22 @@ erDiagram
 
 ### Core Learning Experience
 
-- **Users & Courses**: Users enroll in courses, which creates an enrollment record to track progress and completion status.
-- **Courses & Assessments**: Courses contain assessments (quizzes and projects) to evaluate learning progress.
-- **Assessments & Progress**: User progress is tracked for each assessment, recording scores and submission data.
-- **Learning Activities**: All user actions generate learning activities, which are used for analytics and personalization.
+- **Users & Courses**: Users create courses from YouTube videos, which are stored in the public catalog.
+- **Users & Enrollments**: Users enroll in courses, creating an enrollment record to track progress and completion status.
+- **Courses & Course Items**: Course structure (sections and lessons) is stored in the `course_items` JSONB field for flexibility.
+- **Enrollments & Progress**: User progress is tracked through the enrollments table, recording completed lessons and overall progress.
 
 ### Content Organization
 
-- **Courses & Categories**: Courses belong to multiple categories for organization and discovery.
-- **Courses & Tags**: Courses have multiple tags for enhanced searchability.
-- **Videos & Transcripts**: Videos store transcripts directly as an embedded array for content analysis and searchability.
-- **Playlists & Videos**: Playlists organize videos in a sequence.
-- **Course Groups & Courses**: Related courses can be organized into groups for learning paths.
-
-### User Generated Content
-
-- **Users & Notes**: Users create notes related to courses and lessons.
-- **Users & Resources**: Users create or save resources for learning.
-- **Users & Ratings**: Users rate and review courses.
-- **Users & Projects**: Users submit projects for assessment.
+- **Courses & Categories**: Courses have a primary category for organization and discovery.
+- **Courses & Tags**: Courses have multiple tags (stored as an array) for enhanced searchability.
+- **Courses & Transcripts**: Course transcripts are stored directly in the courses table for content analysis and searchability.
 
 ### User Experience & Engagement
 
-- **User Stats**: Aggregate metrics about a user's learning activity.
-- **Achievements**: Gamification elements like badges and achievement records.
-- **Recommendations**: Personalized course suggestions based on interests and history.
-- **User Profiles**: Extended user information and preferences.
+- **User Stats**: Aggregate metrics about a user's learning activity, including courses completed and total learning time.
+- **Course Visibility**: Courses are public by default, allowing all users to discover and enroll in them.
+- **Course Enrollment**: Users can enroll in any public course, creating a private enrollment record to track their progress.
 
 ## Key User Flows
 
@@ -358,16 +113,17 @@ erDiagram
 sequenceDiagram
     actor User
     participant UI as Frontend UI
-    participant API as Convex API
-    participant AI as AI Processing
-    participant DB as Database
+    participant API as API Routes
+    participant ADK as ADK Service
+    participant DB as Supabase
 
-    User->>UI: Enters YouTube URL or topic
-    UI->>API: Sends content for analysis
-    API->>AI: Requests content processing
-    AI->>AI: Analyzes content and structure
-    AI->>API: Returns course structure
-    API->>DB: Stores course data
+    User->>UI: Enters YouTube URL
+    UI->>API: Sends video URL for analysis
+    API->>ADK: Requests content processing
+    ADK->>ADK: Extracts transcript and analyzes content
+    ADK->>ADK: Generates course structure
+    ADK->>API: Returns course data
+    API->>DB: Stores course in public catalog
     API->>UI: Returns course details
     UI->>User: Displays generated course
 ```
@@ -378,22 +134,21 @@ sequenceDiagram
 sequenceDiagram
     actor User
     participant UI as Frontend UI
-    participant API as Convex API
-    participant DB as Database
+    participant API as API Routes
+    participant DB as Supabase
 
     User->>UI: Clicks "Enroll" on course
-    UI->>API: Calls enrollInCourse() mutation
+    UI->>API: Calls /api/supabase/courses/enroll
     API->>DB: Checks for existing enrollment
     alt New Enrollment
         API->>DB: Creates new enrollment record
-        API->>DB: Increments course enrollment count
-        API->>DB: Creates learning activity
+        API->>DB: Triggers increment_course_enrollment_count
         API->>DB: Updates user stats
     else Already Enrolled
         API->>DB: Updates last accessed timestamp
     end
     API->>UI: Returns enrollment status
-    UI->>User: Shows course content
+    UI->>User: Redirects to courses page
 ```
 
 ### Learning Progress Flow
@@ -402,127 +157,70 @@ sequenceDiagram
 sequenceDiagram
     actor User
     participant UI as Frontend UI
-    participant API as Convex API
-    participant DB as Database
+    participant API as API Routes
+    participant DB as Supabase
 
-    User->>UI: Completes lesson or assessment
-    UI->>API: Calls updateCourseProgress()
+    User->>UI: Completes lesson
+    UI->>API: Calls /api/supabase/courses/progress
     API->>DB: Updates enrollment progress
     API->>DB: Adds completed lesson to list
-    API->>DB: Records learning activity
     API->>DB: Updates user statistics
 
     alt Course Completed
         API->>DB: Marks course as completed
         API->>DB: Updates completion metrics
-        API->>DB: Creates achievement record
-        API->>UI: Prompts for course rating
     end
 
     API->>UI: Returns updated progress
     UI->>User: Shows progress indicators
 ```
 
-### Project Submission Flow
-
-```mermaid
-sequenceDiagram
-    actor Student
-    actor Instructor
-    participant UI as Frontend UI
-    participant API as Convex API
-    participant DB as Database
-
-    Student->>UI: Submits project work
-    UI->>API: Calls submitProject()
-    API->>DB: Creates project submission
-    API->>DB: Updates progress record
-    API->>DB: Records learning activity
-    API->>UI: Returns submission confirmation
-    UI->>Student: Shows submission status
-
-    Instructor->>UI: Reviews submission
-    UI->>API: Calls reviewProjectSubmission()
-    API->>DB: Updates submission status
-    API->>DB: Adds feedback and grade
-    API->>DB: Creates feedback activity
-    API->>UI: Returns review confirmation
-    UI->>Student: Notifies of feedback
-```
-
-### Notes & Resources Flow
+### Explore Courses Flow
 
 ```mermaid
 sequenceDiagram
     actor User
     participant UI as Frontend UI
-    participant API as Convex API
-    participant DB as Database
+    participant API as Supabase Client
+    participant DB as Supabase
 
-    User->>UI: Creates note/resource
-    UI->>API: Calls createOrUpdateNote() or createOrUpdateResource()
-    API->>DB: Stores note/resource data
-    API->>DB: Updates associated tags
-    API->>UI: Returns confirmation
-    UI->>User: Updates library view
+    User->>UI: Visits explore page
+    UI->>API: Queries public courses
+    API->>DB: Fetches courses with is_public=true
 
-    User->>UI: Searches library content
-    UI->>API: Calls getUserNotes() or getUserResources() with filters
-    API->>DB: Performs filtered query
-    API->>UI: Returns matching items
-    UI->>User: Displays filtered results
-```
-
-### Dashboard Analytics Flow
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant UI as Frontend UI
-    participant API as Convex API
-    participant DB as Database
-
-    User->>UI: Opens dashboard
-    UI->>API: Calls getUserDashboardStats()
-
-    par Parallel Requests
-        API->>DB: Fetches user stats
-        API->>DB: Fetches recent activities
-        API->>DB: Fetches in-progress courses
-        API->>DB: Fetches achievements
-        API->>DB: Fetches recommendations
+    alt With Category Filter
+        API->>DB: Applies category filter
     end
 
-    API->>UI: Returns dashboard data
-    UI->>User: Displays learning metrics & activity
+    alt With Search Query
+        API->>DB: Applies search filter
+    end
+
+    DB->>API: Returns filtered courses
+    API->>UI: Formats course data
+    UI->>User: Displays course catalog
 ```
 
-### Achievement & Gamification Flow
+### User Courses Flow
 
 ```mermaid
 sequenceDiagram
     actor User
     participant UI as Frontend UI
-    participant API as Convex API
-    participant DB as Database
+    participant API as Supabase Client
+    participant DB as Supabase
 
-    User->>UI: Completes learning activity
-    UI->>API: Records activity completion
-    API->>DB: Stores learning activity
-    API->>DB: Checks achievement criteria
+    User->>UI: Visits courses page
+    UI->>API: Queries user enrollments
+    API->>DB: Fetches enrollments with course data
 
-    alt Achievement Unlocked
-        API->>DB: Creates achievement record
-        API->>DB: Updates user stats & points
-        API->>UI: Returns achievement notification
-        UI->>User: Displays achievement animation
+    alt With Category Filter
+        API->>DB: Applies category filter
     end
 
-    User->>UI: Views achievements page
-    UI->>API: Requests user achievements
-    API->>DB: Fetches achievements
-    API->>UI: Returns formatted achievements
-    UI->>User: Displays badges & achievements
+    DB->>API: Returns user's enrolled courses
+    API->>UI: Formats course data
+    UI->>User: Displays user's courses
 ```
 
 ## Database Indexing Strategy
@@ -530,71 +228,77 @@ sequenceDiagram
 The database schema includes strategic indexes to optimize common query patterns:
 
 1. **User-Based Queries**
-
-   - All tables with `userId` have indexes for quick retrieval of user-specific data
-   - Compound indexes for user + entity combinations (e.g., user-course, user-assessment)
+   - Index on `enrollments.user_id` for quick retrieval of user-specific enrollments
+   - Index on `courses.created_by` for finding courses created by a specific user
 
 2. **Course Discovery**
+   - Index on `courses.is_public` for exploring available courses
+   - Index on `courses.category` for filtering by category
+   - Full-text search index on course titles using `to_tsvector` for enhanced search performance
+   - Index on `courses.video_id` for quick lookups when checking for existing courses
 
-   - Indexes on `isPublic` for exploring available courses
-   - Compound indexes for filtering by category and tags
-   - Full-text search indexes on course titles for enhanced search performance
+3. **Time-Based Queries**
+   - Index on `courses.created_at` for chronological sorting
+   - Index on `enrollments.last_accessed_at` for sorting by recent activity
 
-3. **Content Relationships**
+4. **Performance Optimization**
+   - Index on `courses.popularity` for sorting trending courses
+   - Compound indexes for common filter combinations
 
-   - Indexes on all relationship tables (course_categories, course_tags)
-   - Indexes on foreign keys for quick joins
+## Row Level Security (RLS)
 
-4. **Time-Based Queries**
-   - Indexes on timestamp fields for chronological sorting
-   - Compound indexes for time-ranged user activities
+Tenzzen implements Row Level Security to ensure data privacy and access control:
 
-## Data Flow Architecture
+1. **Courses Table Policies**
+   - "Public courses are viewable by everyone" - Allows anyone to view courses with `is_public = true`
+   - "Users can view their enrolled courses" - Users can view courses they're enrolled in, even if not public
+   - "Users can create courses" - Authenticated users can create new courses
+   - "Users can update their own courses" - Users can only update courses they created
+   - "Users can delete their own courses" - Users can only delete courses they created
 
-The Tenzzen platform follows a well-structured data flow pattern:
+2. **Enrollments Table Policies**
+   - "Users can view their own enrollments" - Users can only view their own enrollment records
+   - "Users can insert their own enrollments" - Users can only create enrollments for themselves
+   - "Users can update their own enrollments" - Users can only update their own enrollment records
+   - "Users can delete their own enrollments" - Users can only delete their own enrollment records
 
-1. **Content Ingestion**
+## Database Functions and Triggers
 
-   - YouTube content is processed and stored in the videos table with embedded transcripts
-   - AI analysis transforms raw content into structured course data
+The database includes several functions and triggers to maintain data consistency:
 
-2. **User Engagement**
+1. **User Identification**
+   - `get_user_id_from_clerk_id(clerk_id TEXT)` - Converts a Clerk ID to a Supabase user UUID
+   - `get_user_id_from_auth_id()` - Gets the current user's UUID from their auth context
 
-   - User interactions are captured as enrollments and learning activities
-   - Progress is tracked at multiple levels (course, lesson, assessment)
-
-3. **Content Generation**
-
-   - Users create notes and resources linked to courses and lessons
-   - User feedback generates ratings and reviews
-
-4. **Analytics & Personalization**
-   - User actions aggregate into statistics and trends
-   - Personalized recommendations are generated based on interests and history
-   - Achievements and gamification elements enhance user engagement
+2. **Enrollment Management**
+   - `increment_course_enrollment_count(course_id UUID)` - Increments a course's enrollment count
+   - `decrement_course_enrollment_count(course_id UUID)` - Decrements a course's enrollment count
+   - `update_course_enrollment_count()` - Trigger function that automatically updates enrollment counts
 
 ## Type System
 
-The database implements a strong type system for consistent data handling:
+The database implements a consistent type system for data handling:
 
-- **CourseStatus**: "draft" | "published" | "archived"
+- **CourseStatus**: "draft" | "published" | "archived" | "generating" | "failed"
 - **CompletionStatus**: "not_started" | "in_progress" | "completed"
-- **AssessmentType**: "quiz" | "project" | "assignment"
-- **SubmissionStatus**: "submitted" | "reviewed" | "revisions_requested" | "approved"
-- **ActivityType**: Various activity types like "started_course", "completed_lesson", etc.
-- **ResourceType**: "link", "document", "file", "video", "image", "code", "pdf"
-- **DifficultyLevel**: "beginner", "intermediate", "advanced", "expert"
+- **DifficultyLevel**: "beginner" | "intermediate" | "advanced" | "expert"
 
-## Migration Notes
+## Future Enhancements
 
-1. **Completed Migrations**:
+As the platform grows, consider these potential enhancements:
 
-   - ✅ Transcripts moved from standalone table to embedded array within videos table
-   - ✅ Enhanced user system with separate user_profiles table
-   - ✅ Added gamification through achievements table
-   - ✅ Implemented recommendation system
+1. **Normalized Course Structure**
+   - Create dedicated tables for course sections and lessons
+   - This would allow for more efficient querying and updating of specific lessons
 
-2. **Future Enhancements**:
-   - 🔄 Enhanced social learning features
-   - 🔄 Learning path progression tracking
-   - 🔄 Advanced analytics dashboards
+2. **Dedicated Categories and Tags Tables**
+   - Create separate tables for categories and tags
+   - Implement many-to-many relationships for better organization
+
+3. **Course Ratings System**
+   - Add a dedicated table for course ratings and reviews
+   - Implement triggers to maintain the `avg_rating` field in the courses table
+
+4. **Enhanced Analytics**
+   - Add more detailed tracking of user learning activities
+   - Implement advanced analytics dashboards

@@ -27,11 +27,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import { deleteUserEnrollment } from "@/lib/local-storage"
 import { useAuth } from "@clerk/nextjs"
+import { NormalizedCourse } from "@/hooks/use-normalized-course"
 
 interface CourseSettingsProps {
-    course: any
+    course: NormalizedCourse
 }
 
 export function CourseSettings({ course }: CourseSettingsProps) {
@@ -75,8 +75,19 @@ export function CourseSettings({ course }: CourseSettingsProps) {
         setIsDeleting(true)
 
         try {
-            // Delete from local storage
-            deleteUserEnrollment(userId, course.id)
+            // Call the API to unenroll from the course
+            const response = await fetch('/api/supabase/courses/unenroll', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ courseId: course.id }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to unenroll');
+            }
 
             toast.success("Course deleted successfully", {
                 description: "The course has been removed from your library",
@@ -88,6 +99,7 @@ export function CourseSettings({ course }: CourseSettingsProps) {
             toast.error("Failed to delete course", {
                 description: "Please try again later",
             })
+            console.error('Error deleting course:', error);
         } finally {
             setIsDeleting(false)
             setShowDeleteDialog(false)
@@ -213,7 +225,7 @@ export function CourseSettings({ course }: CourseSettingsProps) {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete "{course.title}" from your courses.
+                            This will remove "{course.title}" from your enrolled courses.
                             Your progress will be lost and you'll need to re-enroll if you want to access it again.
                         </AlertDialogDescription>
                     </AlertDialogHeader>

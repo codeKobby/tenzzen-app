@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookOpen, ExternalLink, File, FileText, Search, Video } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { NormalizedCourse } from "@/hooks/use-normalized-course"
 
 interface CourseResourcesProps {
-    course: any
+    course: NormalizedCourse
 }
 
 interface Resource {
@@ -23,37 +24,37 @@ export function CourseResources({ course }: CourseResourcesProps) {
     const [searchQuery, setSearchQuery] = useState("")
     const [resourceType, setResourceType] = useState("all")
 
-    // Mock resources based on course data
-    const allResources: Resource[] = [
+    // Get resources from course metadata or use defaults
+    const allResources: Resource[] = course.metadata?.resources || [
         {
-            title: "Getting Started with HTML",
-            type: "video",
-            url: "https://www.youtube.com/watch?v=example1",
-            description: "Introduction to HTML fundamentals"
-        },
-        {
-            title: "CSS Flexbox Guide",
-            type: "article",
-            url: "https://css-tricks.com/snippets/css/a-guide-to-flexbox/",
-            description: "Complete guide to CSS Flexbox layout"
-        },
-        {
-            title: "JavaScript Functions Cheatsheet",
-            type: "pdf",
-            url: "#",
-            description: "Quick reference for JavaScript functions"
-        },
-        {
-            title: "Course Project Files",
-            type: "code",
-            url: "https://github.com/example/project-files",
-            description: "Starter files for course projects"
-        },
-        {
-            title: "Frontend Development Resources",
+            title: "Course Supplementary Materials",
             type: "link",
             url: "https://example.com/resources",
-            description: "Curated list of development tools and resources"
+            description: "Additional materials to support your learning"
+        },
+        {
+            title: "Recommended Reading",
+            type: "article",
+            url: "https://example.com/reading",
+            description: "Articles and guides related to this course"
+        },
+        {
+            title: "Practice Exercises",
+            type: "pdf",
+            url: "#",
+            description: "Exercises to reinforce your learning"
+        },
+        {
+            title: "Project Templates",
+            type: "code",
+            url: "https://github.com/example/templates",
+            description: "Starter templates for course projects"
+        },
+        {
+            title: "Video Tutorials",
+            type: "video",
+            url: "https://www.youtube.com/watch?v=example",
+            description: "Additional video tutorials on key concepts"
         }
     ]
 

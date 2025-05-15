@@ -13,8 +13,6 @@ import {
 import {
   Search,
   SlidersHorizontal,
-  ChevronLeft,
-  ChevronRight,
   Plus,
   CheckSquare,
   Trash2,
@@ -29,9 +27,13 @@ import { CourseGenerationModal } from "@/components/modals/course-generation-mod
 import { useAuth } from "@clerk/nextjs"
 import { toast } from "@/components/custom-toast"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useSupabase } from "@/contexts/supabase-context"
 import { useUserCourses } from "./hooks/use-user-courses"
+import { useCategoryUserCourses } from "./hooks/use-category-user-courses"
+import { CategoryPills } from "@/components/category-pills"
+import { CourseCardSkeleton } from "@/components/ui/course-card-skeleton"
+import { AnimatePresence, motion } from "framer-motion"
 
 // Filters for course status
 const filters: { id: CourseFilter; label: string }[] = [
@@ -53,40 +55,37 @@ export default function CoursesPage() {
   // State variables
   const [filter, setFilter] = useState<CourseFilter>("all")
   const [search, setSearch] = useState("")
-  const [category, setCategory] = useState<CourseCategory>("all")
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [sortBy, setSortBy] = useState<"title" | "lastAccessed" | "progress" | "recentlyAdded">("recentlyAdded")
-  const [showScrollButtons, setShowScrollButtons] = useState(false)
-  const [canScrollLeft, setCanScrollLeft] = useState(false)
-  const [canScrollRight, setCanScrollRight] = useState(false)
-  const [page, setPage] = useState<number>(1)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
-  const [hasMore, setHasMore] = useState(true)
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const { userId } = useAuth();
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const category = searchParams.get('category') as CourseCategory || 'all'
 
   // Function to trigger a refresh of courses
   const refreshCourses = () => {
     setRefreshTrigger(prev => prev + 1)
   }
 
-  // Use our new hook to fetch user courses
+  // Use our category-based user courses hook with infinite scroll
   const {
     courses: formattedCourses,
     recentCourses: formattedRecentCourses,
     categories: availableCourseCategories,
     loading: isLoadingCourses,
+    loadingMore,
     error: coursesError,
-    totalCount
-  } = useUserCourses({
-    category: category !== 'all' ? category : undefined,
+    totalCount,
+    hasMore,
+    currentCategory,
+    loadMore: loadMoreCourses
+  } = useCategoryUserCourses({
     sortBy,
     filter,
     searchQuery: search,
-    page,
     limit: 12
   })
 
@@ -217,22 +216,11 @@ export default function CoursesPage() {
     }
   }, [coursesError]);
 
-  // Update hasMore when totalCount changes
-  useEffect(() => {
-    setHasMore(formattedCourses.length < totalCount);
-  }, [formattedCourses.length, totalCount]);
-
-  // Load more courses function
-  const loadMoreCourses = useCallback(() => {
-    if (isLoadingCourses || !hasMore) return;
-    setPage(prev => prev + 1);
-  }, [isLoadingCourses, hasMore]);
-
   // Setup intersection observer for infinite scrolling
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !isLoadingCourses && hasMore) {
+        if (entries[0].isIntersecting && !isLoadingCourses && !loadingMore && hasMore) {
           loadMoreCourses();
         }
       },
@@ -244,63 +232,15 @@ export default function CoursesPage() {
     }
 
     return () => observer.disconnect();
-  }, [loadMoreCourses, isLoadingCourses, hasMore]);
+  }, [loadMoreCourses, isLoadingCourses, loadingMore, hasMore]);
 
-  // Reset pagination when filters change
-  useEffect(() => {
-    setPage(1);
-    setHasMore(true);
-  }, [search, category, filter, sortBy]);
-
-  // Scroll logic
-  useEffect(() => {
-    const checkScroll = () => {
-      if (scrollContainerRef.current) {
-        const { scrollWidth, clientWidth, scrollLeft } = scrollContainerRef.current;
-        const hasOverflow = scrollWidth > clientWidth;
-        setShowScrollButtons(hasOverflow);
-        setCanScrollLeft(scrollLeft > 0);
-        setCanScrollRight(scrollLeft < scrollWidth - clientWidth);
-      }
-    };
-
-    checkScroll();
-    window.addEventListener('resize', checkScroll);
-
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.addEventListener('scroll', checkScroll);
-    }
-
-    return () => {
-      window.removeEventListener('resize', checkScroll);
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.removeEventListener('scroll', checkScroll);
-      }
-    };
-  }, []);
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = 200;
-      const targetScroll = scrollContainerRef.current.scrollLeft + (direction === 'left' ? -scrollAmount : scrollAmount);
-      scrollContainerRef.current.scrollTo({
-        left: targetScroll,
-        behavior: 'smooth'
-      });
-    }
-  };
-
-  // Update scroll state when scrolling the tabs
-  const handleTabsScroll = () => {
-    if (scrollContainerRef.current) {
-      const { scrollWidth, clientWidth, scrollLeft } = scrollContainerRef.current;
-      setCanScrollLeft(scrollLeft > 0);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth);
-    }
-  };
+  // No longer need scroll logic as CategoryPills component handles scrolling internally
 
   // Filter and sort courses based on search, category, and filter
   const filteredCourses = useMemo(() => {
+    // Log current state for debugging
+    console.log(`Filtering courses: ${formattedCourses.length} courses, category: ${currentCategory}, filter: ${filter}`);
+
     const filtered = formattedCourses.filter(course => {
       // Skip courses that aren't enrolled for "in-progress" and "completed" filters
       if ((filter === "in-progress" || filter === "completed") && !course.isEnrolled) {
@@ -311,8 +251,8 @@ export default function CoursesPage() {
         course.title.toLowerCase().includes(search.toLowerCase()) ||
         course.description.toLowerCase().includes(search.toLowerCase());
 
-      const matchesCategory = category === "all" ||
-        course.category.toLowerCase() === category.toLowerCase();
+      // Category filtering is now handled by the hook directly
+      const matchesCategory = true;
 
       const matchesFilter = filter === "all" ||
         (filter === "in-progress" && course.progress > 0 && course.progress < 100) ||
@@ -321,6 +261,8 @@ export default function CoursesPage() {
 
       return matchesSearch && matchesCategory && matchesFilter;
     });
+
+    console.log(`After filtering: ${filtered.length} courses match criteria`);
 
     // Sort filtered courses
     return [...filtered].sort((a, b) => {
@@ -338,24 +280,9 @@ export default function CoursesPage() {
           return new Date(b.enrolledAt || 0).getTime() - new Date(a.enrolledAt || 0).getTime();
       }
     });
-  }, [formattedCourses, search, category, filter, sortBy]);
+  }, [formattedCourses, search, currentCategory, filter, sortBy]);
 
-  // Create category pills from available categories using the same logic as explore page
-  const categoryPills = useMemo(() => {
-    // If no courses or only one course, don't show categories
-    if (formattedCourses.length <= 1 || availableCourseCategories.length === 0) {
-      return [];
-    }
-
-    // Always include "all" category first, then add course-specific categories
-    return [
-      { id: "all", label: "All Categories" },
-      ...availableCourseCategories.map(category => ({
-        id: category.toLowerCase() as CourseCategory,
-        label: category
-      }))
-    ];
-  }, [formattedCourses, availableCourseCategories]);
+  // No longer need to create category pills manually as we're using the CategoryPills component
 
   // Handle course click - navigate to course page
   const handleCourseClick = (courseId: string) => {
@@ -519,78 +446,16 @@ export default function CoursesPage() {
             )}
           </div>
 
-          {/* Category Pills - Only show when there are courses and not in selection mode */}
-          {!selectionMode && categoryPills.length > 0 && (
-            <div className="relative py-2 sm:py-3">
-              <div
-                ref={scrollContainerRef}
-                className="overflow-hidden relative isolate"
-                onScroll={handleTabsScroll}
-              >
-                {/* Scroll Indicators */}
-                <div className={cn(
-                  "absolute left-0 top-0 bottom-0 w-[80px] pointer-events-none z-10",
-                  "bg-gradient-to-r from-background to-transparent",
-                  "opacity-0 transition-opacity duration-300",
-                  canScrollLeft && "opacity-100"
-                )} />
-                <div className={cn(
-                  "absolute right-0 top-0 bottom-0 w-[80px] pointer-events-none z-10",
-                  "bg-gradient-to-l from-background to-transparent",
-                  "opacity-0 transition-opacity duration-300",
-                  canScrollRight && "opacity-100"
-                )} />
-                <div className="flex gap-3">
-                  {categoryPills.map((tag) => (
-                    <button
-                      type="button"
-                      key={`category-${tag.id}`}
-                      onClick={() => setCategory(tag.id)}
-                      className={cn(
-                        "h-8 px-4 rounded-lg font-normal transition-all whitespace-nowrap text-sm select-none",
-                        category === tag.id
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                      )}
-                    >
-                      {tag.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Navigation Arrows */}
-              <div className={cn(
-                "transition-opacity duration-200",
-                !showScrollButtons && "opacity-0 pointer-events-none"
-              )}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md z-20",
-                    "transition-opacity duration-200",
-                    !canScrollLeft && "opacity-0 pointer-events-none",
-                    canScrollLeft && "opacity-100"
-                  )}
-                  onClick={() => scroll('left')}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md z-20",
-                    "transition-opacity duration-200",
-                    !canScrollRight && "opacity-0 pointer-events-none",
-                    canScrollRight && "opacity-100"
-                  )}
-                  onClick={() => scroll('right')}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+          {/* Category Pills - Only show when not in selection mode */}
+          {!selectionMode && availableCourseCategories && availableCourseCategories.length > 0 && (
+            <div className="py-2 sm:py-3">
+              <CategoryPills
+                customCategories={availableCourseCategories.map(cat => ({
+                  name: cat.name,
+                  slug: cat.slug,
+                  courseCount: cat.courseCount
+                }))}
+              />
             </div>
           )}
         </div>
@@ -605,9 +470,18 @@ export default function CoursesPage() {
         )}>
           {/* Loading state */}
           {isLoadingCourses ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-              <p className="text-muted-foreground">Loading your courses...</p>
+            <div className="space-y-6">
+              {/* Skeleton loading state - reduced to 1-2 rows (4-8 cards) */}
+              <div className="grid gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
+                {Array(8).fill(0).slice(0, 8).map((_, index) => (
+                  <CourseCardSkeleton key={index} className={cn(
+                    // Only show 1-2 rows based on screen size
+                    index >= 4 && "hidden 2xl:block", // Show 8 on 2xl screens (2 rows of 4)
+                    index >= 3 && "hidden lg:block 2xl:block", // Show 6 on lg screens (2 rows of 3)
+                    index >= 2 && "hidden sm:block lg:block 2xl:block", // Show 4 on sm screens (2 rows of 2)
+                  )} />
+                ))}
+              </div>
             </div>
           ) : (
             <>
@@ -615,21 +489,34 @@ export default function CoursesPage() {
               {filteredCourses.length > 0 && (
                 <section>
                   <div className="grid gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
-                    {filteredCourses.map((course) => (
-                      <CourseCard
-                        key={course.id}
-                        course={course}
-                        onClick={() => handleCourseClick(course.id)}
-                        className="animate-in fade-in-50 duration-500"
-                        selected={selectedCourses.has(course.id)}
-                        onSelect={handleCourseSelection}
-                        selectionMode={selectionMode}
-                        onLongPress={handleLongPress}
-                      />
-                    ))}
+                    <AnimatePresence mode="sync">
+                      {filteredCourses.map((course) => (
+                        <motion.div
+                          key={course.id}
+                          layout
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          transition={{
+                            opacity: { duration: 0.2 },
+                            layout: { duration: 0.3, type: "spring" }
+                          }}
+                        >
+                          <CourseCard
+                            course={course}
+                            onClick={() => handleCourseClick(course.id)}
+                            className="h-full"
+                            selected={selectedCourses.has(course.id)}
+                            onSelect={handleCourseSelection}
+                            selectionMode={selectionMode}
+                            onLongPress={handleLongPress}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
                   <div ref={loadMoreRef} className="py-8 flex justify-center">
-                    {isLoadingCourses && page > 1 ? (
+                    {loadingMore ? (
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     ) : hasMore ? (
                       <div className="h-8" />

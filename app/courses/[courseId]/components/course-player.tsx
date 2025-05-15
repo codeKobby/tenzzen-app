@@ -21,9 +21,10 @@ import { toast } from "sonner"
 import Markdown from "react-markdown"
 import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
+import { NormalizedLesson } from "@/hooks/use-normalized-course"
 
 interface CoursePlayerProps {
-    lesson: any
+    lesson: NormalizedLesson
     onComplete?: () => void
     onNext?: () => void
     onPrevious?: () => void
