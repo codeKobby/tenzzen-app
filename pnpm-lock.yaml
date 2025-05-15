@@ -9,6 +9,8 @@ overrides:
   inflight: ^2.0.0
   uuid: ^11.1.0
 
+pnpmfileChecksum: sha256-VBYB3JEAYr7eGTHs1MDNwzaLtk35LT/88798bEKlYH0=
+
 importers:
 
   .:

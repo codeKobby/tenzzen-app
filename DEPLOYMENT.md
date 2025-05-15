@@ -18,6 +18,33 @@ This document provides instructions for deploying the Tenzzen app to Vercel and 
 
 4. Deploy the application.
 
+## Vercel Deployment Configuration
+
+The project includes the following configuration files for Vercel deployment:
+
+1. **vercel.json**: Configures the build process for Vercel
+   ```json
+   {
+     "framework": "nextjs",
+     "buildCommand": "next build",
+     "installCommand": "pnpm install --no-frozen-lockfile",
+     "outputDirectory": ".next"
+   }
+   ```
+
+2. **.npmrc**: Ensures consistent package installation behavior
+   ```
+   auto-install-peers=true
+   node-linker=hoisted
+   strict-peer-dependencies=false
+   shamefully-hoist=true
+   ```
+
+3. **.nvmrc**: Specifies the Node.js version to use
+   ```
+   18
+   ```
+
 ## Setting Up the ADK Service
 
 The ADK service is a Python FastAPI application that needs to be deployed separately. You have several options:
@@ -84,4 +111,7 @@ If you encounter deployment issues:
 2. Verify that all environment variables are correctly set.
 3. Ensure the ADK service is running and accessible from your Vercel deployment.
 4. Check CORS settings if you're getting cross-origin errors.
-5. Verify that the pnpm-lock.yaml file is in sync with package.json.
+5. If you encounter pnpm-lock.yaml issues:
+   - Run `pnpm install --no-frozen-lockfile` locally to update the lock file
+   - Commit and push the updated lock file
+   - Redeploy the application
