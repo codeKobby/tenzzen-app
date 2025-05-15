@@ -13,24 +13,34 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   // Configure output directory
-  output: 'standalone',
+  output: "standalone",
   // Configure image domains for next/image
   images: {
     domains: [
-      'images.unsplash.com',
-      'i.ytimg.com',
-      'img.youtube.com',
-      'yt3.ggpht.com',       // YouTube channel thumbnails
-      'yt3.googleusercontent.com', // YouTube profile pictures
-      'i.ytimg.com',         // YouTube video thumbnails
-      'ytimg.googleusercontent.com'
+      "images.unsplash.com",
+      "i.ytimg.com",
+      "img.youtube.com",
+      "yt3.ggpht.com", // YouTube channel thumbnails
+      "yt3.googleusercontent.com", // YouTube profile pictures
+      "ytimg.googleusercontent.com",
     ],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+        pathname: "/vi/**",
+      },
+    ],
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: false,
+    contentDispositionType: "inline",
   },
   // Configure webpack
   webpack: (config) => {
     // Return the modified config
     return config;
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

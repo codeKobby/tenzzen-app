@@ -448,3 +448,15 @@
 .hover\:scrollbar:hover::-webkit-scrollbar-thumb {
   background-color: hsla(var(--muted-foreground) / 0.2);
 }
+
+/* Hide scrollbar completely */
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}

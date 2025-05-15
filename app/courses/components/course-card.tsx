@@ -26,6 +26,7 @@ import {
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Course } from "../types"
+import { YouTubeThumbnail } from "@/components/youtube-thumbnail"
 import { formatDate } from "@/lib/course-utils"
 import { useState, useRef, useEffect } from "react"
 import {
@@ -346,17 +347,29 @@ export function CourseCard({
       )}
 
       <div className="relative aspect-video overflow-hidden rounded-xl"> {/* Added rounded-xl here instead */}
-        <Image
-          src={course.image || course.thumbnail || "/placeholders/course-thumbnail.jpg"}
-          alt={course.title}
-          fill
-          className={cn(
-            "object-cover transition-transform duration-300",
-            selected && selectionMode && "opacity-90",
-            !selectionMode && "group-hover:scale-105"
-          )}
-          sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-        />
+        {course.videoId ? (
+          <YouTubeThumbnail
+            videoId={course.videoId}
+            alt={course.title}
+            className={cn(
+              "transition-transform duration-300",
+              selected && selectionMode && "opacity-90",
+              !selectionMode && "group-hover:scale-105"
+            )}
+          />
+        ) : (
+          <Image
+            src={course.image || course.thumbnail || "/placeholders/course-thumbnail.jpg"}
+            alt={course.title}
+            fill
+            className={cn(
+              "object-cover transition-transform duration-300",
+              selected && selectionMode && "opacity-90",
+              !selectionMode && "group-hover:scale-105"
+            )}
+            sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+          />
+        )}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
         </div>

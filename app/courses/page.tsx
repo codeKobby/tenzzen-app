@@ -455,6 +455,7 @@ export default function CoursesPage() {
                   slug: cat.slug,
                   courseCount: cat.courseCount
                 }))}
+                showRecommended={false}
               />
             </div>
           )}

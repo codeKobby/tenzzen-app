@@ -9,7 +9,8 @@ import {
     SlidersHorizontal,
     Filter,
     X,
-    Loader2
+    Loader2,
+    RefreshCw
 } from "lucide-react"
 import { CategoryPills } from "@/components/category-pills"
 import { Button } from "@/components/ui/button"
@@ -279,6 +280,7 @@ export default function ExplorePage() {
                                 slug: cat.slug,
                                 courseCount: cat.courseCount
                             }))}
+                            showRecommended={!!user}
                         />
                     </div>
                 </div>
@@ -289,25 +291,6 @@ export default function ExplorePage() {
                 "mx-auto space-y-8 pt-4 pb-12",
                 "w-[95%] lg:w-[90%]"
             )}>
-                {/* Recommended Courses (for authenticated users) */}
-                {user && showRecommendations && (
-                    <section className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-primary" />
-                            <h2 className="text-xl font-semibold">Recommended for You</h2>
-                        </div>
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            {recommendedCourses.map((course) => (
-                                <CourseCard
-                                    key={course.id}
-                                    course={course}
-                                    variant="explore"
-                                    onClick={() => { }} // Handle course selection
-                                />
-                            ))}
-                        </div>
-                    </section>
-                )}
 
                 {/* Trending Courses - only shown when there are enough courses */}
                 {showTrendingSection && (
@@ -334,7 +317,9 @@ export default function ExplorePage() {
                     <h2 className="text-xl font-semibold">
                         {currentCategory === 'all'
                           ? 'All Courses'
-                          : `${availableCategories.find(cat => cat.slug === currentCategory)?.name || currentCategory.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Courses`}
+                          : currentCategory === 'recommended'
+                            ? 'Recommended for You'
+                            : `${availableCategories.find(cat => cat.slug === currentCategory)?.name || currentCategory.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Courses`}
                     </h2>
 
                     {isLoading && displayedCourses.length === 0 ? (
@@ -393,7 +378,9 @@ export default function ExplorePage() {
                             <p className="text-muted-foreground">
                                 {currentCategory === 'all'
                                     ? "No courses found"
-                                    : `No courses found in ${currentCategory.replace(/-/g, ' ')}`}
+                                    : currentCategory === 'recommended'
+                                        ? "No recommended courses found"
+                                        : `No courses found in ${currentCategory.replace(/-/g, ' ')}`}
                             </p>
                             <Button
                                 variant="link"
