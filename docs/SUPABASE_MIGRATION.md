@@ -65,24 +65,18 @@ Clerk is integrated with Supabase using JWT templates. In your Clerk dashboard:
 
 ### Phase 1: User Data Migration
 
-1. Access the migration tool at `/admin/migrate`
-2. Click on the "Migrate Users to Supabase" button
-3. Wait for the migration to complete
-4. Verify the migration by checking the Supabase database
+1. Use the Supabase dashboard to import user data
+2. Verify the migration by checking the Supabase database
 
 ### Phase 2: Course Data Migration
 
-1. Access the migration tool at `/admin/migrate`
-2. Click on the "Migrate Courses to Supabase" button
-3. Wait for the migration to complete
-4. Verify the migration by checking the Supabase database
+1. Use the Supabase dashboard to import course data
+2. Verify the migration by checking the Supabase database
 
 ### Phase 3: Video Data Migration
 
-1. Access the migration tool at `/admin/migrate`
-2. Click on the "Migrate Videos to Supabase" button
-3. Wait for the migration to complete
-4. Verify the migration by checking the Supabase database
+1. Use the Supabase dashboard to import video data
+2. Verify the migration by checking the Supabase database
 
 ### Phase 4: Complete Migration
 
@@ -93,7 +87,7 @@ Clerk is integrated with Supabase using JWT templates. In your Clerk dashboard:
 
 ## Testing
 
-You can test the Supabase integration at `/admin/supabase-test`. This page allows you to verify that:
+You can test the Supabase integration by checking the Supabase dashboard and verifying that:
 
 1. Supabase is properly connected
 2. Clerk authentication is working with Supabase

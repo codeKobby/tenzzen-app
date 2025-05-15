@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "node scripts/fix-supabase-binary.js"
   },
   "dependencies": {
     "@ai-sdk/google": "^0.0.32",
@@ -53,7 +54,7 @@
     "glob": "^11.0.1",
     "js-cookie": "^3.0.5",
     "lru-cache": "^11.1.0",
-    "lucide-react": "^0.309.0",
+    "lucide-react": "^0.510.0",
     "motion": "^12.4.7",
     "nanoid": "^5.1.4",
     "next-themes": "^0.2.1",
@@ -69,6 +70,7 @@
     "recharts": "^2.15.1",
     "rimraf": "^6.0.1",
     "sonner": "^1.7.4",
+    "svix": "^1.65.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.1.0",
@@ -104,6 +106,11 @@
   "resolutions": {
     "glob": "^11.0.1",
     "inflight": "^2.0.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "node-domexception": "^2.0.0",
+    "lucide-react": "^0.309.0",
+    "next": "15.2.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

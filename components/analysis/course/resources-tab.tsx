@@ -32,16 +32,18 @@ export function ResourcesTab({ course, loading }: ResourcesTabProps) {
 
   // Collect all resources from all sections and lessons with proper typing
   const allResources: EnhancedResource[] = React.useMemo(() => {
-    return course.sections.flatMap(section => 
-      section.lessons.flatMap(lesson => 
-        lesson.resources.map(resource => ({
+    if (!course || !course.sections) return [];
+
+    return course.sections.flatMap(section =>
+      section.lessons.flatMap(lesson =>
+        (lesson.resources || []).map(resource => ({
           ...resource,
           lesson: lesson.title,
           section: section.title
         }))
       )
     );
-  }, [course.sections]);
+  }, [course, course?.sections]);
 
   // Group resources by type with proper type annotations
   const resourcesByType = React.useMemo(() => {

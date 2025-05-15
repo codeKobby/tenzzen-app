@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
     logger.log('[google-adk route] Starting course generation for video:', videoId);
 
     // For testing, if the ADK service is not running, return mock data
-    let adkUrl = 'http://localhost:8001/generate-course';
-    let adkHealthUrl = 'http://localhost:8001/health';
+    const adkUrl = 'http://localhost:8001/generate-course';
+    const adkHealthUrl = 'http://localhost:8001/health';
 
     // Set proper headers
     const headers = {

@@ -122,9 +122,13 @@ app = FastAPI(
 )
 
 # Add CORS middleware to allow cross-origin requests
+# Get allowed origins from environment variable or use defaults
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,https://tenzzen-app.vercel.app")
+origins = allowed_origins.split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=origins,  # Use configured origins
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods
     allow_headers=["*"],  # Allow all headers

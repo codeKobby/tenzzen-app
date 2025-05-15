@@ -29,6 +29,8 @@ export function TestsTab({ course, loading }: TestsTabProps) {
 
   // Collect all tests from all sections and lessons
   const allTests = React.useMemo(() => {
+    if (!course || !course.sections) return [] as EnhancedTest[];
+
     return course.sections.flatMap((section: Section) =>
       section.lessons
         .filter((lesson: Lesson) => lesson.test)
@@ -37,8 +39,8 @@ export function TestsTab({ course, loading }: TestsTabProps) {
           section: section.title,
           lesson: lesson.title
         }))
-    );
-  }, [course.sections]) as EnhancedTest[];
+    ) as EnhancedTest[];
+  }, [course, course?.sections]);
 
   // Early return if no tests
   if (allTests.length === 0) {
