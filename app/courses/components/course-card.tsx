@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils"
 import { Course } from "../types"
 import { YouTubeThumbnail } from "@/components/youtube-thumbnail"
 import { formatDate } from "@/lib/course-utils"
+import { formatDurationFromSeconds } from "@/lib/utils/duration"
 import { useState, useRef, useEffect } from "react"
 import {
   AlertDialog,
@@ -200,80 +201,84 @@ export function CourseCard({
     // Format with leading zeros for seconds
     const formattedSeconds = seconds.toString().padStart(2, '0');
 
-    // If hours > 0, show hours:minutes format (H:MM)
+    // Format with leading zeros for minutes when hours are present
+    const formattedMinutes = minutes.toString().padStart(2, '0');
+
+    // If hours > 0, show hours:minutes:seconds format (H:MM:SS)
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}`;
+      // For videos over an hour, use HH:MM:SS format as per requirements
+      return `${hours}:${formattedMinutes}:${formattedSeconds}`;
     }
 
-    // Otherwise show minutes:seconds format (M:SS)
+    // Otherwise show minutes:seconds format (MM:SS)
     return `${minutes}:${formattedSeconds}`;
   };
 
-  // Extract duration from either direct property or metadata
-  // Format the duration to ensure it shows YouTube-style format
+  // Format the duration using the standardized duration field
   const displayDuration = (() => {
-    // If we have a direct estimated_duration as an interval string (HH:MM:SS), parse it
-    if (typeof course.estimated_duration === 'string' && course.estimated_duration.includes(':')) {
-      // Parse the interval format (HH:MM:SS) or (HH:MM:SS.MS)
-      // First, remove any milliseconds part if present
-      const cleanDuration = course.estimated_duration.split('.')[0];
-      const parts = cleanDuration.split(':');
+    // Use the standardized duration_seconds field if available
+    if (typeof course.duration_seconds === 'number') {
+      return formatDurationFromSeconds(course.duration_seconds);
+    }
 
-      if (parts.length === 3) {
-        const hours = parseInt(parts[0], 10);
-        const minutes = parseInt(parts[1], 10);
-        const seconds = parseInt(parts[2], 10);
+    // Fallback to other duration fields for backward compatibility
+    try {
+      // If we have a direct estimated_duration as an interval string (HH:MM:SS), parse it
+      if (typeof course.estimated_duration === 'string' && course.estimated_duration.includes(':')) {
+        // Parse the interval format (HH:MM:SS) or (HH:MM:SS.MS)
+        // First, remove any milliseconds part if present
+        const cleanDuration = course.estimated_duration.split('.')[0];
+        const parts = cleanDuration.split(':');
 
-        // For simplified display, we want to show just H:MM or MM:SS without seconds
-        if (hours === 0) {
-          // Just show minutes:seconds (without seconds)
-          return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        } else {
-          // Show hours:minutes (without seconds)
-          return `${hours}:${minutes.toString().padStart(2, '0')}`;
+        if (parts.length === 3) {
+          const hours = parseInt(parts[0], 10) || 0;
+          const minutes = parseInt(parts[1], 10) || 0;
+          const seconds = parseInt(parts[2], 10) || 0;
+
+          // Convert to total seconds for consistent formatting
+          const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+          return formatDurationFromSeconds(totalSeconds);
         }
       }
-    }
 
-    // If we have a direct estimated_duration as a number (seconds), use it directly
-    if (typeof course.estimated_duration === 'number') {
-      return formatYouTubeDuration(course.estimated_duration);
-    }
-
-    // Get the raw duration from various possible sources
-    const rawDuration = course.duration || course.metadata?.duration;
-    let totalSeconds = 0;
-
-    // If duration is a string with 'h' or 'm', parse it
-    if (typeof rawDuration === 'string') {
-      if (rawDuration.includes('h') || rawDuration.includes('m')) {
-        // Parse hours
-        const hoursMatch = rawDuration.match(/(\d+)h/);
-        const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
-
-        // Parse minutes
-        const minutesMatch = rawDuration.match(/(\d+)m/);
-        const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
-
-        // Convert to seconds
-        totalSeconds = (hours * 3600) + (minutes * 60);
-      } else if (!isNaN(parseFloat(rawDuration))) {
-        // If it's a numeric string, assume seconds for YouTube videos
-        totalSeconds = parseFloat(rawDuration);
+      // If we have durationMinutes (in minutes), convert to seconds
+      if (typeof course.durationMinutes === 'number') {
+        return formatDurationFromSeconds(course.durationMinutes * 60);
       }
-    }
-    // If it's a number, assume it's seconds (for YouTube video durations)
-    else if (typeof rawDuration === 'number') {
-      totalSeconds = rawDuration;
-    }
-    // Default fallback
-    else {
-      // Default to 5 minutes = 300 seconds
-      totalSeconds = 300;
-    }
 
-    // Format the seconds into YouTube-style duration
-    return formatYouTubeDuration(totalSeconds);
+      // Get the raw duration from various possible sources
+      const rawDuration = course.duration || course.metadata?.duration;
+      let totalSeconds = 0;
+
+      // If duration is a string with 'h' or 'm', parse it
+      if (typeof rawDuration === 'string') {
+        if (rawDuration.includes('h') || rawDuration.includes('m')) {
+          // Parse hours
+          const hoursMatch = rawDuration.match(/(\d+)h/);
+          const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+
+          // Parse minutes
+          const minutesMatch = rawDuration.match(/(\d+)m/);
+          const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
+
+          // Convert to seconds
+          totalSeconds = (hours * 3600) + (minutes * 60);
+        } else if (!isNaN(parseFloat(rawDuration))) {
+          // If it's a numeric string, assume seconds for YouTube videos
+          totalSeconds = parseFloat(rawDuration);
+        }
+      }
+      // If it's a number, assume it's seconds (for YouTube video durations)
+      else if (typeof rawDuration === 'number') {
+        totalSeconds = rawDuration;
+      }
+
+      return formatDurationFromSeconds(totalSeconds);
+    } catch (error) {
+      console.error('Error formatting duration:', error);
+      // Default to 5 minutes = 300 seconds
+      return formatDurationFromSeconds(300);
+    }
   })();
 
   // Format the lastAccessed date - use our utility function
@@ -282,12 +287,18 @@ export function CourseCard({
   // Generate default sources if none provided
   const courseSources = course.sources || course.metadata?.sources || [];
 
-  // Calculate total lessons first (to avoid circular reference)
+  // Get total lessons using the standardized field
   const getTotalLessons = () => {
+    // Use the standardized total_lessons field if available
+    if (typeof course.total_lessons === 'number') return course.total_lessons;
+
+    // Fallback to other fields for backward compatibility
     if (typeof course.totalLessons === 'number') return course.totalLessons;
+
     if (Array.isArray(course.sections)) {
       return course.sections.reduce((total, section) => total + (section.lessons?.length || 0), 0);
     }
+
     // If we have metadata with courseItems, try to calculate from there
     if (course.metadata?.courseItems && Array.isArray(course.metadata.courseItems)) {
       return course.metadata.courseItems.reduce((total: number, item: any) => {
@@ -297,7 +308,18 @@ export function CourseCard({
         return total;
       }, 0);
     }
-    return 5; // Default to 5 if no data available - better than showing 0
+
+    // If we have courseItems directly, calculate from there
+    if (Array.isArray(course.courseItems)) {
+      return course.courseItems.reduce((total: number, item: any) => {
+        if (item.type === 'section' && Array.isArray(item.lessons)) {
+          return total + item.lessons.length;
+        }
+        return total;
+      }, 0);
+    }
+
+    return 0; // Default to 0 if no data available
   };
 
   // Calculate completed lessons (after getTotalLessons to avoid circular reference)

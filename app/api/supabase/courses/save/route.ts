@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { auth } from '@clerk/nextjs/server';
+import { transformADKCourseToDatabase } from '@/lib/transformers/course';
+import { parseDurationToSeconds, calculateTotalDurationFromSections } from '@/lib/utils/duration';
 
 /**
  * API endpoint to save a generated course to Supabase
@@ -131,33 +133,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Step 4: Prepare course data for insertion
+    // Step 4: Prepare course data for insertion using the transformer
+    // First transform the course data using our standardized transformer
+    const transformedCourse = transformADKCourseToDatabase(courseData);
+
+    // Then add the fields specific to this API endpoint
     const courseRecord = {
-      title: courseData.title,
-      subtitle: courseData.subtitle || courseData.metadata?.overviewText?.substring(0, 100) || null,
-      description: courseData.description || null,
-      video_id: courseData.videoId, // Keep for backward compatibility
-      video_reference: videoId, // New normalized reference
-      youtube_url: courseData.youtubeUrl || `https://www.youtube.com/watch?v=${courseData.videoId}`,
-      thumbnail: courseData.thumbnail || courseData.image || null,
-      is_public: true, // Make all generated courses public by default
+      ...transformedCourse,
+      video_reference: videoId, // Add the video reference from our lookup
       created_by: userId ? await getUserIdFromClerkId(supabase, userId) : null,
       creator_id: userId || null, // Store Clerk ID as backup
-      status: 'published',
-      difficulty_level: courseData.metadata?.difficulty || 'beginner',
-      estimated_duration: courseData.metadata?.duration ? `${courseData.metadata.duration} hours` : null,
-      estimated_hours: parseFloat(courseData.metadata?.duration) || null,
-      tags: Array.isArray(courseData.metadata?.tags) ? courseData.metadata.tags : [],
-      category: courseData.metadata?.category || null,
-      metadata: {
-        overview: courseData.metadata?.overviewText || null,
-        prerequisites: courseData.metadata?.prerequisites || [],
-        objectives: courseData.metadata?.objectives || [],
-        resources: courseData.resources || courseData.metadata?.sources || []
-      },
-      generated_summary: courseData.metadata?.overviewText || null,
-      course_items: courseData.courseItems || [], // Keep for backward compatibility
-      transcript: courseData.transcript || null // Keep for backward compatibility
     };
 
     let courseId;
@@ -194,6 +179,8 @@ export async function POST(req: NextRequest) {
                 difficulty_level = '${courseRecord.difficulty_level}',
                 estimated_duration = ${courseRecord.estimated_duration ? `'${courseRecord.estimated_duration}'` : 'NULL'},
                 estimated_hours = ${courseRecord.estimated_hours || 'NULL'},
+                duration_seconds = ${courseRecord.duration_seconds || 'NULL'},
+                total_lessons = ${courseRecord.total_lessons || 0},
                 updated_at = NOW(),
                 category = ${courseRecord.category ? `'${courseRecord.category}'` : 'NULL'},
                 tags = ${courseRecord.tags && courseRecord.tags.length > 0 ? `ARRAY[${courseRecord.tags.map((t: string) => `'${t.replace(/'/g, "''")}'`).join(',')}]` : 'NULL'},
@@ -233,7 +220,7 @@ export async function POST(req: NextRequest) {
               INSERT INTO courses (
                 title, subtitle, description, video_id, youtube_url, thumbnail,
                 is_public, created_by, creator_id, status, difficulty_level,
-                estimated_duration, estimated_hours, tags, category, metadata,
+                estimated_duration, estimated_hours, duration_seconds, total_lessons, tags, category, metadata,
                 generated_summary, transcript, created_at, updated_at
               ) VALUES (
                 '${courseRecord.title.replace(/'/g, "''")}',
@@ -249,6 +236,8 @@ export async function POST(req: NextRequest) {
                 '${courseRecord.difficulty_level}',
                 ${courseRecord.estimated_duration ? `'${courseRecord.estimated_duration}'` : 'NULL'},
                 ${courseRecord.estimated_hours || 'NULL'},
+                ${courseRecord.duration_seconds || 'NULL'},
+                ${courseRecord.total_lessons || 0},
                 ${courseRecord.tags && courseRecord.tags.length > 0 ? `ARRAY[${courseRecord.tags.map((t: string) => `'${t.replace(/'/g, "''")}'`).join(',')}]` : 'NULL'},
                 ${courseRecord.category ? `'${courseRecord.category}'` : 'NULL'},
                 '${JSON.stringify(courseRecord.metadata).replace(/'/g, "''")}'::jsonb,

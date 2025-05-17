@@ -202,3 +202,90 @@ export function formatDate(date: string | number | Date | undefined): string {
     return '';
   }
 }
+
+/**
+ * Safely extract course sections and lessons from course metadata
+ * with robust error handling and fallbacks for malformed data
+ */
+export function extractCourseSections(course: any) {
+  // Default empty sections array
+  const defaultSections = [];
+
+  try {
+    // Check if course exists
+    if (!course) {
+      console.warn('Course object is null or undefined');
+      return defaultSections;
+    }
+
+    // First check if course.metadata?.courseItems exists and is an array
+    if (!course.metadata?.courseItems || !Array.isArray(course.metadata.courseItems)) {
+      // Try course_items directly if it exists (for backward compatibility)
+      if (course.course_items && Array.isArray(course.course_items)) {
+        return processSectionsArray(course.course_items);
+      }
+
+      // If we have sections directly on the course object
+      if (course.sections && Array.isArray(course.sections)) {
+        return course.sections;
+      }
+
+      console.warn('No valid course sections found in metadata');
+      return defaultSections;
+    }
+
+    // Process the courseItems array
+    return processSectionsArray(course.metadata.courseItems);
+  } catch (error) {
+    console.error('Error extracting course sections:', error);
+    return defaultSections;
+  }
+}
+
+/**
+ * Helper function to process an array of section objects
+ * with validation for each property
+ */
+function processSectionsArray(items: any[]) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .filter(item => {
+      // Filter out non-section items and null/undefined items
+      return item && (item.type === 'section' || !item.type);
+    })
+    .map(section => {
+      // Validate and normalize each section
+      const title = typeof section.title === 'string' ? section.title : 'Untitled Section';
+
+      // Process lessons with validation
+      let lessons = [];
+      if (section.lessons && Array.isArray(section.lessons)) {
+        lessons = section.lessons.map(lesson => {
+          if (!lesson) return null;
+
+          return {
+            id: typeof lesson.id === 'string' ? lesson.id : `lesson-${Math.random().toString(36).substring(2, 9)}`,
+            title: typeof lesson.title === 'string' ? lesson.title : 'Untitled Lesson',
+            content: typeof lesson.content === 'string' ? lesson.content : '',
+            duration: typeof lesson.duration === 'number' ? lesson.duration : 0,
+            videoId: typeof lesson.videoId === 'string' ? lesson.videoId : '',
+            videoTimestamp: typeof lesson.videoTimestamp === 'number' ? lesson.videoTimestamp :
+                           typeof lesson.video_timestamp === 'number' ? lesson.video_timestamp : 0,
+            completed: !!lesson.completed
+          };
+        }).filter(Boolean); // Remove null lessons
+      }
+
+      return {
+        title,
+        lessons,
+        // Include other section properties if they exist
+        ...(typeof section.description === 'string' && { description: section.description }),
+        ...(typeof section.id === 'string' && { id: section.id })
+      };
+    })
+    .filter(section => section.lessons && section.lessons.length > 0); // Only include sections with lessons
+}

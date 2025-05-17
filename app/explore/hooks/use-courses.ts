@@ -4,6 +4,7 @@ import { useSupabase } from '@/contexts/supabase-context';
 import { Course } from '@/app/courses/types';
 import { useEffect, useState } from 'react';
 import { normalizeCategory } from '@/app/utils/category-utils';
+import { extractCourseSections } from '@/lib/course-utils';
 
 interface UseCourseOptions {
   limit?: number;
@@ -117,30 +118,8 @@ export function useCourses(options: UseCourseOptions = {}) {
             Array.isArray(course.tags) ? course.tags : []
           );
 
-          // Extract sections from metadata.courseItems if available
-          const sections = (() => {
-            // First check if course.metadata?.courseItems exists
-            if (course.metadata?.courseItems && Array.isArray(course.metadata.courseItems)) {
-              return course.metadata.courseItems.map((item: any) => {
-                if (item.type === 'section') {
-                  return {
-                    title: item.title || "Untitled Section",
-                    lessons: Array.isArray(item.lessons) ? item.lessons.map((lesson: any) => ({
-                      id: lesson.id || "",
-                      title: lesson.title || "Untitled Lesson",
-                      content: lesson.content || "",
-                      duration: lesson.duration || 0,
-                      videoId: lesson.videoId || "",
-                      completed: false
-                    })) : []
-                  };
-                }
-                return null;
-              }).filter(Boolean);
-            }
-            // Fallback to empty array if no sections found
-            return [];
-          })();
+          // Extract sections using our robust utility function
+          const sections = extractCourseSections(course);
 
           // Calculate total lessons
           const totalLessons = sections.reduce(

@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CourseSkeleton } from "@/components/ui/skeleton";
 import type { CourseGeneratorResult } from "@/tools/courseGenerator";
+import { formatDurationHumanReadable } from "@/lib/utils/duration";
 
 interface OverviewTabProps {
   course: CourseGeneratorResult;
@@ -39,8 +40,8 @@ export function OverviewTab({ course, loading }: OverviewTabProps) {
                   <h3 className="font-semibold">{prerequisite.title}</h3>
                   <Badge variant={
                     prerequisite.level === "beginner" ? "secondary" :
-                    prerequisite.level === "intermediate" ? "default" :
-                    "destructive"
+                      prerequisite.level === "intermediate" ? "default" :
+                        "destructive"
                   }>
                     {prerequisite.level}
                   </Badge>
@@ -84,7 +85,9 @@ export function OverviewTab({ course, loading }: OverviewTabProps) {
             <div>
               <h4 className="text-sm font-medium">Duration</h4>
               <p className="text-sm text-muted-foreground">
-                {overview.totalDuration}
+                {overview.duration_seconds
+                  ? formatDurationHumanReadable(overview.duration_seconds)
+                  : overview.totalDuration}
               </p>
             </div>
             <div>

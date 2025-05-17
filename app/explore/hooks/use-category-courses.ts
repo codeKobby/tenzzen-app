@@ -5,6 +5,7 @@ import { Course } from '@/app/courses/types';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { normalizeCategory } from '@/app/utils/category-utils';
+import { extractCourseSections } from '@/lib/course-utils';
 import { debounce } from 'lodash';
 
 interface CategoryCourseCache {
@@ -279,18 +280,8 @@ export function useCategoryCourses(options: UseCategoryCoursesOptions = {}) {
 
       // Process the courses
       const mappedCourses = data.map(course => {
-        // Extract sections from metadata.courseItems if available
-        const sections = (() => {
-          if (course.metadata?.courseItems && Array.isArray(course.metadata.courseItems)) {
-            return course.metadata.courseItems
-              .filter((item: any) => item.type === 'section')
-              .map((section: any) => ({
-                title: section.title || 'Untitled Section',
-                lessons: Array.isArray(section.lessons) ? section.lessons : []
-              }));
-          }
-          return [];
-        })();
+        // Extract sections using our robust utility function
+        const sections = extractCourseSections(course);
 
         // Calculate total lessons
         const totalLessons = sections.reduce(

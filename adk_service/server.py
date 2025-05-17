@@ -34,36 +34,92 @@ except ImportError as e:
     print(f"Error importing course_agent: {e}")
     course_agent = None
 
-# Import the agent function from agent.py as a fallback
 try:
-    # First try relative import (when running from adk_service directory)
-    from agent import generate_course_from_video
-    print("Successfully imported generate_course_from_video using relative import")
+    # Import the video recommendation agent
+    from adk_service.agents.video_recommendation import root_agent as video_recommendation_agent
+    print("Successfully imported video_recommendation_agent from adk_service.agents.video_recommendation")
 except ImportError as e:
-    print(f"Error with relative import: {e}")
-    try:
-        # Try absolute import with project root now in sys.path
-        from adk_service.agent import generate_course_from_video
-        print("Successfully imported generate_course_from_video from adk_service.agent")
-    except ImportError as e2:
-        print(f"Error with absolute import: {e2}")
-        # Define a dummy function if all imports fail (matching the updated signature)
-        async def generate_course_from_video(
-            video_id: str,
-            video_title: str,
-            video_description: str,
-            transcript: str,
-            video_data: dict
-        ) -> Dict[str, Any]:
-            print("WARN: Using dummy generate_course_from_video function due to import error.")
-            return {
-                "error": "Agent function failed to load.",
-                "videoId": video_id,
-                "title": video_title or "Error generating course",
-                "description": "There was an error generating this course.",
-                "metadata": {"overviewText": "Agent function failed to load."},
-                "courseItems": []
-            }
+    print(f"Error importing video_recommendation_agent: {e}")
+    video_recommendation_agent = None
+
+try:
+    # Import the YouTube video finder agent
+    from adk_service.agents.youtube_video_finder import root_agent as youtube_video_finder_agent
+    print("Successfully imported youtube_video_finder_agent from adk_service.agents.youtube_video_finder")
+except ImportError as e:
+    print(f"Error importing youtube_video_finder_agent: {e}")
+    youtube_video_finder_agent = None
+
+# Define a dummy function for fallback
+async def generate_course_from_video(
+    video_id: str,
+    video_title: str,
+    video_description: str,
+    transcript: str,
+    video_data: dict
+) -> Dict[str, Any]:
+    print("WARN: Using dummy generate_course_from_video function. Using ADK agent instead.")
+    return {
+        "error": "Agent function failed to load.",
+        "videoId": video_id,
+        "title": video_title or "Error generating course",
+        "description": "There was an error generating this course.",
+        "metadata": {"overviewText": "Agent function failed to load."},
+        "courseItems": []
+    }
+
+# Initialize Gemini models
+try:
+    import google.generativeai as genai
+    from google.generativeai.types import HarmCategory, HarmBlockThreshold
+
+    # Get API key
+    api_key = os.environ.get("GOOGLE_GENERATIVE_AI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        raise EnvironmentError("Missing GOOGLE_GENERATIVE_AI_API_KEY or GOOGLE_API_KEY in environment.")
+
+    # Configure the API
+    genai.configure(api_key=api_key)
+
+    # Initialize Gemini 1.5 Flash model
+    gemini_1_5_model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        generation_config={
+            "temperature": 0.2,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 8192,
+        },
+        safety_settings={
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+    )
+    print("Successfully initialized Gemini 1.5 Flash model")
+
+    # Initialize Gemini 2.5 Pro model
+    gemini_2_5_model = genai.GenerativeModel(
+        model_name="gemini-2.5-pro-preview-03-25",
+        generation_config={
+            "temperature": 0.2,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 8192,
+        },
+        safety_settings={
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+    )
+    print("Successfully initialized Gemini 2.5 Pro model")
+except Exception as e:
+    print(f"Error initializing Gemini models: {e}")
+    gemini_1_5_model = None
+    gemini_2_5_model = None
 
 app = FastAPI(
     title="Tenzzen ADK Course Generation Service",
@@ -89,9 +145,11 @@ async def health_check():
     """Health check endpoint to verify the service is running."""
     return {
         "status": "healthy",
-        "service": "Tenzzen ADK Course Generation Service",
+        "service": "Tenzzen ADK Service",
         "agents": {
             "course_generator": course_agent is not None,
+            "video_recommendation": video_recommendation_agent is not None,
+            "youtube_video_finder": youtube_video_finder_agent is not None,
         },
         "timestamp": import_time.time()
     }
@@ -221,9 +279,44 @@ async def recommend_videos(request_body: RecommendVideosRequest):
     print(f"API Server: Received video recommendation request for query: {request_body.query}")
 
     try:
-        # Import necessary modules
-        from agent import direct_genai_model
-        from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+        # First try using the ADK agent if available
+        if video_recommendation_agent:
+            print("API Server: Using ADK video_recommendation_agent")
+            try:
+                # Create a prompt for the agent
+                prompt = f"""
+                Recommend educational YouTube videos for this learning goal:
+
+                Learning Goal: {request_body.query}
+                Knowledge Level: {request_body.knowledgeLevel}
+                Additional Context: {request_body.additionalContext if request_body.additionalContext else "None provided"}
+                Video Length Preference: {request_body.videoLength}
+                Preferred Channels: {', '.join(request_body.preferredChannels) if request_body.preferredChannels else "None specified"}
+
+                Recommend videos that match the knowledge level and learning goal.
+                """
+
+                # Run the agent
+                response = await video_recommendation_agent.run_async(prompt)
+
+                # Process the agent's response
+                if not response or not response.response:
+                    raise ValueError("Agent returned empty response")
+
+                # Extract the recommendations from the agent's response
+                try:
+                    # Try to parse the response as JSON
+                    recommendations = json.loads(response.response)
+                    print(f"API Server: Successfully generated recommendations using ADK agent for {request_body.query}")
+                    return JSONResponse(content={"recommendations": recommendations})
+                except json.JSONDecodeError:
+                    print("API Server: ADK agent response is not valid JSON, falling back to direct implementation")
+                    # Fall back to the direct implementation
+            except Exception as agent_error:
+                print(f"API Server: Error using ADK agent: {agent_error}, falling back to direct implementation")
+                # Fall back to the direct implementation
+
+        # Import necessary modules for the direct implementation
         import isodate
         from datetime import datetime
 
@@ -334,10 +427,9 @@ async def recommend_videos(request_body: RecommendVideosRequest):
                         print("API Server: Using Gemini 1.5 Flash model for search query generation")
                         response = await gemini_1_5_model.generate_content_async(search_prompt)
                     else:
-                        # Fallback to direct_genai_model if Gemini 1.5 initialization failed
-                        print("API Server: Falling back to direct_genai_model for search query generation")
-                        from agent import direct_genai_model
-                        response = await direct_genai_model.generate_content_async(search_prompt)
+                        # Fallback to Gemini 2.5 model if Gemini 1.5 initialization failed
+                        print("API Server: Falling back to Gemini 2.5 model for search query generation")
+                        response = await gemini_2_5_model.generate_content_async(search_prompt)
 
                     response_text = response.text.strip()
                     print("API Server: Successfully generated search query")
@@ -986,10 +1078,9 @@ async def recommend_videos(request_body: RecommendVideosRequest):
                         print("API Server: Using Gemini 1.5 Flash model for video analysis")
                         analysis_task = gemini_1_5_model.generate_content_async(analysis_prompt)
                     else:
-                        # Fallback to direct_genai_model if Gemini 1.5 initialization failed
-                        print("API Server: Falling back to direct_genai_model for video analysis")
-                        from agent import direct_genai_model
-                        analysis_task = direct_genai_model.generate_content_async(analysis_prompt)
+                        # Fallback to Gemini 2.5 model if Gemini 1.5 initialization failed
+                        print("API Server: Falling back to Gemini 2.5 model for video analysis")
+                        analysis_task = gemini_2_5_model.generate_content_async(analysis_prompt)
 
                     # Wait for the analysis with a longer timeout (30 seconds)
                     analysis_response = await asyncio.wait_for(analysis_task, timeout=30)
@@ -1174,8 +1265,10 @@ async def health_check():
     # Check if the Google API key is set
     api_key_status = "SET" if os.environ.get("GOOGLE_GENERATIVE_AI_API_KEY") else "MISSING"
 
-    # Check if the agent function is properly loaded
-    agent_function_status = "LOADED" if "generate_course_from_video" in globals() and callable(globals()["generate_course_from_video"]) else "NOT_LOADED"
+    # Check if the ADK agents are properly loaded
+    course_agent_status = "LOADED" if course_agent is not None else "NOT_LOADED"
+    video_recommendation_agent_status = "LOADED" if video_recommendation_agent is not None else "NOT_LOADED"
+    youtube_video_finder_agent_status = "LOADED" if youtube_video_finder_agent is not None else "NOT_LOADED"
 
     # Check if Gemini models are initialized
     gemini_1_5_status = "LOADED" if gemini_1_5_model is not None else "NOT_LOADED"
@@ -1188,9 +1281,15 @@ async def health_check():
         "timestamp": str(import_time.time()),
         "environment": {
             "api_key_status": api_key_status,
-            "agent_function_status": agent_function_status,
-            "gemini_1_5_status": gemini_1_5_status,
-            "gemini_2_5_status": gemini_2_5_status,
+            "agents": {
+                "course_generator": course_agent_status,
+                "video_recommendation": video_recommendation_agent_status,
+                "youtube_video_finder": youtube_video_finder_agent_status
+            },
+            "models": {
+                "gemini_1_5": gemini_1_5_status,
+                "gemini_2_5": gemini_2_5_status
+            },
             "python_version": sys.version,
             "server_pid": os.getpid()
         }

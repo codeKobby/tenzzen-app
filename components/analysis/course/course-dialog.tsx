@@ -13,6 +13,7 @@ import { Icons } from "@/components/ui/icons";
 import { useAnalysis } from "@/hooks/use-analysis-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import React from "react";
+import { formatDurationFromSeconds, formatDurationHumanReadable } from "@/lib/utils/duration";
 
 interface CourseDialogProps {
   open: boolean;
@@ -42,7 +43,11 @@ export function CourseDialog({ open, onOpenChange }: CourseDialogProps) {
               <div className="grid gap-2 text-sm">
                 <div className="grid grid-cols-2 gap-1">
                   <span className="text-muted-foreground">Duration:</span>
-                  <span>{courseData.overview.totalDuration}</span>
+                  <span>
+                    {courseData.duration_seconds
+                      ? formatDurationHumanReadable(courseData.duration_seconds)
+                      : courseData.overview.totalDuration}
+                  </span>
                 </div>
                 <div className="grid grid-cols-2 gap-1">
                   <span className="text-muted-foreground">Level:</span>
@@ -71,7 +76,7 @@ export function CourseDialog({ open, onOpenChange }: CourseDialogProps) {
                     <Icons.section className="h-4 w-4" />
                     {section.title}
                   </h4>
-                  
+
                   {/* Lessons */}
                   <ul className="ml-6 space-y-2">
                     {section.lessons.map((lesson, j) => (
@@ -80,7 +85,11 @@ export function CourseDialog({ open, onOpenChange }: CourseDialogProps) {
                           <Icons.video className="h-4 w-4 text-muted-foreground mt-0.5" />
                           <div>
                             <p>{lesson.title}</p>
-                            <p className="text-xs text-muted-foreground">{lesson.duration}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {typeof lesson.duration === 'number'
+                                ? formatDurationFromSeconds(lesson.duration)
+                                : lesson.duration}
+                            </p>
                           </div>
                         </div>
                       </li>

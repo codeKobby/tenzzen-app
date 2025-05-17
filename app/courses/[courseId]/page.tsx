@@ -235,7 +235,7 @@ export default function CoursePage() {
   };
 
   // Calculate total lessons and completed lessons
-  const totalLessons = course?.sections?.reduce((acc, section) =>
+  const totalLessons = course?.total_lessons || course?.sections?.reduce((acc, section) =>
     acc + section.lessons.length, 0) || 0;
   const completedLessonsCount = completedLessons?.length || 0;
 

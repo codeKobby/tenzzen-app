@@ -1,7 +1,6 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { createClient } from '@/lib/supabase-ssr'
 
 // Schema for updating a note
 const updateNoteSchema = z.object({
@@ -18,20 +17,20 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
-    
+    const supabase = createClient()
+
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
+
     // Get user ID from session
     const userId = session.user.id
-    
+
     // Get note ID from params
     const { id } = params
-    
+
     // Fetch note from database
     const { data, error } = await supabase
       .from('user_notes')
@@ -39,7 +38,7 @@ export async function GET(
       .eq('id', id)
       .eq('user_id', userId)
       .single()
-    
+
     if (error) {
       if (error.code === 'PGRST116') {
         return NextResponse.json({ error: 'Note not found' }, { status: 404 })
@@ -47,7 +46,7 @@ export async function GET(
       console.error('Error fetching note:', error)
       return NextResponse.json({ error: 'Failed to fetch note' }, { status: 500 })
     }
-    
+
     // Transform data to match frontend types
     const note = {
       id: data.id,
@@ -62,7 +61,7 @@ export async function GET(
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     }
-    
+
     return NextResponse.json(note)
   } catch (error) {
     console.error('Error in GET /api/notes/[id]:', error)
@@ -76,30 +75,30 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
-    
+    const supabase = createClient()
+
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
+
     // Get user ID from session
     const userId = session.user.id
-    
+
     // Get note ID from params
     const { id } = params
-    
+
     // Parse and validate request body
     const body = await request.json()
     const validationResult = updateNoteSchema.safeParse(body)
-    
+
     if (!validationResult.success) {
       return NextResponse.json({ error: validationResult.error.format() }, { status: 400 })
     }
-    
+
     const { title, content, category, tags, starred } = validationResult.data
-    
+
     // Build update object with only provided fields
     const updateData: Record<string, any> = {}
     if (title !== undefined) updateData.title = title
@@ -107,7 +106,7 @@ export async function PUT(
     if (category !== undefined) updateData.category = category
     if (tags !== undefined) updateData.tags = tags
     if (starred !== undefined) updateData.starred = starred
-    
+
     // Update note in database
     const { data, error } = await supabase
       .from('user_notes')
@@ -116,12 +115,12 @@ export async function PUT(
       .eq('user_id', userId)
       .select()
       .single()
-    
+
     if (error) {
       console.error('Error updating note:', error)
       return NextResponse.json({ error: 'Failed to update note' }, { status: 500 })
     }
-    
+
     // Transform data to match frontend types
     const note = {
       id: data.id,
@@ -136,7 +135,7 @@ export async function PUT(
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     }
-    
+
     return NextResponse.json(note)
   } catch (error) {
     console.error('Error in PUT /api/notes/[id]:', error)
@@ -150,32 +149,32 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
-    
+    const supabase = createClient()
+
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
+
     // Get user ID from session
     const userId = session.user.id
-    
+
     // Get note ID from params
     const { id } = params
-    
+
     // Delete note from database
     const { error } = await supabase
       .from('user_notes')
       .delete()
       .eq('id', id)
       .eq('user_id', userId)
-    
+
     if (error) {
       console.error('Error deleting note:', error)
       return NextResponse.json({ error: 'Failed to delete note' }, { status: 500 })
     }
-    
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error in DELETE /api/notes/[id]:', error)

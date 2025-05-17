@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { NormalizedCourse, NormalizedLesson, NormalizedSection } from "@/hooks/use-normalized-course"
+import { formatDurationFromSeconds } from "@/lib/utils/duration"
 
 interface CourseContentProps {
     course: NormalizedCourse
@@ -57,7 +58,7 @@ export function CourseContent({ course, onSelectLesson, completedLessons = [], i
 
     // Calculate completed lessons count
     const completedLessonsCount = completedLessons.length
-    const totalLessons = course.totalLessons || sections.reduce((acc: number, section: any) =>
+    const totalLessons = course.total_lessons || course.totalLessons || sections.reduce((acc: number, section: any) =>
         acc + (section.lessons?.length || 0), 0)
 
     return (
@@ -160,7 +161,10 @@ export function CourseContent({ course, onSelectLesson, completedLessons = [], i
                                 )}>
                                     {section.lessons?.map((lesson: any, lessonIndex: number) => {
                                         const isCompleted = isLessonCompleted(sectionIndex, lessonIndex);
-                                        const duration = lesson.duration || "10m";
+                                        // Format duration using the standardized format
+                                        const duration = typeof lesson.duration === 'number'
+                                            ? formatDurationFromSeconds(lesson.duration)
+                                            : lesson.duration || "10m";
 
                                         return (
                                             <li key={lesson.id || `lesson-${sectionIndex}-${lessonIndex}`}>

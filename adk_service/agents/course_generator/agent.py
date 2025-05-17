@@ -14,7 +14,8 @@ if not api_key:
     raise EnvironmentError("Missing GOOGLE_GENERATIVE_AI_API_KEY or GOOGLE_API_KEY in environment.")
 
 # Initialize the Gemini model
-llm_model = Gemini(model_name="gemini-2.5-pro-preview-03-25", api_key=api_key)
+llm_model = Gemini(model_name="gemini-1.5-flash", api_key=api_key)
+print("Initialized Google AI Model: gemini-1.5-flash for course generation")
 
 # Define the course generation agent
 course_generator_agent = LlmAgent(
@@ -32,11 +33,11 @@ course_generator_agent = LlmAgent(
         "- For `'section'` items, include `title`, `description` (optional), and `lessons` (array of objects with `title`, optional `description`, `duration`, `keyPoints`). "
         "- For `'assessment_placeholder'` items, include only the `assessmentType` field with a value of 'quiz', 'assignment', or 'test'. Determine the most suitable assessment type and placement based on the preceding section(s). **Do not generate the actual assessment content, only the placeholder.** "
         "Place these assessment placeholders *between* sections where a knowledge check or application exercise makes sense. "
-        
+
         "IMPORTANT: You MUST include at least one assessment placeholder of type 'quiz', 'test', or 'assignment' after a suitable section. "
         "REQUIRED: You MUST always include a final 'project' assessment in the top-level `project` field regardless of course content. "
         "This project should be appropriate to the course subject matter and allow students to apply what they've learned. "
-        
+
         "Format the entire output as a single, valid JSON object matching the full schema: "
         "`{ title: string, description: string, videoId: string (optional), image: string (optional), metadata: object (with difficulty, duration, prerequisites, objectives, category, tags, sources, overviewText), courseItems: array (containing section and assessment_placeholder objects), resources: array (general supplementary resources), creatorResources: array<{title: string, url: string}>, creatorSocials: array<{platform: string, url: string}>, project: object (assessment_placeholder with type 'project', mandatory) }`. "
         "Ensure 'creatorResources' and 'creatorSocials' are populated if found (empty arrays otherwise). "

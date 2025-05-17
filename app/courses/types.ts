@@ -15,6 +15,7 @@ export interface Course {
   publishedDate?: string | number | Date // Date the video was published
   lastAccessed?: string | number | Date
   videoSource?: string
+  videoId?: string // Add videoId property for compatibility
   instructor?: string
   isPublic?: boolean
   isEnrolled?: boolean // Add isEnrolled property
@@ -64,6 +65,17 @@ export interface Course {
   estimatedHours?: number // Add estimatedHours property for duration calculation
   durationMinutes?: number // Add durationMinutes property for YouTube-style duration format
   estimated_duration?: string | number // Add estimated_duration property from database (interval as string)
+
+  // Standardized fields for consistent data handling
+  duration_seconds?: number // Standardized duration field in seconds
+  total_lessons?: number // Standardized total lessons count
+
+  // Database fields that might be accessed directly
+  video_id?: string
+  tags?: string[] | any[]
+  course_items?: any[]
+  duration_minutes?: number
+  estimated_hours?: number
 }
 
 export type CourseFilter = "all" | "in-progress" | "completed" | "not-started"

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
+import { toast } from "sonner"
 import {
     Search,
     Plus,
@@ -68,13 +69,30 @@ export default function ExplorePage() {
         totalCount,
         currentCategory,
         loadMore: loadMoreCourses,
-        categories: availableCategories
+        categories: availableCategories,
+        error: coursesError
     } = useCategoryCourses({
         sortBy,
         filter: statusFilter,
         searchQuery,
         limit: 12
     });
+
+    // Show error toast if there's an error loading courses
+    useEffect(() => {
+        if (coursesError) {
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.error("Failed to load courses", {
+                    description: "Please try refreshing the page",
+                    action: {
+                        label: "Retry",
+                        onClick: () => window.location.reload()
+                    }
+                });
+            }, 0);
+        }
+    }, [coursesError]);
 
     // Setup intersection observer for infinite scrolling
     useEffect(() => {
@@ -322,7 +340,21 @@ export default function ExplorePage() {
                             : `${availableCategories.find(cat => cat.slug === currentCategory)?.name || currentCategory.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Courses`}
                     </h2>
 
-                    {isLoading && displayedCourses.length === 0 ? (
+                    {coursesError && !isLoading && displayedCourses.length === 0 ? (
+                        // Error state
+                        <div className="text-center py-12 border border-dashed rounded-lg border-destructive/20 bg-destructive/5">
+                            <p className="text-muted-foreground mb-4">
+                                Failed to load courses. Please try again.
+                            </p>
+                            <Button
+                                onClick={() => window.location.reload()}
+                                variant="outline"
+                            >
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Retry
+                            </Button>
+                        </div>
+                    ) : isLoading && displayedCourses.length === 0 ? (
                         // Initial loading state - reduced to 1-2 rows (4-8 cards)
                         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                             {Array(8).fill(0).slice(0, 8).map((_, index) => (

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/custom-toast";
 import { useCoursePanelContext } from "@/components/analysis/course-panel-context";
+import { formatDurationFromSeconds, formatDurationHumanReadable } from "@/lib/utils/duration";
 import {
   Collapsible,
   CollapsibleContent,
@@ -250,7 +251,7 @@ function ActionButtons({ className, course }: { className?: string, course: any 
 
 // --- Course Summary ---
 function CourseSummary({ course }: { course: any }) {
-  const totalLessons = course.courseItems
+  const totalLessons = course.total_lessons || course.courseItems
     ?.filter((item: any) => item.type === 'section')
     .reduce((acc: number, section: any) => acc + (section.lessons?.length || 0), 0) || 0;
 
@@ -371,7 +372,9 @@ function CourseSummary({ course }: { course: any }) {
 
       {/* Stats */}
       <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground mt-1">
-        {course.metadata?.duration && course.metadata.duration !== "Variable duration" && (
+        {course.duration_seconds ? (
+          <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /><span>{formatDurationHumanReadable(course.duration_seconds)}</span></div>
+        ) : course.metadata?.duration && course.metadata.duration !== "Variable duration" && (
           <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /><span>{course.metadata.duration}</span></div>
         )}
         <div className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" /><span>{totalLessons} Lesson{totalLessons !== 1 ? 's' : ''}</span></div>

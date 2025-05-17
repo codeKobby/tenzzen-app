@@ -1,13 +1,10 @@
 @echo off
-REM Script to deploy the ADK service to Google Cloud Run
+REM Script to deploy the ADK agents to Google Cloud Run
 
-echo Starting deployment of ADK service to Google Cloud Run...
-
-REM Configuration - Change these values as needed
-set PROJECT_ID=tenzzen
-set REGION=us-central1
+echo Setting environment variables...
+set GOOGLE_CLOUD_PROJECT=tenzzen
+set GOOGLE_CLOUD_LOCATION=us-central1
 set SERVICE_NAME=tenzzen-adk-service
-set IMAGE_NAME=gcr.io/%PROJECT_ID%/%SERVICE_NAME%
 
 REM Check if gcloud is installed
 where gcloud >nul 2>&1
@@ -24,31 +21,27 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 REM Set the project
-echo Setting project to %PROJECT_ID%...
-gcloud config set project %PROJECT_ID%
+echo Setting project to %GOOGLE_CLOUD_PROJECT%...
+gcloud config set project %GOOGLE_CLOUD_PROJECT%
 
 REM Enable required APIs
 echo Enabling required APIs...
 gcloud services enable cloudbuild.googleapis.com run.googleapis.com artifactregistry.googleapis.com
 
-REM Build and push the Docker image
-echo Building and pushing Docker image to Google Container Registry...
-gcloud builds submit --tag %IMAGE_NAME% .
-
-REM Deploy to Cloud Run
-echo Deploying to Cloud Run...
+REM Deploy to Cloud Run directly from source
+echo Deploying to Cloud Run from source...
 gcloud run deploy %SERVICE_NAME% ^
-    --image %IMAGE_NAME% ^
-    --platform managed ^
-    --region %REGION% ^
+    --source . ^
+    --region %GOOGLE_CLOUD_LOCATION% ^
+    --project %GOOGLE_CLOUD_PROJECT% ^
     --allow-unauthenticated ^
     --memory 2Gi ^
     --cpu 1 ^
     --timeout 5m ^
-    --set-env-vars="ALLOWED_ORIGINS=http://localhost:3000,https://tenzzen-app.vercel.app"
+    --set-env-vars ALLOWED_ORIGINS=http://localhost:3000,https://tenzzen-app.vercel.app
 
 REM Get the service URL
-for /f "tokens=*" %%a in ('gcloud run services describe %SERVICE_NAME% --platform managed --region %REGION% --format "value(status.url)"') do set SERVICE_URL=%%a
+for /f "tokens=*" %%a in ('gcloud run services describe %SERVICE_NAME% --platform managed --region %GOOGLE_CLOUD_LOCATION% --format "value(status.url)"') do set SERVICE_URL=%%a
 
 echo Deployment complete!
 echo Your ADK service is now running at: %SERVICE_URL%
@@ -62,7 +55,7 @@ echo GOOGLE_GENERATIVE_AI_API_KEY - Your Google Generative AI API key
 echo YOUTUBE_API_KEY - Your YouTube API key
 echo.
 echo You can set them using the following command:
-echo gcloud run services update %SERVICE_NAME% --platform managed --region %REGION% ^
+echo gcloud run services update %SERVICE_NAME% --platform managed --region %GOOGLE_CLOUD_LOCATION% ^
 echo   --set-env-vars="GOOGLE_GENERATIVE_AI_API_KEY=your-api-key,YOUTUBE_API_KEY=your-api-key"
 
 pause

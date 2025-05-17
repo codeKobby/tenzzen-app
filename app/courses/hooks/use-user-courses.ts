@@ -5,6 +5,7 @@ import { Course } from '@/app/courses/types';
 import { useEffect, useState, useRef } from 'react';
 import { useAuth, useSession } from '@clerk/nextjs';
 import { normalizeCategory } from '@/app/utils/category-utils';
+import { extractCourseSections } from '@/lib/course-utils';
 
 interface UseUserCoursesOptions {
   limit?: number;
@@ -380,30 +381,8 @@ export function useUserCourses(options: UseUserCoursesOptions = {}) {
               Array.isArray(course.tags) ? course.tags : []
             );
 
-            // Extract sections from metadata.courseItems if available
-            const sections = (() => {
-              // First check if metadata.courseItems exists
-              if (course.metadata?.courseItems && Array.isArray(course.metadata.courseItems)) {
-                return course.metadata.courseItems.map((item: any) => {
-                  if (item.type === 'section') {
-                    return {
-                      title: item.title || "Untitled Section",
-                      lessons: Array.isArray(item.lessons) ? item.lessons.map((lesson: any) => ({
-                        id: lesson.id || "",
-                        title: lesson.title || "Untitled Lesson",
-                        content: lesson.content || "",
-                        duration: lesson.duration || 0,
-                        videoId: lesson.videoId || "",
-                        completed: false
-                      })) : []
-                    };
-                  }
-                  return null;
-                }).filter(Boolean);
-              }
-              // Fallback to empty array if no sections found
-              return [];
-            })();
+            // Extract sections using our robust utility function
+            const sections = extractCourseSections(course);
 
             // Calculate total lessons
             const totalLessons = sections.reduce(

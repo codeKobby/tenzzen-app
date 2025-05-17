@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Star, Users, Clock, PlayCircle } from "lucide-react"
 import { Course } from "../types"
 import Image from "next/image"
+import { formatDurationFromSeconds, formatDurationHumanReadable } from "@/lib/utils/duration"
 import {
   Tooltip,
   TooltipContent,
@@ -81,7 +82,11 @@ export function CourseDialog({ course, open, onOpenChange, onCourseDeleted }: Co
           <div className="flex flex-wrap gap-6 text-foreground">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-primary" />
-              <span className="text-sm sm:text-base">{course.duration}</span>
+              <span className="text-sm sm:text-base">
+                {course.duration_seconds
+                  ? formatDurationHumanReadable(course.duration_seconds)
+                  : course.duration || "Unknown duration"}
+              </span>
             </div>
             {course.isPublic && (
               <>

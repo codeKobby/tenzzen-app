@@ -1,6 +1,7 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
-import { NextResponse } from 'next/server';
+import { clerkMiddleware, createRouteMatcher, currentUser } from '@clerk/nextjs/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { syncUserToSupabase } from './lib/user-sync';
+import { updateSession } from './lib/supabase/middleware';
 
 const isOnboardingRoute = createRouteMatcher(['/onboarding']);
 const isPublicRoute = createRouteMatcher(['/', '/sign-in', '/sign-up', '/explore']);
@@ -15,11 +16,18 @@ export default clerkMiddleware(async (auth, req) => {
   const authData = await auth();
   const userId = authData.userId;
 
+  // First, update the Supabase session if needed
+  // This handles refreshing auth tokens for routes that use Supabase auth
+  const updatedResponse = await updateSession(req as NextRequest);
+
   // Sync user to Supabase if they're signed in
-  if (userId && authData.user) {
+  if (userId) {
     try {
-      // Use the user object directly from auth() instead of calling currentUser()
-      await syncUserToSupabase(authData.user);
+      // Get the full user object using currentUser()
+      const clerkUser = await currentUser();
+      if (clerkUser) {
+        await syncUserToSupabase(clerkUser);
+      }
     } catch (error) {
       console.error('Error syncing user to Supabase:', error);
     }

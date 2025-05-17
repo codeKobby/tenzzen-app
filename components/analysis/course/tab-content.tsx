@@ -12,6 +12,7 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { formatDurationFromSeconds, formatDurationHumanReadable } from '@/lib/utils/duration'
 
 interface TabContentProps {
   course: any
@@ -125,7 +126,7 @@ export function TabContent({ course, tab, activeTab, setCurrentLesson, completed
   // Content Tab
   if (currentTab === "content") {
     // Calculate total lessons
-    const totalLessons = course.sections?.reduce(
+    const totalLessons = course.total_lessons || course.sections?.reduce(
       (acc: number, section: any) => acc + (section.lessons?.length || 0),
       0
     ) || 0;
@@ -234,7 +235,10 @@ export function TabContent({ course, tab, activeTab, setCurrentLesson, completed
                   <ul className="divide-y">
                     {section.lessons?.map((lesson: any, lessonIndex: number) => {
                       const isCompleted = isLessonCompleted(sectionIndex, lessonIndex);
-                      const duration = lesson.duration || "10m";
+                      // Format duration using the standardized format
+                      const duration = typeof lesson.duration === 'number'
+                        ? formatDurationFromSeconds(lesson.duration)
+                        : lesson.duration || "10m";
 
                       return (
                         <li key={lesson.id || `lesson-${sectionIndex}-${lessonIndex}`}>

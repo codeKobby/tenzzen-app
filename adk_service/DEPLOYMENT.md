@@ -2,6 +2,14 @@
 
 This guide explains how to deploy the Tenzzen ADK service to Google Cloud Run.
 
+## Agent Structure
+
+The ADK service includes the following agents:
+
+1. **Course Generator Agent** - Generates structured course outlines from YouTube videos
+2. **Video Recommendation Agent** - Recommends educational videos based on learning goals
+3. **YouTube Video Finder Agent** - Finds relevant YouTube videos based on search criteria
+
 ## Prerequisites
 
 1. [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed
@@ -14,6 +22,7 @@ This guide explains how to deploy the Tenzzen ADK service to Google Cloud Run.
 ### 1. Configuration
 
 The deployment script is already configured with your project details:
+
 - Project ID: `tenzzen`
 - Region: `us-central1`
 - Service Name: `tenzzen-adk-service`
@@ -22,13 +31,13 @@ The deployment script is already configured with your project details:
 
 ```bash
 cd adk_service
-./cloud-run-deploy.sh
+deploy-agents.bat
 ```
 
 The script will:
+
 - Enable required Google Cloud APIs
-- Build and push the Docker image to Google Container Registry
-- Deploy the service to Google Cloud Run
+- Deploy the service directly from source to Google Cloud Run
 - Output the service URL
 
 ### 3. Set Environment Variables in Google Cloud Run
@@ -96,5 +105,6 @@ gcloud run services update tenzzen-adk-service \
 ## Monitoring
 
 You can monitor your service using Google Cloud Console:
+
 - Logs: https://console.cloud.google.com/logs
 - Monitoring: https://console.cloud.google.com/monitoring

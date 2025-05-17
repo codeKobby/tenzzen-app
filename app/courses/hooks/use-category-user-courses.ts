@@ -5,6 +5,7 @@ import { Course } from '@/app/courses/types';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { normalizeCategory } from '@/app/utils/category-utils';
+import { extractCourseSections } from '@/lib/course-utils';
 import { useAuth, useSession } from '@clerk/nextjs';
 import { debounce } from 'lodash';
 
@@ -167,13 +168,16 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
         enrollments.forEach(enrollment => {
           if (!enrollment.courses) return;
 
+          // Define a typed course object
+          const course: any = enrollment.courses;
+
           // Get category from course data
-          let category = enrollment.courses.category;
+          let category = course.category;
 
           // If no category, try to derive from tags
-          if (!category && Array.isArray(enrollment.courses.tags) && enrollment.courses.tags.length > 0) {
+          if (!category && Array.isArray(course.tags) && course.tags.length > 0) {
             // Use first tag as category
-            category = enrollment.courses.tags[0];
+            category = course.tags[0];
           }
 
           // Skip if no category found
@@ -198,8 +202,8 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
           }));
 
         // Deduplicate categories by slug
-        const uniqueCategories = [];
-        const slugs = new Set();
+        const uniqueCategories: Array<{name: string, slug: string, courseCount: number}> = [];
+        const slugs = new Set<string>();
 
         extractedCategories.forEach(category => {
           if (!slugs.has(category.slug)) {
@@ -304,7 +308,9 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
       // Apply search query if provided
       if (options.searchQuery && options.searchQuery.trim() !== '') {
         const searchTerm = `%${options.searchQuery.toLowerCase()}%`;
-        query = query.or(`courses.title.ilike.${searchTerm},courses.description.ilike.${searchTerm}`);
+        // Use Supabase's ilike method for case-insensitive search
+        // @ts-ignore - ilike is a valid Supabase method but TypeScript doesn't recognize it in string literals
+        query = query.or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`);
       }
 
       // Apply filter based on progress
@@ -381,7 +387,8 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
       const formattedEnrollments = enrollments
         .filter(enrollment => enrollment.courses) // Filter out enrollments without course data
         .map(enrollment => {
-          const course = enrollment.courses;
+          // Use any type for course to avoid TypeScript errors
+          const course: any = enrollment.courses;
 
           // Normalize the category
           const normalizedCategory = normalizeCategory(
@@ -389,18 +396,8 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
             Array.isArray(course.tags) ? course.tags : []
           );
 
-          // Extract sections from metadata.courseItems if available
-          const sections = (() => {
-            if (course.metadata?.courseItems && Array.isArray(course.metadata.courseItems)) {
-              return course.metadata.courseItems
-                .filter((item: any) => item.type === 'section')
-                .map((section: any) => ({
-                  title: section.title || 'Untitled Section',
-                  lessons: Array.isArray(section.lessons) ? section.lessons : []
-                }));
-            }
-            return [];
-          })();
+          // Extract sections using our robust utility function
+          const sections = extractCourseSections(course);
 
           // Calculate total lessons
           const totalLessons = sections.reduce(
@@ -408,7 +405,8 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
             0
           );
 
-          return {
+          // Create a properly typed Course object
+          const formattedCourse: Course = {
             id: enrollment.course_id,
             title: course.title || 'Untitled Course',
             description: course.description || '',
@@ -420,7 +418,7 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
             enrolledAt: enrollment.enrolled_at,
             isEnrolled: true,
             category: normalizedCategory,
-            tags: course.tags || [],
+            tags: Array.isArray(course.tags) ? course.tags : [],
             metadata: course.metadata || {},
             completedLessons: enrollment.completed_lessons || [],
             duration: course.estimated_hours ? `${course.estimated_hours}h` : undefined,
@@ -430,7 +428,13 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
             sections: sections,
             totalLessons: totalLessons,
             lessonsCompleted: enrollment.completed_lessons?.length || 0,
+
+            // Add database fields directly for TypeScript
+            video_id: course.video_id || '',
+            course_items: course.course_items || []
           };
+
+          return formattedCourse;
         });
 
       // Apply client-side sorting if needed
@@ -498,9 +502,11 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
 
         if (categoryObj) {
           // Filter by exact category name
-          filtered = courses.filter(course =>
-            course.category.toLowerCase() === categoryObj.name.toLowerCase()
-          );
+          filtered = courses.filter(course => {
+            // Safely access category with null check
+            const courseCategory = course.category?.toLowerCase() || '';
+            return courseCategory === categoryObj.name.toLowerCase();
+          });
         } else {
           // If category not found in our list, try to normalize the slug
           const normalizedCategoryName = category.split('-').map(word =>
@@ -517,11 +523,13 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
             return courseCategory === searchCategory ||
                    courseCategory.includes(searchCategory) ||
                    searchCategory.includes(courseCategory) ||
-                   // Also check tags
-                   course.tags.some(tag =>
-                     tag.toLowerCase().includes(searchCategory) ||
-                     searchCategory.includes(tag.toLowerCase())
-                   );
+                   // Also check tags if they exist
+                   (Array.isArray(course.tags) && course.tags.some(tag =>
+                     typeof tag === 'string' && (
+                       tag.toLowerCase().includes(searchCategory) ||
+                       searchCategory.includes(tag.toLowerCase())
+                     )
+                   ));
           });
         }
       }
@@ -612,9 +620,6 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
 
   // Effect to handle category changes and pagination
   useEffect(() => {
-    // Check if category has changed
-    const categoryChanged = prevCategoryRef.current !== currentCategory;
-
     // Log for debugging
     console.log(`Category changed from ${prevCategoryRef.current} to ${currentCategory}`);
 

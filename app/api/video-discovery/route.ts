@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic'; // Ensure the route is not cached
 
 // Get ADK service URL from environment variable or use default
-const ADK_SERVICE_URL = process.env.ADK_SERVICE_URL || 'http://localhost:8001';
+const ADK_SERVICE_URL = process.env.NEXT_PUBLIC_ADK_SERVICE_URL || 'http://localhost:8001';
 
 export async function POST(req: NextRequest) {
   try {
