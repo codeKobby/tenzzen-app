@@ -5,6 +5,8 @@ import { auth } from '@clerk/nextjs/server';
 
 /**
  * API endpoint to save a generated course to Supabase
+ * This endpoint now uses the normalized database structure while maintaining
+ * compatibility with the existing course generation flow.
  * POST /api/supabase/courses/save
  */
 export async function POST(req: NextRequest) {
@@ -45,7 +47,7 @@ export async function POST(req: NextRequest) {
       console.log('Falling back to admin Supabase client');
     }
 
-    // Check if a course with this videoId already exists
+    // Step 1: Check if a course with this videoId already exists
     const { data: existingCourses, error: queryError } = await supabase
       .from('courses')
       .select('id')
@@ -60,12 +62,82 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // Prepare course data for insertion/update
+    // If course exists, return it immediately to maintain compatibility with the existing flow
+    if (existingCourses && existingCourses.length > 0) {
+      console.log('Course already exists, returning existing course ID:', existingCourses[0].id);
+      return NextResponse.json({
+        success: true,
+        message: 'Course already exists',
+        courseId: existingCourses[0].id
+      });
+    }
+
+    // Step 2: Check if video already exists in videos table
+    let videoId;
+    const { data: existingVideo, error: videoQueryError } = await supabase
+      .from('videos')
+      .select('id')
+      .eq('youtube_id', courseData.videoId)
+      .limit(1);
+
+    if (videoQueryError) {
+      console.error('Error checking for existing video:', videoQueryError);
+      // Continue anyway, we'll create a new video record
+    }
+
+    // Step 3: Insert or get video record
+    if (existingVideo && existingVideo.length > 0) {
+      videoId = existingVideo[0].id;
+      console.log('Using existing video record:', videoId);
+
+      // Update video data if needed
+      const { error: videoUpdateError } = await supabase
+        .from('videos')
+        .update({
+          title: courseData.title,
+          description: courseData.description || null,
+          thumbnail: courseData.thumbnail || courseData.image || null,
+          transcript: courseData.transcript || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', videoId);
+
+      if (videoUpdateError) {
+        console.error('Error updating video:', videoUpdateError);
+        // Continue anyway
+      }
+    } else {
+      // Insert new video record
+      const videoRecord = {
+        youtube_id: courseData.videoId,
+        title: courseData.title,
+        description: courseData.description || null,
+        thumbnail: courseData.thumbnail || courseData.image || null,
+        transcript: courseData.transcript || null
+      };
+
+      const { data: newVideo, error: videoInsertError } = await supabase
+        .from('videos')
+        .insert(videoRecord)
+        .select('id')
+        .single();
+
+      if (videoInsertError) {
+        console.error('Error inserting video:', videoInsertError);
+        // Fall back to using just the video_id field in the course record
+      } else {
+        videoId = newVideo.id;
+        console.log('Inserted new video record:', videoId);
+      }
+    }
+
+    // Step 4: Prepare course data for insertion
     const courseRecord = {
       title: courseData.title,
       subtitle: courseData.subtitle || courseData.metadata?.overviewText?.substring(0, 100) || null,
       description: courseData.description || null,
-      video_id: courseData.videoId,
+      video_id: courseData.videoId, // Keep for backward compatibility
+      video_reference: videoId, // New normalized reference
       youtube_url: courseData.youtubeUrl || `https://www.youtube.com/watch?v=${courseData.videoId}`,
       thumbnail: courseData.thumbnail || courseData.image || null,
       is_public: true, // Make all generated courses public by default
@@ -81,11 +153,11 @@ export async function POST(req: NextRequest) {
         overview: courseData.metadata?.overviewText || null,
         prerequisites: courseData.metadata?.prerequisites || [],
         objectives: courseData.metadata?.objectives || [],
-        resources: courseData.resources || courseData.metadata?.sources || [],
-        courseItems: courseData.courseItems || []
+        resources: courseData.resources || courseData.metadata?.sources || []
       },
       generated_summary: courseData.metadata?.overviewText || null,
-      transcript: courseData.transcript || null
+      course_items: courseData.courseItems || [], // Keep for backward compatibility
+      transcript: courseData.transcript || null // Keep for backward compatibility
     };
 
     let courseId;
@@ -219,12 +291,221 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
+    // Step 5: Process course sections and lessons if available
+    if (Array.isArray(courseData.courseItems) && courseData.courseItems.length > 0) {
+      console.log('Processing course sections and lessons...');
+
+      try {
+        // First, delete existing sections and lessons (cascade will handle lessons)
+        const { error: deleteError } = await supabase
+          .from('course_sections')
+          .delete()
+          .eq('course_id', courseId);
+
+        if (deleteError) {
+          console.error('Error deleting existing sections:', deleteError);
+          // Continue anyway, as this might be a new course
+        }
+
+        // Insert new sections and lessons
+        for (let i = 0; i < courseData.courseItems.length; i++) {
+          const section = courseData.courseItems[i];
+
+          // Insert section
+          const sectionRecord = {
+            course_id: courseId,
+            title: section.title,
+            description: section.description || null,
+            order_index: i,
+            objective: section.objective || null,
+            key_points: section.keyPoints || null,
+            assessment_type: section.assessment || null
+          };
+
+          const { data: newSection, error: sectionError } = await supabase
+            .from('course_sections')
+            .insert(sectionRecord)
+            .select('id')
+            .single();
+
+          if (sectionError) {
+            console.error('Error inserting section:', sectionError);
+            continue; // Skip to next section if this one fails
+          }
+
+          // Insert lessons for this section
+          if (Array.isArray(section.lessons)) {
+            for (let j = 0; j < section.lessons.length; j++) {
+              const lesson = section.lessons[j];
+
+              const lessonRecord = {
+                section_id: newSection.id,
+                title: lesson.title,
+                content: lesson.content || lesson.description || null,
+                video_timestamp: lesson.videoTimestamp || lesson.startTime || null,
+                duration: lesson.duration || (lesson.endTime && lesson.startTime ? lesson.endTime - lesson.startTime : null),
+                order_index: j,
+                key_points: lesson.keyPoints || null,
+                resources: lesson.resources || null
+              };
+
+              const { error: lessonError } = await supabase
+                .from('course_lessons')
+                .insert(lessonRecord);
+
+              if (lessonError) {
+                console.error('Error inserting lesson:', lessonError);
+                // Continue to next lesson
+              }
+            }
+          }
+        }
+
+        console.log('Successfully processed course sections and lessons');
+      } catch (error) {
+        console.error('Error processing course sections and lessons:', error);
+        // Continue anyway, as the course has been saved
+      }
+    }
+
+    // Step 6: Process categories and tags
+    if (courseData.metadata?.category) {
+      try {
+        // Get or create category
+        let categoryId;
+        const { data: existingCategory, error: categoryQueryError } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('name', courseData.metadata.category)
+          .limit(1);
+
+        if (categoryQueryError) {
+          console.error('Error checking for existing category:', categoryQueryError);
+        } else if (existingCategory && existingCategory.length > 0) {
+          categoryId = existingCategory[0].id;
+        } else {
+          // Create new category
+          const { data: newCategory, error: categoryInsertError } = await supabase
+            .from('categories')
+            .insert({
+              name: courseData.metadata.category,
+              slug: courseData.metadata.category.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+            })
+            .select('id')
+            .single();
+
+          if (categoryInsertError) {
+            console.error('Error inserting category:', categoryInsertError);
+          } else {
+            categoryId = newCategory.id;
+          }
+        }
+
+        // Link course to category
+        if (categoryId) {
+          // Check if the link already exists
+          const { data: existingLink, error: checkError } = await supabase
+            .from('course_categories')
+            .select('id')
+            .eq('course_id', courseId)
+            .eq('category_id', categoryId)
+            .limit(1);
+
+          if (checkError) {
+            console.error('Error checking for existing category link:', checkError);
+          } else if (!existingLink || existingLink.length === 0) {
+            // Only insert if it doesn't exist
+            const { error: linkError } = await supabase
+              .from('course_categories')
+              .insert({
+                course_id: courseId,
+                category_id: categoryId
+              });
+
+            if (linkError) {
+              console.error('Error linking course to category:', linkError);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error processing category:', error);
+        // Continue anyway
+      }
+    }
+
+    // Process tags
+    if (Array.isArray(courseData.metadata?.tags) && courseData.metadata.tags.length > 0) {
+      try {
+        for (const tagName of courseData.metadata.tags) {
+          // Get or create tag
+          let tagId;
+          const { data: existingTag, error: tagQueryError } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('name', tagName)
+            .limit(1);
+
+          if (tagQueryError) {
+            console.error('Error checking for existing tag:', tagQueryError);
+            continue;
+          }
+
+          if (existingTag && existingTag.length > 0) {
+            tagId = existingTag[0].id;
+          } else {
+            // Create new tag
+            const { data: newTag, error: tagInsertError } = await supabase
+              .from('tags')
+              .insert({ name: tagName })
+              .select('id')
+              .single();
+
+            if (tagInsertError) {
+              console.error('Error inserting tag:', tagInsertError);
+              continue;
+            }
+            tagId = newTag.id;
+          }
+
+          // Link course to tag
+          if (tagId) {
+            // Check if the link already exists
+            const { data: existingLink, error: checkError } = await supabase
+              .from('course_tags')
+              .select('id')
+              .eq('course_id', courseId)
+              .eq('tag_id', tagId)
+              .limit(1);
+
+            if (checkError) {
+              console.error('Error checking for existing tag link:', checkError);
+            } else if (!existingLink || existingLink.length === 0) {
+              // Only insert if it doesn't exist
+              const { error: linkError } = await supabase
+                .from('course_tags')
+                .insert({
+                  course_id: courseId,
+                  tag_id: tagId
+                });
+
+              if (linkError) {
+                console.error('Error linking course to tag:', linkError);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error processing tags:', error);
+        // Continue anyway
+      }
+    }
+
     // No longer automatically enrolling users when a course is saved
     // Users will need to explicitly click the "Enroll" button to enroll in a course
 
     return NextResponse.json({
       success: true,
-      message: 'Course saved successfully',
+      message: 'Course saved successfully with normalized structure',
       courseId
     });
   } catch (error) {

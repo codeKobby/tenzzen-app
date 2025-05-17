@@ -32,21 +32,34 @@ export async function POST(req: NextRequest) {
     // First, try a simple connection test to see if the ADK service is responsive
     try {
       logger.log('[google-adk route] Testing connection to ADK service at:', adkUrl);
-      const testResponse = await fetch(adkHealthUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        // No timeout for health check
-      });
 
-      if (testResponse.ok) {
-        const healthData = await testResponse.json();
-        logger.log('[google-adk route] ADK service health check successful:', healthData);
-      } else {
-        logger.error('[google-adk route] ADK service health check failed with status:', testResponse.status);
-        throw new Error(`Health check failed with status ${testResponse.status}`);
+      // Use AbortController for timeout
+      const healthController = new AbortController();
+      const healthTimeoutId = setTimeout(() => healthController.abort(), 10000); // 10 second timeout
+
+      try {
+        const testResponse = await fetch(adkHealthUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          signal: healthController.signal,
+        });
+
+        clearTimeout(healthTimeoutId); // Clear the timeout if fetch completes
+
+        if (testResponse.ok) {
+          const healthData = await testResponse.json();
+          logger.log('[google-adk route] ADK service health check successful:', healthData);
+        } else {
+          logger.error('[google-adk route] ADK service health check failed with status:', testResponse.status);
+          throw new Error(`Health check failed with status ${testResponse.status}`);
+        }
+      } catch (timeoutError) {
+        clearTimeout(healthTimeoutId);
+        logger.error('[google-adk route] Health check timed out after 10 seconds:', timeoutError);
+        throw new Error('Health check timed out. The ADK service might be running but not responding properly.');
       }
     } catch (healthError) {
       logger.error('[google-adk route] ADK service health check failed:', healthError);
@@ -59,41 +72,61 @@ export async function POST(req: NextRequest) {
       logger.log('[google-adk route] Attempting to connect to ADK service at:', adkUrl);
 
       // First try with a test connection to verify basic connectivity
-      const testConnectionResponse = await fetch(adkUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          video_id: 'test_connection',
-          video_title: 'Connection Test',
-          video_description: 'Testing connection to ADK service',
-          transcript: 'This is a test transcript',
-          video_data: {},
-        }),
-        // No timeout for test connection
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      try {
+        const testConnectionResponse = await fetch(adkUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            video_id: 'test_connection',
+            video_title: 'Connection Test',
+            video_description: 'Testing connection to ADK service',
+            transcript: 'This is a test transcript',
+            video_data: {},
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId); // Clear the timeout if fetch completes
 
       if (testConnectionResponse.ok) {
         logger.log('[google-adk route] Test connection successful, proceeding with actual request');
       } else {
         logger.error('[google-adk route] Test connection failed with status:', testConnectionResponse.status);
       }
+      } catch (timeoutError) {
+        clearTimeout(timeoutId);
+        logger.error('[google-adk route] Test connection timed out after 30 seconds:', timeoutError);
+        throw new Error('Connection to ADK service timed out during test connection. The service might be running but not responding properly.');
+      }
 
-      // Now make the actual request - with no timeout
+      // Now make the actual request with a longer timeout
       // The ADK service can take a long time for large videos
-      // We'll let the client handle timeouts instead
-      response = await fetch(adkUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          video_id: videoId,
-          video_title: videoTitle || '',
-          video_description: videoDescription || '',
-          transcript: transcript || '',
-          video_data: video_data || {},
-        }),
-        // No timeout for the actual request - let it complete naturally
-        // The client will handle timeouts for the initial connection
-      });
+      const mainController = new AbortController();
+      const mainTimeoutId = setTimeout(() => mainController.abort(), 300000); // 5 minute timeout
+
+      try {
+        response = await fetch(adkUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            video_id: videoId,
+            video_title: videoTitle || '',
+            video_description: videoDescription || '',
+            transcript: transcript || '',
+            video_data: video_data || {},
+          }),
+          signal: mainController.signal,
+        });
+
+        clearTimeout(mainTimeoutId); // Clear the timeout if fetch completes
+      } catch (timeoutError) {
+        clearTimeout(mainTimeoutId);
+        logger.error('[google-adk route] Main request timed out after 5 minutes:', timeoutError);
+        throw new Error('Connection to ADK service timed out during main request. The service might be running but not responding properly for large requests.');
+      }
       logger.log('[google-adk route] Connection to ADK service successful, status:', response.status);
     } catch (fetchError) {
       logger.error('[google-adk route] Failed to connect to ADK service:', fetchError);
@@ -101,10 +134,46 @@ export async function POST(req: NextRequest) {
       // Get error details
       const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown connection error';
 
-      // Return error response instead of mock data to make the issue more visible
+      // Check for specific error types
+      let detailedMessage = errorMessage;
+      let statusCode = 503; // Service Unavailable
+
+      if (fetchError instanceof Error) {
+        const errorString = fetchError.toString().toLowerCase();
+
+        // Check for timeout errors
+        if (errorString.includes('abort') || errorString.includes('timeout')) {
+          detailedMessage = `Connection to ADK service timed out. The service might be running but not responding properly.`;
+        }
+
+        // Check for connection refused errors
+        else if (errorString.includes('econnrefused') || errorString.includes('connection refused')) {
+          detailedMessage = `Connection to ADK service was refused. The service might not be running.`;
+        }
+
+        // Check for network errors
+        else if (errorString.includes('network') || errorString.includes('fetch failed')) {
+          detailedMessage = `Network error when connecting to ADK service. Check if the service is running and accessible.`;
+        }
+
+        // Check for header timeout errors
+        else if (errorString.includes('header') && errorString.includes('timeout')) {
+          detailedMessage = `Headers timeout error when connecting to ADK service. The service might be running but not responding properly. Try restarting the ADK service with 'cd adk_service; uvicorn server:app --reload --host 0.0.0.0 --port 8001'`;
+          statusCode = 504; // Gateway Timeout
+        }
+
+        // Check for ECONNRESET errors
+        else if (errorString.includes('econnreset') || errorString.includes('connection reset')) {
+          detailedMessage = `Connection reset by ADK service. The service might be overloaded or experiencing issues. Try restarting the ADK service with 'cd adk_service; uvicorn server:app --reload --host 0.0.0.0 --port 8001'`;
+          statusCode = 503; // Service Unavailable
+        }
+      }
+
+      // Return error response with detailed message
       return NextResponse.json({
-        error: `Failed to connect to ADK service: ${errorMessage}. Please ensure the ADK service is running at http://localhost:8001 with 'cd adk_service; uvicorn server:app --reload'`
-      }, { status: 503 });
+        error: `Failed to connect to ADK service: ${detailedMessage}. Please ensure the ADK service is running at http://localhost:8001 with 'cd adk_service; uvicorn server:app --reload'`,
+        originalError: errorMessage
+      }, { status: statusCode });
     }
 
     // Read the response once

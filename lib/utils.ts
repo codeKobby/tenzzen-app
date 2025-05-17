@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
- 
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -55,6 +55,44 @@ export function formatTimestamp(totalSeconds: number | undefined | null): string
     const paddedHours = hours.toString().padStart(2, '0');
     return `${paddedHours}:${paddedMinutes}:${paddedSeconds}`;
   }
-  
+
   return `${paddedMinutes}:${paddedSeconds}`;
+}
+
+/**
+ * Validates if a string is a valid UUID v4 format
+ * @param uuid The string to validate
+ * @returns boolean indicating if the string is a valid UUID
+ */
+export function isValidUUID(uuid: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
+/**
+ * Validates if a string is a valid course ID
+ * Checks that it's not a user ID and is a valid UUID
+ * @param id The ID to validate
+ * @returns An object with validation result and error message if invalid
+ */
+export function validateCourseId(id: string): { isValid: boolean; error?: string } {
+  if (!id) {
+    return { isValid: false, error: 'Missing course ID' };
+  }
+
+  if (id.startsWith('user_')) {
+    return {
+      isValid: false,
+      error: `Invalid course ID: This appears to be a user ID (${id}), not a course ID.`
+    };
+  }
+
+  if (!isValidUUID(id)) {
+    return {
+      isValid: false,
+      error: `Invalid course ID format: Expected a valid UUID, got ${id}.`
+    };
+  }
+
+  return { isValid: true };
 }

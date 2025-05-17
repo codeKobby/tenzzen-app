@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { auth } from '@clerk/nextjs/server';
+import { validateCourseId } from '@/lib/utils';
 
 /**
  * API endpoint to enroll a user in a course
@@ -22,10 +23,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { courseId } = body;
 
-    // Validate input
-    if (!courseId) {
+    // Validate input using the utility function
+    const validation = validateCourseId(courseId);
+    if (!validation.isValid) {
       return NextResponse.json({
-        error: 'Missing required course ID'
+        error: validation.error || 'Invalid course ID'
       }, { status: 400 });
     }
 

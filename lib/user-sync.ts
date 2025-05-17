@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from './supabase-server';
-import { currentUser } from '@clerk/nextjs/server';
-import type { AuthObject } from '@clerk/nextjs/server';
+import type { AuthObject, User } from '@clerk/nextjs/server';
 
 /**
  * Synchronizes the current Clerk user to Supabase
@@ -13,20 +12,15 @@ export async function syncCurrentUserToSupabase(authData?: AuthObject) {
   }
 
   const userId = authData.userId;
-  if (!userId) return null;
+  if (!userId || !authData.user) return null;
 
   try {
-    // Get the user directly from currentUser()
-    const clerkUser = await currentUser();
-    if (clerkUser) {
-      return syncUserToSupabase(clerkUser);
-    }
+    // Use the user object directly from auth()
+    return syncUserToSupabase(authData.user);
   } catch (error) {
-    console.error('Failed to get user from currentUser():', error);
+    console.error('Failed to sync user to Supabase:', error);
+    return null;
   }
-
-  // If we couldn't get the user, return null
-  return null;
 }
 
 /**

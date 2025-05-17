@@ -40,7 +40,7 @@ The assessment system provides a comprehensive solution for handling course asse
    - Manages assessment organization
    - Shows section progress
 
-3. **Progress Display (`app/course/[courseId]/progress/page.tsx`)**
+3. **Progress Display (`app/courses/[courseId]/progress/page.tsx`)**
    - Shows overall course progress
    - Displays section-by-section progress
    - Lists all assessments with status

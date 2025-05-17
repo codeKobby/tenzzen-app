@@ -10,49 +10,10 @@ from pydantic import BaseModel, Field
 import json
 import re
 from typing import Dict, Any, List
-import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+from dotenv import load_dotenv
 
-
-
-# Initialize Gemini models for different tasks
-def initialize_gemini_models():
-    """Initialize Gemini 1.5 for video recommendations and Gemini 2.5 for course generation."""
-    api_key = os.environ.get("GOOGLE_GENERATIVE_AI_API_KEY")
-    if not api_key:
-        print("ERROR: GOOGLE_GENERATIVE_AI_API_KEY environment variable not set")
-        return None, None
-
-    genai.configure(api_key=api_key)
-
-    # Initialize Gemini 1.5 for video recommendations (faster, more efficient)
-    try:
-        gemini_1_5_model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            generation_config={
-                "temperature": 0.2,
-                "top_p": 0.95,
-                "top_k": 64,
-                "max_output_tokens": 2048,
-            },
-            safety_settings={
-                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            }
-        )
-        print("Initialized Gemini 1.5 Flash model for video recommendations")
-    except Exception as e:
-        print(f"ERROR initializing Gemini 1.5 Flash model: {e}")
-        gemini_1_5_model = None
-
-    # We'll use Gemini 1.5 for both video recommendations and course generation
-    # No need to initialize a separate model for course generation
-    # The agent.py file already initializes its own model
-    gemini_2_5_model = None  # Keep this variable but set it to None for compatibility
-
-    return gemini_1_5_model, gemini_2_5_model
+# Load environment variables
+load_dotenv()
 
 # Fix import issues by adding the project root to Python's path
 # Get the absolute path of the current file's directory
@@ -64,7 +25,16 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
     print(f"Added {project_root} to Python path")
 
-# Import the updated agent function
+# Import the ADK agents
+try:
+    # Import the course generator agent
+    from adk_service.agents.course_generator import root_agent as course_agent
+    print("Successfully imported course_agent from adk_service.agents.course_generator")
+except ImportError as e:
+    print(f"Error importing course_agent: {e}")
+    course_agent = None
+
+# Import the agent function from agent.py as a fallback
 try:
     # First try relative import (when running from adk_service directory)
     from agent import generate_course_from_video
@@ -95,9 +65,6 @@ except ImportError as e:
                 "courseItems": []
             }
 
-# Initialize Gemini models
-gemini_1_5_model, gemini_2_5_model = initialize_gemini_models()
-
 app = FastAPI(
     title="Tenzzen ADK Course Generation Service",
     description="Provides an API endpoint to generate courses from YouTube videos using Google ADK.",
@@ -116,6 +83,18 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods
     allow_headers=["*"],  # Allow all headers
 )
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint to verify the service is running."""
+    return {
+        "status": "healthy",
+        "service": "Tenzzen ADK Course Generation Service",
+        "agents": {
+            "course_generator": course_agent is not None,
+        },
+        "timestamp": import_time.time()
+    }
 
 # Updated request model to accept all necessary data
 class GenerateRequest(BaseModel):
@@ -157,6 +136,53 @@ async def handle_generate_course(request_body: GenerateRequest):
         })
 
     try:
+        # First try using the ADK agent if available
+        if course_agent:
+            print("API Server: Using ADK course_agent")
+            try:
+                # Create a prompt for the agent
+                prompt = f"""
+                Generate a structured course outline for this YouTube video:
+
+                Video ID: {request_body.video_id}
+                Video Title: {request_body.video_title}
+                Video Description: {request_body.video_description}
+
+                Transcript:
+                {request_body.transcript}
+
+                Use the transcript to understand the content and create a comprehensive course structure.
+                """
+
+                # Run the agent
+                response = await course_agent.run_async(prompt)
+
+                # Process the agent's response
+                if not response or not response.response:
+                    raise ValueError("Agent returned empty response")
+
+                # Extract the course data from the agent's response
+                try:
+                    # Try to parse the response as JSON
+                    course_data = json.loads(response.response)
+
+                    # Add the video ID if not present
+                    if 'videoId' not in course_data:
+                        course_data['videoId'] = request_body.video_id
+
+                    # Add the transcript
+                    course_data['transcript'] = request_body.transcript
+
+                    print(f"API Server: Successfully generated course using ADK agent for {request_body.video_id}")
+                    return JSONResponse(content=course_data)
+                except json.JSONDecodeError:
+                    print("API Server: ADK agent response is not valid JSON, falling back to direct function")
+                    # Fall back to the direct function
+            except Exception as agent_error:
+                print(f"API Server: Error using ADK agent: {agent_error}, falling back to direct function")
+                # Fall back to the direct function
+
+        # Fall back to the direct function if ADK agent is not available or fails
         print("API Server: Calling generate_course_from_video function")
         # Call the agent function with all necessary data
         course_data = await generate_course_from_video(
@@ -1172,12 +1198,21 @@ async def health_check():
 
 if __name__ == "__main__":
     print("Starting Tenzzen ADK Service API server via Uvicorn...")
+
+    # Get port from environment variable or use default
+    port = int(os.environ.get("PORT", 8001))
+
+    print(f"Starting ADK service on port {port}")
+    print(f"Health check available at http://localhost:{port}/health")
+    print(f"Course generation endpoint available at http://localhost:{port}/generate-course")
+    print(f"Video recommendation endpoint available at http://localhost:{port}/recommend-videos")
+
     # Run directly with the app instance instead of using a module path
     # This avoids potential module resolution issues
     uvicorn.run(
         app,
         host="0.0.0.0",  # Listen on all interfaces
-        port=8001,       # Use a different port to avoid conflicts
-        reload=False,    # Disable reload to avoid potential issues
+        port=port,       # Use port from environment variable
+        reload=True,     # Enable reload for development
         log_level="info" # Increase logging for better debugging
     )

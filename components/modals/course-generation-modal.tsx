@@ -206,10 +206,22 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
             let data;
             try {
               if (!response.ok) {
-                // For 504 Gateway Timeout errors
-                if (response.status === 504) {
+                // For 502 Bad Gateway or 504 Gateway Timeout errors
+                if (response.status === 502 || response.status === 504) {
                   const errorData = await response.json();
-                  throw new Error(errorData.error || "The server took too long to respond. The AI analysis process might be taking longer than expected.");
+
+                  // Check if the ADK service is not running
+                  if (errorData.serviceStatus) {
+                    toast.error(errorData.serviceStatus);
+                    console.error("ADK Service Error:", errorData.serviceStatus);
+                  }
+
+                  // If we retried the request, let the user know
+                  if (errorData.retried) {
+                    console.log("Request was retried but still failed");
+                  }
+
+                  throw new Error(errorData.error || "The server encountered an error. The ADK service might not be running or is taking longer than expected to respond.");
                 } else {
                   throw new Error(`Error: ${response.status} ${response.statusText}`);
                 }

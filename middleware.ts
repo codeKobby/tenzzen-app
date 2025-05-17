@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import { syncCurrentUserToSupabase } from './lib/user-sync';
+import { syncUserToSupabase } from './lib/user-sync';
 
 const isOnboardingRoute = createRouteMatcher(['/onboarding']);
 const isPublicRoute = createRouteMatcher(['/', '/sign-in', '/sign-up', '/explore']);
@@ -16,9 +16,10 @@ export default clerkMiddleware(async (auth, req) => {
   const userId = authData.userId;
 
   // Sync user to Supabase if they're signed in
-  if (userId) {
+  if (userId && authData.user) {
     try {
-      await syncCurrentUserToSupabase(authData);
+      // Use the user object directly from auth() instead of calling currentUser()
+      await syncUserToSupabase(authData.user);
     } catch (error) {
       console.error('Error syncing user to Supabase:', error);
     }
@@ -69,7 +70,7 @@ export const config = {
     '/((?!_next|favicon.ico|.*\\.[^/]*$).*)',
     // Always run for API routes (even if they match the above exclusion)
     '/(api|trpc)(.*)',
-    // Explicitly include course routes
-    '/course/:path*',
+    // Explicitly include courses routes
+    '/courses/:path*',
   ],
 };

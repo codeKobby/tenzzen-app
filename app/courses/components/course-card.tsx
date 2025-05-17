@@ -182,7 +182,7 @@ export function CourseCard({
     } else {
       // Navigate to course detail page
       console.log("Navigating to course detail page for course:", course.id);
-      router.push(`/course/${course.id}`)
+      router.push(`/courses/${course.id}`)
     }
   }
 

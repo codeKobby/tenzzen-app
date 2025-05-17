@@ -287,7 +287,7 @@ export default function CoursesPage() {
   // Handle course click - navigate to course page
   const handleCourseClick = (courseId: string) => {
     if (!selectionMode) {
-      router.push(`/course/${courseId}`)
+      router.push(`/courses/${courseId}`)
     }
   }
 

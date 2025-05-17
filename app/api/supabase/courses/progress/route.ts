@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { auth } from '@clerk/nextjs/server';
+import { validateCourseId } from '@/lib/utils';
 
 /**
  * API endpoint to update a user's course progress
@@ -22,10 +23,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { courseId, lessonId, sectionIndex, lessonIndex, completed } = body;
 
-    // Validate input
-    if (!courseId) {
+    // Validate input using the utility function
+    const validation = validateCourseId(courseId);
+    if (!validation.isValid) {
       return NextResponse.json({
-        error: 'Missing required course ID'
+        error: validation.error || 'Invalid course ID'
       }, { status: 400 });
     }
 
@@ -74,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     // Update completed lessons array
     let completedLessons = enrollment.completed_lessons || [];
-    
+
     if (completed && !completedLessons.includes(lessonIdentifier)) {
       // Add the lesson to completed lessons
       completedLessons.push(lessonIdentifier);
@@ -113,8 +115,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Calculate progress percentage
-    const progress = totalLessons > 0 
-      ? Math.round((completedLessons.length / totalLessons) * 100) 
+    const progress = totalLessons > 0
+      ? Math.round((completedLessons.length / totalLessons) * 100)
       : 0;
 
     // Determine completion status
@@ -206,6 +208,14 @@ export async function GET(req: NextRequest) {
     if (!courseId) {
       return NextResponse.json({
         error: 'Missing required course ID'
+      }, { status: 400 });
+    }
+
+    // Validate input using the utility function
+    const validation = validateCourseId(courseId);
+    if (!validation.isValid) {
+      return NextResponse.json({
+        error: validation.error || 'Invalid course ID'
       }, { status: 400 });
     }
 

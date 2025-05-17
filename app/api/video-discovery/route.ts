@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic'; // Ensure the route is not cached
 
+// Get ADK service URL from environment variable or use default
+const ADK_SERVICE_URL = process.env.ADK_SERVICE_URL || 'http://localhost:8001';
+
 export async function POST(req: NextRequest) {
   try {
     // Parse the request body
@@ -14,17 +17,31 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('[video-discovery route] Processing discovery request for query:', query);
+    console.log('[video-discovery route] Using ADK service URL:', ADK_SERVICE_URL);
 
-    // Call the ADK service without a timeout
-    try {
-      const response = await fetch('http://localhost:8001/recommend-videos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
+    // Call the ADK service with retry logic
+    const maxRetries = 2;
+    let retryCount = 0;
+    let lastError: Error | null = null;
+
+    while (retryCount <= maxRetries) {
+      try {
+        // Use AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
+        try {
+          const response = await fetch(`${ADK_SERVICE_URL}/recommend-videos`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId); // Clear the timeout if fetch completes
 
       // Check the content type to detect HTML responses
       const contentType = response.headers.get('content-type') || '';
@@ -65,7 +82,21 @@ export async function POST(req: NextRequest) {
         }
 
         console.error('[video-discovery route] ADK service error:', errorMessage);
-        return NextResponse.json({ error: errorMessage }, { status: 502 });
+
+        // If we have retries left, try again
+        if (retryCount < maxRetries) {
+          console.log(`[video-discovery route] Retrying request (${retryCount + 1}/${maxRetries})...`);
+          retryCount++;
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          continue;
+        }
+
+        return NextResponse.json({
+          error: errorMessage,
+          retried: retryCount > 0,
+          recommendations: []
+        }, { status: 502 });
       }
 
       try {
@@ -77,22 +108,92 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(data);
       } catch (jsonError) {
         console.error('[video-discovery route] Error parsing JSON response:', jsonError);
+
+        // If we have retries left, try again
+        if (retryCount < maxRetries) {
+          console.log(`[video-discovery route] Retrying request after JSON parse error (${retryCount + 1}/${maxRetries})...`);
+          retryCount++;
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          continue;
+        }
+
         return NextResponse.json({
           error: 'Failed to parse response from ADK service. The service may be returning invalid JSON.',
+          retried: retryCount > 0,
           recommendations: []
         }, { status: 502 });
       }
+      } catch (timeoutError) {
+        // Clear the timeout
+        clearTimeout(timeoutId);
 
+        // Store the error for potential retry
+        lastError = timeoutError instanceof Error ? timeoutError : new Error(String(timeoutError));
+        console.error(`[video-discovery route] Timeout error (attempt ${retryCount + 1}/${maxRetries + 1}):`, lastError);
+
+        // If we have retries left, try again
+        if (retryCount < maxRetries) {
+          console.log(`[video-discovery route] Retrying request after timeout (${retryCount + 1}/${maxRetries})...`);
+          retryCount++;
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          continue;
+        }
+
+        // If we've exhausted all retries, return an error
+        return NextResponse.json(
+          {
+            error: `Connection to ADK service timed out after 60 seconds. The service might be running but not responding properly.`,
+            retried: retryCount > 0,
+            recommendations: [],
+            serviceStatus: 'The ADK service may not be running or is overloaded. Please check if it is running with "cd adk_service; uvicorn server:app --reload"'
+          },
+          { status: 504 } // Gateway Timeout
+        );
+      }
     } catch (fetchError) {
-      // Handle fetch errors without timeout logic
+      // Store the error for potential retry
+      lastError = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
+      console.error(`[video-discovery route] Fetch error (attempt ${retryCount + 1}/${maxRetries + 1}):`, lastError);
 
-      // Other fetch errors
-      console.error('[video-discovery route] Fetch error:', fetchError);
+      // Check for specific error types
+      let detailedMessage = lastError.message;
+      let statusCode = 502; // Bad Gateway
+
+      const errorString = lastError.toString().toLowerCase();
+
+      // Check for header timeout errors
+      if (errorString.includes('header') && errorString.includes('timeout')) {
+        detailedMessage = `Headers timeout error when connecting to ADK service. The service might be running but not responding properly.`;
+        statusCode = 504; // Gateway Timeout
+      }
+      // Check for network errors
+      else if (errorString.includes('network') || errorString.includes('fetch failed')) {
+        detailedMessage = `Network error when connecting to ADK service. Check if the service is running and accessible.`;
+      }
+
+      // If we have retries left, try again
+      if (retryCount < maxRetries) {
+        console.log(`[video-discovery route] Retrying request after fetch error (${retryCount + 1}/${maxRetries})...`);
+        retryCount++;
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        continue;
+      }
+
+      // If we've exhausted all retries, return an error
       return NextResponse.json(
-        { error: `Failed to communicate with discovery service: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`, recommendations: [] },
-        { status: 502 }
+        {
+          error: `Failed to communicate with discovery service: ${detailedMessage}`,
+          retried: retryCount > 0,
+          recommendations: [],
+          serviceStatus: 'The ADK service may not be running. Please start it with "cd adk_service; uvicorn server:app --reload"'
+        },
+        { status: statusCode }
       );
     }
+    } // End of while loop
   } catch (error) {
     console.error('[video-discovery route] Unhandled error:', error);
     return NextResponse.json(

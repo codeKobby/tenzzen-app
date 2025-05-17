@@ -11,7 +11,7 @@
       "name": "Course Request Trigger",
       "type": "webhook",
       "parameters": {
-        "path": "/course/generate",
+        "path": "/courses/generate",
         "authentication": "headerAuth"
       }
     },
@@ -128,16 +128,16 @@ async function courseGenerationWorkflow(videoUrl: string, userId: string) {
   try {
     // Step 1: Video analysis
     const analysis = await activities.analyzeVideo(videoUrl);
-    
+
     // Step 2: Generate course structure
     const structure = await activities.generateStructure(analysis);
-    
+
     // Step 3: Create supplementary content
     const content = await activities.generateContent(structure);
-    
+
     // Step 4: Notify user
     await activities.notifyUser(userId, 'Course ready');
-    
+
     return { structure, content };
   } catch (error) {
     await activities.handleError(error, userId);
@@ -229,10 +229,10 @@ class UsageTracker {
   ): Promise<UsageResult> {
     const user = await this.getUser(userId);
     const limits = this.getLimits(user.tier);
-    
+
     const currentUsage = await this.getCurrentUsage(userId, feature);
     const newUsage = currentUsage + quantity;
-    
+
     if (this.exceedsLimit(newUsage, limits[feature])) {
       return {
         allowed: false,
@@ -240,7 +240,7 @@ class UsageTracker {
         upgrade: this.getUpgradeRecommendation(user.tier, feature)
       };
     }
-    
+
     await this.recordUsage(userId, feature, quantity);
     return { allowed: true };
   }

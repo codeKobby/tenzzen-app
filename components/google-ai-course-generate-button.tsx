@@ -79,7 +79,13 @@ export function GoogleAICourseGenerateButton({
     setCourseGenerating(true);
     setCourseError(null);
 
-    try {
+    // Add retry mechanism
+    const maxRetries = 2;
+    let retryCount = 0;
+    let lastError = null;
+
+    while (retryCount <= maxRetries) {
+      try {
       // First check if we already have this course in the database
       if (existingVideo && isFullVideoDoc(existingVideo) && hasValidCourseData(existingVideo)) {
         // Use existing course data
@@ -136,6 +142,16 @@ export function GoogleAICourseGenerateButton({
       // Note: This request can take a long time for large videos
       // We intentionally don't set a timeout to allow the ADK service to complete naturally
       abortControllerRef.current = new AbortController();
+
+      console.log("[GoogleAICourseGenerateButton] Calling course generation API...");
+
+      // Add a timeout for the initial connection
+      const timeoutId = setTimeout(() => {
+        console.log("[GoogleAICourseGenerateButton] Request timed out, but not aborting to allow background processing");
+        // We don't abort the request, just log the timeout
+        // This allows the request to continue in the background
+      }, 30000); // 30 second timeout for logging purposes only
+
       const response = await fetch('/api/course-generation/google-adk', {
         method: 'POST',
         headers: {
@@ -153,8 +169,48 @@ export function GoogleAICourseGenerateButton({
         signal: abortControllerRef.current.signal
       });
 
+      // Clear the timeout
+      clearTimeout(timeoutId);
+
+      console.log("[GoogleAICourseGenerateButton] Received response from course generation API:", response.status);
+
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        // Get more detailed error information from the response
+        const errorData = await response.json().catch(() => ({ error: `Error: ${response.status}` }));
+        const errorMessage = errorData.error || `Error: ${response.status}`;
+
+        console.log("[GoogleAICourseGenerateButton] Error response details:", {
+          status: response.status,
+          errorMessage,
+          errorData
+        });
+
+        // Check for specific status codes
+        if (response.status === 503) {
+          // Service Unavailable - The ADK service is not running or not accessible
+          console.error("[GoogleAICourseGenerateButton] ADK Service Unavailable:", errorMessage);
+
+          // Try to get more specific information about the error
+          if (errorMessage.includes("Headers Timeout")) {
+            throw new Error(`ADK Service Headers Timeout: The service is running but not responding properly. This might be due to high load or a configuration issue.`);
+          } else if (errorMessage.includes("connection refused")) {
+            throw new Error(`ADK Service Connection Refused: The service is not running. Please ensure the ADK service is running at http://localhost:8001 with 'cd adk_service; uvicorn server:app --reload'`);
+          } else {
+            throw new Error(`ADK Service Unavailable: ${errorMessage}. Please ensure the ADK service is running at http://localhost:8001 with 'cd adk_service; uvicorn server:app --reload'`);
+          }
+        } else if (response.status === 504) {
+          // Gateway Timeout - The ADK service is running but taking too long to respond
+          console.error("[GoogleAICourseGenerateButton] ADK Service Timeout:", errorMessage);
+          throw new Error(`ADK Service Timeout: ${errorMessage}. The service might be running but taking too long to respond.`);
+        } else if (response.status === 502) {
+          // Bad Gateway - The ADK service is running but returning an error
+          console.error("[GoogleAICourseGenerateButton] ADK Service Error:", errorMessage);
+          throw new Error(`ADK Service Error: ${errorMessage}. The service might be running but returning an error.`);
+        } else {
+          // Other errors
+          console.error("[GoogleAICourseGenerateButton] Unexpected error:", errorMessage);
+          throw new Error(`Error ${response.status}: ${errorMessage}`);
+        }
       }
 
       // Parse the response
@@ -211,17 +267,43 @@ export function GoogleAICourseGenerateButton({
         // Don't show error to user as this is a background operation
       }
 
-    } catch (error) {
-      console.error("Course generation error:", error);
-      const errorMsg = error instanceof Error ? error.message : "Failed to generate course";
-      setCourseError(errorMsg);
-      toast.error("Course Generation Failed", { description: errorMsg });
-    } finally {
-      // Always clean up
-      setCourseGenerating(false);
-      // Clear the abort controller reference
-      abortControllerRef.current = null;
-    }
+        // If we reach here, we've successfully completed the request
+        break;
+      } catch (error) {
+        console.error(`Course generation error (attempt ${retryCount + 1}/${maxRetries + 1}):`, error);
+        lastError = error;
+
+        // Check if this is a 503 error (Service Unavailable)
+        const errorMsg = error instanceof Error ? error.message : "Failed to generate course";
+        const is503Error = errorMsg.includes("503") || errorMsg.toLowerCase().includes("service unavailable");
+        const is504Error = errorMsg.includes("504") || errorMsg.toLowerCase().includes("gateway timeout");
+
+        // If we have retries left and it's a 503 or 504 error, retry
+        if (retryCount < maxRetries && (is503Error || is504Error)) {
+          retryCount++;
+          const retryDelay = 2000 * retryCount; // Exponential backoff
+
+          // Inform the user about the retry
+          toast.info(`Retrying course generation (${retryCount}/${maxRetries})`, {
+            description: `The ADK service is not responding. Retrying in ${retryDelay/1000} seconds...`
+          });
+
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        }
+
+        // If we've exhausted all retries or it's not a retryable error, throw the error
+        setCourseError(errorMsg);
+        toast.error("Course Generation Failed", { description: errorMsg });
+        break;
+      }
+    } // End of while loop
+
+    // Always clean up
+    setCourseGenerating(false);
+    // Clear the abort controller reference
+    abortControllerRef.current = null;
   };
 
   // Cancel function to abort the request if needed
@@ -240,9 +322,18 @@ export function GoogleAICourseGenerateButton({
     return null;
   }
 
-  // If we're generating, don't show the button at all
+
+
+  // If we're generating, show a loading indicator
   if (courseGenerating) {
-    return null;
+    return (
+      <div className="flex flex-col items-center space-y-4 w-full">
+        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Generating course...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -257,6 +348,8 @@ export function GoogleAICourseGenerateButton({
         <Sparkles className="mr-2 h-4 w-4" />
         {buttonText}
       </Button>
+
+
     </div>
   );
 }
