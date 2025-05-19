@@ -8,6 +8,7 @@ import {
   SheetClose,
   SheetContent,
   SheetHeader,
+  SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,21 +37,13 @@ export function MobileSheet({ isOpen, onClose, loading, error }: MobileSheetProp
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          className="fixed bottom-4 right-4 z-50 h-12 w-12 rounded-full shadow-lg sm:hidden"
-        >
-          <PanelLeftClose className="h-5 w-5" />
-          <span className="sr-only">Toggle content panel</span>
-        </Button>
-      </SheetTrigger>
+      {/* SheetTrigger is now in the header component */}
       <SheetContent
         side="bottom"
         className="h-[80vh] mt-16 p-0 sm:hidden"
       >
-        <SheetHeader className="h-14 border-b px-4 flex items-center">
+        <SheetHeader className="h-14 border-b px-4 flex items-center justify-between">
+          <SheetTitle className="sr-only">Video Content</SheetTitle>
           <SheetClose className="text-muted-foreground">Close</SheetClose>
         </SheetHeader>
         <ScrollArea className="h-[calc(80vh-3.5rem)]">

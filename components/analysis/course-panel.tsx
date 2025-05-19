@@ -74,7 +74,7 @@ function normalizeCourseData(
     return {
       title: "Loading Course...",
       description: "",
-      image: "/placeholder-thumbnail.jpg",
+      image: "/placeholders/course-thumbnail.jpg",
       videoId: "",
       metadata: {
         category: "General", tags: [], difficulty: "N/A", prerequisites: [], objectives: [], overviewText: "", resources: [], duration: "", sources: []
@@ -104,7 +104,7 @@ function normalizeCourseData(
     if (raw._id) videoId = raw._id;
     else if (raw.video_id) videoId = raw.video_id;
   }
-  const image = initialVideoData?.thumbnail || raw?.thumbnail || raw?.image || raw?.metadata?.thumbnail || "/placeholder-thumbnail.jpg";
+  const image = initialVideoData?.thumbnail || raw?.thumbnail || raw?.image || raw?.metadata?.thumbnail || "/placeholders/course-thumbnail.jpg";
 
   let sources: any[] = [];
   // Use correct properties: channelName and channelAvatar (optional)
@@ -139,14 +139,22 @@ function normalizeCourseData(
     ...(raw?.metadata || {}),
   };
 
+  // Get duration from YouTube video data if available
+  let duration = metadataBase.duration;
+  if (initialVideoData?.duration) {
+    duration = initialVideoData.duration;
+  } else if (metadataBase.duration === "Variable duration" && raw?.estimated_duration) {
+    duration = raw.estimated_duration;
+  }
+
   const metadata = {
     ...metadataBase,
     difficulty: metadataBase.difficulty === "N/A" && raw?.difficulty_level ? raw.difficulty_level : metadataBase.difficulty,
     prerequisites: Array.isArray(raw?.prerequisites) ? raw.prerequisites : (metadataBase.prerequisites || []),
     objectives: Array.isArray(raw?.learning_objectives) ? raw.learning_objectives : (metadataBase.objectives || []),
-    duration: metadataBase.duration === "Variable duration" && raw?.estimated_duration ? raw.estimated_duration : metadataBase.duration,
+    duration: duration,
     resources: Array.isArray(raw?.resources) ? raw.resources : (metadataBase.resources || []), // Expect resources at top level now
-    overviewText: raw?.overviewText || metadataBase.overviewText || "",
+    overviewText: raw?.overviewText || raw?.metadata?.overviewText || metadataBase.overviewText || "",
     tags: Array.isArray(raw?.tags) ? raw.tags : (metadataBase.tags || []),
     sources: sources, // Ensure sources are correctly assigned
   };
@@ -195,6 +203,11 @@ function normalizeCourseData(
     }));
   };
 
+  // Validate creator socials to ensure they have platform and url properties
+  const validatedCreatorSocials = (raw?.creatorSocials || []).filter(
+    (social: any) => social && typeof social === 'object' && social.platform && social.url
+  );
+
   const normalizedResult = {
     title,
     description,
@@ -205,7 +218,7 @@ function normalizeCourseData(
     project: projectPlaceholder,
     resources: ensureResourceDefaults(raw?.resources), // Apply basic defaults here too
     creatorResources: ensureResourceDefaults(raw?.creatorResources), // Apply basic defaults here too
-    creatorSocials: raw?.creatorSocials || []
+    creatorSocials: validatedCreatorSocials
   };
 
   console.log("[Normalize] Final normalized data:", JSON.stringify(normalizedResult, null, 2));
@@ -395,6 +408,9 @@ const SocialIconMap: Record<string, React.ElementType> = { // Define Social Icon
   // Add more mappings as needed
 };
 const getSocialIcon = (platform: string) => { // Define Social Icon Helper
+  if (!platform) {
+    return <LinkIcon className="h-4 w-4" />; // Default to LinkIcon if platform is undefined or null
+  }
   const lowerPlatform = platform.toLowerCase();
   const IconComponent = SocialIconMap[lowerPlatform] || LinkIcon; // Default to LinkIcon
   return <IconComponent className="h-4 w-4" />;
@@ -701,12 +717,32 @@ export function CoursePanel({ className }: { className?: string }) {
   useEffect(() => { const currentRef = scrollContainerRef.current; if (currentRef) { currentRef.addEventListener('scroll', handleScroll); return () => currentRef.removeEventListener('scroll', handleScroll); } }, []);
 
   // Create a normalized version of the course data with default values
+  // Add duration_seconds if available from videoData
+  // Parse duration from videoData if it's in ISO 8601 format (PT1H2M10S)
+  let duration_seconds = 0;
+  if (videoData) {
+    if (typeof videoData.duration_seconds === 'number') {
+      duration_seconds = videoData.duration_seconds;
+    } else if (videoData.duration && typeof videoData.duration === 'string') {
+      // Try to parse the duration string
+      const match = videoData.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+      if (match) {
+        const [, hours, minutes, seconds] = match;
+        duration_seconds =
+          (parseInt(hours || '0') * 3600) +
+          (parseInt(minutes || '0') * 60) +
+          parseInt(seconds || '0');
+      }
+    }
+  }
+
   const normalizedCourseData = {
     ...courseData,
     title: courseData.title || "Generated Course",
     description: courseData.description || "No description available",
     videoId: courseData.videoId || "",
-    image: courseData.image || "/placeholder-thumbnail.jpg"
+    image: courseData.image || "/placeholders/course-thumbnail.jpg",
+    duration_seconds: duration_seconds
   };
 
   // Ensure courseItems exists and is an array
@@ -743,7 +779,11 @@ export function CoursePanel({ className }: { className?: string }) {
     hasCourseItems: Array.isArray(normalizedCourseData.courseItems) && normalizedCourseData.courseItems.length > 0
   });
 
-  const thumbnailUrl = normalizedCourseData.image || "/placeholder-thumbnail.jpg";
+  // Use YouTube thumbnail URL directly if available
+  // If we have a videoId, always use the YouTube thumbnail directly
+  const thumbnailUrl = normalizedCourseData.videoId
+    ? `https://i.ytimg.com/vi/${normalizedCourseData.videoId}/maxresdefault.jpg`
+    : (videoData?.thumbnail || normalizedCourseData.image || "/placeholders/course-thumbnail.jpg");
 
   // Log the current state before rendering
   console.log("[CoursePanel] Rendering with state:", {
@@ -797,7 +837,17 @@ export function CoursePanel({ className }: { className?: string }) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="aspect-video relative overflow-hidden rounded-lg border">
                 <Image src={thumbnailUrl} alt={normalizedCourseData.title} fill style={{ objectFit: "cover" }} priority
-                  onError={(e) => { console.error("Thumbnail Load Error:", e); (e.target as HTMLImageElement).src = '/placeholder-thumbnail.jpg'; }}
+                  onError={(e) => {
+                    console.error("Thumbnail Load Error:", e);
+                    // Try YouTube thumbnail with different quality if available
+                    if (normalizedCourseData.videoId) {
+                      // Try hqdefault which is more reliable than maxresdefault
+                      (e.target as HTMLImageElement).src = `https://i.ytimg.com/vi/${normalizedCourseData.videoId}/hqdefault.jpg`;
+                    } else {
+                      // If no videoId, use a data URI for a simple colored rectangle
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221280%22%20height%3D%22720%22%20viewBox%3D%220%200%201280%20720%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%231e293b%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20font-family%3D%22Arial%22%20font-size%3D%2248%22%20fill%3D%22%2394a3b8%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3ECourse%20Thumbnail%3C%2Ftext%3E%3C%2Fsvg%3E';
+                    }
+                  }}
                 />
               </div>
               <CourseSummary course={normalizedCourseData} />

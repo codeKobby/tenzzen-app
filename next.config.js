@@ -12,6 +12,12 @@ const nextConfig = {
     // your project has TypeScript errors.
     ignoreBuildErrors: true,
   },
+  // Output as standalone to optimize for deployment
+  output: 'standalone',
+  // Skip trailing slash redirect to improve performance
+  skipTrailingSlashRedirect: true,
+  // Skip middleware URL normalization for better compatibility
+  skipMiddlewareUrlNormalize: true,
   // Configure image domains for next/image
   images: {
     domains: [

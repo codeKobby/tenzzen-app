@@ -19,8 +19,13 @@ export interface VideoRecommendation {
   views?: string
   publishDate?: string
   relevanceScore: number
-  benefit: string
+  benefit?: string
+  relevanceJustification?: string
   description?: string
+  keyConcepts?: string[]
+  benefits?: string[]
+  alignmentExplanation?: string
+  qualityIndicators?: string[]
 }
 
 interface VideoDiscoveryResultsProps {
@@ -195,11 +200,33 @@ export function VideoDiscoveryResults({
                               src={video.thumbnail}
                               alt={video.title}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // If image fails to load, replace with default thumbnail based on video ID
+                                const target = e.target as HTMLImageElement;
+                                target.onerror = null; // Prevent infinite loop
+                                target.src = `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`;
+                              }}
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-secondary">
-                              <VideoIcon className="h-8 w-8 text-muted-foreground/40" />
-                            </div>
+                            <img
+                              src={`https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`}
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // If even the default thumbnail fails, show the icon
+                                const target = e.target as HTMLImageElement;
+                                target.onerror = null;
+                                target.style.display = 'none';
+                                // Add the icon as a sibling
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  const iconDiv = document.createElement('div');
+                                  iconDiv.className = 'w-full h-full flex items-center justify-center bg-secondary';
+                                  iconDiv.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-8 w-8 text-muted-foreground/40"><path d="m22 8-6 4 6 4V8Z" /><rect width="14" height="12" x="2" y="6" rx="2" ry="2" /></svg>';
+                                  parent.appendChild(iconDiv);
+                                }
+                              }}
+                            />
                           )}
                           {video.duration && (
                             <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
@@ -250,7 +277,9 @@ export function VideoDiscoveryResults({
                         </div>
 
                         <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                          <span>{video.channelName || "Unknown channel"}</span>
+                          <span className="font-medium">
+                            {video.channelName || (video.videoId ? "YouTube Channel" : "Unknown channel")}
+                          </span>
                           {video.views && (
                             <>
                               <span>•</span>
@@ -261,6 +290,12 @@ export function VideoDiscoveryResults({
                             <>
                               <span>•</span>
                               <span>{video.publishDate}</span>
+                            </>
+                          )}
+                          {!video.views && !video.publishDate && video.videoId && (
+                            <>
+                              <span>•</span>
+                              <span>YouTube video</span>
                             </>
                           )}
                         </div>
@@ -278,7 +313,11 @@ export function VideoDiscoveryResults({
                         <div className="space-y-3">
                           <div>
                             <h4 className="text-sm font-medium mb-1">Learning Benefits:</h4>
-                            <p className="text-sm text-muted-foreground">{video.benefit}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {video.benefit ||
+                               (video.relevanceJustification ? video.relevanceJustification :
+                                `Learn about ${video.title || 'this topic'} with a comprehensive tutorial`)}
+                            </p>
                           </div>
 
                           {video.description && (

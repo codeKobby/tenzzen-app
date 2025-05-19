@@ -417,8 +417,9 @@ export default function DashboardPage() {
 
       <div className="mt-6 grid gap-6 md:grid-cols-3">
         {/* Learning Journey and Activity Chart - Main column moved to the left */}
-        <div className="space-y-6 md:col-span-2 order-1">
-          <Card className="relative overflow-hidden">
+        <div className="space-y-6 md:col-span-2 order-1 flex flex-col h-full">
+          {/* Learning Journey Card */}
+          <Card className="relative overflow-hidden flex-1">
             <CardHeader className="relative z-10 flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
                 <BookOpen className="h-5 w-5" />
@@ -433,7 +434,7 @@ export default function DashboardPage() {
                 View All Courses
               </Button>
             </CardHeader>
-            <CardContent className="relative z-10 space-y-4">
+            <CardContent className="relative z-10 space-y-4 overflow-auto" style={{ maxHeight: 'calc(100% - 60px)' }}>
               {recentCourses && recentCourses.length > 0 ? (
                 <div>
                   {recentCourses.map((course) => (
@@ -581,29 +582,33 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <EnhancedActivityChart
-            data={activityData}
-            showAverage={true}
-            defaultView="weekly"
-            title="Learning Activity"
-          />
+          {/* Learning Activity Chart - Fixed height at bottom */}
+          <div className="flex-none">
+            <EnhancedActivityChart
+              data={activityData}
+              showAverage={true}
+              defaultView="weekly"
+              title="Learning Activity"
+            />
+          </div>
         </div>
 
-        {/* Right column - Calendar and other widgets */}
-        <div className="space-y-6 order-2">
-          {/* Weekly Calendar (new modern component) */}
-          <WeeklyCalendar tasks={calendarTasks} />
+        {/* Right column - Calendar, Notes and Recommendations */}
+        <div className="space-y-6 order-2 flex flex-col h-full">
+          {/* Weekly Calendar (moved to top) */}
+          <div className="flex-none">
+            <WeeklyCalendar tasks={calendarTasks} />
+          </div>
 
-          <Card className="overflow-hidden">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <BookOpenCheck className="h-4 w-4" />
-                Learning Notes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-sm font-medium">Recent Notes</h4>
+          {/* Scrollable content area for equal heights */}
+          <div className="flex-1 space-y-6 overflow-auto">
+            {/* Recent Notes Section */}
+            <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+              <div className="p-4 flex justify-between items-center border-b">
+                <h3 className="font-medium text-base flex items-center gap-2">
+                  <BookOpenCheck className="h-4 w-4 text-primary" />
+                  Recent Notes
+                </h3>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -614,93 +619,127 @@ export default function DashboardPage() {
                 </Button>
               </div>
 
-              <div className="space-y-3">
-                {recentNotes.map(note => {
-                  // Generate a consistent key that's always a string
-                  const noteKey = typeof note.id === 'string'
-                    ? note.id
-                    : String(note.id); // Convert to string explicitly
+              <div className="p-4">
+                {recentNotes.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentNotes.map((note, index) => {
+                      // Generate a consistent key that's always a string
+                      const noteKey = typeof note.id === 'string'
+                        ? note.id
+                        : String(note.id); // Convert to string explicitly
 
-                  return (
-                    <div
-                      key={noteKey}
-                      className="rounded-md border p-2.5 hover:border-primary/50 transition-all cursor-pointer"
-                      onClick={() => note.id === 'placeholder'
-                        ? window.location.href = '/library?create=note'
-                        : window.location.href = `/library?note=${note.id}`
-                      }
+                      return (
+                        <div
+                          key={noteKey}
+                          className="rounded-md border p-3 hover:border-primary/50 transition-all cursor-pointer bg-card hover:bg-muted/30"
+                          onClick={() => note.id === 'placeholder'
+                            ? window.location.href = '/library?create=note'
+                            : window.location.href = `/library?note=${note.id}`
+                          }
+                        >
+                          <h5 className="text-sm font-medium mb-1">{note.title}</h5>
+                          <div className="flex justify-between items-center text-xs text-muted-foreground">
+                            <span>{note.course}</span>
+                            <span>{note.date}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 px-4">
+                    <h4 className="font-medium mb-1">Create your first note</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Start taking notes to enhance your learning experience. Click to create your first note.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => window.location.href = '/library?create=note'}
                     >
-                      <h5 className="text-sm font-medium mb-1">{note.title}</h5>
-                      <div className="flex justify-between items-center text-xs text-muted-foreground">
-                        <span>{note.course}</span>
-                        <span>{note.date}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                      Get Started
+                    </Button>
+                  </div>
+                )}
+
+                <Button
+                  className="w-full mt-3"
+                  variant="default"
+                  size="sm"
+                  onClick={() => window.location.href = '/library?create=note'}
+                >
+                  Create New Note
+                </Button>
+              </div>
+            </div>
+
+            {/* Recommended For You Section */}
+            <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+              <div className="p-4 flex items-center gap-2 border-b">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <h3 className="font-medium text-base">Recommended for You</h3>
               </div>
 
-              <Button
-                className="w-full text-xs h-8 mt-2"
-                variant="outline"
-                onClick={() => window.location.href = '/library?create=note'}
-              >
-                Create New Note
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-4 w-4" />
-                Recent Activities
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentActivities?.activities && recentActivities.activities.length > 0 ? (
-                <div className="space-y-3">
-                  {recentActivities.activities.slice(0, 5).map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-2">
-                      <div className="mt-0.5">
-                        {activity.type.includes('course') ? (
-                          <BookOpen className="h-4 w-4 text-primary" />
-                        ) : activity.type.includes('assessment') ? (
-                          <ListChecks className="h-4 w-4 text-orange-500" />
-                        ) : (
-                          <Clock className="h-4 w-4 text-blue-500" />
-                        )}
-                      </div>
-                      <div className="flex-1 text-sm">
-                        <p className="font-medium">
-                          {activity.type === 'started_course' ? 'Started a new course' :
-                            activity.type === 'completed_course' ? 'Completed a course' :
-                              activity.type === 'completed_assessment' ? 'Completed an assessment' :
-                                activity.type === 'earned_points' ? `Earned ${activity.metadata?.points || 0} points` :
-                                  'Learning activity'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {activity.course_name || activity.metadata?.title || 'Learning journey'} • {new Date(activity.timestamp).toLocaleString()}
-                        </p>
-                      </div>
+              <div className="p-4 space-y-3">
+                {/* Recommended course cards */}
+                {[
+                  {
+                    id: 'rec1',
+                    title: 'Introduction to Machine Learning',
+                    level: 'Beginner',
+                    duration: '4h 30m',
+                    lessons: 12,
+                    category: 'Data Science'
+                  },
+                  {
+                    id: 'rec2',
+                    title: 'Web Development Bootcamp',
+                    level: 'Intermediate',
+                    duration: '8h 15m',
+                    lessons: 24,
+                    category: 'Web'
+                  }
+                ].map((course, index) => (
+                  <div
+                    key={course.id}
+                    className="rounded-md border p-3 hover:border-primary/50 transition-all cursor-pointer bg-card hover:bg-muted/30"
+                    onClick={() => window.location.href = '/explore'}
+                  >
+                    <div className="flex justify-between items-start">
+                      <h5 className="text-sm font-medium">{course.title}</h5>
+                      <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                        {course.level}
+                      </Badge>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4 space-y-2">
-                  <p className="text-sm text-muted-foreground">No activities recorded yet</p>
-                </div>
-              )}
 
-              <Button
-                className="w-full text-xs h-8 mt-2"
-                variant="outline"
-                onClick={() => window.location.href = '/explore'}
-              >
-                Start Learning
-              </Button>
-            </CardContent>
-          </Card>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {course.duration}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <BookOpen className="h-3 w-3" />
+                        {course.lessons} lessons
+                      </span>
+                      <Badge variant="secondary" className="ml-auto">
+                        {course.category}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = '/explore'}
+                >
+                  Explore More Courses
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

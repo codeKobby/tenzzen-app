@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/hooks/use-router-with-loader"
 
 interface NoteCardProps {
   note: NoteInterface

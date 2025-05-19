@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { AuthenticatedLayout } from "@/components/authenticated-layout"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CookieConsent } from "@/components/cookie-consent"
+import { useTopLoaderEvents } from "@/lib/utils/navigation"
 
 interface RootLayoutClientProps {
   children: React.ReactNode
@@ -14,6 +15,9 @@ export function RootLayoutClient({ children }: RootLayoutClientProps) {
   const [mounted, setMounted] = useState(false)
   const pathname = usePathname() || ''
   const isAuthPage = ['/sign-in', '/sign-up'].includes(pathname)
+
+  // Use the top loader events hook to listen for custom top loader events
+  useTopLoaderEvents()
 
   // Critical: This ensures proper client-side hydration
   useEffect(() => {

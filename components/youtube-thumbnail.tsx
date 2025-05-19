@@ -37,15 +37,14 @@ export function YouTubeThumbnail({
   const [hasError, setHasError] = useState(false);
 
   // Create the thumbnail URL with our proxy
-  const thumbnailUrl = `/api/image-proxy?url=${encodeURIComponent(
-    `https://i.ytimg.com/vi/${videoId}/${thumbnailQuality}.jpg`
-  )}`;
+  // Use direct YouTube URL for better reliability
+  const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/${thumbnailQuality}.jpg`;
 
   // Handle thumbnail loading error by trying a lower quality
   const handleError = () => {
     setIsLoading(false);
     setHasError(true);
-    
+
     // Try fallback thumbnails in order of quality
     if (thumbnailQuality === 'maxresdefault') {
       setThumbnailQuality('sddefault');
@@ -71,7 +70,7 @@ export function YouTubeThumbnail({
       {isLoading && (
         <div className="absolute inset-0 bg-muted animate-pulse" />
       )}
-      
+
       <Image
         src={thumbnailUrl}
         alt={alt}
@@ -86,7 +85,7 @@ export function YouTubeThumbnail({
         onLoad={handleLoad}
         onError={handleError}
       />
-      
+
       {/* Show a fallback if all thumbnail qualities fail */}
       {hasError && thumbnailQuality === 'mqdefault' && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted">

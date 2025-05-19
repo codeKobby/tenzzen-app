@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, Clock, CalendarIcon, Plus } from "lucide-react"
+import { ChevronLeft, ChevronRight, Clock, CalendarIcon, Plus, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
     startOfWeek,
@@ -326,10 +326,24 @@ export function WeeklyCalendar({ tasks, className }: WeeklyCalendarProps) {
 
     return (
         <>
-            <Card className={cn("overflow-hidden shadow-md border animate-in fade-in-50 duration-300", className)}>
-                <div className="p-4 flex flex-col items-center justify-center border-b bg-card/50">
-                    <h3 className="font-medium text-base mb-2">
-                        Your Schedule
+            <Card className={cn(
+                "overflow-hidden shadow-md border animate-in fade-in-50 duration-300",
+                "bg-gradient-to-b from-card to-card/95",
+                className
+            )}>
+                <div className="p-4 flex flex-col items-center justify-center border-b bg-card/50 relative overflow-hidden">
+                    {/* Decorative elements */}
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/10 via-primary/30 to-primary/10"></div>
+                    <div className="absolute -top-12 -right-12 w-24 h-24 bg-primary/5 rounded-full blur-xl"></div>
+                    <div className="absolute -bottom-8 -left-8 w-16 h-16 bg-primary/5 rounded-full blur-lg"></div>
+
+                    <h3 className="font-medium text-base mb-2 flex items-center gap-2">
+                        <span className="relative flex h-2 w-2 mr-1">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                        </span>
+                        Your Learning Schedule
+                        <Sparkles className="h-3.5 w-3.5 text-primary/70" />
                     </h3>
                     <div className="flex items-center gap-1">
                         <Popover>
@@ -337,7 +351,7 @@ export function WeeklyCalendar({ tasks, className }: WeeklyCalendarProps) {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 text-xs gap-1"
+                                    className="h-7 text-xs gap-1 bg-background/80 backdrop-blur-sm hover:bg-background"
                                 >
                                     <CalendarIcon className="h-3.5 w-3.5" />
                                     {currentMonthYear}
@@ -358,7 +372,7 @@ export function WeeklyCalendar({ tasks, className }: WeeklyCalendarProps) {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 hover:bg-muted/80"
+                            className="h-7 w-7 hover:bg-muted/80 transition-all duration-200"
                             onClick={goToPreviousWeek}
                             aria-label="Previous week"
                         >
@@ -367,7 +381,7 @@ export function WeeklyCalendar({ tasks, className }: WeeklyCalendarProps) {
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="text-xs h-7 px-2 hover:bg-muted/80"
+                            className="text-xs h-7 px-2 hover:bg-muted/80 transition-all duration-200"
                             onClick={goToCurrentWeek}
                             disabled={isCurrentWeek}
                             aria-label="Today"
@@ -377,7 +391,7 @@ export function WeeklyCalendar({ tasks, className }: WeeklyCalendarProps) {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 hover:bg-muted/80"
+                            className="h-7 w-7 hover:bg-muted/80 transition-all duration-200"
                             onClick={goToNextWeek}
                             aria-label="Next week"
                         >
@@ -404,6 +418,8 @@ export function WeeklyCalendar({ tasks, className }: WeeklyCalendarProps) {
                             const tasksForDay = getTasksForDate(date);
                             const hasTask = tasksForDay.length > 0;
                             const isToday = isDateToday(date);
+                            const dayNumber = format(date, 'd');
+                            const isWeekend = i === 0 || i === 6; // Sunday or Saturday
 
                             return (
                                 <div
@@ -412,21 +428,38 @@ export function WeeklyCalendar({ tasks, className }: WeeklyCalendarProps) {
                                     className={cn(
                                         "rounded-md flex flex-col items-center p-1.5 min-h-16 relative transition-all duration-200 ease-in-out cursor-pointer",
                                         isToday
-                                            ? "bg-primary/15 ring-1 ring-primary/40 shadow-sm"
+                                            ? "bg-primary/15 ring-1 ring-primary/40 shadow-md"
                                             : selectedDate && isSameDay(date, selectedDate)
-                                                ? "bg-secondary/70 ring-1 ring-primary/30 shadow-sm" // Active state for selected date
+                                                ? "bg-secondary/70 ring-1 ring-primary/30 shadow-md" // Active state for selected date
                                                 : hasTask
                                                     ? "bg-secondary/50 hover:bg-secondary/70 ring-1 ring-primary/20"
-                                                    : "hover:bg-secondary/40",
-                                        "transform hover:scale-[1.02] hover:shadow-sm"
+                                                    : isWeekend
+                                                        ? "bg-muted/30 hover:bg-secondary/40"
+                                                        : "hover:bg-secondary/40",
+                                        "transform hover:scale-[1.03] hover:shadow-md",
+                                        `animate-in fade-in-50 slide-in-from-bottom-1 duration-${300 + i * 50}`,
+                                        hasTask && "bg-gradient-to-b from-secondary/60 to-secondary/40"
                                     )}
                                 >
-                                    <span className={cn(
-                                        "text-xs font-medium h-5 w-5 flex items-center justify-center rounded-full transition-colors",
-                                        isToday ? "bg-primary text-primary-foreground" : "text-foreground"
+                                    {/* Day number with enhanced styling */}
+                                    <div className={cn(
+                                        "relative flex items-center justify-center",
+                                        isToday && "animate-pulse-subtle"
                                     )}>
-                                        {format(date, 'd')}
-                                    </span>
+                                        <span className={cn(
+                                            "text-xs font-medium h-5 w-5 flex items-center justify-center rounded-full transition-colors",
+                                            isToday
+                                                ? "bg-primary text-primary-foreground shadow-sm"
+                                                : isWeekend
+                                                    ? "text-muted-foreground"
+                                                    : "text-foreground"
+                                        )}>
+                                            {dayNumber}
+                                        </span>
+                                        {isToday && (
+                                            <span className="absolute -inset-0.5 rounded-full animate-ping bg-primary/20 opacity-75"></span>
+                                        )}
+                                    </div>
 
                                     {/* Task indicators - Enhanced for better visibility */}
                                     {hasTask ? (
@@ -443,7 +476,7 @@ export function WeeklyCalendar({ tasks, className }: WeeklyCalendarProps) {
                                                             getTaskTypeColor(task.type),
                                                             isPriority ? "ring-1 ring-white/70" : "",
                                                             "hover:scale-105 hover:shadow-md",
-                                                            index === 0 ? "animate-in fade-in-50 duration-300" : "animate-in fade-in-50 duration-500"
+                                                            `animate-in fade-in-50 slide-in-from-bottom-1 duration-${400 + index * 100}`
                                                         )}
                                                         title={`${task.title}${task.dueTime ? ` - Due: ${formatTime(task.dueTime)}` : ''}`}
                                                     >
@@ -461,7 +494,7 @@ export function WeeklyCalendar({ tasks, className }: WeeklyCalendarProps) {
                                                 );
                                             })}
                                             {tasksForDay.length > 2 && (
-                                                <div className="text-[9px] font-medium text-center text-foreground mt-0.5 bg-secondary/80 rounded px-1 py-0.5 shadow-sm animate-in fade-in-50 duration-700">
+                                                <div className="text-[9px] font-medium text-center text-foreground mt-0.5 bg-secondary/80 rounded px-1 py-0.5 shadow-sm animate-in fade-in-50 slide-in-from-bottom-1 duration-700">
                                                     +{tasksForDay.length - 2} more
                                                 </div>
                                             )}

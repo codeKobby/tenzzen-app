@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
+import { useRouter } from "@/hooks/use-router-with-loader"
 import { Button } from "@/components/ui/button"
 import {
   BookOpen,
