@@ -151,7 +151,7 @@ export function AiVideoResultsModal({ isOpen, onClose, loading, results, searchS
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-lg w-full max-h-[80vh] overflow-y-auto">
+            <DialogContent className="w-[90%] max-w-md mx-auto max-h-[80vh] overflow-y-auto rounded-lg">
                 <DialogHeader>
                     <DialogTitle>AI Video Recommendations</DialogTitle>
                     <DialogDescription>

@@ -42,13 +42,8 @@ except ImportError as e:
     print(f"Error importing video_recommendation_agent: {e}")
     video_recommendation_agent = None
 
-try:
-    # Import the YouTube video finder agent
-    from adk_service.agents.youtube_video_finder import root_agent as youtube_video_finder_agent
-    print("Successfully imported youtube_video_finder_agent from adk_service.agents.youtube_video_finder")
-except ImportError as e:
-    print(f"Error importing youtube_video_finder_agent: {e}")
-    youtube_video_finder_agent = None
+# youtube_video_finder_agent has been removed as it was redundant with video_recommendation_agent
+youtube_video_finder_agent = None
 
 # Define a dummy function for fallback
 async def generate_course_from_video(
@@ -149,7 +144,6 @@ async def health_check():
         "agents": {
             "course_generator": course_agent is not None,
             "video_recommendation": video_recommendation_agent is not None,
-            "youtube_video_finder": youtube_video_finder_agent is not None,
         },
         "timestamp": import_time.time()
     }
@@ -1306,10 +1300,9 @@ if __name__ == "__main__":
     print(f"Course generation endpoint available at http://localhost:{port}/generate-course")
     print(f"Video recommendation endpoint available at http://localhost:{port}/recommend-videos")
 
-    # Run directly with the app instance instead of using a module path
-    # This avoids potential module resolution issues
+    # Run with the import string instead of app instance
     uvicorn.run(
-        app,
+        "server:app",    # Use import string instead of app instance
         host="0.0.0.0",  # Listen on all interfaces
         port=port,       # Use port from environment variable
         reload=True,     # Enable reload for development

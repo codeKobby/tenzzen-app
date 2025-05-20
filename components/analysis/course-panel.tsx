@@ -249,15 +249,6 @@ function ActionButtons({ className, course }: { className?: string, course: any 
         {isEnrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />}
         Enroll Now
       </Button>
-      <Button
-        variant="outline"
-        className="gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-        size="default"
-        onClick={handleCancel}
-      >
-        <XCircle className="h-4 w-4" />
-        Cancel
-      </Button>
     </div>
   );
 }
@@ -343,7 +334,7 @@ function CourseSummary({ course }: { course: any }) {
                   )}
                 </div>
               </PopoverTrigger>
-              <PopoverContent className="w-72 p-3" side="bottom" align="start" sideOffset={5}>
+              <PopoverContent className="w-[90%] max-w-[250px] p-3 rounded-lg" side="bottom" align="start" sideOffset={5}>
                 <div className="space-y-4">
                   <h4 className="text-sm font-medium leading-none">Content Sources</h4>
                   <div className="space-y-3">

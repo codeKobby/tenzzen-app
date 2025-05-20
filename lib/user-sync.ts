@@ -65,6 +65,22 @@ export async function syncUserToSupabase(clerkUser: any) {
         return null;
       }
 
+      // Update user streak
+      try {
+        const { data: streakData, error: streakError } = await supabase
+          .rpc('update_user_streak', {
+            p_user_id: existingUser.id
+          });
+
+        if (streakError) {
+          console.error('Error updating user streak:', streakError);
+        } else {
+          console.log('Successfully updated user streak:', streakData);
+        }
+      } catch (streakUpdateError) {
+        console.error('Unexpected error updating streak:', streakUpdateError);
+      }
+
       return data;
     } else {
       console.log('Creating new user in Supabase:', clerkUser.id);
@@ -101,6 +117,9 @@ export async function syncUserToSupabase(clerkUser: any) {
 
           await supabase.from('user_stats').insert({
             user_id: newUser.id,
+            streak_days: 1, // Initialize streak to 1 for new users
+            longest_streak: 1, // Initialize longest streak to 1 as well
+            last_active_at: new Date().toISOString()
           });
 
           console.log('Successfully initialized user profile and stats');

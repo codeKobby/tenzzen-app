@@ -357,7 +357,7 @@ export function WeeklyCalendar({ tasks, className }: WeeklyCalendarProps) {
                                     {currentMonthYear}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
+                            <PopoverContent className="w-[90%] max-w-[250px] p-0 rounded-lg">
                                 <Calendar
                                     mode="single"
                                     onSelect={handleDateSelection}

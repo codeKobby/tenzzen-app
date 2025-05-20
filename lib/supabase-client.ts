@@ -35,7 +35,32 @@ export function useSupabaseClient() {
 
     try {
       console.log('Refreshing Supabase token...');
-      const token = await session.getToken({ template: 'supabase' });
+
+      // Check if session is valid
+      if (!session.status || session.status !== 'active') {
+        console.error('Session is not active:', session.status);
+        return;
+      }
+
+      // Get token with detailed error logging
+      let token;
+      try {
+        token = await session.getToken({ template: 'supabase' });
+        if (!token) {
+          console.error('Failed to get Supabase token: Token is null or undefined');
+          console.log('Make sure the Clerk JWT template for Supabase is properly configured');
+        } else {
+          console.log('Successfully obtained Supabase token');
+        }
+      } catch (tokenError) {
+        console.error('Error getting Supabase token from Clerk:', tokenError);
+        console.log('Make sure the Clerk JWT template for Supabase is properly configured');
+        throw tokenError;
+      }
+
+      // Log Supabase connection details (without sensitive info)
+      console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log('Supabase Anon Key set:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
       // Create a new client with the fresh token
       const newClient = createClient(

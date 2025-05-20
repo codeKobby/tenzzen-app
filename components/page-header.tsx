@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 import { useUser } from "@clerk/nextjs"
 import { useSidebar } from "@/hooks/use-sidebar"
+import { useBreadcrumb } from "@/contexts/breadcrumb-context"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +25,7 @@ interface BreadcrumbItem {
   href: string
 }
 
-function getBreadcrumbFromPath(path: string): BreadcrumbItem[] {
+function getBreadcrumbFromPath(path: string, courseTitle: string | null = null): BreadcrumbItem[] {
   if (path === "/") return []
   const segments = path.split("/").filter(Boolean)
 
@@ -37,6 +38,11 @@ function getBreadcrumbFromPath(path: string): BreadcrumbItem[] {
       label = segment.substring(6).replace(/-/g, ' ');
       // Capitalize each word
       label = label.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
+    // Special case for explore/[courseId] route with UUID-like IDs
+    else if (index === 1 && segments[0] === "explore" && /^[a-zA-Z0-9-]{20,}$/.test(segment)) {
+      // Use the course title from context if available, otherwise fallback to "Course Details"
+      label = courseTitle || "Course Details";
     }
     // Special case for learn path
     else if (segment === "learn") {
@@ -64,7 +70,10 @@ export function PageHeader() {
   const [isMobile, setIsMobile] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
-  const breadcrumbs = getBreadcrumbFromPath(pathname)
+  const { getCourseTitle } = useBreadcrumb()
+  const courseTitle = getCourseTitle(pathname)
+  const breadcrumbs = getBreadcrumbFromPath(pathname, courseTitle)
+  const isExploreCourseDetail = /^\/explore\/[^\/]+$/.test(pathname)
 
   React.useEffect(() => {
     setMounted(true)

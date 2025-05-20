@@ -66,14 +66,78 @@ export function useUserStats() {
     const fetchUserStats = async () => {
       try {
         setLoading(true);
+
+        // Verify user is properly authenticated
+        if (!user || !user.id) {
+          console.error('User not properly authenticated for fetching stats');
+          setError(new Error('User not authenticated'));
+          setLoading(false);
+          return;
+        }
+
+        console.log('Fetching user stats for user ID:', user.id);
+
+        // First check if the user exists in the users table
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('clerk_id', user.id)
+          .single();
+
+        if (userError) {
+          console.error('Error finding user in Supabase:', userError);
+
+          // If the user doesn't exist, we should create a default entry
+          if (userError.code === 'PGRST116') { // Not found error
+            console.log('User not found in Supabase, creating default stats');
+
+            // Create a default user stats entry
+            setUserStats({
+              total_learning_hours: 0,
+              courses_in_progress: 0,
+              courses_completed: 0,
+              projects_submitted: 0,
+              streak_days: 0,
+              longest_streak: 0,
+              weekly_activity: [0, 0, 0, 0, 0, 0, 0]
+            });
+
+            setLoading(false);
+            return;
+          }
+
+          throw userError;
+        }
+
+        // Now fetch the user stats with the Supabase user ID
         const { data, error } = await supabase
           .from('user_stats')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', userData.id)
           .single();
 
-        if (error) throw error;
-        setUserStats(data);
+        if (error) {
+          console.error('Error fetching user stats:', error);
+
+          // If stats don't exist, return default values
+          if (error.code === 'PGRST116') { // Not found error
+            console.log('User stats not found, using defaults');
+            setUserStats({
+              total_learning_hours: 0,
+              courses_in_progress: 0,
+              courses_completed: 0,
+              projects_submitted: 0,
+              streak_days: 0,
+              longest_streak: 0,
+              weekly_activity: [0, 0, 0, 0, 0, 0, 0]
+            });
+          } else {
+            throw error;
+          }
+        } else {
+          console.log('Successfully fetched user stats:', data);
+          setUserStats(data);
+        }
       } catch (err) {
         console.error('Error fetching user stats:', err);
         setError(err instanceof Error ? err : new Error('Unknown error'));

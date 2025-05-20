@@ -377,7 +377,7 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-[425px] mx-auto h-auto max-h-[85vh] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent bg-background shadow-lg border border-border rounded-lg">
+        <DialogContent className="w-[90%] max-w-md mx-auto h-auto max-h-[85vh] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent bg-background shadow-lg border border-border rounded-lg">
           <DialogHeader>
             <div className="flex justify-between items-center">
               <div>

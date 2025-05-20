@@ -342,7 +342,7 @@ export default function CoursePage() {
                     <Menu className="h-4 w-4" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-[280px] sm:w-[350px] p-0">
+                <SheetContent side="left" className="w-[90%] sm:max-w-sm p-0 rounded-r-lg">
                   <div className="p-6 border-b">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="font-semibold">Course Content</h2>

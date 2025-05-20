@@ -6,7 +6,7 @@ import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
-import { useClerk, SignOutButton } from "@clerk/nextjs"
+import { useClerk } from "@clerk/nextjs"
 import {
   BookOpen,
   GraduationCap,
@@ -36,6 +36,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type ColorTheme = 'purple' | 'neutral' | 'minimal' | 'modern'
 
@@ -109,6 +119,7 @@ export function Sidebar({ className }: { className?: string }) {
   const [colorTheme, setColorTheme] = React.useState<ColorTheme>('purple')
   const [systemTheme, setSystemTheme] = React.useState<'light' | 'dark'>('light')
   const [mounted, setMounted] = React.useState(false)
+  const [isSignOutDialogOpen, setIsSignOutDialogOpen] = React.useState(false)
 
   // Combined useEffect for all client-side operations
   React.useEffect(() => {
@@ -428,15 +439,31 @@ export function Sidebar({ className }: { className?: string }) {
 
             <Separator />
 
-            <SignOutButton redirectUrl="/sign-in">
-              <Button
-                variant="ghost"
-                className="w-full justify-start px-2 text-xs group"
-              >
-                <LogOut className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
-                Sign out
-              </Button>
-            </SignOutButton>
+            <Button
+              variant="ghost"
+              className="w-full justify-start px-2 text-xs group"
+              onClick={() => setIsSignOutDialogOpen(true)}
+            >
+              <LogOut className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
+              Sign out
+            </Button>
+
+            <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Sign out confirmation</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to sign out of your account?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleSignOut} className="bg-primary hover:bg-primary/90">
+                    Sign out
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </aside>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
     Search,
@@ -51,6 +52,7 @@ const filterOptions = [
 ]
 
 export default function ExplorePage() {
+    const router = useRouter()
     const { user } = useAuth()
     const [searchQuery, setSearchQuery] = useState("")
     const [sortBy, setSortBy] = useState("enrollments")
@@ -323,7 +325,7 @@ export default function ExplorePage() {
                                     key={course.id}
                                     course={course}
                                     variant="explore"
-                                    onClick={() => { }} // Handle course selection
+                                    onClick={() => router.push(`/explore/${course.id}`)} // Navigate to course details page
                                 />
                             ))}
                         </div>
@@ -385,7 +387,7 @@ export default function ExplorePage() {
                                             <CourseCard
                                                 course={course}
                                                 variant="explore"
-                                                onClick={() => { }} // Handle course selection
+                                                onClick={() => window.location.href = `/explore/${course.id}`} // Navigate to course details page
                                             />
                                         </motion.div>
                                     ))}

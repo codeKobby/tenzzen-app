@@ -32,8 +32,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <ClerkProvider
           publishableKey={publishableKey}
-          afterSignInUrl="/dashboard"
-          afterSignUpUrl="/dashboard"
+          signInUrl="/sign-in"
+          signUpUrl="/sign-up"
+          signInFallbackRedirectUrl="/dashboard"
+          signUpFallbackRedirectUrl="/dashboard"
           // Skip static optimization during build with placeholder keys
           isSatellite={isBuildWithPlaceholder}
         >

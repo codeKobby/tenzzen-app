@@ -60,8 +60,8 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(signInUrl);
   }
 
-  // For users who just signed in, redirect to dashboard (always, removed onboarding check)
-  if (userId && req.nextUrl.pathname === '/sign-in') {
+  // For users who just signed in or signed up, redirect to dashboard
+  if (userId && (req.nextUrl.pathname === '/sign-in' || req.nextUrl.pathname === '/sign-up')) {
     const dashboardUrl = new URL('/dashboard', req.url);
     return NextResponse.redirect(dashboardUrl);
   }

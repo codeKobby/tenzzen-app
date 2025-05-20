@@ -38,6 +38,8 @@ export default function SignUpPage() {
           }}
           routing="path"
           path="/sign-up"
+          fallbackRedirectUrl="/dashboard"
+          forceRedirectUrl="/dashboard"
         />
         </div>
       </div>

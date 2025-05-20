@@ -43,7 +43,7 @@ export function CourseDialog({ course, open, onOpenChange, onCourseDeleted }: Co
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "w-full max-w-[90%] sm:max-w-lg mx-auto",
+        "w-[90%] max-w-md mx-auto",
         "h-[90vh] sm:h-auto sm:max-h-[85vh]",
         "overflow-y-auto p-0 gap-0",
         "bg-background border rounded-lg"
@@ -154,7 +154,7 @@ export function CourseDialog({ course, open, onOpenChange, onCourseDeleted }: Co
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <PopoverContent className="w-80 p-4" side="right" align="start">
+                    <PopoverContent className="w-[90%] max-w-[250px] p-4 rounded-lg" side="right" align="start">
                       <div className="space-y-4">
                         <div className="flex items-start gap-4">
                           <div className="relative h-10 w-10 rounded-full overflow-hidden shrink-0">

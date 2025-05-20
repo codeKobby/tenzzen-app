@@ -130,7 +130,7 @@ async function getFullVideoDetails(videoId: string): Promise<VideoDetails> {
       thumbnail: safeGet(video, 'snippet.thumbnails.maxres.url') ||
                 safeGet(video, 'snippet.thumbnails.high.url') ||
                 safeGet(video, 'snippet.thumbnails.standard.url') ||
-                '',
+                `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
       // Parse the ISO duration string from API before formatting
       duration: formatDuration(video.contentDetails?.duration || ""),
       channelId: channelId,
@@ -344,7 +344,8 @@ async function getPlaylistById(playlistId: string): Promise<PlaylistDetails> {
           description: safeGet(item, 'snippet.description', ''),
           thumbnail: safeGet(item, 'snippet.thumbnails.high.url') ||
                     safeGet(item, 'snippet.thumbnails.medium.url') ||
-                    safeGet(item, 'snippet.thumbnails.default.url') || '',
+                    safeGet(item, 'snippet.thumbnails.default.url') ||
+                    `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
           duration: '00:00',
           channelId: channelId,
           channelName: safeGet(item, 'snippet.channelTitle', ''),
@@ -367,7 +368,7 @@ async function getPlaylistById(playlistId: string): Promise<PlaylistDetails> {
       thumbnail: safeGet(playlist, 'snippet.thumbnails.maxres.url') ||
                 safeGet(playlist, 'snippet.thumbnails.high.url') ||
                 safeGet(playlist, 'snippet.thumbnails.standard.url') ||
-                '',
+                (videos[0]?.thumbnail || `https://i.ytimg.com/vi/${videos[0]?.id || playlistId}/hqdefault.jpg`),
       channelId: channelId,
       channelName: safeGet(playlist, 'snippet.channelTitle', ''),
       channelAvatar: channelAvatar,

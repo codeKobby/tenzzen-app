@@ -109,7 +109,7 @@ export function VideoDiscoveryResults({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl mx-auto h-auto max-h-[85vh] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent bg-background shadow-lg border border-border rounded-lg">
+      <DialogContent className="w-[90%] max-w-md mx-auto h-auto max-h-[85vh] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent bg-background shadow-lg border border-border rounded-lg">
         <DialogHeader>
           <DialogTitle>
             {isLoading ? "Finding Courses" : "Recommended Courses"}

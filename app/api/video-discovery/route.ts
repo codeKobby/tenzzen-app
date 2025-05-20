@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic'; // Ensure the route is not cached
 
-// Get ADK service URL from environment variable or use default
+// Get ADK service URL and timeout from environment variables or use defaults
 const ADK_SERVICE_URL = process.env.NEXT_PUBLIC_ADK_SERVICE_URL || 'http://localhost:8001';
+const ADK_SERVICE_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_ADK_SERVICE_TIMEOUT || '300000', 10); // Default to 5 minutes (300000ms)
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,9 +27,9 @@ export async function POST(req: NextRequest) {
 
     while (retryCount <= maxRetries) {
       try {
-        // Use AbortController for timeout
+        // Use AbortController for timeout with the configured timeout value
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), ADK_SERVICE_TIMEOUT); // Use configured timeout
 
         try {
           const response = await fetch(`${ADK_SERVICE_URL}/recommend-videos`, {
@@ -144,10 +145,10 @@ export async function POST(req: NextRequest) {
         // If we've exhausted all retries, return an error
         return NextResponse.json(
           {
-            error: `Connection to ADK service timed out after 60 seconds. The service might be running but not responding properly.`,
+            error: `Connection to ADK service timed out after ${ADK_SERVICE_TIMEOUT/1000} seconds. The service might be running but not responding properly.`,
             retried: retryCount > 0,
             recommendations: [],
-            serviceStatus: 'The ADK service may not be running or is overloaded. Please check if it is running with "cd adk_service; uvicorn server:app --reload"'
+            serviceStatus: 'The ADK service may not be running or is overloaded. Please check if it is running with "cd adk_service; uvicorn server:app --reload --host 0.0.0.0"'
           },
           { status: 504 } // Gateway Timeout
         );

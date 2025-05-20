@@ -12,7 +12,8 @@ import {
   Clock, GraduationCap, Target, BookOpen, TrendingUp,
   PlayCircle, Youtube, Sparkles, Timer, ListChecks,
   Brain, Lightbulb, Map, Award, BookOpenCheck,
-  LucideIcon, Loader2, BookPlus
+  LucideIcon, Loader2, BookPlus,
+  Flame
 } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from "@clerk/clerk-react";
@@ -20,6 +21,11 @@ import { EnhancedActivityChart } from '@/components/dashboard/enhanced-activity-
 import { WeeklyCalendar } from '@/components/dashboard/weekly-calendar';
 import { CourseGenerationModal } from '@/components/modals/course-generation-modal';
 import { useUserStats, useRecentCourses, useRecentActivities, useLearningTrends } from '@/hooks/use-supabase-dashboard';
+import { useUserActivity } from '@/hooks/use-user-activity';
+import { useStreak } from '@/hooks/use-streak';
+import { useStreakCelebration } from '@/hooks/use-streak-celebration';
+import { StreakCelebrationPopup } from '@/components/streak/streak-celebration-popup';
+import { AnimatedEmoji } from '@/components/streak/animated-emoji';
 
 // Import interfaces from our hook
 import type { Course, LearningActivity, UserStats } from '@/hooks/use-supabase-dashboard';
@@ -64,7 +70,6 @@ type TabValue = 'inprogress';
 
 export default function DashboardPage() {
   const [activeCourse, setActiveCourse] = useState<string>('');
-  const [activeTime, setActiveTime] = useState<number>(0); // Track active login time in minutes
   const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
 
   // Clerk auth
@@ -75,6 +80,29 @@ export default function DashboardPage() {
   const { recentCourses, loading: coursesLoading } = useRecentCourses(4);
   const { activities: recentActivitiesData, loading: activitiesLoading } = useRecentActivities(10);
   const { trends: learningTrends, loading: trendsLoading } = useLearningTrends('week');
+
+  // User activity tracking with idle detection
+  const { activeTime } = useUserActivity({
+    idleTimeout: 5 * 60 * 1000, // 5 minutes idle timeout
+    syncInterval: 5 * 60 * 1000  // Sync to database every 5 minutes
+  });
+
+  // Streak tracking
+  const { current: currentStreak, longest: longestStreak, loading: streakLoading } = useStreak({
+    autoUpdate: true // Automatically update streak on login
+  });
+
+  // Streak celebration popup
+  const {
+    showCelebration,
+    setShowCelebration,
+    streak: celebrationStreak,
+    longestStreak: celebrationLongestStreak,
+    handleClose: handleCloseCelebration
+  } = useStreakCelebration({
+    autoShow: true,
+    onlyOnDashboard: true
+  });
 
   // Format activities to match the expected structure
   const recentActivities = recentActivitiesData ? {
@@ -89,47 +117,7 @@ export default function DashboardPage() {
     }
   }, [recentCourses]);
 
-  // Track active time for logged-in users
-  useEffect(() => {
-    if (isSignedIn && user?.id) {
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      const storageKey = `user_${user.id}_active_time`;
 
-      // Check if we have stored time data
-      const storedTimeData = localStorage.getItem(storageKey);
-      let initialTime = 1; // Default to 1 minute
-
-      if (storedTimeData) {
-        try {
-          const { date, minutes } = JSON.parse(storedTimeData);
-          // If the stored date is today, use the stored minutes, otherwise reset
-          if (date === today) {
-            initialTime = minutes;
-          }
-        } catch (error) {
-          console.error("Error parsing stored time data:", error);
-        }
-      }
-
-      // Initialize with stored value or default
-      setActiveTime(initialTime);
-
-      // Update active time every minute
-      const interval = setInterval(() => {
-        setActiveTime(prevTime => {
-          const newTime = prevTime + 1;
-          // Store the updated time in localStorage
-          localStorage.setItem(storageKey, JSON.stringify({
-            date: today,
-            minutes: newTime
-          }));
-          return newTime;
-        });
-      }, 60000); // Every minute
-
-      return () => clearInterval(interval);
-    }
-  }, [isSignedIn, user?.id]);
 
   // Create activity data from weekly activity using useMemo to prevent re-renders
   const activityData = React.useMemo(() => {
@@ -233,8 +221,8 @@ export default function DashboardPage() {
 
   // Get current streak info
   const streak = {
-    current: Math.max(userStats?.streak_days || 0, 1), // Ensure minimum streak of 1 for logged-in users
-    longest: Math.max(userStats?.longest_streak || 0, 1), // Also ensure minimum longest streak is 1
+    current: streakLoading ? 1 : currentStreak, // Use the streak from our hook
+    longest: streakLoading ? 1 : longestStreak, // Use the longest streak from our hook
     today: {
       minutes: activeTime, // Now tracking active login time instead of learning time
       tasks: recentActivities?.activities?.filter(a => new Date(a.timestamp).toDateString() === new Date().toDateString()).length || 0
@@ -298,7 +286,15 @@ export default function DashboardPage() {
   const calendarTasks = mapTasksForCalendar(dashboardTasks);
 
   return (
-    <div className="mx-auto space-y-6 pt-6 w-full lg:w-[90%]">
+    <div className="mx-auto space-y-6 pt-6 w-full lg:w-[90%] px-4 sm:px-6 max-w-[1400px]">
+      {/* Streak Celebration Popup */}
+      <StreakCelebrationPopup
+        streak={celebrationStreak}
+        longestStreak={celebrationLongestStreak}
+        onClose={handleCloseCelebration}
+        isOpen={showCelebration}
+      />
+
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-primary/90 p-4 sm:p-6 shadow-xl">
         <div className="relative z-10">
@@ -310,38 +306,49 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex flex-col gap-4 flex-1">
-              <div className="rounded-lg bg-white/10 p-3.5 backdrop-blur-[2px] shadow-sm">
+              <div className="rounded-lg bg-gradient-to-r from-white/10 to-white/20 p-3.5 backdrop-blur-[2px] shadow-sm">
                 <div className="flex justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-white">
+                    <span className="text-2xl font-bold text-white bg-gradient-to-r from-yellow-300 to-yellow-500 bg-clip-text text-transparent">
                       {streak.current}
                     </span>
                     <div className="flex flex-col justify-between">
-                      <span className="text-sm text-primary-foreground/90">day streak</span>
+                      <span className="text-sm text-primary-foreground/90 font-semibold">
+                        {streak.current === 1 ? 'First day!' :
+                         streak.current > 1 ? `${streak.current === streak.longest ? 'New record!' : 'Day streak!'}` :
+                         'Start your streak!'}
+                      </span>
                       <p className="text-xs text-primary-foreground/80 flex items-center gap-1.5">
                         Best: {streak.longest} days
                         {streak.current >= streak.longest && streak.longest > 0 && (
-                          <span className="text-xs">🏆</span>
+                          <AnimatedEmoji emoji="🏆" size="sm" />
                         )}
                       </p>
                     </div>
-                    <span className="text-lg">
-                      {streak.current >= 30 ? '🔥' :
-                        streak.current >= 14 ? '💪' :
-                          streak.current >= 7 ? '✨' : '🎯'}
+                    <span className="text-2xl">
+                      <AnimatedEmoji
+                        emoji={
+                          streak.current >= 100 ? '🏆' :
+                          streak.current >= 30 ? '🔥' :
+                          streak.current >= 14 ? '💪' :
+                          streak.current >= 7 ? '✨' :
+                          streak.current >= 3 ? '🌱' : '🎯'
+                        }
+                        size="2xl"
+                      />
                     </span>
                   </div>
                   <div className="flex flex-col justify-between items-end">
                     <div className="flex flex-col gap-1.5 text-xs text-primary-foreground/90">
                       <div className="flex items-center gap-1.5">
-                        <Timer className="h-3.5 w-3.5" />
+                        <Timer className="h-3.5 w-3.5 text-yellow-300" />
                         <span>{streak.today.minutes}m today</span>
-                        {streak.today.minutes > 0 && <span className="ml-1 text-xs">⭐</span>}
+                        {streak.today.minutes > 0 && <AnimatedEmoji emoji="⭐" size="sm" className="ml-1" />}
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <ListChecks className="h-3.5 w-3.5" />
+                        <ListChecks className="h-3.5 w-3.5 text-green-300" />
                         <span>{streak.today.tasks} tasks done</span>
-                        {streak.today.tasks > 0 && <span className="ml-1 text-xs">✅</span>}
+                        {streak.today.tasks > 0 && <AnimatedEmoji emoji="✅" size="sm" className="ml-1" />}
                       </div>
                     </div>
                   </div>
@@ -367,6 +374,19 @@ export default function DashboardPage() {
                   <Sparkles className="h-4 w-4 shrink-0" />
                   <span className="font-medium">Browse Courses</span>
                 </Button>
+
+                {/* Test button - only visible in development */}
+                {process.env.NODE_ENV === 'development' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
+                    onClick={() => setShowCelebration(true)}
+                  >
+                    <Flame className="h-4 w-4 shrink-0 text-orange-500" />
+                    <span className="font-medium">Test Streak 🎉</span>
+                  </Button>
+                )}
               </div>
             </div>
           </div>

@@ -539,7 +539,7 @@ export function CourseCard({
                       </div>
                     </PopoverTrigger>
                     <PopoverContent
-                      className="w-72 p-3"
+                      className="w-[90%] max-w-[250px] p-3 rounded-lg"
                       side="top"
                       align="center"
                       sideOffset={5}

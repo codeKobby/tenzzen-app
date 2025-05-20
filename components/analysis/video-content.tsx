@@ -18,6 +18,8 @@ import { getYoutubeData } from "@/actions/getYoutubeData"; // Changed from getVi
 import type { VideoDetails, PlaylistDetails, PlaylistVideo, ContentDetails } from "@/types/youtube";
 import { startUrl } from "@/lib/utils";
 import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton";
+import { PlaceholderImage } from "@/components/ui/placeholder-image";
+import { YouTubeThumbnail } from "@/components/youtube-thumbnail";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -243,11 +245,19 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                   className="w-28 relative cursor-pointer rounded-lg overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
                   onClick={() => handleVideoClick(videoData.id)}
                 >
-                  <img
-                    src={videoData.thumbnail}
-                    alt={videoData.title}
-                    className="w-full aspect-video object-cover"
-                  />
+                  {videoData.id ? (
+                    <YouTubeThumbnail
+                      videoId={videoData.id}
+                      alt={videoData.title}
+                      className="w-full aspect-video"
+                    />
+                  ) : (
+                    <PlaceholderImage
+                      src={videoData.thumbnail}
+                      alt={videoData.title}
+                      className="w-full aspect-video object-cover"
+                    />
+                  )}
                   <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
                     {videoData.duration}
                   </div>
@@ -262,7 +272,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="h-6 w-6 rounded-full bg-secondary overflow-hidden flex-shrink-0">
                       {videoData.channelAvatar ? (
-                        <img
+                        <PlaceholderImage
                           src={videoData.channelAvatar}
                           alt={videoData.channelName}
                           className="w-full h-full object-cover"
@@ -323,11 +333,19 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                     className="w-24 relative cursor-pointer rounded-lg overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
                     onClick={() => handlePlaylistClick(videoData.id)}
                   >
-                    <img
-                      src={videoData.thumbnail}
-                      alt={videoData.title}
-                      className="w-full aspect-video object-cover"
-                    />
+                    {videoData.id ? (
+                      <YouTubeThumbnail
+                        videoId={videoData.id}
+                        alt={videoData.title}
+                        className="w-full aspect-video"
+                      />
+                    ) : (
+                      <PlaceholderImage
+                        src={videoData.thumbnail}
+                        alt={videoData.title}
+                        className="w-full aspect-video object-cover"
+                      />
+                    )}
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -379,11 +397,19 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                             className="w-24 relative cursor-pointer rounded overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
                             onClick={() => handleVideoClick(video.id)}
                           >
-                            <img
-                              src={video.thumbnail}
-                              alt={video.title}
-                              className="w-full aspect-video object-cover"
-                            />
+                            {video.id ? (
+                              <YouTubeThumbnail
+                                videoId={video.id}
+                                alt={video.title}
+                                className="w-full aspect-video"
+                              />
+                            ) : (
+                              <PlaceholderImage
+                                src={video.thumbnail}
+                                alt={video.title}
+                                className="w-full aspect-video object-cover"
+                              />
+                            )}
                             <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
                               {video.duration}
                             </div>
@@ -398,7 +424,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                             <div className="flex items-center gap-2 min-w-0">
                               <div className="h-6 w-6 rounded-full bg-secondary overflow-hidden flex-shrink-0">
                                 {video.channelAvatar ? (
-                                  <img
+                                  <PlaceholderImage
                                     src={video.channelAvatar}
                                     alt={video.channelName}
                                     className="w-full h-full object-cover"

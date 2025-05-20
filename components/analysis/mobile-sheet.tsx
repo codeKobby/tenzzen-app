@@ -40,7 +40,7 @@ export function MobileSheet({ isOpen, onClose, loading, error }: MobileSheetProp
       {/* SheetTrigger is now in the header component */}
       <SheetContent
         side="bottom"
-        className="h-[80vh] mt-16 p-0 sm:hidden"
+        className="h-[80vh] mt-16 p-0 sm:hidden rounded-t-lg"
       >
         <SheetHeader className="h-14 border-b px-4 flex items-center justify-between">
           <SheetTitle className="sr-only">Video Content</SheetTitle>
