@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+<<<<<<< HEAD
   // Disable ESLint during builds to prevent build failures
   eslint: {
     // Warning: This allows production builds to successfully complete even if
@@ -85,6 +86,37 @@ const nextConfig = {
       bodySizeLimit: '2mb'
     }
   },
+=======
+  reactStrictMode: false,
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+    ],
+  },
+  experimental: {
+    typedRoutes: true,
+    serverActions: {
+      allowedOrigins: ["localhost:3000"],
+      bodySizeLimit: "2mb"
+    }
+  },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': '.',
+      '@/components': './components',
+      '@/lib': './lib',
+      '@/hooks': './hooks',
+      '@/types': './types',
+      '@/actions': './actions'
+    };
+    return config;
+  }
+>>>>>>> master
 };
 
 module.exports = nextConfig;

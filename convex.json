@@ -1,0 +1,6 @@
+{
+  "functions": "./convex",
+  "authConfiguration": {
+    "enableStrictJWTMode": true
+  }
+}

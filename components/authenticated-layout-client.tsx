@@ -6,8 +6,12 @@ import { usePathname } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { cn } from "@/lib/utils"
 import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
+<<<<<<< HEAD
 import { useState, useEffect, Suspense } from "react"
 import { useAuth } from "@/hooks/use-auth"
+=======
+import { Authenticated, Unauthenticated, AuthLoading } from "convex/react"
+>>>>>>> master
 
 interface AuthenticatedLayoutClientProps {
   children: React.ReactNode
@@ -41,7 +45,11 @@ function FullLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className={cn(
         "min-h-screen",
+<<<<<<< HEAD
         `transition-transform duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING} ease-in-out`,
+=======
+        `transition-transform duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING} ease-in-out`,
+>>>>>>> master
         isOpen ? "lg:pl-[280px]" : "lg:pl-0"
       )}>
         <PageHeader />
@@ -54,7 +62,11 @@ function FullLayout({ children }: { children: React.ReactNode }) {
 }
 
 function AuthenticatedContent({ children }: { children: React.ReactNode }) {
+<<<<<<< HEAD
   const pathname = usePathname() || ""
+=======
+  const pathname = usePathname()
+>>>>>>> master
   const isAnalysisPage = pathname.startsWith('/analysis/')
 
   if (isAnalysisPage) {
@@ -64,6 +76,7 @@ function AuthenticatedContent({ children }: { children: React.ReactNode }) {
   return <FullLayout>{children}</FullLayout>
 }
 
+<<<<<<< HEAD
 // Loading fallback component
 function LoadingFallback() {
   return (
@@ -122,10 +135,22 @@ export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClien
   }
 
   // Public pages use the base layout
+=======
+export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClientProps) {
+  const pathname = usePathname()
+  const publicPages = ['/', '/sign-in', '/sign-up', '/onboarding']
+  const isAuthPage = pathname === '/sign-in' || pathname === '/sign-up'
+
+  if (isAuthPage) {
+    return children
+  }
+
+>>>>>>> master
   if (publicPages.includes(pathname)) {
     return <BaseLayout>{children}</BaseLayout>
   }
 
+<<<<<<< HEAD
   // Use Suspense to handle loading states better
   return (
     <Suspense fallback={<LoadingFallback />}>
@@ -138,5 +163,11 @@ export function AuthenticatedLayoutClient({ children }: AuthenticatedLayoutClien
         </AuthenticatedCheck>
       )}
     </Suspense>
+=======
+  return (
+    <Authenticated>
+      <AuthenticatedContent>{children}</AuthenticatedContent>
+    </Authenticated>
+>>>>>>> master
   )
 }

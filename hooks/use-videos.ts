@@ -1,6 +1,13 @@
+<<<<<<< HEAD
 import { useState, useCallback, useEffect } from "react"
 import { useSupabase } from "@/contexts/supabase-context"
 import { Id } from "@/types/convex-types"
+=======
+import { useQuery, useMutation } from "convex/react"
+import { api } from "../convex/_generated/api"
+import { useState, useCallback } from "react"
+import { Id } from "../convex/_generated/dataModel"
+>>>>>>> master
 
 /**
  * Input type for adding a new video
@@ -31,18 +38,27 @@ interface UseVideosOptions {
 
 /**
  * Hook for managing videos in the application
+<<<<<<< HEAD
  *
+=======
+ * 
+>>>>>>> master
  * Provides functionality for:
  * - Listing videos with pagination
  * - Adding new videos
  * - Removing videos
  * - Error handling
  * - Loading states
+<<<<<<< HEAD
  *
+=======
+ * 
+>>>>>>> master
  * @param options - Configuration options for the hook
  * @returns Object containing video data and management functions
  */
 export function useVideos({ limit = 10, cursor }: UseVideosOptions = {}) {
+<<<<<<< HEAD
   const supabase = useSupabase()
   const [videos, setVideos] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -87,11 +103,19 @@ export function useVideos({ limit = 10, cursor }: UseVideosOptions = {}) {
   useEffect(() => {
     fetchVideos();
   }, [fetchVideos]);
+=======
+  const videos = useQuery(api.videos.listVideos, { cursor, limit })
+  const addVideo = useMutation(api.videos.addVideo)
+  const deleteVideo = useMutation(api.videos.deleteVideo)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+>>>>>>> master
 
   const addNewVideo = useCallback(async (videoData: VideoInput) => {
     try {
       setError(null)
       setIsLoading(true)
+<<<<<<< HEAD
       const { data, error } = await supabase
         .from('videos')
         .insert([{
@@ -117,11 +141,24 @@ export function useVideos({ limit = 10, cursor }: UseVideosOptions = {}) {
       setIsLoading(false);
     }
   }, [supabase, fetchVideos]);
+=======
+      const result = await addVideo(videoData)
+      return result
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to add video"
+      setError(message)
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }, [addVideo])
+>>>>>>> master
 
   const removeVideo = useCallback(async (id: string) => {
     try {
       setError(null)
       setIsLoading(true)
+<<<<<<< HEAD
       const { error } = await supabase
         .from('videos')
         .delete()
@@ -142,6 +179,18 @@ export function useVideos({ limit = 10, cursor }: UseVideosOptions = {}) {
       setIsLoading(false);
     }
   }, [supabase, fetchVideos]);
+=======
+      const result = await deleteVideo({ id })
+      return result
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to delete video"
+      setError(message)
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }, [deleteVideo])
+>>>>>>> master
 
   return {
     /** List of videos */
@@ -155,10 +204,18 @@ export function useVideos({ limit = 10, cursor }: UseVideosOptions = {}) {
     /** Function to remove a video */
     removeVideo,
     /** Whether videos are being loaded */
+<<<<<<< HEAD
     isLoadingVideos,
     /** Whether there are more videos to load */
     hasNextPage,
     /** Cursor for loading the next page */
     nextCursor
+=======
+    isLoadingVideos: videos === undefined,
+    /** Whether there are more videos to load */
+    hasNextPage: videos !== undefined && videos.length === limit,
+    /** Cursor for loading the next page */
+    nextCursor: videos?.length === limit ? videos[videos.length - 1]._id : undefined
+>>>>>>> master
   }
 }

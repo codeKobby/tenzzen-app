@@ -1,17 +1,25 @@
 "use client"
 
 import { usePathname } from "next/navigation"
+<<<<<<< HEAD
 import { useEffect, useState } from "react"
 import { AuthenticatedLayout } from "@/components/authenticated-layout"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CookieConsent } from "@/components/cookie-consent"
 import { useTopLoaderEvents } from "@/lib/utils/navigation"
+=======
+import { Providers } from "./providers"
+import { AuthenticatedLayout } from "@/components/authenticated-layout"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { CookieConsent } from "@/components/cookie-consent"
+>>>>>>> master
 
 interface RootLayoutClientProps {
   children: React.ReactNode
 }
 
 export function RootLayoutClient({ children }: RootLayoutClientProps) {
+<<<<<<< HEAD
   const [mounted, setMounted] = useState(false)
   const pathname = usePathname() || ''
   const isAuthPage = ['/sign-in', '/sign-up'].includes(pathname)
@@ -51,11 +59,39 @@ export function RootLayoutClient({ children }: RootLayoutClientProps) {
           </AuthenticatedLayout>
         )}
 
+=======
+  return (
+    <Providers>
+      <RootLayoutContent>
+        {children}
+      </RootLayoutContent>
+    </Providers>
+  )
+}
+
+function RootLayoutContent({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const isAuthPage = ['/sign-in', '/sign-up'].includes(pathname)
+
+  if (isAuthPage) {
+    return children
+  }
+
+  return (
+    <div id="main">
+      <AuthenticatedLayout>
+        {children}
+>>>>>>> master
         <div className="fixed bottom-4 right-4 z-50">
           <ThemeToggle />
         </div>
         <CookieConsent />
+<<<<<<< HEAD
       </main>
     </>
+=======
+      </AuthenticatedLayout>
+    </div>
+>>>>>>> master
   )
 }

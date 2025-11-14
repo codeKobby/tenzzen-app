@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { AuthenticatedLayoutClient } from "./authenticated-layout-client"
+=======
+import { AuthenticatedLayoutClient } from "@/components/authenticated-layout-client"
+>>>>>>> master
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode

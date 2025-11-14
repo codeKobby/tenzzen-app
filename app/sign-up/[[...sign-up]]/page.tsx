@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { SignUp } from "@clerk/nextjs"
+<<<<<<< HEAD
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
@@ -19,6 +20,14 @@ export default function SignUpPage() {
       <div className="flex-grow flex items-center justify-center">
         <div className="w-full max-w-sm px-3">
           {/* Sign Up Form */}
+=======
+
+export default function SignUpPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-full max-w-sm px-3">
+        {/* Sign Up Form */}
+>>>>>>> master
         <SignUp
           appearance={{
             elements: {

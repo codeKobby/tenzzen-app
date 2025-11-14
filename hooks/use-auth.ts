@@ -1,14 +1,21 @@
 "use client"
 
+<<<<<<< HEAD
 import { useUser, useSession, useAuth as useClerkAuth } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
+=======
+import { useUser, useSession, useAuth as useClerkAuth } from "@clerk/clerk-react"
+import { useConvexAuth } from "convex/react"
+import { useRouter } from "next/navigation"
+>>>>>>> master
 
 export function useAuth() {
   const router = useRouter()
   const { user } = useUser()
   const { session } = useSession()
   const { signOut } = useClerkAuth()
+<<<<<<< HEAD
   const [mounted, setMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -18,10 +25,14 @@ export function useAuth() {
     setMounted(true)
     setIsLoading(false)
   }, [])
+=======
+  const { isAuthenticated, isLoading } = useConvexAuth()
+>>>>>>> master
 
   return {
     user,
     session,
+<<<<<<< HEAD
     isAuthenticated: !!user,
     loading: isLoading || !mounted,
     signIn: () => {
@@ -49,6 +60,19 @@ export function useAuth() {
           }
         }
       }
+=======
+    isAuthenticated,
+    loading: isLoading,
+    signIn: () => {
+      router.push("/sign-in")
+    },
+    signUp: () => {
+      router.push("/sign-up")
+    },
+    signOut: async () => {
+      await signOut()
+      router.push("/sign-in")
+>>>>>>> master
     }
   }
 }

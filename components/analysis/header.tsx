@@ -24,6 +24,7 @@ export function AnalysisHeader() {
 
   // Simplified return statement
   return (
+<<<<<<< HEAD
     <header className="flex items-center justify-between h-16 px-4 border-b bg-background sticky top-0 z-20">
       <div className="flex items-center gap-3">
         {/* Back Button */}
@@ -35,6 +36,28 @@ export function AnalysisHeader() {
         >
           <ArrowLeft className="h-4 w-4 transition-colors hover:text-primary" />
         </Button>
+=======
+    <header className={cn(
+      "sticky top-0 z-40 w-full border-b bg-background shadow-sm",
+      scrolled && "shadow-sm"
+    )}>
+      <div className={cn(
+        "mx-auto w-[95%] lg:w-[90%] flex h-16 items-center justify-between",
+        `transition-all duration-&lsqb;300ms&rsqb; ease-in-out`
+      )}>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 hover:bg-transparent"
+              onClick={handleBack}
+            >
+              <ArrowLeft className="h-4 w-4 transition-colors hover:text-primary" />
+            </Button>
+            <div className="h-4 w-px bg-border" />
+          </div>
+>>>>>>> master
 
         {/* Mobile Sheet Trigger */}
         <Button

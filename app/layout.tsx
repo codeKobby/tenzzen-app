@@ -2,9 +2,13 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { RootLayoutClient } from "./root-layout-client"
+<<<<<<< HEAD
 import NextTopLoader from "nextjs-toploader"
 import { Providers } from "@/app/providers"
 import { ClerkProvider } from "@clerk/nextjs"
+=======
+import { Providers } from "@/components/providers"
+>>>>>>> master
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -18,6 +22,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+<<<<<<< HEAD
   // Get the publishable key from environment variables
   // Use a placeholder during build if the key is not available
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '';
@@ -57,6 +62,16 @@ export default function RootLayout({
             </RootLayoutClient>
           </Providers>
         </ClerkProvider>
+=======
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <Providers>
+          <RootLayoutClient>
+            {children}
+          </RootLayoutClient>
+        </Providers>
+>>>>>>> master
       </body>
     </html>
   )

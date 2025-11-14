@@ -3,6 +3,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { syncUserToSupabase } from './lib/user-sync';
 import { updateSession } from './lib/supabase/middleware';
 
+<<<<<<< HEAD
 const isOnboardingRoute = createRouteMatcher(['/onboarding']);
 const isPublicRoute = createRouteMatcher(['/', '/sign-in', '/sign-up', '/explore']);
 const isAnalysisRoute = createRouteMatcher([
@@ -11,11 +12,21 @@ const isAnalysisRoute = createRouteMatcher([
   '/api/ai/v1/segments',
   '/api/ai/v1/course'
 ]);
+=======
+const isPublicRoute = createRouteMatcher([
+  '/', 
+  '/sign-in(.*)', 
+  '/sign-up(.*)', 
+  '/explore(.*)'
+])
+const isOnboardingRoute = createRouteMatcher(['/onboarding(.*)'])
+>>>>>>> master
 
 export default clerkMiddleware(async (auth, req) => {
   const authData = await auth();
   const userId = authData.userId;
 
+<<<<<<< HEAD
   // First, update the Supabase session if needed
   // This handles refreshing auth tokens for routes that use Supabase auth
   const updatedResponse = await updateSession(req as NextRequest);
@@ -51,15 +62,21 @@ export default clerkMiddleware(async (auth, req) => {
   if (userId && isOnboardingRoute(req)) {
     const dashboardUrl = new URL('/dashboard', req.url);
     return NextResponse.redirect(dashboardUrl);
+=======
+  // For onboarding page, always allow access if user is signed in
+  if (isOnboardingRoute(req) && userId) {
+    return NextResponse.next()
+>>>>>>> master
   }
 
-  // If the user isn't signed in and the route is private, redirect to sign-in
+  // If not signed in and trying to access a private route
   if (!userId && !isPublicRoute(req)) {
     const signInUrl = new URL('/sign-in', req.url);
     signInUrl.searchParams.set('redirect_url', req.url);
     return NextResponse.redirect(signInUrl);
   }
 
+<<<<<<< HEAD
   // For users who just signed in or signed up, redirect to dashboard
   if (userId && (req.nextUrl.pathname === '/sign-in' || req.nextUrl.pathname === '/sign-up')) {
     const dashboardUrl = new URL('/dashboard', req.url);
@@ -82,3 +99,24 @@ export const config = {
     '/courses/:path*',
   ],
 };
+=======
+  // If signed in but hasn't completed onboarding
+  if (userId && !sessionClaims?.metadata?.onboardingComplete && !isOnboardingRoute(req)) {
+    const onboardingUrl = new URL('/onboarding', req.url)
+    return NextResponse.redirect(onboardingUrl)
+  }
+
+  return NextResponse.next()
+}, {
+  debug: process.env.NODE_ENV === 'development'
+})
+
+export const config = {
+  matcher: [
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)'
+  ]
+}
+>>>>>>> master

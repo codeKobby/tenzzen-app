@@ -1,6 +1,20 @@
+<<<<<<< HEAD
 # Tenzzen App
 
 A Next.js application that converts video content into structured courses using AI.
+=======
+# Tenzzen
+
+A Next.js application with Convex backend and Clerk authentication.
+
+## Technology Stack
+
+- **Frontend**: Next.js 14 with App Router
+- **Backend**: Convex
+- **Authentication**: Clerk
+- **Styling**: Tailwind CSS
+- **UI Components**: Radix UI
+>>>>>>> master
 
 ## Setup
 
@@ -10,11 +24,29 @@ git clone https://github.com/yourusername/tenzzen-app.git
 cd tenzzen-app
 ```
 
+<<<<<<< HEAD
 2. Install dependencies
+=======
+- Node.js 18+ 
+- npm or pnpm
+- A Clerk account
+- A Convex account
+
+### Setup
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd tenzzen
+```
+
+2. Install dependencies:
+>>>>>>> master
 ```bash
 pnpm install
 ```
 
+<<<<<<< HEAD
 3. Configure environment variables
 ```bash
 # Copy the example environment file
@@ -91,10 +123,32 @@ pnpm setup
 The script will verify your environment configuration and guide you through any missing steps.
 
 8. Start the development server
+=======
+3. Environment Variables:
+Copy `.env.local.example` to `.env.local` and fill in your credentials:
+
+```bash
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+CLERK_JWT_ISSUER_DOMAIN=your_clerk_issuer_domain
+
+# Convex
+NEXT_PUBLIC_CONVEX_URL=your_convex_deployment_url
+```
+
+4. Initialize Convex:
+```bash
+npx convex dev
+```
+
+5. Start the development server:
+>>>>>>> master
 ```bash
 pnpm dev
 ```
 
+<<<<<<< HEAD
 ## Features
 
 - Video content analysis
@@ -113,9 +167,53 @@ The application uses:
 - TypeScript for type safety
 - Tailwind CSS for styling
 - Radix UI for components
+=======
+### Clerk Setup
+
+1. Create a new application in [Clerk Dashboard](https://dashboard.clerk.dev)
+2. Configure your OAuth providers (if needed)
+3. Create a JWT template for Convex:
+   - Go to JWT Templates in Clerk Dashboard
+   - Create a new template with name "convex"
+   - Use the default configuration
+
+### Convex Setup
+
+1. Initialize Convex in your project:
+```bash
+npx convex init
+```
+
+2. The schema and authentication are already configured in:
+- `convex/schema.ts`: Database schema
+- `convex/auth.config.ts`: Authentication configuration
+- `convex/videos.ts`: API endpoints
+
+### Project Structure
+
+```
+├── app/                    # Next.js app directory
+├── components/            # React components
+├── convex/               # Convex backend
+│   ├── schema.ts        # Database schema
+│   ├── auth.config.ts   # Auth configuration
+│   └── videos.ts        # API endpoints
+├── lib/                 # Utilities and helpers
+├── public/              # Static assets
+└── types/              # TypeScript types
+```
+>>>>>>> master
+
+## Features
+
+- User authentication with Clerk
+- Real-time data synchronization with Convex
+- Video metadata management
+- YouTube data integration
 
 ## Development
 
+<<<<<<< HEAD
 ### Project Structure
 ```
 ├── actions/          # Server actions
@@ -158,6 +256,25 @@ YOUTUBE_API_KEY=your-youtube-api-key
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+=======
+- Run `pnpm dev` to start the Next.js development server
+- Run `npx convex dev` to start the Convex development server
+- Visit `http://localhost:3000` to see your application
+
+## Deployment
+
+1. Deploy to Vercel:
+```bash
+vercel deploy
+```
+
+2. Deploy Convex:
+```bash
+npx convex deploy
+```
+
+3. Update environment variables in your Vercel deployment
+>>>>>>> master
 
 ## License
 
