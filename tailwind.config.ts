@@ -76,11 +76,64 @@ const config = {
           to: {
             height: '0'
           }
+        },
+        'pulse-subtle': {
+          '0%, 100%': {
+            opacity: '1'
+          },
+          '50%': {
+            opacity: '0.85'
+          }
+        },
+        'confetti-fade': {
+          '0%': {
+            opacity: '1'
+          },
+          '100%': {
+            opacity: '0'
+          }
+        },
+        'scale-up': {
+          '0%': {
+            transform: 'scale(0.8)',
+            opacity: '0'
+          },
+          '100%': {
+            transform: 'scale(1)',
+            opacity: '1'
+          }
+        },
+        'bounce-in': {
+          '0%': {
+            transform: 'scale(0.8)',
+            opacity: '0'
+          },
+          '70%': {
+            transform: 'scale(1.05)',
+            opacity: '1'
+          },
+          '100%': {
+            transform: 'scale(1)',
+            opacity: '1'
+          }
+        },
+        'float-y': {
+          '0%, 100%': {
+            transform: 'translateY(0)'
+          },
+          '50%': {
+            transform: 'translateY(-10px)'
+          }
         }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
-        'accordion-up': 'accordion-up 0.2s ease-out'
+        'accordion-up': 'accordion-up 0.2s ease-out',
+        'pulse-subtle': 'pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'confetti-fade': 'confetti-fade 5s ease-out forwards',
+        'scale-up': 'scale-up 0.3s ease-out forwards',
+        'bounce-in': 'bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+        'float-y': 'float-y 3s ease-in-out infinite'
       },
       backgroundImage: {
         'gradient-primary': 'linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary) / 0.8))',

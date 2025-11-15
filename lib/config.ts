@@ -14,7 +14,13 @@ export const config = {
     apiKey: getEnvVar('YOUTUBE_API_KEY'),
     apiUrl: 'https://www.googleapis.com/youtube/v3'
   },
+<<<<<<< HEAD
+
+  google: {
+    aiKey: getEnvVar('GOOGLE_GENERATIVE_AI_API_KEY')
+=======
   convex: {
     url: getEnvVar('NEXT_PUBLIC_CONVEX_URL')
+>>>>>>> master
   }
 } as const

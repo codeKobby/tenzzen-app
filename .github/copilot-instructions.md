@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+- Always use context7 mcp to get the latest docs before making any new implementations or any edits.
+- Never make ui changes unless specified in the prompt and always stick to what you have been asked to edit and avoid completely editing or altering any ui, if the need arises for you to make a change ask for confirmation first
+- Use sequential thinking mcp together with context7 for all database setups.
+- use sequential thinking to fix problems and all error fixing tasks.
+- use web search tool when necessary.
+=======
 # Tenzzen AI Agent Instructions
 
 ## Project Architecture
@@ -228,3 +235,4 @@ Extensive docs in `docs/`:
 4. **Index Convex queries** - Missing indexes cause slow queries
 5. **Server Actions are server-only** - Can't use browser APIs or hooks
 6. **Onboarding gate** - Authenticated users without `onboardingComplete` redirect to `/onboarding`
+>>>>>>> master

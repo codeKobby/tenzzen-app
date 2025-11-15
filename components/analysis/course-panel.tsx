@@ -1,0 +1,880 @@
+"use client";
+
+import React, { useRef, useEffect, useState } from "react";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
+import { useAnalysis } from "@/hooks/use-analysis-context";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "../ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "@/components/custom-toast";
+import { useCoursePanelContext } from "@/components/analysis/course-panel-context";
+import { formatDurationFromSeconds, formatDurationHumanReadable } from "@/lib/utils/duration";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  X,
+  Play,
+  Bookmark,
+  GraduationCap,
+  Clock,
+  BookOpen,
+  FileText,
+  TestTube2,
+  XCircle,
+  Tag,
+  ChevronDown,
+  Lock,
+  FileQuestion,
+  Code,
+  Briefcase,
+  CheckCircle2,
+  ArrowUp, Loader2, FileCode, Link, Book, Newspaper, Youtube, ExternalLink, BrainCircuit, FileQuestionIcon, ClipboardCheck, Trophy, ListChecks, Lightbulb, Wrench, Film, BookCopy, TagIcon, LinkIcon, Info, Target, Github, Twitter, Linkedin, Globe
+} from "lucide-react";
+import { ClockIcon } from "lucide-react";
+import type { ContentDetails } from "@/types/youtube";
+
+// --- Helper to normalize AI output ---
+function normalizeCourseData(
+  raw: any,
+  initialVideoData: ContentDetails | null
+) {
+  console.log("[Normalize] Starting normalization with raw:", raw ? "Present" : "Not present");
+  console.log("[Normalize] Starting normalization with initialVideoData:", initialVideoData ? "Present" : "Not present");
+
+  // Log the raw data keys if available
+  if (raw) {
+    console.log("[Normalize] Raw data keys:", Object.keys(raw));
+    console.log("[Normalize] Raw videoId:", raw.videoId);
+  }
+
+  // Log the initialVideoData keys if available
+  if (initialVideoData) {
+    console.log("[Normalize] InitialVideoData keys:", Object.keys(initialVideoData));
+    console.log("[Normalize] InitialVideoData id:", initialVideoData.id);
+  }
+
+  if (!raw && !initialVideoData) {
+    console.log("[Normalize] Both raw and initialVideoData are missing, returning default data");
+    return {
+      title: "Loading Course...",
+      description: "",
+      image: "/placeholders/course-thumbnail.jpg",
+      videoId: "",
+      metadata: {
+        category: "General", tags: [], difficulty: "N/A", prerequisites: [], objectives: [], overviewText: "", resources: [], duration: "", sources: []
+      },
+      courseItems: [],
+      project: null,
+      creatorResources: [],
+      creatorSocials: []
+    };
+  }
+
+  console.log("[Normalize] Input raw (generated):", raw);
+  console.log("[Normalize] Input initialVideoData:", initialVideoData);
+
+  const title = initialVideoData?.title || raw?.title || raw?.course_title || "Generated Course";
+  const description = raw?.description || initialVideoData?.description || "";
+
+  // Ensure we have a videoId - this is critical for the course panel to display correctly
+  let videoId = initialVideoData?.id || raw?.videoId || raw?.id || "";
+  console.log("[Normalize] Extracted videoId:", videoId);
+
+  // If we still don't have a videoId but have raw data, this is likely an issue
+  if (!videoId && raw) {
+    console.warn("[Normalize] Missing videoId in both raw and initialVideoData, but raw data exists");
+    console.warn("[Normalize] Raw data keys:", Object.keys(raw));
+    // Try to extract from any possible location
+    if (raw._id) videoId = raw._id;
+    else if (raw.video_id) videoId = raw.video_id;
+  }
+  const image = initialVideoData?.thumbnail || raw?.thumbnail || raw?.image || raw?.metadata?.thumbnail || "/placeholders/course-thumbnail.jpg";
+
+  let sources: any[] = [];
+  // Use correct properties: channelName and channelAvatar (optional)
+  if (initialVideoData?.channelName) {
+    sources.push({
+      name: initialVideoData.channelName,
+      avatar: initialVideoData.channelAvatar || '/placeholder-avatar.png',
+      type: 'youtube_channel'
+    });
+  }
+  const aiSources = raw?.metadata?.sources || [];
+  aiSources.forEach((aiSource: any) => {
+    if (aiSource?.name && !sources.some(s => s.name === aiSource.name)) {
+      sources.push({
+        name: aiSource.name,
+        avatar: aiSource.avatar || '/placeholder-avatar.png',
+        type: aiSource.type || 'ai_generated'
+      });
+    }
+  });
+
+  const metadataBase = {
+    category: "General",
+    tags: [],
+    difficulty: "N/A",
+    prerequisites: [],
+    objectives: [],
+    overviewText: "",
+    resources: [],
+    duration: "Variable duration",
+    sources: sources,
+    ...(raw?.metadata || {}),
+  };
+
+  // Get duration from YouTube video data if available
+  let duration = metadataBase.duration;
+  if (initialVideoData?.duration) {
+    duration = initialVideoData.duration;
+  } else if (metadataBase.duration === "Variable duration" && raw?.estimated_duration) {
+    duration = raw.estimated_duration;
+  }
+
+  const metadata = {
+    ...metadataBase,
+    difficulty: metadataBase.difficulty === "N/A" && raw?.difficulty_level ? raw.difficulty_level : metadataBase.difficulty,
+    prerequisites: Array.isArray(raw?.prerequisites) ? raw.prerequisites : (metadataBase.prerequisites || []),
+    objectives: Array.isArray(raw?.learning_objectives) ? raw.learning_objectives : (metadataBase.objectives || []),
+    duration: duration,
+    resources: Array.isArray(raw?.resources) ? raw.resources : (metadataBase.resources || []), // Expect resources at top level now
+    overviewText: raw?.overviewText || raw?.metadata?.overviewText || metadataBase.overviewText || "",
+    tags: Array.isArray(raw?.tags) ? raw.tags : (metadataBase.tags || []),
+    sources: sources, // Ensure sources are correctly assigned
+  };
+
+  const courseItems = (raw?.courseItems || []).map((item: any) => {
+    if (item.type === 'section') {
+      let lessons: any[] = [];
+      if (Array.isArray(item.lessons)) {
+        lessons = item.lessons.map((lesson: any) => ({
+          id: lesson.id || undefined,
+          title: lesson.title || "Untitled Lesson",
+          description: lesson.description || "",
+          duration: lesson.duration || undefined,
+          keyPoints: lesson.keyPoints || [],
+        }));
+      }
+      return {
+        type: 'section',
+        title: item.title || "Untitled Section",
+        description: item.description || "",
+        lessons: lessons,
+        objective: item.objective || undefined,
+        keyPoints: item.keyPoints || [],
+      };
+    } else if (item.type === 'assessment_placeholder') {
+      return {
+        type: 'assessment_placeholder',
+        assessmentType: item.assessmentType || 'quiz',
+      };
+    }
+    return null;
+  }).filter(Boolean);
+
+  let projectPlaceholder = raw?.project && raw.project.type === 'assessment_placeholder' && raw.project.assessmentType === 'project'
+    ? { type: 'assessment_placeholder', assessmentType: 'project' }
+    : null;
+
+  // Ensure resource arrays exist and have default fields if needed (basic check)
+  const ensureResourceDefaults = (resources: any[]) => {
+    return (resources || []).map((res: any, index: number) => ({
+      title: res?.title || `Resource ${index + 1}`,
+      description: res?.description || "No description available.",
+      url: res?.url || "",
+      type: res?.type || "Link",
+      category: res?.category || undefined, // Keep category if provided
+    }));
+  };
+
+  // Validate creator socials to ensure they have platform and url properties
+  const validatedCreatorSocials = (raw?.creatorSocials || []).filter(
+    (social: any) => social && typeof social === 'object' && social.platform && social.url
+  );
+
+  const normalizedResult = {
+    title,
+    description,
+    image,
+    videoId,
+    metadata,
+    courseItems,
+    project: projectPlaceholder,
+    resources: ensureResourceDefaults(raw?.resources), // Apply basic defaults here too
+    creatorResources: ensureResourceDefaults(raw?.creatorResources), // Apply basic defaults here too
+    creatorSocials: validatedCreatorSocials
+  };
+
+  console.log("[Normalize] Final normalized data:", JSON.stringify(normalizedResult, null, 2));
+  return normalizedResult;
+}
+
+// --- Action Buttons ---
+function ActionButtons({ className, course }: { className?: string, course: any }) {
+  const { handleEnroll, handleCancel, isEnrolling } = useCoursePanelContext();
+
+  const onEnrollClick = () => {
+    console.log("[ActionButtons] Enroll button clicked with course:", course);
+    if (course) {
+      handleEnroll(course);
+    } else {
+      console.error("[ActionButtons] Cannot enroll - course data is missing");
+    }
+  };
+
+  return (
+    <div className={cn("flex gap-2", className)}>
+      <Button
+        className="gap-1.5"
+        size="default"
+        onClick={onEnrollClick}
+        disabled={isEnrolling}
+      >
+        {isEnrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />}
+        Enroll Now
+      </Button>
+    </div>
+  );
+}
+
+// --- Course Summary ---
+function CourseSummary({ course }: { course: any }) {
+  const totalLessons = course.total_lessons || course.courseItems
+    ?.filter((item: any) => item.type === 'section')
+    .reduce((acc: number, section: any) => acc + (section.lessons?.length || 0), 0) || 0;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Category & Difficulty */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        {course.metadata?.category && (
+          <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20 px-2.5 py-0.5">
+            {course.metadata.category}
+          </Badge>
+        )}
+        {course.metadata?.difficulty && course.metadata.difficulty !== 'N/A' && (
+          <Badge variant="outline" className={cn(
+            "border-border/70 px-2.5 py-0.5",
+            course.metadata.difficulty === 'Beginner' && "text-green-700 border-green-200 bg-green-50 dark:text-green-200 dark:border-green-700/30 dark:bg-green-900/30",
+            course.metadata.difficulty === 'Intermediate' && "text-amber-700 border-amber-200 bg-amber-50 dark:text-amber-200 dark:border-amber-700/30 dark:bg-amber-900/30",
+            course.metadata.difficulty === 'Advanced' && "text-red-700 border-red-200 bg-red-50 dark:text-red-200 dark:border-red-700/30 dark:bg-red-900/30"
+          )}>
+            {course.metadata.difficulty}
+          </Badge>
+        )}
+      </div>
+
+      {/* Tags */}
+      {course.metadata?.tags && course.metadata.tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+          <span className="text-xs font-medium text-foreground/80 mr-1">Tags:</span>
+          {course.metadata.tags.map((tag: string, index: number) => (
+            <Badge key={`tag-${index}`} variant="secondary" className="text-xs px-1.5 py-0 font-normal">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Sources */}
+      {course.metadata?.sources && course.metadata.sources.length > 0 && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+          <span className="shrink-0 font-medium text-foreground/80">Source:</span>
+          <div className="flex items-center shrink-0">
+            <Popover>
+              <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center cursor-pointer">
+                  {course.metadata.sources.slice(0, 3).map((source: any, i: number) => (
+                    <TooltipProvider key={`${course.videoId}-source-${i}`} delayDuration={100}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              "relative h-5 w-5 rounded-full overflow-hidden border-2 border-background transition-transform hover:z-10",
+                              i > 0 && "-ml-1.5 hover:translate-x-0.5"
+                            )}
+                            aria-label={source.name}
+                          >
+                            <Image
+                              src={source.avatar || '/placeholder-avatar.png'}
+                              alt={source.name || 'Source'}
+                              fill
+                              className="object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-avatar.png'; }}
+                            />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p>{source.name || 'Unknown Source'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ))}
+                  {course.metadata.sources.length > 3 && (
+                    <div className="relative h-5 w-5 rounded-full bg-muted flex items-center justify-center text-[9px] font-medium border-2 border-background -ml-1.5 hover:translate-x-0.5 hover:z-10 transition-transform">
+                      +{course.metadata.sources.length - 3}
+                    </div>
+                  )}
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-[90%] max-w-[250px] p-3 rounded-lg" side="bottom" align="start" sideOffset={5}>
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium leading-none">Content Sources</h4>
+                  <div className="space-y-3">
+                    {course.metadata.sources.map((source: any, i: number) => (
+                      <div key={`${course.videoId}-source-popover-${i}`} className="flex items-center gap-3">
+                        <div className="relative h-8 w-8 rounded-full overflow-hidden shrink-0">
+                          <Image
+                            src={source.avatar || '/placeholder-avatar.png'}
+                            alt={source.name || 'Source'}
+                            fill
+                            className="object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-avatar.png'; }}
+                          />
+                        </div>
+                        <div>
+                          <h5 className="text-sm font-medium leading-none">{source.name || 'Unknown Source'}</h5>
+                          <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                            {source.type?.replace(/_/g, ' ') || 'Source'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      )}
+
+      {/* About (Uses top-level description for brief summary) */}
+      <div>
+        <h3 className="font-semibold text-lg mt-2">About this course</h3>
+        <p className="text-muted-foreground text-sm mt-1 line-clamp-4">
+          {/* Use top-level description, fallback if empty */}
+          {course.description || "No description provided."}
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground mt-1">
+        {course.duration_seconds ? (
+          <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /><span>{formatDurationHumanReadable(course.duration_seconds)}</span></div>
+        ) : course.metadata?.duration && course.metadata.duration !== "Variable duration" && (
+          <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /><span>{course.metadata.duration}</span></div>
+        )}
+        <div className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" /><span>{totalLessons} Lesson{totalLessons !== 1 ? 's' : ''}</span></div>
+      </div>
+
+      <ActionButtons className="flex-1 mt-3" course={course} />
+    </div>
+  )
+}
+
+// --- Icon Helpers ---
+const SocialIconMap: Record<string, React.ElementType> = { // Define Social Icon Map
+  twitter: Twitter,
+  github: Github,
+  linkedin: Linkedin,
+  website: Globe,
+  youtube: Youtube,
+  // Add more mappings as needed
+};
+const getSocialIcon = (platform: string) => { // Define Social Icon Helper
+  if (!platform) {
+    return <LinkIcon className="h-4 w-4" />; // Default to LinkIcon if platform is undefined or null
+  }
+  const lowerPlatform = platform.toLowerCase();
+  const IconComponent = SocialIconMap[lowerPlatform] || LinkIcon; // Default to LinkIcon
+  return <IconComponent className="h-4 w-4" />;
+};
+
+const ResourceTypeIconMap: Record<string, React.ElementType> = { // Define Resource Icon Map
+  book: Book, article: BookCopy, tool: Wrench, video: Film, website: LinkIcon, tutorial: Lightbulb, other: LinkIcon, code: Code, documentation: FileText, practice: TestTube2, patreon: Bookmark // Added more specific types
+};
+function getResourceIcon(resource: any) { // Define Resource Icon Helper
+  // Prioritize 'type' field for icon mapping
+  const type = (resource?.type || 'other').toLowerCase(); // Use 'other' as fallback
+  const IconComponent = ResourceTypeIconMap[type] || LinkIcon; // Default to LinkIcon if type not mapped
+  return <IconComponent className="h-4 w-4 text-muted-foreground" />;
+}
+
+const getAssessmentIcon = (type?: string) => { // Define Assessment Icon Helper
+  switch (type?.toLowerCase()) {
+    case 'quiz': case 'test': return <FileQuestionIcon className="h-5 w-5 text-blue-500" />;
+    case 'assignment': return <ClipboardCheck className="h-5 w-5 text-green-500" />;
+    case 'project': return <Trophy className="h-5 w-5 text-amber-500" />;
+    default: return <FileQuestion className="h-5 w-5 text-gray-500" />;
+  }
+};
+
+
+// --- Lesson Item Component ---
+function LessonItem({ lesson, sectionItemIndex, lessonIndex }: { lesson: any, sectionItemIndex: number, lessonIndex: number }) {
+  const [isDescriptionVisible, setIsDescriptionVisible] = useState(false);
+  const toggleDescription = () => setIsDescriptionVisible(!isDescriptionVisible);
+
+  return (
+    <div key={`lesson-${sectionItemIndex}-${lessonIndex}`} className="py-2 px-2 rounded-md transition-colors group border-b border-border/40 last:border-b-0">
+      <div className="flex items-center justify-between cursor-pointer" onClick={toggleDescription}>
+        <div className="flex gap-3 items-center flex-1 min-w-0 mr-2">
+          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px]">{lessonIndex + 1}</div>
+          <span className="text-sm font-medium truncate">{lesson.title || `Lesson ${lessonIndex + 1}`}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {lesson.duration && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1"><ClockIcon className="h-3 w-3" />{lesson.duration}</span>
+          )}
+          <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isDescriptionVisible && "rotate-180")} />
+        </div>
+      </div>
+      {lesson.description && (
+        <p className={cn("text-sm text-muted-foreground mt-2 pl-8 transition-all duration-300 ease-in-out overflow-hidden", isDescriptionVisible ? "max-h-96 opacity-100" : "max-h-0 opacity-0")}>
+          {lesson.description}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// --- TabContent Component ---
+function TabContent({ tab, course }: { tab: string; course: any }) {
+  console.log(`[TabContent] Rendering tab '${tab}' with course:`, course);
+  // Social icons are rendered outside TabContent
+
+  if (tab === "overview") {
+    // Use metadata.overviewText for the detailed view in this tab.
+    // The default is set in normalizeCourseData if AI omits it.
+    const detailedOverview = course.metadata?.overviewText || "No overview details available.";
+
+    return (
+      <div className="space-y-6">
+        {/* Display the detailed overview text */}
+        <div><p className="text-sm text-muted-foreground whitespace-pre-wrap">{detailedOverview}</p></div>
+
+        {/* Creator Socials are NOT rendered here */}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mt-4 pt-4 border-t">
+          {course.metadata?.objectives && course.metadata.objectives.length > 0 && (
+            <div>
+              <h3 className="text-base font-semibold mb-3 text-foreground/90">Learning Objectives</h3>
+              <div className="space-y-2">
+                {course.metadata.objectives.map((obj: string, index: number) => (
+                  <div key={`obj-${index}`} className="flex items-start gap-3 py-1">
+                    <Target className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                    <p className="text-sm text-muted-foreground">{obj}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {course.metadata?.prerequisites && course.metadata.prerequisites.length > 0 && (
+            <div>
+              <h3 className="text-base font-semibold mb-3 text-foreground/90">Prerequisites</h3>
+              <div className="space-y-2">
+                {course.metadata.prerequisites.map((pre: string, index: number) => (
+                  <div key={`pre-${index}`} className="flex items-start gap-3 py-1">
+                    <Info className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-sm text-muted-foreground">{pre}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Adjust fallback condition based on detailedOverview */}
+        {(detailedOverview === "No overview details available." || !detailedOverview) && !course.creatorSocials?.length && !course.metadata?.objectives?.length && !course.metadata?.prerequisites?.length && (
+          <p className="text-muted-foreground text-center py-4">No overview details available for this course.</p>
+        )}
+      </div>
+    );
+  }
+
+  if (tab === "content") {
+    let sectionCounter = 0;
+    return (
+      <div className="space-y-4">
+        {course.courseItems?.map((item: any, index: number) => {
+          if (item.type === 'section') {
+            sectionCounter++;
+            const section = item;
+            const sectionIndex = sectionCounter - 1;
+            return (
+              <Collapsible key={`section-${index}`} className="border rounded-lg overflow-hidden" defaultOpen={sectionIndex === 0}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/40 transition-colors">
+                  <div className="flex items-start gap-3 text-left">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold">{sectionCounter}</div>
+                    <div>
+                      <h3 className="font-medium">{section.title || `Section ${sectionCounter}`}</h3>
+                      {section.description && <p className="text-sm text-muted-foreground mt-1">{section.description}</p>}
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="border-t px-4 py-2 space-y-0">
+                    {section.lessons?.map((lesson: any, lessonIndex: number) => (
+                      <LessonItem key={`lesson-${index}-${lessonIndex}`} lesson={lesson} sectionItemIndex={index} lessonIndex={lessonIndex} />
+                    ))}
+                    {(!section.lessons || section.lessons.length === 0) && section.title && (
+                      <p className="text-sm text-muted-foreground px-2 py-4 italic">No specific lessons listed for this section.</p>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          } else if (item.type === 'assessment_placeholder') {
+            const assessment = item;
+            return (
+              <button
+                type="button"
+                key={`assessment-${index}`}
+                className="w-full border rounded-lg p-3 bg-muted/20 flex items-center justify-between my-2 text-left hover:bg-muted/40 transition-colors"
+                onClick={() => toast.info("Assessment Locked", { description: `Complete previous sections to take the ${assessment.assessmentType}.` })}>
+                <div className="flex items-center gap-3">
+                  {getAssessmentIcon(assessment.assessmentType)}
+                  <span className="font-medium text-sm capitalize">{assessment.assessmentType}</span>
+                </div>
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              </button>
+            );
+          }
+          return null;
+        })}
+        {course.project && course.project.type === 'assessment_placeholder' && course.project.assessmentType === 'project' && (
+          <button
+            type="button"
+            key={`assessment-final-project`}
+            className="w-full border rounded-lg p-3 bg-muted/20 flex items-center justify-between my-2 text-left hover:bg-muted/40 transition-colors"
+            onClick={() => toast.info("Assessment Locked", { description: "Complete the course sections to unlock the final project." })}>
+            <div className="flex items-center gap-3">{getAssessmentIcon('project')}<span className="font-medium text-sm capitalize">Final Project</span></div>
+            <Lock className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
+        {(!course.courseItems || course.courseItems.length === 0) && !course.project && (
+          <p className="text-muted-foreground text-center py-4">No course content available.</p>
+        )}
+      </div>
+    );
+  }
+
+  if (tab === "resources") {
+    // Access resources directly from the course object (where normalizeCourseData placed it)
+    const standardResources = course.resources || [];
+    const creatorResources = course.creatorResources || [];
+    console.log("[TabContent] Rendering 'resources' tab. Standard Resources:", standardResources, "Creator Resources:", creatorResources);
+
+    // Combine and group resources
+    const allResources = [...standardResources, ...creatorResources.map((r: any) => ({ ...r, category: 'Creator Links' }))];
+    const groupedResources = allResources.reduce((acc: any, resource: any) => {
+      const category = resource?.category || 'Other Resources';
+      if (!acc[category]) { acc[category] = []; }
+      acc[category].push(resource);
+      return acc;
+    }, {});
+    const categoryOrder = ["Creator Links", "Mentioned in Video", "Practical Tool", "Supplementary Reading", "Related Video", "Other Resources"];
+    const sortedKeys = Object.keys(groupedResources).sort((a, b) => {
+      const indexA = categoryOrder.indexOf(a); const indexB = categoryOrder.indexOf(b);
+      if (indexA === -1 && indexB === -1) return a.localeCompare(b); if (indexA === -1) return 1; if (indexB === -1) return -1; return indexA - indexB;
+    });
+
+    return (
+      <div className="space-y-6">
+        {sortedKeys.map((key) => (
+          <div key={key}>
+            <h3 className="text-base font-semibold mb-3 capitalize border-b pb-1.5 text-foreground/90">{key.replace(/_/g, ' ')}</h3>
+            <div className="space-y-0">
+              {groupedResources[key].map((resource: any, index: number) => {
+                // Use more specific fallback for type if needed, but rely on backend default first
+                const displayType = resource?.type || 'Link';
+                // Use more specific fallback for title if needed, but rely on backend default first
+                const displayTitle = resource?.title || `Resource ${index + 1}`;
+                // Use more specific fallback for description if needed, but rely on backend default first
+                const displayDescription = resource?.description || "No description available.";
+
+                return (
+                  <React.Fragment key={`resource-${key}-${index}`}>
+                    <Collapsible className="overflow-hidden">
+                      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/40 transition-colors">
+                        <div className="flex items-center gap-3 text-left flex-1 min-w-0 mr-2">
+                          {getResourceIcon(resource)}
+                          <span className="font-medium text-sm truncate">{displayTitle}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant="outline" className="text-xs capitalize">{displayType}</Badge>
+                          <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="p-3 pt-1 text-sm text-muted-foreground space-y-2">
+                          <p>{displayDescription}</p>
+                          {resource.url && (
+                            <a href={resource.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline resource-link-icon">
+                              Visit Link <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                    {index < groupedResources[key].length - 1 && <Separator className="my-0" />}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {allResources.length === 0 && (<p className="text-muted-foreground text-center py-4">No additional resources available.</p>)}
+      </div>
+    )
+  }
+  return null;
+}
+
+// --- Main CoursePanel Component ---
+export function CoursePanel({ className }: { className?: string }) {
+  const {
+    courseGenerating, courseError, cancelGeneration,
+    courseData: contextCourseData, videoData, setCourseGenerating
+  } = useAnalysis();
+  const courseData = normalizeCourseData(contextCourseData, videoData);
+  const [activeTab, setActiveTab] = useState("overview");
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    if (courseData) {
+      console.log("[CoursePanel] Course data available:", {
+        hasVideoId: !!courseData.videoId,
+        title: courseData.title,
+        courseGenerating,
+        keys: Object.keys(courseData)
+      });
+
+      // Force courseGenerating to false if we have course data
+      if (courseGenerating) {
+        console.log("[CoursePanel] Setting courseGenerating to false because we have course data");
+        // Use setTimeout to avoid state updates during render phase
+        setTimeout(() => {
+          setCourseGenerating(false);
+        }, 0);
+      }
+
+      // Ensure we have a valid courseData object with required fields
+      const courseDataAny = courseData as any;
+      if (!courseDataAny.courseItems || !Array.isArray(courseDataAny.courseItems) || courseDataAny.courseItems.length === 0) {
+        console.warn("[CoursePanel] Course data missing courseItems array or empty array");
+        // Add a default section if courseItems is missing or empty
+        courseDataAny.courseItems = [
+          {
+            type: 'section',
+            title: 'Introduction',
+            description: 'Introduction to the course',
+            lessons: [
+              {
+                title: 'Getting Started',
+                description: 'Learn the basics of the course',
+                duration: '10 minutes',
+                keyPoints: ['Introduction to key concepts']
+              }
+            ]
+          }
+        ];
+      }
+    } else {
+      console.log("[CoursePanel] No courseData available, courseGenerating:", courseGenerating);
+    }
+  }, [courseData, courseGenerating, setCourseGenerating]);
+
+  const handleScroll = () => { if (scrollContainerRef.current) { setShowScrollTop(scrollContainerRef.current.scrollTop > 300) } }; // Ensure 300 has no leading zero
+  const scrollToTop = () => { if (scrollContainerRef.current) { scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }) } }; // Ensure 0 has no leading zero
+  useEffect(() => { const currentRef = scrollContainerRef.current; if (currentRef) { currentRef.addEventListener('scroll', handleScroll); return () => currentRef.removeEventListener('scroll', handleScroll); } }, []);
+
+  // Create a normalized version of the course data with default values
+  // Add duration_seconds if available from videoData
+  // Parse duration from videoData if it's in ISO 8601 format (PT1H2M10S)
+  let duration_seconds = 0;
+  if (videoData) {
+    if (typeof videoData.duration_seconds === 'number') {
+      duration_seconds = videoData.duration_seconds;
+    } else if (videoData.duration && typeof videoData.duration === 'string') {
+      // Try to parse the duration string
+      const match = videoData.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+      if (match) {
+        const [, hours, minutes, seconds] = match;
+        duration_seconds =
+          (parseInt(hours || '0') * 3600) +
+          (parseInt(minutes || '0') * 60) +
+          parseInt(seconds || '0');
+      }
+    }
+  }
+
+  const normalizedCourseData = {
+    ...courseData,
+    title: courseData.title || "Generated Course",
+    description: courseData.description || "No description available",
+    videoId: courseData.videoId || "",
+    image: courseData.image || "/placeholders/course-thumbnail.jpg",
+    duration_seconds: duration_seconds
+  };
+
+  // Ensure courseItems exists and is an array
+  if (!normalizedCourseData.courseItems || !Array.isArray(normalizedCourseData.courseItems)) {
+    console.warn("[CoursePanel] Course data missing courseItems array, adding default");
+    normalizedCourseData.courseItems = [
+      {
+        type: 'section',
+        title: 'Introduction',
+        description: 'Introduction to the course',
+        lessons: [
+          {
+            title: 'Getting Started',
+            description: 'Learn the basics of the course',
+            duration: '10 minutes',
+            keyPoints: ['Introduction to key concepts']
+          }
+        ]
+      }
+    ];
+  }
+
+  // If we have course data but missing videoId, try to fix it
+  if (!normalizedCourseData.videoId && videoData?.id) {
+    console.log("[CoursePanel] Adding missing videoId to course data");
+    normalizedCourseData.videoId = videoData.id;
+  }
+
+  // Log the normalized course data for debugging
+  console.log("[CoursePanel] Normalized course data:", {
+    title: normalizedCourseData.title,
+    videoId: normalizedCourseData.videoId,
+    hasMetadata: !!normalizedCourseData.metadata,
+    hasCourseItems: Array.isArray(normalizedCourseData.courseItems) && normalizedCourseData.courseItems.length > 0
+  });
+
+  // Use YouTube thumbnail URL directly if available
+  // If we have a videoId, always use the YouTube thumbnail directly
+  const thumbnailUrl = normalizedCourseData.videoId
+    ? `https://i.ytimg.com/vi/${normalizedCourseData.videoId}/maxresdefault.jpg`
+    : (videoData?.thumbnail || normalizedCourseData.image || "/placeholders/course-thumbnail.jpg");
+
+  // Log the current state before rendering
+  console.log("[CoursePanel] Rendering with state:", {
+    courseGenerating,
+    hasCourseError: !!courseError,
+    hasCourseData: !!courseData,
+    hasVideoId: courseData?.videoId ? true : false
+  });
+
+  // We should not update state during render phase
+  // State updates are handled in the useEffect hook above
+
+  // We should always show the course content in this component
+  // The parent component (client.tsx) handles the conditional rendering
+  // This component should only be rendered when courseData is available
+
+  // Log the course data for debugging
+  console.log("[CoursePanel] Rendering with courseData:", courseData ? {
+    hasVideoId: !!courseData.videoId,
+    title: courseData.title,
+    courseGenerating,
+    courseDataType: typeof courseData,
+    courseItemsCount: Array.isArray(courseData.courseItems) ? courseData.courseItems.length : 'Not an array'
+  } : "No course data");
+
+  // If we don't have valid course data, show a debug message
+  if (!courseData) {
+    console.error("[CoursePanel] Missing course data entirely");
+    return (
+      <div className={cn("bg-background flex flex-col w-full sm:w-full h-full overflow-hidden transition-all duration-300 ease-in-out relative", className)}>
+        <div className="flex-1 flex items-center justify-center p-4 text-center">
+          <div className="max-w-md">
+            <p className="text-muted-foreground mb-2">Course data is missing entirely.</p>
+            <pre className="mt-2 text-xs text-left bg-muted p-2 rounded overflow-auto max-h-40">
+              {JSON.stringify({
+                hasCourseData: !!courseData,
+                courseGenerating
+              }, null, 2)}
+            </pre>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("bg-background flex flex-col w-full sm:w-full h-full overflow-hidden transition-all duration-300 ease-in-out relative", className)}>
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto hover:scrollbar scrollbar-thin" onScroll={handleScroll}>
+          <div className="p-4 border-b">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="aspect-video relative overflow-hidden rounded-lg border">
+                <Image src={thumbnailUrl} alt={normalizedCourseData.title} fill style={{ objectFit: "cover" }} priority
+                  onError={(e) => {
+                    console.error("Thumbnail Load Error:", e);
+                    // Try YouTube thumbnail with different quality if available
+                    if (normalizedCourseData.videoId) {
+                      // Try hqdefault which is more reliable than maxresdefault
+                      (e.target as HTMLImageElement).src = `https://i.ytimg.com/vi/${normalizedCourseData.videoId}/hqdefault.jpg`;
+                    } else {
+                      // If no videoId, use a data URI for a simple colored rectangle
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221280%22%20height%3D%22720%22%20viewBox%3D%220%200%201280%20720%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%231e293b%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20font-family%3D%22Arial%22%20font-size%3D%2248%22%20fill%3D%22%2394a3b8%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3ECourse%20Thumbnail%3C%2Ftext%3E%3C%2Fsvg%3E';
+                    }
+                  }}
+                />
+              </div>
+              <CourseSummary course={normalizedCourseData} />
+            </div>
+            {/* Creator Socials Section - Rendered below summary, above tabs */}
+            {normalizedCourseData.creatorSocials && normalizedCourseData.creatorSocials.length > 0 && (
+              <div className="px-4 pt-3 pb-4 border-b"> {/* Added pt-3 */}
+                <h3 className="text-sm font-semibold mb-2 text-foreground/80">Connect with Creator</h3>
+                <div className="flex flex-wrap gap-2">
+                  {normalizedCourseData.creatorSocials.map((social: { platform: string, url: string }, index: number) => (
+                    <Button key={`social-top-${index}`} variant="outline" size="sm" asChild className="h-7 px-2 py-1 text-xs">
+                      <a href={social.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
+                        {getSocialIcon(social.platform)} {/* Use helper function */}
+                        <span className="capitalize">{social.platform}</span>
+                      </a>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
+            <div className="sticky top-0 z-10 bg-background border-b"><div className="flex items-center justify-between pr-2">
+              <TabsList className="bg-transparent h-10 p-0">
+                <TabsTrigger value="overview" className="data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Overview</TabsTrigger>
+                <TabsTrigger value="content" className="data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Content</TabsTrigger>
+                <TabsTrigger value="resources" className="data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Resources</TabsTrigger>
+              </TabsList>
+            </div></div>
+            <TabsContent value="overview" className="px-4 py-4 mt-0 border-none"><TabContent tab="overview" course={normalizedCourseData} /></TabsContent>
+            <TabsContent value="content" className="px-4 py-4 mt-0 border-none"><TabContent tab="content" course={normalizedCourseData} /></TabsContent>
+            <TabsContent value="resources" className="px-4 py-4 mt-0 border-none"><TabContent tab="resources" course={normalizedCourseData} /></TabsContent>
+          </Tabs>
+        </div>
+        {showScrollTop && (<Button variant="secondary" size="icon" onClick={scrollToTop} className="absolute bottom-4 right-4 z-20"><ArrowUp className="h-4 w-4" /></Button>)}
+      </div>
+    </div>
+  );
+}

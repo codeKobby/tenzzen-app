@@ -20,9 +20,12 @@ export function Header() {
   const { user, signOut } = useAuth()
 
   const handleSignOut = async () => {
-    await signOut()
-    router.refresh()
-    router.push('/')
+    try {
+      await signOut({ redirectUrl: '/' })
+      // No need to manually redirect as Clerk will handle it
+    } catch (error) {
+      console.error("Sign out error:", error)
+    }
   }
 
   // Only show header on homepage

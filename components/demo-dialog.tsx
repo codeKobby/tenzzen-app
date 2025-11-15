@@ -51,7 +51,7 @@ export function DemoDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="w-[90%] max-w-md mx-auto rounded-lg">
         <DialogHeader>
           <DialogTitle>Try Course Generation</DialogTitle>
           <DialogDescription>

@@ -1,13 +1,13 @@
-import "./styles.css"
+import React from 'react'
+import { Shell } from "@/components/shell"
 
-export default function AnalysisLayout({
-    children,
-}: {
-    children: React.ReactNode
-}) {
-    return (
-        <div className="analysis-page">
-            {children}
-        </div>
-    )
+export default function AnalysisLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Shell
+      padding="none"
+      scroll={false}
+    >
+      {children}
+    </Shell>
+  )
 }

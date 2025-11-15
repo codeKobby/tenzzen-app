@@ -3,6 +3,7 @@ import { Progress } from "@/components/ui/progress"
 import { PlayCircle, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { formatDurationFromSeconds, formatDurationHumanReadable } from "@/lib/utils/duration"
 
 interface CourseCardProps {
   id: string
@@ -12,18 +13,20 @@ interface CourseCardProps {
     avatar: string
   }
   progress: number
-  duration: string
-  totalLessons: number
+  duration?: string
+  duration_seconds?: number
+  totalLessons?: number
+  total_lessons?: number
   completedLessons: number
 }
 
-export function CourseCard({ 
-  title, 
-  instructor, 
-  progress, 
-  duration, 
+export function CourseCard({
+  title,
+  instructor,
+  progress,
+  duration,
   totalLessons,
-  completedLessons 
+  completedLessons
 }: CourseCardProps) {
   return (
     <Card className="p-4 transition-all hover:border-primary/50">
@@ -44,7 +47,7 @@ export function CourseCard({
             </div>
           </div>
           <Badge variant="secondary" className="h-6 shrink-0">
-            {completedLessons}/{totalLessons} Lessons
+            {completedLessons}/{total_lessons || totalLessons || 0} Lessons
           </Badge>
         </div>
 
@@ -63,7 +66,11 @@ export function CourseCard({
           </div>
           <div className="flex items-center gap-1.5">
             <Clock className="h-4 w-4" />
-            <span>{duration}</span>
+            <span>
+              {duration_seconds
+                ? formatDurationHumanReadable(duration_seconds)
+                : duration || "Unknown duration"}
+            </span>
           </div>
         </div>
       </div>

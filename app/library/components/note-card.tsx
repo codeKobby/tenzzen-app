@@ -11,9 +11,11 @@ import {
   BookOpen,
   Code,
   FileText,
+  ExternalLink,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { useRouter } from "@/hooks/use-router-with-loader"
 
 interface NoteCardProps {
   note: NoteInterface
@@ -43,14 +45,37 @@ export function NoteCard({
   onDelete,
   onShare
 }: NoteCardProps) {
+  const router = useRouter()
+
+  // Function to strip HTML tags for preview
+  const createTextPreview = (html: string): string => {
+    // Create a temporary element to parse the HTML
+    const tempElement = document.createElement('div')
+    tempElement.innerHTML = html
+
+    // Get the text content
+    const textContent = tempElement.textContent || tempElement.innerText || ''
+
+    // Return a truncated version
+    return textContent.substring(0, 200) + (textContent.length > 200 ? '...' : '')
+  }
+
+  // Get preview text from content
+  const previewText = note.preview || createTextPreview(note.content)
+
   return (
-    <div className={cn(
-      "group relative rounded-lg border bg-card transition-all",
-      "hover:shadow-md hover:border-primary/50",
-      view === "list" ? "p-3" : "p-4"
-    )}>
+    <div
+      className={cn(
+        "group relative rounded-lg border bg-card transition-all",
+        "hover:shadow-md hover:border-primary/50",
+        view === "list" ? "p-3" : "p-4"
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2 min-w-0">
+        <div
+          className="flex items-start gap-2 min-w-0 cursor-pointer"
+          onClick={() => router.push(`/library/${note.id}`)}
+        >
           <div className="rounded-md bg-primary/10 p-2 text-primary">
             {getCategoryIcon(note.category)}
           </div>
@@ -72,18 +97,24 @@ export function NoteCard({
             "h-8 w-8 text-muted-foreground transition-colors",
             note.starred ? "text-yellow-500 hover:text-yellow-600" : "opacity-0 group-hover:opacity-100"
           )}
-          onClick={onToggleStar}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleStar()
+          }}
         >
-          <Star className="h-4 w-4 fill-current" />
+          <Star className="h-4 w-4" fill={note.starred ? "currentColor" : "none"} />
         </Button>
       </div>
 
       {/* Preview text */}
-      <div className={cn(
-        "line-clamp-3 text-sm text-muted-foreground mt-2",
-        view === "list" && "md:line-clamp-2"
-      )}>
-        {note.preview}
+      <div
+        className={cn(
+          "line-clamp-3 text-sm text-muted-foreground mt-2 cursor-pointer",
+          view === "list" && "md:line-clamp-2"
+        )}
+        onClick={() => router.push(`/library/${note.id}`)}
+      >
+        {previewText}
       </div>
 
       {/* Tags */}
@@ -110,7 +141,22 @@ export function NoteCard({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-primary"
-          onClick={onEdit}
+          onClick={(e) => {
+            e.stopPropagation()
+            router.push(`/library/${note.id}`)
+          }}
+        >
+          <ExternalLink className="h-4 w-4" />
+          <span className="sr-only">Open</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-primary"
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit()
+          }}
         >
           <Edit3 className="h-4 w-4" />
           <span className="sr-only">Edit</span>
@@ -119,7 +165,10 @@ export function NoteCard({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-primary"
-          onClick={onShare}
+          onClick={(e) => {
+            e.stopPropagation()
+            onShare()
+          }}
         >
           <Share2 className="h-4 w-4" />
           <span className="sr-only">Share</span>
@@ -128,7 +177,10 @@ export function NoteCard({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-destructive"
-          onClick={onDelete}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
         >
           <Trash2 className="h-4 w-4" />
           <span className="sr-only">Delete</span>

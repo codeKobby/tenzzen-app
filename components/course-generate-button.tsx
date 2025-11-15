@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/hooks/use-router-with-loader"
 import { Button } from "@/components/ui/button"
 import { YoutubeIcon, BookText } from "lucide-react"
 import { useAuth } from "@clerk/nextjs"

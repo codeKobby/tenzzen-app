@@ -1,22 +1,20 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
     Search,
-    Compass,
-    BookOpen,
-    Trophy,
-    Target,
     Plus,
     TrendingUp,
     Sparkles,
     SlidersHorizontal,
     Filter,
-    ChevronLeft,
-    ChevronRight,
     X,
-    Loader2
+    Loader2,
+    RefreshCw
 } from "lucide-react"
+import { CategoryPills } from "@/components/category-pills"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -24,31 +22,21 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { CourseGenerationModal } from "./components/course-generation-modal"
+import { CourseGenerationModal } from "@/components/modals/course-generation-modal"
 import { CourseCard } from "../courses/components/course-card"
-import { sampleCourses } from "../courses/data"
 import { Course } from "../courses/types"
 import { cn } from "@/lib/utils"
 import { AnimatePresence, motion } from "framer-motion"
 import Link from "next/link"
-
-const categoryPills = [
-    { id: "all", label: "All Categories" },
-    { id: "programming", label: "Programming" },
-    { id: "design", label: "Design" },
-    { id: "business", label: "Business" },
-    { id: "marketing", label: "Marketing" },
-    { id: "analytics", label: "Analytics" },
-    { id: "mobile", label: "Mobile Dev" },
-    { id: "ai", label: "AI & ML" },
-    { id: "webdev", label: "Web Development" }
-]
+import { useCourses } from "./hooks/use-courses"
+import { useCategoryCourses } from "./hooks/use-category-courses"
+import { useUserCourses } from "../courses/hooks/use-user-courses"
+import { getTrendingCourses, getRecommendedCourses } from "./utils/course-display-algorithms"
+import { CourseCardSkeleton } from "@/components/ui/course-card-skeleton"
 
 const sortOptions = [
     { id: "enrollments", label: "Most Enrolled" },
@@ -63,170 +51,114 @@ const filterOptions = [
     { id: "new", label: "New Courses" }
 ]
 
-const ITEMS_PER_PAGE = 12
-
 export default function ExplorePage() {
+    const router = useRouter()
     const { user } = useAuth()
     const [searchQuery, setSearchQuery] = useState("")
-    const [selectedCategory, setSelectedCategory] = useState("all")
     const [sortBy, setSortBy] = useState("enrollments")
     const [statusFilter, setStatusFilter] = useState("all")
     const [showGenerateModal, setShowGenerateModal] = useState(false)
     const [showAuthPrompt, setShowAuthPrompt] = useState(false)
     const [showSearch, setShowSearch] = useState(false)
-    const [displayedCourses, setDisplayedCourses] = useState<Array<Course>>([])
-    const [page, setPage] = useState<number>(1)
-    const [isLoading, setIsLoading] = useState(false)
-    const [hasMore, setHasMore] = useState(true)
     const loadMoreRef = useRef<HTMLDivElement>(null)
 
-    // For category pills scrolling
-    const tabsRef = useRef<HTMLDivElement>(null)
-    const [showScrollButtons, setShowScrollButtons] = useState(false)
-    const [canScrollLeft, setCanScrollLeft] = useState(false)
-    const [canScrollRight, setCanScrollRight] = useState(false)
+    // Use our new hook for category-based course loading with infinite scroll
+    const {
+        courses: displayedCourses,
+        loading: isLoading,
+        loadingMore,
+        hasMore,
+        totalCount,
+        currentCategory,
+        loadMore: loadMoreCourses,
+        categories: availableCategories,
+        error: coursesError
+    } = useCategoryCourses({
+        sortBy,
+        filter: statusFilter,
+        searchQuery,
+        limit: 12
+    });
 
-    // Check scroll capability on mount and resize
+    // Show error toast if there's an error loading courses
     useEffect(() => {
-        const checkScroll = () => {
-            if (tabsRef.current) {
-                const { scrollWidth, clientWidth, scrollLeft } = tabsRef.current
-                setShowScrollButtons(scrollWidth > clientWidth)
-                setCanScrollLeft(scrollLeft > 0)
-                setCanScrollRight(scrollLeft + clientWidth < scrollWidth)
-            }
+        if (coursesError) {
+            // Use setTimeout to avoid React state updates during rendering
+            setTimeout(() => {
+                toast.error("Failed to load courses", {
+                    description: "Please try refreshing the page",
+                    action: {
+                        label: "Retry",
+                        onClick: () => window.location.reload()
+                    }
+                });
+            }, 0);
         }
-
-        checkScroll()
-        window.addEventListener("resize", checkScroll)
-        return () => window.removeEventListener("resize", checkScroll)
-    }, [])
-
-    // Update scroll state when scrolling the tabs
-    const handleTabsScroll = () => {
-        if (tabsRef.current) {
-            const { scrollWidth, clientWidth, scrollLeft } = tabsRef.current
-            setCanScrollLeft(scrollLeft > 0)
-            setCanScrollRight(scrollLeft + clientWidth < scrollWidth)
-        }
-    }
-
-    // Handle scroll button clicks
-    const scrollTabs = (direction: 'left' | 'right') => {
-        if (tabsRef.current) {
-            const scrollAmount = direction === 'left' ? -200 : 200
-            tabsRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' })
-        }
-    }
-
-    // Filter and sort courses
-    const filteredCourses = useMemo(() => {
-        return sampleCourses
-            .filter(course => course.isPublic)
-            .filter(course => {
-                const matchesSearch = searchQuery.toLowerCase().trim() === "" ||
-                    course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    course.description.toLowerCase().includes(searchQuery.toLowerCase())
-
-                const matchesCategory = selectedCategory === "all" ||
-                    course.category.toLowerCase() === selectedCategory.toLowerCase()
-
-                const matchesStatus = statusFilter === "all" ||
-                    (statusFilter === "popular" && (course.enrolledCount || 0) > 1000) ||
-                    (statusFilter === "highly-rated" && (course.rating || 0) > 4.5) ||
-                    (statusFilter === "new" && !course.lastAccessed)
-
-                return matchesSearch && matchesCategory && matchesStatus
-            })
-            .sort((a, b) => {
-                switch (sortBy) {
-                    case "enrollments":
-                        return (b.enrolledCount || 0) - (a.enrolledCount || 0)
-                    case "rating":
-                        return (b.rating || 0) - (a.rating || 0)
-                    case "recent":
-                        // For new courses without lastAccessed, put them first
-                        if (!a.lastAccessed && !b.lastAccessed) return 0
-                        if (!a.lastAccessed) return -1
-                        if (!b.lastAccessed) return 1
-                        return new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime()
-                    default:
-                        return 0
-                }
-            })
-    }, [searchQuery, selectedCategory, sortBy, statusFilter])
-
-    // Load more courses when scrolling
-    const loadMoreCourses = useCallback(() => {
-        if (isLoading || !hasMore) return
-
-        setIsLoading(true)
-        // Simulate loading delay
-        setTimeout(() => {
-            const start = (page - 1) * ITEMS_PER_PAGE
-            const end = start + ITEMS_PER_PAGE
-            const newCourses = filteredCourses.slice(start, end)
-            
-            if (newCourses.length > 0) {
-                setDisplayedCourses(prev => [...prev, ...newCourses])
-                setPage(prev => prev + 1)
-                setHasMore(end < filteredCourses.length)
-            } else {
-                setHasMore(false)
-            }
-            setIsLoading(false)
-        }, 500)
-    }, [filteredCourses, page, isLoading, hasMore])
+    }, [coursesError]);
 
     // Setup intersection observer for infinite scrolling
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting) {
-                    loadMoreCourses()
+                if (entries[0].isIntersecting && !isLoading && !loadingMore && hasMore) {
+                    loadMoreCourses();
                 }
             },
             { threshold: 0.1 }
-        )
+        );
 
         if (loadMoreRef.current) {
-            observer.observe(loadMoreRef.current)
+            observer.observe(loadMoreRef.current);
         }
 
-        return () => observer.disconnect()
-    }, [loadMoreCourses])
+        return () => observer.disconnect();
+    }, [loadMoreCourses, isLoading, loadingMore, hasMore]);
 
-    // Reset pagination when filters change
-    useEffect(() => {
-        setDisplayedCourses([])
-        setPage(1)
-        setHasMore(true)
-    }, [searchQuery, selectedCategory, sortBy, statusFilter])
+    // Get all courses for trending and recommendation algorithms
+    const { courses: allCourses } = useCourses({
+        limit: 100, // Get a larger set of courses for our algorithms
+        sortBy: 'enrollments',
+    });
 
-    // Initial load
+    // Get user courses for recommendation algorithm
+    const {
+        courses: userCourses,
+        categories: userCategories,
+        loading: userCoursesLoading,
+        error: userCoursesError
+    } = useUserCourses();
+
+    // Log any errors with user courses for debugging
     useEffect(() => {
-        if (displayedCourses.length === 0 && filteredCourses.length > 0) {
-            loadMoreCourses()
+        if (userCoursesError) {
+            console.warn("Error loading user courses:", userCoursesError);
         }
-    }, [displayedCourses.length, filteredCourses.length, loadMoreCourses])
+    }, [userCoursesError]);
 
-    // Get recommended courses (for authenticated users)
-    const recommendedCourses = useMemo(() => {
-        if (!user) return []
-        // In a real app, this would be based on user preferences and history
-        return sampleCourses
-            .filter(course => course.isPublic)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, 4)
-    }, [user])
+    // Calculate trending courses using our algorithm
+    const { showTrendingSection, trendingCourses } = useMemo(() => {
+        return getTrendingCourses(allCourses);
+    }, [allCourses]);
 
-    // Get trending courses
-    const trendingCourses = useMemo(() => {
-        return sampleCourses
-            .filter(course => course.isPublic)
-            .sort((a, b) => (b.enrolledCount || 0) - (a.enrolledCount || 0))
-            .slice(0, 4)
-    }, [])
+    // Calculate recommended courses using our algorithm
+    const { showRecommendations, recommendedCourses } = useMemo(() => {
+        if (!user) return { showRecommendations: false, recommendedCourses: [] };
+
+        // Don't show recommendations if there's an error with user courses
+        if (userCoursesError) return { showRecommendations: false, recommendedCourses: [] };
+
+        // Don't show recommendations while user courses are loading
+        if (userCoursesLoading) return { showRecommendations: false, recommendedCourses: [] };
+
+        return getRecommendedCourses(
+            allCourses,
+            {
+                enrolledCourses: userCourses || [],
+                interestedCategories: userCategories || [],
+                // Add more user history data as it becomes available
+            }
+        );
+    }, [allCourses, user, userCourses, userCategories, userCoursesError, userCoursesLoading]);
 
     // Handle search close
     const handleSearchClose = () => {
@@ -361,75 +293,15 @@ export default function ExplorePage() {
                     </div>
 
                     {/* Category Pills */}
-                    <div className="relative py-2 sm:py-3">
-                        <div
-                            ref={tabsRef}
-                            className="overflow-hidden relative isolate"
-                            onScroll={handleTabsScroll}
-                        >
-                            {/* Scroll Indicators */}
-                            <div className={cn(
-                                "absolute left-0 top-0 bottom-0 w-[80px] pointer-events-none z-10",
-                                "bg-gradient-to-r from-background to-transparent",
-                                "opacity-0 transition-opacity duration-300",
-                                canScrollLeft && "opacity-100"
-                            )} />
-                            <div className={cn(
-                                "absolute right-0 top-0 bottom-0 w-[80px] pointer-events-none z-10",
-                                "bg-gradient-to-l from-background to-transparent",
-                                "opacity-0 transition-opacity duration-300",
-                                canScrollRight && "opacity-100"
-                            )} />
-                            <div className="flex gap-3">
-                            {categoryPills.map((tag, index) => (
-                                <button
-                                    key={`category-${tag.id}`}
-                                        onClick={() => setSelectedCategory(tag.id)}
-                                        className={cn(
-                                            "h-8 px-4 rounded-lg font-normal transition-all whitespace-nowrap text-sm select-none",
-                                            selectedCategory === tag.id 
-                                                ? "bg-primary text-primary-foreground shadow-sm" 
-                                                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                                        )}
-                                    >
-                                        {tag.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Navigation Arrows */}
-                        <div className={cn(
-                            "transition-opacity duration-200",
-                            !showScrollButtons && "opacity-0 pointer-events-none"
-                        )}>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className={cn(
-                                    "absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md z-20",
-                                    "transition-opacity duration-200",
-                                    !canScrollLeft && "opacity-0 pointer-events-none",
-                                    canScrollLeft && "opacity-100"
-                                )}
-                                onClick={() => scrollTabs('left')}
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className={cn(
-                                    "absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md z-20",
-                                    "transition-opacity duration-200",
-                                    !canScrollRight && "opacity-0 pointer-events-none",
-                                    canScrollRight && "opacity-100"
-                                )}
-                                onClick={() => scrollTabs('right')}
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
+                    <div className="py-2 sm:py-3">
+                        <CategoryPills
+                            customCategories={availableCategories?.map(cat => ({
+                                name: cat.name,
+                                slug: cat.slug,
+                                courseCount: cat.courseCount
+                            }))}
+                            showRecommended={!!user}
+                        />
                     </div>
                 </div>
             </div>
@@ -439,76 +311,124 @@ export default function ExplorePage() {
                 "mx-auto space-y-8 pt-4 pb-12",
                 "w-[95%] lg:w-[90%]"
             )}>
-                {/* Recommended Courses (for authenticated users) */}
-                {user && recommendedCourses.length > 0 && (
+
+                {/* Trending Courses - only shown when there are enough courses */}
+                {showTrendingSection && (
                     <section className="space-y-4">
                         <div className="flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-primary" />
-                            <h2 className="text-xl font-semibold">Recommended for You</h2>
+                            <TrendingUp className="w-5 h-5 text-primary" />
+                            <h2 className="text-xl font-semibold">Trending Courses</h2>
                         </div>
                         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            {recommendedCourses.map((course) => (
+                            {trendingCourses.map((course) => (
                                 <CourseCard
                                     key={course.id}
                                     course={course}
                                     variant="explore"
-                                    onClick={() => {}} // Handle course selection
+                                    onClick={() => router.push(`/explore/${course.id}`)} // Navigate to course details page
                                 />
                             ))}
                         </div>
                     </section>
                 )}
 
-                {/* Trending Courses */}
-                <section className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-primary" />
-                        <h2 className="text-xl font-semibold">Trending Courses</h2>
-                    </div>
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {trendingCourses.map((course) => (
-                            <CourseCard
-                                key={course.id}
-                                course={course}
-                                variant="explore"
-                                onClick={() => {}} // Handle course selection
-                            />
-                        ))}
-                    </div>
-                </section>
-
                 {/* All Courses */}
                 <section className="space-y-4">
-                    <h2 className="text-xl font-semibold">All Courses</h2>
-                    {displayedCourses.length > 0 ? (
+                    <h2 className="text-xl font-semibold">
+                        {currentCategory === 'all'
+                          ? 'All Courses'
+                          : currentCategory === 'recommended'
+                            ? 'Recommended for You'
+                            : `${availableCategories.find(cat => cat.slug === currentCategory)?.name || currentCategory.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Courses`}
+                    </h2>
+
+                    {coursesError && !isLoading && displayedCourses.length === 0 ? (
+                        // Error state
+                        <div className="text-center py-12 border border-dashed rounded-lg border-destructive/20 bg-destructive/5">
+                            <p className="text-muted-foreground mb-4">
+                                Failed to load courses. Please try again.
+                            </p>
+                            <Button
+                                onClick={() => window.location.reload()}
+                                variant="outline"
+                            >
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Retry
+                            </Button>
+                        </div>
+                    ) : isLoading && displayedCourses.length === 0 ? (
+                        // Initial loading state - reduced to 1-2 rows (4-8 cards)
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {Array(8).fill(0).slice(0, 8).map((_, index) => (
+                                <CourseCardSkeleton key={index} className={cn(
+                                    // Only show 1-2 rows based on screen size
+                                    index >= 4 && "hidden xl:block", // Show 8 on xl screens (2 rows of 4)
+                                    index >= 3 && "hidden lg:block xl:block", // Show 6 on lg screens (2 rows of 3)
+                                    index >= 2 && "hidden sm:block lg:block xl:block", // Show 4 on sm screens (2 rows of 2)
+                                )} />
+                            ))}
+                        </div>
+                    ) : displayedCourses.length > 0 ? (
                         <>
                             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                {displayedCourses.map((course) => (
-                                    <CourseCard
-                                        key={course.id}
-                                        course={course}
-                                        variant="explore"
-                                        onClick={() => {}} // Handle course selection
-                                    />
-                                ))}
+                                <AnimatePresence mode="sync">
+                                    {displayedCourses.map((course) => (
+                                        <motion.div
+                                            key={course.id}
+                                            layout
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.9 }}
+                                            transition={{
+                                                opacity: { duration: 0.2 },
+                                                layout: { duration: 0.3, type: "spring" }
+                                            }}
+                                        >
+                                            <CourseCard
+                                                course={course}
+                                                variant="explore"
+                                                onClick={() => window.location.href = `/explore/${course.id}`} // Navigate to course details page
+                                            />
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
                             </div>
                             <div ref={loadMoreRef} className="py-8 flex justify-center">
-                                {isLoading ? (
+                                {loadingMore ? (
                                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                 ) : hasMore ? (
                                     <div className="h-8" /> // Spacer for intersection observer
                                 ) : (
-                                    <p className="text-sm text-muted-foreground">No more courses to load</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {displayedCourses.length > 0
+                                            ? "No more courses to load"
+                                            : "No courses found"}
+                                    </p>
                                 )}
                             </div>
                         </>
-                    ) : filteredCourses.length === 0 ? (
-                        <div className="text-center py-12">
-                            <p className="text-muted-foreground">No courses found matching your criteria</p>
-                        </div>
                     ) : (
-                        <div className="py-12 flex justify-center">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <div className="text-center py-12 border border-dashed rounded-lg border-muted-foreground/20 bg-muted/5">
+                            <p className="text-muted-foreground">
+                                {currentCategory === 'all'
+                                    ? "No courses found"
+                                    : currentCategory === 'recommended'
+                                        ? "No recommended courses found"
+                                        : `No courses found in ${currentCategory.replace(/-/g, ' ')}`}
+                            </p>
+                            <Button
+                                variant="link"
+                                className="mt-2"
+                                onClick={() => {
+                                    // Reset to all categories
+                                    const url = new URL(window.location.href);
+                                    url.searchParams.delete('category');
+                                    window.history.pushState({}, '', url.toString());
+                                    window.location.reload();
+                                }}
+                            >
+                                View all courses
+                            </Button>
                         </div>
                     )}
                 </section>

@@ -1,0 +1,662 @@
+'use client';
+
+import { useSupabase } from '@/contexts/supabase-context';
+import { Course } from '@/app/courses/types';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { normalizeCategory } from '@/app/utils/category-utils';
+import { extractCourseSections } from '@/lib/course-utils';
+import { useAuth, useSession } from '@clerk/nextjs';
+import { debounce } from 'lodash';
+
+interface CategoryCourseCache {
+  courses: Course[];
+  hasMore: boolean;
+  page: number;
+  totalCount: number;
+  isLoaded: boolean;
+}
+
+interface UseCategoryUserCoursesOptions {
+  limit?: number;
+  sortBy?: string;
+  filter?: string;
+  searchQuery?: string;
+  initialCategory?: string;
+}
+
+export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = {}) {
+  const supabase = useSupabase();
+  const { userId } = useAuth();
+  const { session } = useSession();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Get current category from URL or use initialCategory
+  const currentCategory = searchParams.get('category') || options.initialCategory || 'all';
+
+  // State for courses and loading
+  const [allCourses, setAllCourses] = useState<Course[]>([]); // Store all courses
+  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]); // Store filtered courses
+  const [recentCourses, setRecentCourses] = useState<Course[]>([]);
+  const [categories, setCategories] = useState<Array<{name: string, slug: string, courseCount: number}>>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [allCoursesLoaded, setAllCoursesLoaded] = useState(false);
+
+  // Cache for pagination to avoid refetching
+  const paginationCache = useRef<{
+    page: number;
+    hasMore: boolean;
+    totalCount: number;
+  }>({
+    page: 1,
+    hasMore: true,
+    totalCount: 0
+  });
+
+  // Current page for pagination
+  const [page, setPage] = useState(1);
+
+  // Use a ref to track if the component is mounted
+  const isMounted = useRef(true);
+
+  // Safe state update functions that check if component is still mounted
+  const safeSetAllCourses = (data: Course[]) => {
+    if (isMounted.current) setAllCourses(data);
+  };
+
+  const safeSetFilteredCourses = (data: Course[]) => {
+    if (isMounted.current) setFilteredCourses(data);
+  };
+
+  const safeSetRecentCourses = (data: Course[]) => {
+    if (isMounted.current) setRecentCourses(data);
+  };
+
+  const safeSetAllCoursesLoaded = (loaded: boolean) => {
+    if (isMounted.current) setAllCoursesLoaded(loaded);
+  };
+
+  const safeSetCategories = (data: Array<{name: string, slug: string, courseCount: number}>) => {
+    if (isMounted.current) setCategories(data);
+  };
+
+  const safeSetLoading = (isLoading: boolean) => {
+    if (isMounted.current) setLoading(isLoading);
+  };
+
+  const safeSetLoadingMore = (isLoading: boolean) => {
+    if (isMounted.current) setLoadingMore(isLoading);
+  };
+
+  const safeSetError = (errorMsg: string | null) => {
+    if (isMounted.current) setError(errorMsg);
+  };
+
+  const safeSetTotalCount = (count: number) => {
+    if (isMounted.current) setTotalCount(count);
+  };
+
+  const safeSetHasMore = (more: boolean) => {
+    if (isMounted.current) setHasMore(more);
+  };
+
+  // Set up the cleanup function for component unmount
+  useEffect(() => {
+    // Set isMounted to true when the component mounts
+    isMounted.current = true;
+
+    // Cleanup function to set isMounted to false when the component unmounts
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  // Fetch categories from user's enrolled courses
+  useEffect(() => {
+    async function fetchCategories() {
+      if (!supabase || !userId) return;
+
+      try {
+        // Get the Supabase user ID from the Clerk ID
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('clerk_id', userId)
+          .single();
+
+        if (userError) {
+          console.error('Error getting user:', userError);
+          // Set empty categories but don't show error to user
+          safeSetCategories([]);
+          return;
+        }
+
+        // Get all user enrollments with full course data
+        const { data: enrollments, error: enrollmentsError } = await supabase
+          .from('enrollments')
+          .select(`
+            courses (
+              id,
+              category,
+              tags
+            )
+          `)
+          .eq('user_id', userData.id);
+
+        if (enrollmentsError) {
+          console.error('Error getting enrollments:', enrollmentsError);
+          // Set empty categories but don't show error to user
+          safeSetCategories([]);
+          return;
+        }
+
+        // If no enrollments, set empty categories
+        if (!enrollments || enrollments.length === 0) {
+          safeSetCategories([]);
+          return;
+        }
+
+        // Extract and count categories from enrolled courses
+        const categoryMap = new Map<string, number>();
+
+        // Process each enrollment
+        enrollments.forEach(enrollment => {
+          if (!enrollment.courses) return;
+
+          // Define a typed course object
+          const course: any = enrollment.courses;
+
+          // Get category from course data
+          let category = course.category;
+
+          // If no category, try to derive from tags
+          if (!category && Array.isArray(course.tags) && course.tags.length > 0) {
+            // Use first tag as category
+            category = course.tags[0];
+          }
+
+          // Skip if no category found
+          if (!category) return;
+
+          // Normalize category name
+          const normalizedCategory = category.trim();
+          if (!normalizedCategory) return;
+
+          // Count this category
+          const count = categoryMap.get(normalizedCategory) || 0;
+          categoryMap.set(normalizedCategory, count + 1);
+        });
+
+        // Convert to array and format for display
+        const extractedCategories = Array.from(categoryMap.entries())
+          .filter(([name, count]) => count > 0) // Only include categories with courses
+          .map(([name, count]) => ({
+            name,
+            slug: name.toLowerCase().replace(/\s+/g, '-'),
+            courseCount: count
+          }));
+
+        // Deduplicate categories by slug
+        const uniqueCategories: Array<{name: string, slug: string, courseCount: number}> = [];
+        const slugs = new Set<string>();
+
+        extractedCategories.forEach(category => {
+          if (!slugs.has(category.slug)) {
+            slugs.add(category.slug);
+            uniqueCategories.push(category);
+          } else {
+            // If duplicate found, combine the counts
+            const existingCategory = uniqueCategories.find(c => c.slug === category.slug);
+            if (existingCategory) {
+              existingCategory.courseCount += category.courseCount;
+            }
+          }
+        });
+
+        // Sort by count (most courses first)
+        uniqueCategories.sort((a, b) => b.courseCount - a.courseCount);
+
+        safeSetCategories(uniqueCategories);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+        // Set empty categories but don't show error to user
+        safeSetCategories([]);
+      }
+    }
+
+    fetchCategories();
+  }, [supabase, userId]);
+
+  // Helper function to get formatted category name for display
+  const getCategoryDisplayName = (slug: string): string => {
+    if (slug === 'all') return 'All Courses';
+
+    const category = categories.find(cat => cat.slug === slug);
+    return category ? category.name : slug.split('-').map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  };
+
+  // Function to fetch all courses
+  const fetchCourses = useCallback(async (pageNum: number, isLoadingMore = false) => {
+    if (!supabase || !userId) return;
+
+    if (isLoadingMore) {
+      safeSetLoadingMore(true);
+    } else if (!allCoursesLoaded) {
+      safeSetLoading(true);
+    }
+
+    safeSetError(null);
+
+    try {
+      // If we've already loaded all courses and we're just loading more pages
+      if (allCoursesLoaded && pageNum <= paginationCache.current.page) {
+        // Apply client-side filtering based on the current category
+        filterCoursesByCategory(allCourses, currentCategory, pageNum);
+        safeSetLoading(false);
+        safeSetLoadingMore(false);
+        return;
+      }
+
+      // Get the Supabase user ID from the Clerk ID
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('clerk_id', userId)
+        .single();
+
+      if (userError) {
+        console.error('Error getting user:', userError);
+        safeSetError('Error getting user data');
+        safeSetLoading(false);
+        safeSetLoadingMore(false);
+        return;
+      }
+
+      // Start building the query
+      let query = supabase
+        .from('enrollments')
+        .select(`
+          id,
+          course_id,
+          enrolled_at,
+          last_accessed_at,
+          progress,
+          completion_status,
+          completed_lessons,
+          courses (
+            id,
+            title,
+            description,
+            thumbnail,
+            video_id,
+            metadata,
+            tags,
+            category,
+            estimated_hours,
+            estimated_duration::text
+          )
+        `, { count: 'exact' })
+        .eq('user_id', userData.id);
+
+      // Apply search query if provided
+      if (options.searchQuery && options.searchQuery.trim() !== '') {
+        const searchTerm = `%${options.searchQuery.toLowerCase()}%`;
+        // Use Supabase's ilike method for case-insensitive search
+        // @ts-ignore - ilike is a valid Supabase method but TypeScript doesn't recognize it in string literals
+        query = query.or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`);
+      }
+
+      // Apply filter based on progress
+      if (options.filter) {
+        switch (options.filter) {
+          case 'in-progress':
+            query = query.gt('progress', 0).lt('progress', 100);
+            break;
+          case 'completed':
+            query = query.eq('progress', 100);
+            break;
+          case 'not-started':
+            query = query.eq('progress', 0);
+            break;
+        }
+      }
+
+      // Apply sorting
+      if (options.sortBy) {
+        switch (options.sortBy) {
+          case 'title':
+            // Can't sort by courses.title directly in the query
+            // We'll sort after fetching
+            query = query.order('enrolled_at', { ascending: false });
+            break;
+          case 'lastAccessed':
+            query = query.order('last_accessed_at', { ascending: false });
+            break;
+          case 'progress':
+            query = query.order('progress', { ascending: false });
+            break;
+          case 'recentlyAdded':
+            query = query.order('enrolled_at', { ascending: false });
+            break;
+          default:
+            // Default to recently added
+            query = query.order('enrolled_at', { ascending: false });
+        }
+      } else {
+        // Default sorting by recently added
+        query = query.order('enrolled_at', { ascending: false });
+      }
+
+      // Apply pagination
+      const pageSize = options.limit || 12;
+      const start = 0; // Always fetch from the beginning to build the cache
+      const end = pageNum * pageSize - 1; // Fetch all pages up to the current one
+
+      query = query.range(start, end);
+
+      // Execute the query
+      const { data: enrollments, error: enrollmentsError, count } = await query;
+
+      if (enrollmentsError) {
+        console.error('Error getting enrollments:', enrollmentsError);
+        safeSetError('Error loading your courses');
+        safeSetLoading(false);
+        safeSetLoadingMore(false);
+        return;
+      }
+
+      if (!enrollments || enrollments.length === 0) {
+        safeSetAllCourses([]);
+        safeSetFilteredCourses([]);
+        safeSetRecentCourses([]);
+        safeSetTotalCount(0);
+        safeSetHasMore(false);
+        safeSetLoading(false);
+        safeSetLoadingMore(false);
+        return;
+      }
+
+      // Format enrollments into courses
+      const formattedEnrollments = enrollments
+        .filter(enrollment => enrollment.courses) // Filter out enrollments without course data
+        .map(enrollment => {
+          // Use any type for course to avoid TypeScript errors
+          const course: any = enrollment.courses;
+
+          // Normalize the category
+          const normalizedCategory = normalizeCategory(
+            course.category || '',
+            Array.isArray(course.tags) ? course.tags : []
+          );
+
+          // Extract sections using our robust utility function
+          const sections = extractCourseSections(course);
+
+          // Calculate total lessons
+          const totalLessons = sections.reduce(
+            (total: number, section: any) => total + (section.lessons?.length || 0),
+            0
+          );
+
+          // Create a properly typed Course object
+          const formattedCourse: Course = {
+            id: enrollment.course_id,
+            title: course.title || 'Untitled Course',
+            description: course.description || '',
+            image: course.thumbnail || '/placeholders/course-thumbnail.jpg',
+            thumbnail: course.thumbnail || '/placeholders/course-thumbnail.jpg',
+            videoId: course.video_id || '',
+            progress: enrollment.progress || 0,
+            lastAccessed: enrollment.last_accessed_at,
+            enrolledAt: enrollment.enrolled_at,
+            isEnrolled: true,
+            category: normalizedCategory,
+            tags: Array.isArray(course.tags) ? course.tags : [],
+            metadata: course.metadata || {},
+            completedLessons: enrollment.completed_lessons || [],
+            duration: course.estimated_hours ? `${course.estimated_hours}h` : undefined,
+            estimatedHours: course.estimated_hours || undefined,
+            durationMinutes: course.duration_minutes || undefined,
+            estimated_duration: course.estimated_duration || undefined,
+            sections: sections,
+            totalLessons: totalLessons,
+            lessonsCompleted: enrollment.completed_lessons?.length || 0,
+
+            // Add database fields directly for TypeScript
+            video_id: course.video_id || '',
+            course_items: course.course_items || []
+          };
+
+          return formattedCourse;
+        });
+
+      // Apply client-side sorting if needed
+      let sortedEnrollments = [...formattedEnrollments];
+      if (options.sortBy === 'title') {
+        sortedEnrollments.sort((a, b) => a.title.localeCompare(b.title));
+      }
+
+      // Update pagination cache
+      paginationCache.current = {
+        page: pageNum,
+        hasMore: count ? sortedEnrollments.length < count : false,
+        totalCount: count || 0
+      };
+
+      // Store all courses
+      safeSetAllCourses(sortedEnrollments);
+      safeSetAllCoursesLoaded(true);
+
+      // Apply client-side filtering based on the current category
+      filterCoursesByCategory(sortedEnrollments, currentCategory, pageNum);
+
+      // Update total count
+      safeSetTotalCount(count || 0);
+      safeSetHasMore(count ? sortedEnrollments.length < count : false);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+      let errorMessage = 'Failed to fetch courses';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        errorMessage = `Error fetching courses: ${JSON.stringify(err)}`;
+      }
+      safeSetError(errorMessage);
+    } finally {
+      safeSetLoading(false);
+      safeSetLoadingMore(false);
+    }
+  }, [supabase, userId, options.limit, options.sortBy, options.filter, options.searchQuery, allCourses, currentCategory, allCoursesLoaded]);
+
+  // Function to filter courses by category client-side
+  const filterCoursesByCategory = useCallback((courses: Course[], category: string, pageNum: number) => {
+    if (!courses || courses.length === 0) {
+      safeSetFilteredCourses([]);
+      safeSetRecentCourses([]);
+      return;
+    }
+
+    let filtered = [...courses];
+    const pageSize = options.limit || 12;
+
+    // Apply category filter if not "all"
+    if (category && category !== 'all') {
+      if (category === 'recommended') {
+        // For recommended courses, use the most recently accessed courses
+        filtered = [...courses].sort((a, b) => {
+          // Sort by last accessed date (most recent first)
+          const dateA = a.lastAccessed ? new Date(a.lastAccessed).getTime() : 0;
+          const dateB = b.lastAccessed ? new Date(b.lastAccessed).getTime() : 0;
+          return dateB - dateA;
+        }).slice(0, 12);
+      } else {
+        // Find the category in our list of categories
+        const categoryObj = categories.find(cat => cat.slug === category);
+
+        if (categoryObj) {
+          // Filter by exact category name
+          filtered = courses.filter(course => {
+            // Safely access category with null check
+            const courseCategory = course.category?.toLowerCase() || '';
+            return courseCategory === categoryObj.name.toLowerCase();
+          });
+        } else {
+          // If category not found in our list, try to normalize the slug
+          const normalizedCategoryName = category.split('-').map(word =>
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' ');
+
+          // Filter by normalized category name (case insensitive)
+          filtered = courses.filter(course => {
+            // Check if course category matches (case insensitive)
+            const courseCategory = course.category?.toLowerCase() || '';
+            const searchCategory = normalizedCategoryName.toLowerCase();
+
+            // Check direct match or partial match
+            return courseCategory === searchCategory ||
+                   courseCategory.includes(searchCategory) ||
+                   searchCategory.includes(courseCategory) ||
+                   // Also check tags if they exist
+                   (Array.isArray(course.tags) && course.tags.some(tag =>
+                     typeof tag === 'string' && (
+                       tag.toLowerCase().includes(searchCategory) ||
+                       searchCategory.includes(tag.toLowerCase())
+                     )
+                   ));
+          });
+        }
+      }
+    }
+
+    // Apply progress filter if provided
+    if (options.filter) {
+      switch (options.filter) {
+        case 'in-progress':
+          filtered = filtered.filter(course => course.progress > 0 && course.progress < 100);
+          break;
+        case 'completed':
+          filtered = filtered.filter(course => course.progress === 100);
+          break;
+        case 'not-started':
+          filtered = filtered.filter(course => course.progress === 0);
+          break;
+      }
+    }
+
+    // Apply search filter if provided
+    if (options.searchQuery && options.searchQuery.trim() !== '') {
+      const searchTerm = options.searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(course =>
+        course.title.toLowerCase().includes(searchTerm) ||
+        course.description.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Apply client-side sorting if needed
+    if (options.sortBy) {
+      switch (options.sortBy) {
+        case 'title':
+          filtered.sort((a, b) => a.title.localeCompare(b.title));
+          break;
+        case 'lastAccessed':
+          filtered.sort((a, b) => {
+            const dateA = a.lastAccessed ? new Date(a.lastAccessed).getTime() : 0;
+            const dateB = b.lastAccessed ? new Date(b.lastAccessed).getTime() : 0;
+            return dateB - dateA;
+          });
+          break;
+        case 'progress':
+          filtered.sort((a, b) => b.progress - a.progress);
+          break;
+        case 'recentlyAdded':
+          filtered.sort((a, b) => {
+            const dateA = a.enrolledAt ? new Date(a.enrolledAt).getTime() : 0;
+            const dateB = b.enrolledAt ? new Date(b.enrolledAt).getTime() : 0;
+            return dateB - dateA;
+          });
+          break;
+      }
+    } else {
+      // Default sorting by recently added
+      filtered.sort((a, b) => {
+        const dateA = a.enrolledAt ? new Date(a.enrolledAt).getTime() : 0;
+        const dateB = b.enrolledAt ? new Date(b.enrolledAt).getTime() : 0;
+        return dateB - dateA;
+      });
+    }
+
+    // Apply pagination to filtered results
+    const paginatedResults = filtered.slice(0, pageNum * pageSize);
+
+    // Update state with filtered courses
+    safeSetFilteredCourses(paginatedResults);
+    safeSetRecentCourses(paginatedResults.slice(0, 2));
+    safeSetTotalCount(filtered.length);
+    safeSetHasMore(paginatedResults.length < filtered.length);
+
+  }, [options.limit, options.filter, options.searchQuery, options.sortBy, categories]);
+
+  // Load more courses
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    setPage(prev => prev + 1);
+  }, [loading, loadingMore, hasMore]);
+
+  // Debounced version of loadMore to prevent too many calls
+  const debouncedLoadMore = useCallback(
+    debounce(() => loadMore(), 300),
+    [loadMore]
+  );
+
+  // Track the previous category for debugging
+  const prevCategoryRef = useRef<string | null>(null);
+
+  // Effect to handle category changes and pagination
+  useEffect(() => {
+    // Log for debugging
+    console.log(`Category changed from ${prevCategoryRef.current} to ${currentCategory}`);
+
+    // Update the previous category ref
+    prevCategoryRef.current = currentCategory;
+
+    if (allCoursesLoaded) {
+      // If all courses are loaded, just filter client-side
+      console.log(`Filtering courses client-side for category: ${currentCategory}`);
+      filterCoursesByCategory(allCourses, currentCategory, page);
+    } else {
+      // If courses aren't loaded yet, fetch them
+      console.log(`Fetching all courses for initial load`);
+      fetchCourses(1, false);
+    }
+  }, [currentCategory, allCoursesLoaded, allCourses, filterCoursesByCategory, fetchCourses]);
+
+  // Effect to handle pagination
+  useEffect(() => {
+    // Only handle pagination if we've already loaded the initial data
+    if (allCoursesLoaded && page > 1) {
+      console.log(`Loading more courses for page ${page}`);
+      // Apply client-side filtering with the new page number
+      filterCoursesByCategory(allCourses, currentCategory, page);
+    }
+  }, [page, allCoursesLoaded, allCourses, currentCategory, filterCoursesByCategory]);
+
+  return {
+    courses: filteredCourses,
+    recentCourses,
+    categories,
+    loading,
+    loadingMore,
+    error,
+    totalCount,
+    hasMore,
+    currentCategory,
+    loadMore: debouncedLoadMore
+  };
+}

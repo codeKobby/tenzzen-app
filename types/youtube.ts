@@ -1,3 +1,26 @@
+<<<<<<< HEAD
+export interface VideoBase {
+  id: string;
+  title: string;
+  description: string;
+  thumbnail: string;
+  duration: string;
+  channelId: string;
+  channelName: string;
+  channelAvatar?: string;
+  views: string;
+  likes: string;
+  publishDate: string;
+  hasTranscripts?: boolean;
+}
+
+export interface VideoDetails extends VideoBase {
+  type: "video";
+}
+
+export interface PlaylistVideo extends VideoDetails {
+  position: number;
+=======
 // Base types for cached data
 export interface CachedVideo {
   youtubeId: string
@@ -63,10 +86,26 @@ export interface VideoItem {
   likes?: string
   publishDate?: string
   position: number
+>>>>>>> master
 }
 
 // Playlist details with videos
 export interface PlaylistDetails {
+<<<<<<< HEAD
+  id: string;
+  type: "playlist";
+  title: string;
+  description: string;
+  thumbnail: string;
+  channelId: string;
+  channelName: string;
+  channelAvatar?: string;
+  itemCount: number;
+  videos: PlaylistVideo[];
+}
+
+export type ContentDetails = VideoDetails | PlaylistDetails;
+=======
   id: string
   type: "playlist"  // Literal type to help with type narrowing
   title: string
@@ -82,3 +121,4 @@ export interface PlaylistDetails {
 
 // Union type for content
 export type ContentDetails = VideoDetails | PlaylistDetails
+>>>>>>> master
