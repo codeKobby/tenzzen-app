@@ -3,12 +3,13 @@
 import * as React from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Bell, ChevronLeft, PanelLeftOpen, PanelLeftClose, ArrowLeft } from "lucide-react"
+import { Bell, PanelLeftOpen, PanelLeftClose } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 import { useUser } from "@clerk/nextjs"
 import { useSidebar } from "@/hooks/use-sidebar"
+import { useBreadcrumb } from "@/contexts/breadcrumb-context"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,50 +25,90 @@ interface BreadcrumbItem {
   href: string
 }
 
-function getBreadcrumbFromPath(path: string): BreadcrumbItem[] {
+function getBreadcrumbFromPath(path: string, courseTitle: string | null = null): BreadcrumbItem[] {
   if (path === "/") return []
   const segments = path.split("/").filter(Boolean)
-  return segments.map((segment, index) => ({
-    label: segment.charAt(0).toUpperCase() + segment.slice(1),
-    href: "/" + segments.slice(0, index + 1).join("/"),
-  }))
+
+  return segments.map((segment, index) => {
+    let label = segment.charAt(0).toUpperCase() + segment.slice(1)
+
+    // Format course IDs in a more readable way
+    if (index === segments.length - 1 && segment.startsWith("local-")) {
+      // Extract the title from the URL format (e.g., "local-introduction-to-web-development")
+      label = segment.substring(6).replace(/-/g, ' ');
+      // Capitalize each word
+      label = label.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
+    // Special case for explore/[courseId] route with UUID-like IDs
+    else if (index === 1 && segments[0] === "explore" && /^[a-zA-Z0-9-]{20,}$/.test(segment)) {
+      // Use the course title from context if available, otherwise fallback to "Course Details"
+      label = courseTitle || "Course Details";
+    }
+    // Special case for learn path
+    else if (segment === "learn") {
+      label = "Learn"
+    }
+    // Format other segments by replacing hyphens with spaces and capitalizing words
+    else if (segment.includes("-")) {
+      label = segment
+        .split("-")
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ")
+    }
+
+    return {
+      label,
+      href: "/" + segments.slice(0, index + 1).join("/"),
+    }
+  })
 }
 
 export function PageHeader() {
-  const pathname = usePathname()
+  const pathname = usePathname() || ""
   const { user } = useUser()
   const { isOpen, toggle } = useSidebar()
   const [isMobile, setIsMobile] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
-  const breadcrumbs = getBreadcrumbFromPath(pathname)
+  const [mounted, setMounted] = React.useState(false)
+  const { getCourseTitle } = useBreadcrumb()
+  const courseTitle = getCourseTitle(pathname)
+  const breadcrumbs = getBreadcrumbFromPath(pathname, courseTitle)
+  const isExploreCourseDetail = /^\/explore\/[^\/]+$/.test(pathname)
 
   React.useEffect(() => {
+    setMounted(true)
+
     const checkMobile = () => setIsMobile(window.innerWidth < 1024)
     const handleScroll = () => setScrolled(window.scrollY > 0)
 
     checkMobile()
     handleScroll()
-    
+
     window.addEventListener("resize", checkMobile)
     window.addEventListener("scroll", handleScroll)
-    
+
     return () => {
       window.removeEventListener("resize", checkMobile)
       window.removeEventListener("scroll", handleScroll)
     }
   }, [])
 
+  // Do not render until client-side hydration is complete
+  if (!mounted) {
+    return <div className="h-16 border-b bg-background" />
+  }
+
   // Do not render on homepage or auth pages
   if (pathname === '/' || pathname === '/sign-in' || pathname === '/sign-up') return null
 
   return (
     <header className={cn(
-      "sticky top-0 z-40 w-full border-b bg-background shadow-sm",
+      "sticky top-0 z-40 w-full border-b bg-background",
       scrolled && "shadow-sm"
     )}>
       <div className={cn(
         "mx-auto w-[95%] lg:w-[90%] flex h-16 items-center justify-between",
-        `transition-all duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING}`
+        `transition-all duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`
       )}>
         <div className="flex items-center gap-6">
           {pathname !== '/analysis' && (

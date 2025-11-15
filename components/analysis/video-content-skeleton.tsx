@@ -1,50 +1,107 @@
-import { Skeleton } from "@/components/ui/skeleton"
-
 export function VideoContentSkeleton() {
-    return (
-        <div className="space-y-4 pb-2 p-4">
+  return (
+    <div className="flex h-[calc(100vh-64px)] overflow-hidden">
+      {/* Left panel - Video Content skeleton */}
+      <div className="hidden sm:block relative border-r bg-background w-[400px]">
+        <div className="h-full overflow-auto">
+          <div className="space-y-4 pb-2 p-4">
+            {/* Video title and thumbnail section */}
             <div className="space-y-4">
-                {/* Video/Playlist header */}
-                <div className="flex gap-4">
-                    {/* Thumbnail skeleton */}
-                    <div className="flex-shrink-0">
-                        <Skeleton className="w-28 aspect-video rounded-lg" />
-                    </div>
-
-                    <div className="flex-1 space-y-2">
-                        {/* Title skeleton */}
-                        <Skeleton className="h-5 w-full" />
-                        <Skeleton className="h-5 w-3/4" />
-
-                        {/* Channel info skeleton */}
-                        <div className="flex items-center gap-2 mt-1">
-                            <Skeleton className="h-6 w-6 rounded-full" />
-                            <Skeleton className="h-4 w-1/3" />
-                        </div>
-                    </div>
+              <div className="flex gap-4">
+                {/* Thumbnail skeleton */}
+                <div className="flex-shrink-0">
+                  <div className="w-28 h-[63px] bg-secondary rounded-lg relative overflow-hidden">
+                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                  </div>
                 </div>
 
-                {/* Line separator */}
-                <Skeleton className="h-[1px] w-full" />
+                {/* Video details skeleton */}
+                <div className="flex-1 space-y-2">
+                  {/* Title lines */}
+                  <div className="h-4 bg-secondary rounded w-3/4 relative overflow-hidden">
+                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                  </div>
+                  <div className="h-4 bg-secondary rounded w-1/2 relative overflow-hidden">
+                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                  </div>
 
-                {/* Video list or description */}
-                <div className="space-y-4">
-                    {/* Generate 5 items for playlists */}
-                    {Array(5).fill(0).map((_, idx) => (
-                        <div key={idx} className="flex gap-4">
-                            <Skeleton className="w-24 aspect-video rounded-lg" />
-                            <div className="flex-1 space-y-2">
-                                <Skeleton className="h-4 w-full" />
-                                <Skeleton className="h-4 w-2/3" />
-                                <div className="flex justify-between">
-                                    <Skeleton className="h-3 w-1/4" />
-                                    <Skeleton className="h-3 w-1/4" />
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                  {/* Channel info skeleton */}
+                  <div className="flex gap-2 items-center">
+                    <div className="h-6 w-6 bg-secondary rounded-full relative overflow-hidden">
+                      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                    </div>
+                    <div className="h-3 bg-secondary rounded w-24 relative overflow-hidden">
+                      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                    </div>
+                  </div>
                 </div>
+              </div>
             </div>
+
+            {/* Video stats and description */}
+            <div className="space-y-2">
+              {/* Stats row */}
+              <div className="flex gap-4">
+                <div className="h-3 bg-secondary rounded w-16 relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                </div>
+                <div className="h-3 bg-secondary rounded w-16 relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                </div>
+                <div className="h-3 bg-secondary rounded w-24 relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                </div>
+              </div>
+
+              {/* Description lines */}
+              <div className="space-y-1 mt-2">
+                <div className="h-3 bg-secondary rounded w-full relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                </div>
+                <div className="h-3 bg-secondary rounded w-5/6 relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                </div>
+                <div className="h-3 bg-secondary rounded w-4/6 relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-    )
+      </div>
+
+      {/* Mobile version (single panel) - Only shown on mobile */}
+      <div className="sm:hidden w-full p-4">
+        <div className="space-y-4">
+          <div className="flex gap-4">
+            {/* Thumbnail skeleton */}
+            <div className="flex-shrink-0">
+              <div className="w-24 h-[54px] bg-secondary rounded-lg relative overflow-hidden">
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-secondary rounded w-3/4 relative overflow-hidden">
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+              </div>
+              <div className="h-4 bg-secondary rounded w-1/2 relative overflow-hidden">
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right side - Course generation button */}
+      <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-4 text-center">
+        <div className="mb-4 h-5 bg-secondary rounded w-64 mx-auto relative overflow-hidden">
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+        </div>
+        <div className="h-10 w-48 bg-secondary rounded-md mx-auto relative overflow-hidden">
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-muted-foreground/10 to-transparent"></div>
+        </div>
+      </div>
+    </div>
+  );
 }

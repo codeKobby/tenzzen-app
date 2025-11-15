@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Star, Users, Clock, PlayCircle } from "lucide-react"
 import { Course } from "../types"
 import Image from "next/image"
+import { formatDurationFromSeconds, formatDurationHumanReadable } from "@/lib/utils/duration"
 import {
   Tooltip,
   TooltipContent,
@@ -22,22 +23,34 @@ interface CourseDialogProps {
   course: Course | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onCourseDeleted?: () => void  // Add this new prop
 }
 
-export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) {
+export function CourseDialog({ course, open, onOpenChange, onCourseDeleted }: CourseDialogProps) {
   if (!course) return null
+
+  // Function to handle course deletion
+  const handleDelete = () => {
+    if (!course || !onCourseDeleted) return;
+
+    // Call the onCourseDeleted callback
+    onCourseDeleted();
+
+    // Close the dialog
+    onOpenChange(false);
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "w-full max-w-[90%] sm:max-w-lg mx-auto",
+        "w-[90%] max-w-md mx-auto",
         "h-[90vh] sm:h-auto sm:max-h-[85vh]",
         "overflow-y-auto p-0 gap-0",
         "bg-background border rounded-lg"
       )}>
         {/* Course Image */}
         <div className="relative aspect-video w-full">
-          <Image 
+          <Image
             src={course.thumbnail || "/placeholders/course-thumbnail.jpg"}
             alt={course.title}
             fill
@@ -69,7 +82,11 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
           <div className="flex flex-wrap gap-6 text-foreground">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-primary" />
-              <span className="text-sm sm:text-base">{course.duration}</span>
+              <span className="text-sm sm:text-base">
+                {course.duration_seconds
+                  ? formatDurationHumanReadable(course.duration_seconds)
+                  : course.duration || "Unknown duration"}
+              </span>
             </div>
             {course.isPublic && (
               <>
@@ -119,7 +136,7 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
                       <Tooltip>
                         <PopoverTrigger asChild>
                           <TooltipTrigger asChild>
-                            <button 
+                            <button
                               className="relative h-8 w-8 rounded-full overflow-hidden ring-2 ring-background hover:ring-primary transition-colors"
                               aria-label={`View details for ${source.name}`}
                             >
@@ -137,7 +154,7 @@ export function CourseDialog({ course, open, onOpenChange }: CourseDialogProps) 
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <PopoverContent className="w-80 p-4" side="right" align="start">
+                    <PopoverContent className="w-[90%] max-w-[250px] p-4 rounded-lg" side="right" align="start">
                       <div className="space-y-4">
                         <div className="flex items-start gap-4">
                           <div className="relative h-10 w-10 rounded-full overflow-hidden shrink-0">

@@ -2,11 +2,11 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { SIDEBAR_WIDTH, TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
+import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
-import { SignOutButton, useClerk } from "@clerk/nextjs"
+import { useClerk } from "@clerk/nextjs"
 import {
   BookOpen,
   GraduationCap,
@@ -36,9 +36,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type ColorTheme = 'purple' | 'neutral' | 'minimal' | 'modern'
-type ThemeMode = 'light' | 'dark' | 'system'
 
 interface NavigationItem {
   title: string
@@ -104,58 +113,62 @@ export function Sidebar({ className }: { className?: string }) {
   const router = useRouter()
   const { isOpen, toggle } = useSidebar()
   const { signOut } = useClerk()
-  const { theme, resolvedTheme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const { updateTheme } = useThemePersistence()
   const [isMobile, setIsMobile] = React.useState(false)
   const [colorTheme, setColorTheme] = React.useState<ColorTheme>('purple')
   const [systemTheme, setSystemTheme] = React.useState<'light' | 'dark'>('light')
+  const [mounted, setMounted] = React.useState(false)
+  const [isSignOutDialogOpen, setIsSignOutDialogOpen] = React.useState(false)
 
-  // Detect system theme changes
+  // Combined useEffect for all client-side operations
   React.useEffect(() => {
+    setMounted(true)
+
+    // Detect system theme changes
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     const updateSystemTheme = (e: MediaQueryListEvent | MediaQueryList) => {
       setSystemTheme(e.matches ? 'dark' : 'light')
     }
-
-    updateSystemTheme(mediaQuery) // Initial check
+    updateSystemTheme(mediaQuery)
     mediaQuery.addEventListener('change', updateSystemTheme)
-    return () => mediaQuery.removeEventListener('change', updateSystemTheme)
-  }, [])
 
-  React.useEffect(() => {
+    // Check mobile
     const checkMobile = () => {
       const isMobileView = window.innerWidth < 1024
       setIsMobile(isMobileView)
     }
-
     checkMobile()
     window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
 
-  React.useEffect(() => {
     // Keep color theme in sync with persistence
     const savedColorTheme = document.documentElement.classList.value
       .split(' ')
       .find(className => className.startsWith('theme-'))
       ?.replace('theme-', '') as ColorTheme | undefined
-
     if (savedColorTheme) {
       setColorTheme(savedColorTheme)
+    }
+
+    return () => {
+      mediaQuery.removeEventListener('change', updateSystemTheme)
+      window.removeEventListener('resize', checkMobile)
     }
   }, [])
 
   const handleSignOut = async () => {
     try {
+      // Use the redirectUrl option to specify where to redirect after sign-out
       await signOut()
       if (navigator.vibrate) navigator.vibrate([20])
       toast({
         title: "Signed out successfully",
         variant: "default",
       })
-      // Redirect user after sign out, e.g., to the login page
-      router.push("/login")
-    } catch {
+      // Manually redirect to sign-in page
+      router.push("/sign-in")
+    } catch (error) {
+      console.error("Sign out error:", error)
       toast({
         title: "Error signing out",
         variant: "destructive",
@@ -167,7 +180,7 @@ export function Sidebar({ className }: { className?: string }) {
     setColorTheme(selectedTheme)
     document.documentElement.classList.remove('theme-purple', 'theme-neutral', 'theme-minimal', 'theme-modern')
     document.documentElement.classList.add(`theme-${selectedTheme}`)
-    updateTheme(theme || 'system', selectedTheme)
+    updateTheme(theme as 'light' | 'dark' | 'system', selectedTheme)
   }
 
   const NavigationLink = ({ item }: { item: NavigationItem }) => {
@@ -239,13 +252,18 @@ export function Sidebar({ className }: { className?: string }) {
     </div>
   )
 
+  // Don't render until mounted to avoid hydration issues
+  if (!mounted) {
+    return null
+  }
+
   return (
     <>
       {/* Overlay */}
       {isOpen && (
         <div
           className={cn(
-            "fixed inset-0 bg-background/0  z-40",
+            "fixed inset-0 bg-background/50 backdrop-blur-sm z-40",
             "lg:hidden" // Only show overlay on mobile
           )}
           onClick={toggle}
@@ -256,8 +274,8 @@ export function Sidebar({ className }: { className?: string }) {
         className={cn(
           "border-r bg-card h-screen w-[280px]",
           "z-50 fixed left-0 top-0",
-          `transition-transform duration-&lsqb;${TRANSITION_DURATION}ms&rsqb; ${TRANSITION_TIMING}`,
-          !isOpen && "-translate-x-full",
+          `transition-transform duration-[${TRANSITION_DURATION}ms] ${TRANSITION_TIMING}`,
+          !isOpen && "-translate-x-full", // Removed lg:translate-x-0 to allow hiding on all screen sizes
           "overflow-hidden flex flex-col",
           className
         )}
@@ -423,12 +441,29 @@ export function Sidebar({ className }: { className?: string }) {
 
             <Button
               variant="ghost"
-              onClick={handleSignOut}
               className="w-full justify-start px-2 text-xs group"
+              onClick={() => setIsSignOutDialogOpen(true)}
             >
               <LogOut className="mr-2 h-3.5 w-3.5 group-hover:text-primary" />
               Sign out
             </Button>
+
+            <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Sign out confirmation</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to sign out of your account?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleSignOut} className="bg-primary hover:bg-primary/90">
+                    Sign out
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </aside>

@@ -7,12 +7,17 @@ import { DayPicker } from "react-day-picker"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>
+export type CalendarProps = React.ComponentProps<typeof DayPicker> & {
+  // Define additional props here if needed, but omit showMonthYearPicker
+  showMonthYearPicker?: boolean // Keep it in the type but remove it before passing to DayPicker
+}
 
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  // Destructure showMonthYearPicker here to remove it from props
+  showMonthYearPicker, // We'll ignore this prop
   ...props
 }: CalendarProps) {
   return (
@@ -24,6 +29,8 @@ function Calendar({
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
         caption_label: "text-sm font-medium",
+        caption_dropdowns: "flex justify-center gap-1",
+        dropdown: "appearance-none bg-transparent px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),

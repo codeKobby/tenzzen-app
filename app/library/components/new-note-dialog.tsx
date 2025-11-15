@@ -18,7 +18,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -30,7 +29,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { NoteInterface } from "../page"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { RichTextEditor } from "@/components/rich-text-editor"
 
 const categories = [
   { id: "course", name: "Course Notes" },
@@ -102,7 +102,7 @@ export function NewNoteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editingNote ? "Edit Note" : "Create New Note"}</DialogTitle>
           <DialogDescription>
@@ -181,10 +181,11 @@ export function NewNoteDialog({
                 <FormItem>
                   <FormLabel>Content</FormLabel>
                   <FormControl>
-                    <Textarea
+                    <RichTextEditor
+                      content={field.value}
+                      onChange={field.onChange}
                       placeholder="Write your note content here..."
-                      className="min-h-[200px]"
-                      {...field}
+                      minHeight="300px"
                     />
                   </FormControl>
                   <FormMessage />
