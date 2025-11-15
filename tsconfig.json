@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "forceConsistentCasingInFileNames": true,
+    "target": "es2018",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,

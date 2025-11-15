@@ -33,7 +33,7 @@ export function TokenVerificationForm({ email }: { email: string }) {
         title: 'Success',
         description: 'Email verified successfully',
       })
-      router.push('/auth/signin?message=email-verified')
+      router.push('/sign-in?message=email-verified')
     } catch (error) {
       toast({
         title: 'Error',

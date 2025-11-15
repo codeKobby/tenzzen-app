@@ -70,14 +70,14 @@ export function Header() {
             ) : (
               <>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href="/signin">Sign In</Link>
+                  <Link href="/sign-in">Sign In</Link>
                 </Button>
                 <Button
                   size="sm"
                   asChild
                   className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
                 >
-                  <Link href="/signup">Get Started</Link>
+                  <Link href="/sign-up">Get Started</Link>
                 </Button>
               </>
             )}
@@ -99,7 +99,7 @@ export function Header() {
                 asChild
                 className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
               >
-                <Link href="/signup">Get Started</Link>
+                <Link href="/sign-up">Get Started</Link>
               </Button>
             )}
             <DropdownMenu>
@@ -147,12 +147,12 @@ export function Header() {
                 ) : (
                   <>
                     <DropdownMenuItem asChild className="focus:bg-accent">
-                      <Link href="/signin" className="w-full flex items-center py-2 px-3 hover:bg-accent rounded-md">
+                      <Link href="/sign-in" className="w-full flex items-center py-2 px-3 hover:bg-accent rounded-md">
                         Sign In
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="focus:bg-primary">
-                      <Link href="/signup" className="w-full flex items-center py-2 px-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium">
+                      <Link href="/sign-up" className="w-full flex items-center py-2 px-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium">
                         Get Started
                       </Link>
                     </DropdownMenuItem>

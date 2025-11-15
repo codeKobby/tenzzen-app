@@ -1,6 +1,12 @@
 import { QueryCtx } from "./_generated/server"
 import type { DbVideo, DbPlaylist, DbPlaylistVideo } from "./youtubeTypes"
 
+// Helper to get authenticated user ID
+export async function getUserId(ctx: QueryCtx): Promise<string | null> {
+  const identity = await ctx.auth.getUserIdentity();
+  return identity?.subject ?? null;
+}
+
 // Helper to check if video exists in cache
 export async function checkVideoCache(
   ctx: QueryCtx,
@@ -31,12 +37,12 @@ export function formatDate(date: string | Date): string {
 // Helper to validate YouTube IDs
 export function validateYouTubeId(id: string, type: 'video' | 'playlist'): boolean {
   if (!id) return false
-  
+
   // Video IDs are 11 characters
   if (type === 'video' && id.length !== 11) return false
-  
+
   // Playlist IDs typically start with PL, UU, or similar
   if (type === 'playlist' && id.length < 12) return false
-  
+
   return true
 }

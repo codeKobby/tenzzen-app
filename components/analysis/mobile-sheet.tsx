@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Sheet } from "react-modal-sheet"
+import Sheet from "react-modal-sheet"
 import { VideoContent } from "@/components/analysis/video-content"
 import { useAnalysis } from "@/hooks/use-analysis-context"
 import { X } from "lucide-react" // Import X icon for close button

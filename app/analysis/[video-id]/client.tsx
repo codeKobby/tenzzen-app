@@ -21,7 +21,11 @@ import { Sparkles } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { TranscriptDisplay } from '../../../components/analysis/transcript-display'
 import { getYoutubeTranscript, TranscriptSegment } from '../../../actions/getYoutubeTranscript'
+import { generateCourseFromYoutube } from '../../../actions/generateCourseFromYoutube'
+import { useAuth } from '../../../hooks/use-auth'
 import { Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import type { Id } from '../../../convex/_generated/dataModel'
 
 // Improve the type guard to be more specific
 const isPlaylist = (content: ContentDetails | null): content is PlaylistDetails => {
@@ -65,6 +69,15 @@ function Content({ initialContent, initialError }: ContentProps) {
     [videoId: string]: TranscriptSegment[]
   }>({})
   const [currentLoadingVideoId, setCurrentLoadingVideoId] = React.useState<string | null>(null)
+  const [courseGenerationProgress, setCourseGenerationProgress] = React.useState<{
+    step: string;
+    progress: number;
+    message: string;
+  } | null>(null)
+  const [isGeneratingCourse, setIsGeneratingCourse] = React.useState(false)
+  const [generatedCourseId, setGeneratedCourseId] = React.useState<Id<"courses"> | null>(null)
+  const router = useRouter()
+  const { user, isAuthenticated } = useAuth()
 
   // Add a ref to track whether we've already opened the sheet
   const initialOpenDoneRef = React.useRef(false);
@@ -112,51 +125,100 @@ function Content({ initialContent, initialError }: ContentProps) {
   }, [initialContent, initialError, setVideoData])
 
   const handleGenerateCourse = React.useCallback(async () => {
-    if (!videoData) return;
+    // Early validation checks
+    if (!videoData) {
+      setTranscriptError("No video data available. Please select a video first.");
+      return;
+    }
+    
+    if (!isAuthenticated || !user?.id) {
+      setTranscriptError("Please sign in to generate courses");
+      return;
+    }
 
-    setShowingTranscript(true);
-    setTranscriptLoading(true);
-    setTranscriptError(null);
+    // Additional safety check for video data structure
+    if (!videoData.id || !videoData.type) {
+      setTranscriptError("Invalid video data. Please try selecting the content again.");
+      return;
+    }
+
+    setIsGeneratingCourse(true);
+    setTranscriptError(null); // Clear any previous errors
+    setCourseGenerationProgress({
+      step: "Preparing",
+      progress: 10,
+      message: "Getting ready to analyze your content..."
+    });
 
     try {
-      if (isPlaylist(videoData)) {
-        // For playlists, load first few videos' transcripts sequentially
-        const videoIds = videoData.videos.slice(0, 5).map(v => v.videoId); // Limit to 5 videos for performance
+      // Step 1: Construct YouTube URL
+      const youtubeUrl = videoData.type === "playlist"
+        ? `https://www.youtube.com/playlist?list=${videoData.id}`
+        : `https://www.youtube.com/watch?v=${videoData.id}`;
 
-        // Fix: Use traditional for loop instead of entries() iterator
-        for (let index = 0; index < videoIds.length; index++) {
-          const videoId = videoIds[index];
-          setCurrentLoadingVideoId(videoId);
+      setCourseGenerationProgress({
+        step: "Fetching Transcript",
+        progress: 20,
+        message: "Extracting video transcript..."
+      });
 
-          try {
-            const transcript = await getYoutubeTranscript(videoId);
-            setPlaylistTranscripts(prev => ({
-              ...prev,
-              [videoId]: transcript
-            }));
-          } catch (error) {
-            console.error(`Error fetching transcript for video ${videoId}:`, error);
-            // Continue with next video even if one fails
-          }
+      // Step 2: Generate course with AI (this handles transcript fetching internally)
+      setCourseGenerationProgress({
+        step: "Analyzing Content",
+        progress: 40,
+        message: "AI is analyzing the content and extracting key concepts..."
+      });
 
-          // Small delay to prevent rate limiting
-          if (index < videoIds.length - 1) {
-            await new Promise(r => setTimeout(r, 500));
-          }
-        }
-      } else {
-        // For single video
-        const transcript = await getYoutubeTranscript(videoData.id);
-        setVideoTranscript(transcript);
+      const result = await generateCourseFromYoutube(youtubeUrl, {
+        userId: user.id,
+        isPublic: false,
+      });
+
+      if (!result.success || !result.courseId) {
+        throw new Error(result.error || "Failed to generate course");
       }
+
+      setCourseGenerationProgress({
+        step: "Generating Structure",
+        progress: 70,
+        message: "Creating modules and lessons..."
+      });
+
+      // Small delay for UX
+      await new Promise(r => setTimeout(r, 1000));
+
+      setCourseGenerationProgress({
+        step: "Finalizing",
+        progress: 90,
+        message: "Saving your personalized course..."
+      });
+
+      await new Promise(r => setTimeout(r, 500));
+
+      // Step 3: Success!
+      setGeneratedCourseId(result.courseId);
+      setCourseGenerationProgress({
+        step: "Complete",
+        progress: 100,
+        message: "Your course is ready!"
+      });
+
+      // Navigate to course after a moment
+      setTimeout(() => {
+        if (result.courseId) {
+          router.push(`/courses/${result.courseId}`);
+        }
+      }, 2000);
+
     } catch (error) {
-      console.error('Error fetching transcript:', error);
-      setTranscriptError(error instanceof Error ? error.message : 'Failed to load transcript');
+      console.error('Error generating course:', error);
+      setTranscriptError(error instanceof Error ? error.message : 'Something went wrong while creating your course. Please try again.');
+      setCourseGenerationProgress(null);
+      setIsGeneratingCourse(false);
     } finally {
-      setTranscriptLoading(false);
       setCurrentLoadingVideoId(null);
     }
-  }, [videoData]);
+  }, [videoData, isAuthenticated, user, router]);
 
   // Create formatted video data for transcript display
   const formattedPlaylistVideos = React.useMemo(() => {
@@ -165,10 +227,10 @@ function Content({ initialContent, initialError }: ContentProps) {
     return videoData.videos
       .slice(0, 5) // Limit to first 5 videos for performance
       .map((video: VideoItem) => ({
-        videoId: video.videoId,
+        videoId: video.id, // Use 'id' instead of 'videoId'
         title: video.title,
-        transcript: playlistTranscripts[video.videoId] || null,
-        loading: currentLoadingVideoId === video.videoId
+        transcript: playlistTranscripts[video.id] || null, // Use 'id' instead of 'videoId'
+        loading: currentLoadingVideoId === video.id // Use 'id' instead of 'videoId'
       }));
   }, [videoData, playlistTranscripts, currentLoadingVideoId]);
 
@@ -204,27 +266,89 @@ function Content({ initialContent, initialError }: ContentProps) {
           {/* Main content area with course generation button and transcript display */}
           <div className="flex-1 min-w-0">
             <div className="p-6 h-full flex flex-col items-center justify-center">
-              {!showingTranscript ? (
+              {courseGenerationProgress ? (
                 <div className="text-center max-w-md">
-                  <h3 className="text-xl font-semibold mb-2">Ready to analyze content?</h3>
+                  <div className="mb-6">
+                    <div className="w-16 h-16 mx-auto mb-4 relative">
+                      <div className="w-full h-full border-4 border-primary/20 rounded-full"></div>
+                      <div
+                        className="absolute top-0 left-0 w-full h-full border-4 border-primary rounded-full transition-all duration-500 ease-out"
+                        style={{
+                          clipPath: `polygon(0 0, ${courseGenerationProgress.progress}% 0, ${courseGenerationProgress.progress}% 100%, 0 100%)`
+                        }}
+                      ></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+                      </div>
+                    </div>
+
+                    <h3 className="text-lg font-semibold mb-2">{courseGenerationProgress.step}</h3>
+                    <p className="text-muted-foreground text-sm mb-4">{courseGenerationProgress.message}</p>
+
+                    <div className="w-full bg-secondary rounded-full h-2 mb-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${courseGenerationProgress.progress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{courseGenerationProgress.progress}% complete</p>
+
+                    {courseGenerationProgress.step === "Complete" && generatedCourseId && (
+                      <div className="mt-6 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                        <p className="text-green-700 dark:text-green-300 text-sm font-medium">
+                          🎉 Course created successfully! Redirecting...
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : transcriptError ? (
+                <div className="text-center max-w-md">
+                  <div className="p-6 border rounded-lg bg-destructive/10 mb-4">
+                    <p className="text-destructive font-medium mb-2">⚠️ Generation Failed</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {transcriptError}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setTranscriptError(null);
+                      setIsGeneratingCourse(false);
+                    }}
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              ) : !showingTranscript ? (
+                <div className="text-center max-w-md">
+                  <h3 className="text-xl font-semibold mb-2">Ready to generate course?</h3>
                   <p className="text-muted-foreground mb-6">
-                    Generate a transcript and analyze the content structure.
+                    We'll analyze your content and create a personalized learning course just for you.
                   </p>
+
+                  {!isAuthenticated && (
+                    <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg">
+                      <p className="text-amber-700 dark:text-amber-300 text-sm">
+                        Please sign in to generate courses
+                      </p>
+                    </div>
+                  )}
 
                   <Button
                     onClick={handleGenerateCourse}
-                    disabled={!videoData}
+                    disabled={!videoData || isGeneratingCourse || !isAuthenticated}
                     size="lg"
                     className="gap-2 px-6 py-6 h-auto text-base font-medium transition-all hover:scale-105 hover:shadow-md"
                   >
                     <Sparkles className="h-5 w-5" />
-                    Get Transcript
+                    {isGeneratingCourse ? "Generating..." : "Generate Course"}
                   </Button>
 
                   <p className="text-sm text-muted-foreground mt-6">
                     {!videoData
                       ? "Select content from the left panel to begin"
-                      : `Using ${isPlaylist(videoData) ? "playlist" : "video"}: ${videoData.title.slice(0, 50)}${videoData.title.length > 50 ? '...' : ''}`
+                      : `Using ${videoData.type === "playlist" ? "playlist" : "video"}: ${videoData.title?.slice(0, 50) || "Unknown"}${videoData.title && videoData.title.length > 50 ? '...' : ''}`
                     }
                   </p>
                 </div>
@@ -248,8 +372,13 @@ function Content({ initialContent, initialError }: ContentProps) {
                     </div>
                   ) : transcriptError ? (
                     <div className="p-6 border rounded-lg bg-destructive/10 text-center">
-                      <p className="text-destructive font-medium mb-2">Failed to load transcript</p>
-                      <p className="text-sm text-muted-foreground">{transcriptError}</p>
+                      <p className="text-destructive font-medium mb-2">Oops! Something went wrong</p>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        We couldn't process your content right now. This might be because the video doesn't have captions available, or there was a temporary issue.
+                      </p>
+                      <p className="text-xs text-muted-foreground/70 mb-4">
+                        Error: {transcriptError}
+                      </p>
                       <Button
                         variant="outline"
                         className="mt-4"

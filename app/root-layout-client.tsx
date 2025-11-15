@@ -1,7 +1,6 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { Providers } from "./providers"
 import { AuthenticatedLayout } from "@/components/authenticated-layout"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CookieConsent } from "@/components/cookie-consent"
@@ -12,11 +11,9 @@ interface RootLayoutClientProps {
 
 export function RootLayoutClient({ children }: RootLayoutClientProps) {
   return (
-    <Providers>
-      <RootLayoutContent>
-        {children}
-      </RootLayoutContent>
-    </Providers>
+    <RootLayoutContent>
+      {children}
+    </RootLayoutContent>
   )
 }
 
