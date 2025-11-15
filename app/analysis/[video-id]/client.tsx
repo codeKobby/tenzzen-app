@@ -25,7 +25,7 @@ import { generateCourseFromYoutube } from '../../../actions/generateCourseFromYo
 import { useAuth } from '../../../hooks/use-auth'
 import { Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import type { Id } from '../../../convex/_generated/dataModel'
+import type { Id } from '@/convex/_generated/dataModel'
 
 // Improve the type guard to be more specific
 const isPlaylist = (content: ContentDetails | null): content is PlaylistDetails => {
