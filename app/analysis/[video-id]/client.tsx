@@ -130,7 +130,7 @@ function Content({ initialContent, initialError }: ContentProps) {
       setTranscriptError("No video data available. Please select a video first.");
       return;
     }
-    
+
     if (!isAuthenticated || !user?.id) {
       setTranscriptError("Please sign in to generate courses");
       return;
@@ -206,7 +206,7 @@ function Content({ initialContent, initialError }: ContentProps) {
       // Navigate to course after a moment
       setTimeout(() => {
         if (result.courseId) {
-          router.push(`/courses/${result.courseId}`);
+          router.push(`/courses/${result.courseId}` as any);
         }
       }, 2000);
 
