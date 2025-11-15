@@ -1,32 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-<<<<<<< HEAD
-  // Disable ESLint during builds to prevent build failures
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
-  // Disable TypeScript type checking during builds
   typescript: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has TypeScript errors.
     ignoreBuildErrors: true,
   },
-  // Output as standalone to optimize for deployment
   output: 'standalone',
-  // Skip trailing slash redirect to improve performance
   skipTrailingSlashRedirect: true,
-  // Skip middleware URL normalization for better compatibility
   skipMiddlewareUrlNormalize: true,
-  // Configure image domains for next/image
   images: {
     domains: [
       "images.unsplash.com",
       "i.ytimg.com",
       "img.youtube.com",
-      "yt3.ggpht.com", // YouTube channel thumbnails
-      "yt3.googleusercontent.com", // YouTube profile pictures
+      "yt3.ggpht.com",
+      "yt3.googleusercontent.com",
       "ytimg.googleusercontent.com",
     ],
     remotePatterns: [
@@ -45,9 +34,7 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: "inline",
   },
-  // Configure webpack
   webpack: (config, { isServer }) => {
-    // Module resolution for AI SDK in Edge runtime
     if (!isServer) {
       if (!config.resolve) {
         config.resolve = {};
@@ -55,8 +42,6 @@ const nextConfig = {
       if (!config.resolve.fallback) {
         config.resolve.fallback = {};
       }
-
-      // Use object spread to make a clean copy and avoid potential mutation issues
       config.resolve.fallback = {
         ...config.resolve.fallback,
         child_process: false,
@@ -65,46 +50,11 @@ const nextConfig = {
         tls: false,
       };
     }
-
-    // Optimize webpack cache to reduce memory usage and improve performance
     if (config.cache) {
-      // Use memory cache type instead of filesystem to reduce the warning about serializing big strings
       config.cache = {
         type: 'memory',
       };
     }
-
-    // Return the modified config
-    return config;
-  },
-  experimental: {
-    // Enable memory optimizations for webpack
-    webpackMemoryOptimizations: true,
-    // Configure server actions
-    serverActions: {
-      // Add any specific server actions configuration here if needed
-      bodySizeLimit: '2mb'
-    }
-  },
-=======
-  reactStrictMode: false,
-  images: {
-    formats: ['image/avif', 'image/webp'],
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
-    ],
-  },
-  experimental: {
-    typedRoutes: true,
-    serverActions: {
-      allowedOrigins: ["localhost:3000"],
-      bodySizeLimit: "2mb"
-    }
-  },
-  webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': '.',
@@ -115,8 +65,16 @@ const nextConfig = {
       '@/actions': './actions'
     };
     return config;
-  }
->>>>>>> master
+  },
+  experimental: {
+    webpackMemoryOptimizations: true,
+    typedRoutes: true,
+    serverActions: {
+      allowedOrigins: ["localhost:3000"],
+      bodySizeLimit: '2mb'
+    }
+  },
+  reactStrictMode: false,
 };
 
 module.exports = nextConfig;

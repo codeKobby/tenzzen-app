@@ -13,7 +13,9 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as courses from "../courses.js";
 import type * as helpers from "../helpers.js";
+import type * as quizzes from "../quizzes.js";
 import type * as types from "../types.js";
 import type * as videos from "../videos.js";
 import type * as youtubeTypes from "../youtubeTypes.js";
@@ -27,7 +29,9 @@ import type * as youtubeTypes from "../youtubeTypes.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  courses: typeof courses;
   helpers: typeof helpers;
+  quizzes: typeof quizzes;
   types: typeof types;
   videos: typeof videos;
   youtubeTypes: typeof youtubeTypes;

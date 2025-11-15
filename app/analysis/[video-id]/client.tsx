@@ -1,23 +1,11 @@
 "use client";
 
-<<<<<<< HEAD
-import React, { useEffect, useState, useRef } from "react"; // Explicitly import React
-import { CoursePanel } from "@/components/analysis/course-panel";
-import { CoursePanelSkeleton } from "@/components/analysis/course-panel-skeleton";
-import { VideoContent } from "@/components/analysis/video-content";
-import { ResizablePanel } from "@/components/resizable-panel";
-import { MobileSheet } from "@/components/analysis/mobile-sheet";
-import { AnalysisHeader } from "@/components/analysis/header";
-import { AnalysisProvider, useAnalysis } from "@/hooks/use-analysis-context";
-import { CoursePanelProvider } from "@/components/analysis/course-panel-context";
-=======
 import * as React from "react"
 import { AnalysisHeader } from '../../../components/analysis/header'
 import { ResizablePanel } from '../../../components/resizable-panel'
 import { AnalysisProvider, useAnalysis } from '../../../hooks/use-analysis-context'
 import { VideoContent } from '../../../components/analysis/video-content'
 import { MobileSheet } from '../../../components/analysis/mobile-sheet'
->>>>>>> master
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,19 +14,9 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-<<<<<<< HEAD
-  AlertDialogTitle
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { getYoutubeData } from "@/actions/getYoutubeData";
-import type { ContentDetails } from "@/types/youtube";
-import { GoogleAICourseGenerateButton } from "@/components/google-ai-course-generate-button";
-import { XCircle, Loader2 } from "lucide-react"; // Import XCircle
-=======
   AlertDialogTitle,
 } from '../../../components/ui/alert-dialog'
-import type { ContentDetails, PlaylistDetails, VideoDetails, VideoItem } from '../../../types/youtube'
+import type { ContentDetails, PlaylistDetails, VideoDetails } from '../../../types/youtube'
 import { Sparkles } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { TranscriptDisplay } from '../../../components/analysis/transcript-display'
@@ -49,6 +27,13 @@ import { Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { Id } from '@/convex/_generated/dataModel'
 
+// Define VideoItem type locally
+type VideoItem = {
+  id: string;
+  title: string;
+  [key: string]: any;
+};
+
 // Improve the type guard to be more specific
 const isPlaylist = (content: ContentDetails | null): content is PlaylistDetails => {
   return content !== null && content.type === "playlist";
@@ -58,7 +43,6 @@ const isPlaylist = (content: ContentDetails | null): content is PlaylistDetails 
 const isVideo = (content: ContentDetails | null): content is VideoDetails => {
   return content !== null && content.type === "video";
 }
->>>>>>> master
 
 interface ContentProps {
   initialContent: ContentDetails | null;
@@ -87,13 +71,6 @@ function Content({ initialContent, initialError }: ContentProps) {
     setCourseGenerating
   } = useAnalysis();
 
-<<<<<<< HEAD
-  const [mounted, setMounted] = useState(false);
-  const [hasMounted, setHasMounted] = useState(false);
-  const [loading, setLoading] = useState(initialContent === null && !initialError);
-  const [error, setError] = useState<string | null>(initialError);
-  const initialOpenDoneRef = useRef(false);
-=======
   const [mounted, setMounted] = React.useState(false)
   const [hasMounted, setHasMounted] = React.useState(false)
   const [loading, setLoading] = React.useState(initialContent === null && !initialError)
@@ -106,10 +83,20 @@ function Content({ initialContent, initialError }: ContentProps) {
     [videoId: string]: TranscriptSegment[]
   }>({})
   const [currentLoadingVideoId, setCurrentLoadingVideoId] = React.useState<string | null>(null)
->>>>>>> master
+  const [courseGenerationProgress, setCourseGenerationProgress] = React.useState<{
+    step: string;
+    progress: number;
+    message: string;
+  } | null>(null)
+  const [isGeneratingCourse, setIsGeneratingCourse] = React.useState(false)
+  const [generatedCourseId, setGeneratedCourseId] = React.useState<Id<"courses"> | null>(null)
+  const router = useRouter()
+  const { user, isAuthenticated } = useAuth()
+  const initialOpenDoneRef = React.useRef(false)
+  const initialVideoLoadError = error
 
   // Only open sheet on first load for mobile
-  useEffect(() => {
+  React.useEffect(() => {
     if (initialOpenDoneRef.current) return;
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
@@ -125,7 +112,7 @@ function Content({ initialContent, initialError }: ContentProps) {
   }, [isOpen, mounted, hasMounted, toggle]);
 
   // Regular mounting logic
-  useEffect(() => {
+  React.useEffect(() => {
     setMounted(true);
     const timer = setTimeout(() => {
       setHasMounted(true);
@@ -138,7 +125,7 @@ function Content({ initialContent, initialError }: ContentProps) {
   }, []);
 
   // Set video data when initialContent changes
-  useEffect(() => {
+  React.useEffect(() => {
     if (initialContent) {
       setLoading(false);
       setVideoData(initialContent);
@@ -147,40 +134,6 @@ function Content({ initialContent, initialError }: ContentProps) {
     }
   }, [initialContent, initialError, setVideoData]);
 
-<<<<<<< HEAD
-  // Debug log for courseData and courseGenerating
-  useEffect(() => {
-    console.log("[Content] CRITICAL STATE CHANGE:", {
-      hasCourseData: !!courseData,
-      courseGenerating,
-      courseDataKeys: courseData ? Object.keys(courseData) : [],
-      courseError: !!courseError
-    });
-
-    // Force re-render if we have course data but still showing generating
-    if (courseData && courseGenerating) {
-      console.log("[Content] CRITICAL FIX: Force setting courseGenerating to false because we have course data");
-      // Use setTimeout to avoid state updates during render phase
-      setTimeout(() => {
-        setCourseGenerating(false);
-      }, 0);
-    }
-
-    // Add additional debugging to check if courseData exists but is empty or invalid
-    if (courseData) {
-      console.log("[Content] DETAILED COURSE DATA CHECK:", {
-        hasVideoId: !!courseData.videoId,
-        hasTitle: !!courseData.title,
-        hasSections: Array.isArray(courseData.sections) && courseData.sections.length > 0,
-        courseDataType: typeof courseData,
-        isObject: courseData !== null && typeof courseData === 'object'
-      });
-    }
-  }, [courseData, courseGenerating, courseError, setCourseGenerating]);
-
-  // Use initialError passed down for initial video loading error
-  const initialVideoLoadError = error; // Rename state variable for clarity
-=======
   const handleGenerateCourse = React.useCallback(async () => {
     // Early validation checks
     if (!videoData) {
@@ -275,8 +228,7 @@ function Content({ initialContent, initialError }: ContentProps) {
     } finally {
       setCurrentLoadingVideoId(null);
     }
-  }, [videoData]);
->>>>>>> master
+  }, [videoData, isAuthenticated, user, router]);
 
   // Create formatted video data for transcript display
   const formattedPlaylistVideos = React.useMemo(() => {
@@ -317,58 +269,11 @@ function Content({ initialContent, initialError }: ContentProps) {
             <MobileSheet
               isOpen={isOpen}
               onClose={() => toggle(false)}
-<<<<<<< HEAD
-              // Pass loading/error state related to initial video fetch
-=======
->>>>>>> master
               loading={loading}
               error={initialVideoLoadError}
             />
           )}
 
-<<<<<<< HEAD
-          {/* Right side - Course Panel or Initial Button/State */}
-          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-            {/* State 1: Initial Loading or Error for videoData - REMOVED, now handled by the simplified logic below */}
-
-            {/* State 2: videoData loaded, ready for generation (Show Button) - REMOVED, now handled by the simplified logic below */}
-
-            {/* ULTRA SIMPLIFIED RENDERING LOGIC - ONLY THREE STATES */}
-            {courseData ? (
-              // Priority 1: Show course panel when we have data from API
-              <div className="flex-1 z-10 w-full h-full">
-                <CoursePanelProvider courseData={courseData}>
-                  <CoursePanel className="w-full h-full" />
-                </CoursePanelProvider>
-              </div>
-            ) : courseGenerating ? (
-              // Priority 2: Show skeleton when course is generating
-              <div className="flex-1 z-10 w-full h-full">
-                <CoursePanelSkeleton className="w-full h-full" />
-              </div>
-            ) : videoData ? (
-              // Priority 3: Show generate button if we have video data but nothing else
-              <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
-                <p className="text-muted-foreground mb-4">Video details loaded. Ready to generate course structure.</p>
-                <GoogleAICourseGenerateButton />
-              </div>
-            ) : loading ? (
-              // Priority 4: Show loading state
-              <div className="flex-1 flex items-center justify-center p-4 text-center">
-                <p className="text-muted-foreground">Loading video details...</p>
-              </div>
-            ) : initialVideoLoadError ? (
-              // Priority 5: Show error state
-              <div className="flex-1 flex items-center justify-center p-4 text-center">
-                <p className="text-destructive">Error loading video details: {initialVideoLoadError}</p>
-              </div>
-            ) : (
-              // Priority 6: Fallback - should never reach here
-              <div className="flex-1 flex items-center justify-center p-4 text-center">
-                <p className="text-muted-foreground">Waiting for video data...</p>
-              </div>
-            )}
-=======
           {/* Main content area with course generation button and transcript display */}
           <div className="flex-1 min-w-0">
             <div className="p-6 h-full flex flex-col items-center justify-center">
@@ -508,7 +413,6 @@ function Content({ initialContent, initialError }: ContentProps) {
                 </div>
               )}
             </div>
->>>>>>> master
           </div>
         </div>
       </main>
@@ -534,58 +438,10 @@ function Content({ initialContent, initialError }: ContentProps) {
 }
 
 interface AnalysisClientProps {
-  videoId: string;
+  initialContent: ContentDetails | null;
+  initialError: string | null;
 }
 
-<<<<<<< HEAD
-export function AnalysisClient({ videoId }: AnalysisClientProps) {
-  const [initialContent, setInitialContent] = useState<ContentDetails | null>(null);
-  const [initialError, setInitialError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getYoutubeData(videoId);
-
-        // Ensure the data has a valid id
-        if (data) {
-          console.log("[AnalysisClient] Fetched initial video data:", data); // Log fetched data
-          const contentWithId = {
-            ...data,
-            id: videoId || data.id,
-          };
-          setInitialContent(contentWithId);
-        } else {
-          setInitialError("Could not load video data");
-        }
-      } catch (err) {
-        setInitialError(err instanceof Error ? err.message : "Failed to load video");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (videoId) {
-      loadData();
-    }
-  }, [videoId]);
-
-  // Apply overflow hidden to the html and body for this page
-  useEffect(() => {
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.documentElement.style.overflow = '';
-      document.body.style.overflow = '';
-    };
-  }, []);
-
-  return (
-    <div id="main" className="h-full w-full flex flex-col bg-background overflow-hidden">
-=======
 export function AnalysisClient({ initialContent, initialError }: AnalysisClientProps) {
   // Debug log to see what's being passed in
   React.useEffect(() => {
@@ -593,7 +449,6 @@ export function AnalysisClient({ initialContent, initialError }: AnalysisClientP
       type: initialContent.type,
       id: initialContent.id,
       title: initialContent.title,
-      videoCount: initialContent.type === 'playlist' ? initialContent.videoCount : 'N/A',
       videosLength: initialContent.type === 'playlist' ? initialContent.videos?.length : 'N/A'
     } : null);
     console.log("Initial error:", initialError);
@@ -603,16 +458,9 @@ export function AnalysisClient({ initialContent, initialError }: AnalysisClientP
     <div id="main" className="h-full w-full flex flex-col bg-background">
       {/* Remove the standalone Toaster - we're using the global one from providers.tsx */}
 
->>>>>>> master
       <AnalysisProvider initialContent={initialContent}>
         <AnalysisHeader />
-        {isLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-muted-foreground">Loading video data...</p>
-          </div>
-        ) : (
-          <Content initialContent={initialContent} initialError={initialError} />
-        )}
+        <Content initialContent={initialContent} initialError={initialError} />
       </AnalysisProvider>
     </div>
   );

@@ -1,6 +1,5 @@
 "use client";
 
-<<<<<<< HEAD
 import { useState, useCallback, useMemo } from "react";
 import { useAnalysis } from "@/hooks/use-analysis-context";
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,6 @@ import { cn } from "@/lib/utils";
 const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
   return content.type === "playlist";
 };
-=======
 import { useState, useCallback, useMemo } from "react"
 import { useAnalysis } from "@/hooks/use-analysis-context"
 import { Button } from "@/components/ui/button"
@@ -69,21 +67,6 @@ const isValidContentDetails = (data: any): data is ContentDetails => {
   );
 };
 
-<<<<<<< HEAD
-const createVideoKey = (video: VideoDetails | PlaylistVideo, index: number): string => {
-  return `${video.id}-${index}`;
-};
-
-const openInNewTab = (url: string): void => {
-  window.open(url, '_blank', 'noopener,noreferrer');
-};
-
-export function VideoContent({ loading, error }: VideoContentProps) {
-  const { videoData, setVideoData } = useAnalysis();
-  const [expandedVideoIds, setExpandedVideoIds] = useState<Set<string>>(new Set());
-  const [showVideoOpenDialog, setShowVideoOpenDialog] = useState(false);
-  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
-=======
 const createVideoKey = (video: VideoItem, index: number): string => {
   return `${video.id}-${index}`;
 };
@@ -113,13 +96,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
 
   const updateVideoData = useCallback((data: unknown) => {
     if (!data) {
-<<<<<<< HEAD
-      setVideoData(null);
-      return;
-    }
-    if (isValidContentDetails(data)) {
-      setVideoData(data);
-=======
       setVideoData(null)
       return
     }
@@ -184,85 +160,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
       console.error('Invalid content type:', data);
       setVideoData(null);
     }
-<<<<<<< HEAD
-  }, [setVideoData]);
-
-  const handleVideoClick = useCallback(async (videoId: string): Promise<void> => {
-    if (videoData && isPlaylist(videoData)) {
-      try {
-        const details = await getYoutubeData(videoId); // Changed from getVideoDetails
-        if (!details) {
-          console.error('No video details returned');
-          return;
-        }
-        if (isValidContentDetails(details) && details.type === 'video') {
-          updateVideoData(details);
-        }
-      } catch (error) {
-        console.error('Error fetching video details:', error);
-        const playlistVideo = videoData.videos.find((v) => v.id === videoId);
-        if (playlistVideo) {
-          updateVideoData(playlistVideo);
-        }
-      }
-      return;
-    }
-
-    const url = `https://youtube.com/watch?v=${videoId}`;
-    if (dontShowVideoDialog) {
-      openInNewTab(url);
-    } else {
-      setSelectedVideoUrl(url);
-      setShowVideoOpenDialog(true);
-    }
-  }, [videoData, updateVideoData, dontShowVideoDialog]);
-
-  const handlePlaylistClick = useCallback((playlistId: string): void => {
-    const url = `https://youtube.com/playlist?list=${playlistId}`;
-    if (dontShowVideoDialog) {
-      openInNewTab(url);
-    } else {
-      setSelectedVideoUrl(url);
-      setShowVideoOpenDialog(true);
-    }
-  }, [dontShowVideoDialog]);
-
-  const toggleVideoExpand = useCallback((videoId: string): void => {
-    setExpandedVideoIds(prev => {
-      const newSet = new Set(prev);
-      if (prev.has(videoId)) {
-        newSet.delete(videoId);
-      } else {
-        newSet.add(videoId);
-      }
-      return newSet;
-    });
-  }, []);
-
-  const toggleDescription = useCallback((): void => {
-    setShowFullDescription(prev => !prev);
-  }, []);
-
-  const handleRemoveVideo = useCallback((video: PlaylistVideo, event: React.MouseEvent) => {
-    event.stopPropagation();
-
-    // Update state immediately
-    setRemovedVideos(prev => ({ ...prev, [video.id]: video }));
-    setActiveCancelId(video.id); // Set active cancel ID for visual feedback
-
-    const toastId = `remove-${video.id}`;
-
-    // Show the toast with an Undo button
-    toast.custom((id: string | number) => (
-      <div className={cn(
-        "flex flex-col gap-2 rounded-lg border bg-background p-4 shadow-lg",
-      )}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex flex-col gap-1">
-            <div className="text-sm font-medium">Video removed from list</div>
-            <div className="text-xs text-muted-foreground">
-              This video has been removed from your playlist
-=======
   }, [dontShowVideoDialog])
 
   const toggleVideoExpand = useCallback((videoId: string): void => {
@@ -313,48 +210,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
               Undo
             </Button>
           </div>
-<<<<<<< HEAD
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              // Undo logic: Remove from removedVideos and clear activeCancelId
-              setRemovedVideos(prev => {
-                const newRemoved = { ...prev };
-                delete newRemoved[video.id];
-                return newRemoved;
-              });
-              setActiveCancelId(null);
-              toast.dismiss(id); // Dismiss this specific toast
-            }}
-            className="border border-border px-2 h-8 hover:bg-accent hover:text-accent-foreground"
-          >
-            Undo
-          </Button>
-        </div>
-        {/* Progress bar for auto-dismiss visualization */}
-        <div className="w-full h-[3px] bg-muted rounded-full overflow-hidden mt-2">
-          <div
-            className="h-full bg-primary animate-countdown-progress"
-          // Add a utility class if needed or configure animation duration in CSS/Tailwind
-          />
-        </div>
-      </div>
-    ), {
-      id: toastId,
-      duration: 5000, // Auto-dismiss after 5 seconds
-      // onDismiss and onAutoClose are called when the toast is removed
-      onDismiss: () => {
-        // Ensure activeCancelId is cleared if the toast is dismissed (not via Undo)
-        setActiveCancelId(currentId => (currentId === video.id ? null : currentId));
-      },
-      onAutoClose: () => {
-        // Ensure activeCancelId is cleared if the toast auto-closes
-        setActiveCancelId(currentId => (currentId === video.id ? null : currentId));
-      }
-    });
-  }, [setRemovedVideos, setActiveCancelId]); // Dependencies for useCallback
-=======
 
           <div className="w-full h-[3px] bg-muted rounded-full overflow-hidden mt-2">
             <div
@@ -418,21 +273,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                   className="w-28 relative cursor-pointer rounded-lg overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
                   onClick={() => handleVideoClick(videoData.id)}
                 >
-<<<<<<< HEAD
-                  {videoData.id ? (
-                    <YouTubeThumbnail
-                      videoId={videoData.id}
-                      alt={videoData.title}
-                      className="w-full aspect-video"
-                    />
-                  ) : (
-                    <PlaceholderImage
-                      src={videoData.thumbnail}
-                      alt={videoData.title}
-                      className="w-full aspect-video object-cover"
-                    />
-                  )}
-=======
                   <PlaceholderImage
                     src={videoData.thumbnail}
                     alt={videoData.title || "Video thumbnail"}
@@ -507,9 +347,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
           // Playlist Display
           <div className="space-y-4">
             <div className="sticky top-0 z-50 bg-background pt-2 pb-3 -mt-2 -mx-4 px-4 border-b border-border/40">
-<<<<<<< HEAD
-              {/* ... (rest of playlist header code remains the same) ... */}
-=======
 >>>>>>> master
               <div className="flex gap-4">
                 <div className="flex-shrink-0">
@@ -517,21 +354,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                     className="w-24 relative cursor-pointer rounded-lg overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
                     onClick={() => handlePlaylistClick(videoData.id)}
                   >
-<<<<<<< HEAD
-                    {videoData.id ? (
-                      <YouTubeThumbnail
-                        videoId={videoData.id}
-                        alt={videoData.title}
-                        className="w-full aspect-video"
-                      />
-                    ) : (
-                      <PlaceholderImage
-                        src={videoData.thumbnail}
-                        alt={videoData.title}
-                        className="w-full aspect-video object-cover"
-                      />
-                    )}
-=======
                     <PlaceholderImage
                       src={videoData.thumbnail}
                       alt={videoData.title || "Video thumbnail"}
@@ -560,11 +382,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
             <div className="space-y-4 pt-2 relative z-0">
               {videoData.videos
                 .filter(video => !removedVideos[video.id])
-<<<<<<< HEAD
-                .map((video, index) => (
-                  <div key={createVideoKey(video, index)} className="group -mx-4 px-4">
-                    <div className={`hover:bg-secondary/50 rounded-lg ${expandedVideoIds.has(video.id) ? "bg-secondary/30" : ""}`}>
-=======
                 .map((video: VideoItem, index: number) => (
                   <div key={createVideoKey(video, index)} className="group -mx-4 px-4">
                     <div className={`hover:bg-secondary/50 rounded-lg ${expandedVideoId === video.id ? "bg-secondary/30" : ""}`}>
@@ -595,21 +412,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                             className="w-24 relative cursor-pointer rounded overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/20 transition-all duration-200"
                             onClick={() => handleVideoClick(video.id)}
                           >
-<<<<<<< HEAD
-                            {video.id ? (
-                              <YouTubeThumbnail
-                                videoId={video.id}
-                                alt={video.title}
-                                className="w-full aspect-video"
-                              />
-                            ) : (
-                              <PlaceholderImage
-                                src={video.thumbnail}
-                                alt={video.title}
-                                className="w-full aspect-video object-cover"
-                              />
-                            )}
-=======
                             <PlaceholderImage
                               src={video.thumbnail}
                               alt={video.title || "Video thumbnail"}
@@ -665,18 +467,11 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                             </Button>
                           </div>
 
-<<<<<<< HEAD
-                          {/* Conditional rendering of progress bar based on activeCancelId */}
-=======
 >>>>>>> master
                           {activeCancelId === video.id && (
                             <div className="w-full mt-1 bg-muted h-[3px] rounded-full overflow-hidden">
                               <div
                                 className="bg-primary h-full animate-countdown-progress"
-<<<<<<< HEAD
-                                // Add a utility class if needed or configure animation duration in CSS/Tailwind
-                                onAnimationEnd={() => setActiveCancelId(null)} // Use callback
-=======
                                 style={{ animationDuration: "5s" }}
                                 onAnimationEnd={() => setActiveCancelId(null)}
 >>>>>>> master
@@ -686,22 +481,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                         </div>
                       </div>
 
-<<<<<<< HEAD
-                      {expandedVideoIds.has(video.id) && (
-                        <div className="relative">
-                          {/* ... (rest of expanded video details code remains the same) ... */}
-                          <div className="absolute inset-0 bg-background/95 backdrop-blur-[2px]" />
-                          <div className="relative z-10 px-2 pb-4 mt-2">
-                            <div className="mt-1 space-y-4">
-                              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70 pb-3 border-b">
-                                <span>{video.views} views</span>
-                                <span>{video.likes} likes</span>
-                                <span>{video.publishDate}</span>
-                              </div>
-                              <div className="text-xs leading-relaxed text-foreground/90 whitespace-pre-wrap break-words overflow-x-hidden">
-                                {video.description}
-                              </div>
-=======
                       {expandedVideoId === video.id && (
                         <div className="px-2 pb-4 mt-2">
                           <div className="mt-1 space-y-4">
