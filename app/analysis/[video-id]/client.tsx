@@ -27,6 +27,7 @@ import { useAuth } from '../../../hooks/use-auth'
 import { Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { Id } from '@/convex/_generated/dataModel'
+import { toast } from '@/components/custom-toast'
 
 // Improve the type guard to be more specific
 const isPlaylist = (content: ContentDetails | null): content is PlaylistDetails => {
@@ -205,12 +206,42 @@ function Content({ initialContent, initialError }: ContentProps) {
         message: "Your course is ready!"
       });
 
-      // Navigate to the course page
-      setTimeout(() => {
+      // Fetch the course data and show in panel
+      setTimeout(async () => {
         if (result.courseId) {
-          setIsGeneratingCourse(false);
-          setCourseGenerationProgress(null);
-          router.push(`/courses/${result.courseId}`);
+          try {
+            const { ConvexHttpClient } = await import('convex/browser');
+            const { api } = await import('@/convex/_generated/api');
+
+            // Use the public Convex URL from environment variable
+            const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+            if (!convexUrl) {
+              throw new Error('NEXT_PUBLIC_CONVEX_URL not configured');
+            }
+
+            const convex = new ConvexHttpClient(convexUrl);
+
+            // Fetch the full course with modules and lessons
+            const courseWithContent = await convex.query(api.courses.getCourseWithContent, {
+              courseId: result.courseId
+            });
+
+            if (courseWithContent) {
+              // Set course data and show panel
+              setCourseData(courseWithContent);
+              setShowCoursePanel(true);
+            } else {
+              console.error('No course content returned from query');
+            }
+          } catch (error) {
+            console.error('Error fetching course data:', error);
+            toast.error("Failed to load course", {
+              description: "Your course was created but couldn't be loaded. You can find it in your courses page."
+            });
+          } finally {
+            setIsGeneratingCourse(false);
+            setCourseGenerationProgress(null);
+          }
         }
       }, 1500);
 

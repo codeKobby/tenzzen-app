@@ -176,3 +176,52 @@ export const getLesson = query({
     return await ctx.db.get(args.lessonId);
   },
 });
+
+// Mutation to delete a course and all its related data
+export const deleteCourse = mutation({
+  args: { courseId: v.id("courses") },
+  handler: async (ctx, args) => {
+    const userId = await getUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    // Verify the user owns the course
+    const course = await ctx.db.get(args.courseId);
+    if (!course) throw new Error("Course not found");
+    if (course.createdBy !== userId) throw new Error("Unauthorized");
+
+    // Delete all lessons associated with the course
+    const lessons = await ctx.db
+      .query("lessons")
+      .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+      .collect();
+    
+    for (const lesson of lessons) {
+      await ctx.db.delete(lesson._id);
+    }
+
+    // Delete all modules associated with the course
+    const modules = await ctx.db
+      .query("modules")
+      .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+      .collect();
+    
+    for (const module of modules) {
+      await ctx.db.delete(module._id);
+    }
+
+    // Delete all enrollments for the course
+    const enrollments = await ctx.db
+      .query("user_enrollments")
+      .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+      .collect();
+    
+    for (const enrollment of enrollments) {
+      await ctx.db.delete(enrollment._id);
+    }
+
+    // Finally, delete the course itself
+    await ctx.db.delete(args.courseId);
+
+    return { success: true };
+  },
+});

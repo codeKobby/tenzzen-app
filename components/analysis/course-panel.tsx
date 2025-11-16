@@ -60,7 +60,8 @@ function normalizeCourseData(
   // Log the raw data keys if available
   if (raw) {
     console.log("[Normalize] Raw data keys:", Object.keys(raw));
-    console.log("[Normalize] Raw videoId:", raw.videoId);
+    console.log("[Normalize] Raw sourceId:", raw.sourceId);
+    console.log("[Normalize] Raw modules:", raw.modules ? "Present" : "Not present");
   }
 
   // Log the initialVideoData keys if available
@@ -89,6 +90,68 @@ function normalizeCourseData(
   console.log("[Normalize] Input raw (generated):", raw);
   console.log("[Normalize] Input initialVideoData:", initialVideoData);
 
+  // Handle Convex course structure (has modules array)
+  if (raw?.modules && Array.isArray(raw.modules)) {
+    console.log("[Normalize] Detected Convex course structure");
+
+    const videoId = raw.sourceId || initialVideoData?.id || "";
+    const title = raw.title || initialVideoData?.title || "Generated Course";
+    const description = raw.description || "";
+    const image = raw.sourceUrl || initialVideoData?.thumbnail || "/placeholders/course-thumbnail.jpg";
+
+    // Build sources
+    let sources: any[] = [];
+    if (initialVideoData?.channelName) {
+      sources.push({
+        name: initialVideoData.channelName,
+        avatar: initialVideoData.channelAvatar || '/placeholder-avatar.png',
+        type: 'youtube_channel'
+      });
+    }
+
+    // Convert Convex modules to courseItems format
+    const courseItems = raw.modules.map((module: any, moduleIndex: number) => ({
+      type: 'section',
+      title: module.title || `Module ${moduleIndex + 1}`,
+      description: module.description || "",
+      lessons: (module.lessons || []).map((lesson: any, lessonIndex: number) => ({
+        id: lesson._id || `lesson-${moduleIndex}-${lessonIndex}`,
+        title: lesson.title || `Lesson ${lessonIndex + 1}`,
+        description: lesson.description || "",
+        duration: lesson.durationMinutes ? `${lesson.durationMinutes} min` : undefined,
+        keyPoints: lesson.keyPoints || [],
+      })),
+      objective: module.description || undefined,
+      keyPoints: [],
+    }));
+
+    const metadata = {
+      category: "General",
+      tags: [],
+      difficulty: raw.targetAudience || "Beginner",
+      prerequisites: raw.prerequisites || [],
+      objectives: raw.learningObjectives || [],
+      overviewText: raw.description || "",
+      resources: [],
+      duration: raw.estimatedDuration || (initialVideoData && initialVideoData.type === "video" ? initialVideoData.duration : "Variable duration"),
+      sources: sources,
+    };
+
+    return {
+      _id: raw._id, // Include Convex ID
+      title,
+      description,
+      image,
+      videoId,
+      metadata,
+      courseItems,
+      project: null,
+      creatorResources: [],
+      creatorSocials: []
+    };
+  }
+
+  // Original format handling...
   const title = initialVideoData?.title || raw?.title || raw?.course_title || "Generated Course";
   const description = raw?.description || initialVideoData?.description || "";
 
@@ -139,9 +202,9 @@ function normalizeCourseData(
     ...(raw?.metadata || {}),
   };
 
-  // Get duration from YouTube video data if available
+  // Get duration from YouTube video data if available (only VideoDetails has duration)
   let duration = metadataBase.duration;
-  if (initialVideoData?.duration) {
+  if (initialVideoData?.type === "video" && initialVideoData.duration) {
     duration = initialVideoData.duration;
   } else if (metadataBase.duration === "Variable duration" && raw?.estimated_duration) {
     duration = raw.estimated_duration;
@@ -651,8 +714,7 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
 // --- Main CoursePanel Component ---
 export function CoursePanel({ className }: { className?: string }) {
   const {
-    courseGenerating, courseError, cancelGeneration,
-    courseData: contextCourseData, videoData, setCourseGenerating
+    courseData: contextCourseData, videoData
   } = useAnalysis();
   const courseData = normalizeCourseData(contextCourseData, videoData);
   const [activeTab, setActiveTab] = useState("overview");
@@ -664,18 +726,8 @@ export function CoursePanel({ className }: { className?: string }) {
       console.log("[CoursePanel] Course data available:", {
         hasVideoId: !!courseData.videoId,
         title: courseData.title,
-        courseGenerating,
         keys: Object.keys(courseData)
       });
-
-      // Force courseGenerating to false if we have course data
-      if (courseGenerating) {
-        console.log("[CoursePanel] Setting courseGenerating to false because we have course data");
-        // Use setTimeout to avoid state updates during render phase
-        setTimeout(() => {
-          setCourseGenerating(false);
-        }, 0);
-      }
 
       // Ensure we have a valid courseData object with required fields
       const courseDataAny = courseData as any;
@@ -699,9 +751,9 @@ export function CoursePanel({ className }: { className?: string }) {
         ];
       }
     } else {
-      console.log("[CoursePanel] No courseData available, courseGenerating:", courseGenerating);
+      console.log("[CoursePanel] No courseData available");
     }
-  }, [courseData, courseGenerating, setCourseGenerating]);
+  }, [courseData]);
 
   const handleScroll = () => { if (scrollContainerRef.current) { setShowScrollTop(scrollContainerRef.current.scrollTop > 300) } }; // Ensure 300 has no leading zero
   const scrollToTop = () => { if (scrollContainerRef.current) { scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }) } }; // Ensure 0 has no leading zero
@@ -711,19 +763,15 @@ export function CoursePanel({ className }: { className?: string }) {
   // Add duration_seconds if available from videoData
   // Parse duration from videoData if it's in ISO 8601 format (PT1H2M10S)
   let duration_seconds = 0;
-  if (videoData) {
-    if (typeof videoData.duration_seconds === 'number') {
-      duration_seconds = videoData.duration_seconds;
-    } else if (videoData.duration && typeof videoData.duration === 'string') {
-      // Try to parse the duration string
-      const match = videoData.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-      if (match) {
-        const [, hours, minutes, seconds] = match;
-        duration_seconds =
-          (parseInt(hours || '0') * 3600) +
-          (parseInt(minutes || '0') * 60) +
-          parseInt(seconds || '0');
-      }
+  if (videoData && videoData.type === 'video' && videoData.duration) {
+    // Try to parse the duration string (ISO 8601 format)
+    const match = videoData.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (match) {
+      const [, hours, minutes, seconds] = match;
+      duration_seconds =
+        (parseInt(hours || '0') * 3600) +
+        (parseInt(minutes || '0') * 60) +
+        parseInt(seconds || '0');
     }
   }
 
@@ -778,8 +826,6 @@ export function CoursePanel({ className }: { className?: string }) {
 
   // Log the current state before rendering
   console.log("[CoursePanel] Rendering with state:", {
-    courseGenerating,
-    hasCourseError: !!courseError,
     hasCourseData: !!courseData,
     hasVideoId: courseData?.videoId ? true : false
   });
@@ -795,7 +841,6 @@ export function CoursePanel({ className }: { className?: string }) {
   console.log("[CoursePanel] Rendering with courseData:", courseData ? {
     hasVideoId: !!courseData.videoId,
     title: courseData.title,
-    courseGenerating,
     courseDataType: typeof courseData,
     courseItemsCount: Array.isArray(courseData.courseItems) ? courseData.courseItems.length : 'Not an array'
   } : "No course data");
@@ -810,8 +855,7 @@ export function CoursePanel({ className }: { className?: string }) {
             <p className="text-muted-foreground mb-2">Course data is missing entirely.</p>
             <pre className="mt-2 text-xs text-left bg-muted p-2 rounded overflow-auto max-h-40">
               {JSON.stringify({
-                hasCourseData: !!courseData,
-                courseGenerating
+                hasCourseData: !!courseData
               }, null, 2)}
             </pre>
           </div>

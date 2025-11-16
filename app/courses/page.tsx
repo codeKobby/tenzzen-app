@@ -33,6 +33,9 @@ import { useCategoryUserCourses } from "./hooks/use-category-user-courses"
 import { CategoryPills } from "@/components/category-pills"
 import { CourseCardSkeleton } from "@/components/ui/course-card-skeleton"
 import { AnimatePresence, motion } from "framer-motion"
+import { useMutation } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 
 // Filters for course status
 const filters: { id: CourseFilter; label: string }[] = [
@@ -120,70 +123,45 @@ export default function CoursesPage() {
     setSelectedCourses(new Set([courseId]))
   }
 
+  // Convex delete mutation
+  const deleteCourse = useMutation(api.courses.deleteCourse);
+
   // Handle bulk delete
   const handleBulkDelete = async () => {
-    if (!userId || selectedCourses.size === 0 || !supabase) return
+    if (!userId || selectedCourses.size === 0) return
 
     try {
-      // First get the Supabase user ID from the Clerk ID
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('clerk_id', userId)
-        .single();
-
-      if (userError) {
-        console.error("Error getting user from Supabase:", userError);
-        throw new Error("Failed to get user data");
-      }
-
-      if (!userData) {
-        console.log("No user found in Supabase");
-        return;
-      }
-
-      // Delete each selected course enrollment
+      // Delete each selected course
       let deleteCount = 0;
       const deletePromises = Array.from(selectedCourses).map(async (courseId) => {
-        console.log(`Deleting enrollment for course ${courseId}`);
-        const { error } = await supabase
-          .from('enrollments')
-          .delete()
-          .eq('user_id', userData.id)
-          .eq('course_id', courseId);
-
-        if (error) {
-          console.error(`Error deleting enrollment for course ${courseId}:`, error);
+        try {
+          console.log(`Deleting course ${courseId}`);
+          await deleteCourse({ courseId: courseId as Id<"courses"> });
+          deleteCount++;
+          return true;
+        } catch (error) {
+          console.error(`Error deleting course ${courseId}:`, error);
           return false;
         }
-
-        deleteCount++;
-        return true;
       });
 
       // Wait for all delete operations to complete
       await Promise.all(deletePromises);
 
-      // Show success message - use setTimeout to avoid React state updates during rendering
-      setTimeout(() => {
-        toast.success(
-          deleteCount === 1
-            ? "Course deleted successfully"
-            : `${deleteCount} courses deleted successfully`
-        );
-      }, 0);
+      // Show success message
+      toast.success(
+        deleteCount === 1
+          ? "Course deleted successfully"
+          : `${deleteCount} courses deleted successfully`
+      );
 
-      // Exit selection mode and refresh data
+      // Exit selection mode - Convex will automatically update the list
       setSelectionMode(false);
       setSelectedCourses(new Set());
-      refreshCourses();
 
     } catch (error) {
       console.error("Failed to delete courses:", error);
-      // Use setTimeout to avoid React state updates during rendering
-      setTimeout(() => {
-        toast.error("Failed to delete some courses");
-      }, 0);
+      toast.error("Failed to delete some courses");
     }
   }
 

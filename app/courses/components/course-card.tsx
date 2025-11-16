@@ -45,6 +45,9 @@ import { deleteUserEnrollment } from "@/lib/local-storage"
 import { useAuth } from "@clerk/nextjs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useRouter } from "next/navigation"
+import { useMutation } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 
 
 interface CourseCardProps {
@@ -69,8 +72,10 @@ export function CourseCard({
   onLongPress
 }: CourseCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { userId } = useAuth()
   const router = useRouter()
+  const deleteCourse = useMutation(api.courses.deleteCourse);
 
   // Long press handling for mobile
   const [pressStartTime, setPressStartTime] = useState<number | null>(null)
@@ -147,32 +152,40 @@ export function CourseCard({
     console.log(action)
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!userId) return
 
+    setIsDeleting(true);
+
     try {
-      // Delete enrollment from localStorage
-      deleteUserEnrollment(userId, course.id)
+      // Delete course from Convex
+      await deleteCourse({ courseId: course.id as Id<"courses"> });
 
       // Show success toast
-      toast.success("Course removed successfully", {
+      toast.success("Course deleted successfully", {
         description: "The course has been removed from your library"
       })
 
-      // If this component is used in a list, we may want to trigger a refresh
-      // This could be passed as a prop from the parent component
-      // For now, we'll just refresh the page after a short delay
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
+      // Close the dialog - Convex will automatically update the courses list
+      setIsDeleteDialogOpen(false);
     } catch (error) {
-      toast.error("Failed to remove course", {
+      console.error("Error deleting course:", error);
+      toast.error("Failed to delete course", {
         description: "Please try again later"
       })
+      setIsDeleteDialogOpen(false);
+      setIsDeleting(false);
     }
   }
 
   const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent navigation if course is being deleted
+    if (isDeleting) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     // If in selection mode, toggle selection instead of normal click
     if (selectionMode && onSelect) {
       e.preventDefault()
@@ -636,8 +649,8 @@ export function CourseCard({
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               onClick={(e) => {
                 e.preventDefault()
+                e.stopPropagation()
                 handleDelete()
-                setIsDeleteDialogOpen(false)
               }}
             >
               Delete
