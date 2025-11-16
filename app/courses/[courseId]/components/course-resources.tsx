@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookOpen, ExternalLink, File, FileText, Search, Video } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -17,63 +18,53 @@ interface Resource {
     type: string;
     url: string;
     description?: string;
+    category?: string;
     sourceType?: string;
 }
 
 export function CourseResources({ course }: CourseResourcesProps) {
     const [searchQuery, setSearchQuery] = useState("")
-    const [resourceType, setResourceType] = useState("all")
+    const [resourceCategory, setResourceCategory] = useState("all")
 
-    // Get resources from course metadata or use defaults
-    const allResources: Resource[] = course.metadata?.resources || [
-        {
-            title: "Course Supplementary Materials",
-            type: "link",
-            url: "https://example.com/resources",
-            description: "Additional materials to support your learning"
-        },
-        {
-            title: "Recommended Reading",
-            type: "article",
-            url: "https://example.com/reading",
-            description: "Articles and guides related to this course"
-        },
-        {
-            title: "Practice Exercises",
-            type: "pdf",
-            url: "#",
-            description: "Exercises to reinforce your learning"
-        },
-        {
-            title: "Project Templates",
-            type: "code",
-            url: "https://github.com/example/templates",
-            description: "Starter templates for course projects"
-        },
-        {
-            title: "Video Tutorials",
-            type: "video",
-            url: "https://www.youtube.com/watch?v=example",
-            description: "Additional video tutorials on key concepts"
+    // Get resources from course metadata (excluding Social links as they're in the header)
+    const allResources: Resource[] = (course.metadata?.resources || []).filter((r: Resource) => r.category !== "Social")
+
+    // Separate resources by category (Social links are excluded)
+    const creatorLinks = allResources.filter(r => r.category === "Creator Links")
+    const otherResources = allResources.filter(r => r.category === "Other Resources")
+
+    // Filter resources based on search and category
+    const getFilteredResources = () => {
+        let resources = allResources
+
+        if (resourceCategory !== "all") {
+            resources = allResources.filter(r => r.category === resourceCategory)
         }
-    ]
 
-    // Filter resources based on search and type
-    const filteredResources = allResources.filter(resource => {
-        const matchesSearch = searchQuery === "" ||
-            resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (resource.description && resource.description.toLowerCase().includes(searchQuery.toLowerCase()))
+        if (searchQuery) {
+            resources = resources.filter(resource =>
+                resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (resource.description && resource.description.toLowerCase().includes(searchQuery.toLowerCase()))
+            )
+        }
 
-        const matchesType = resourceType === "all" || resource.type === resourceType
+        return resources
+    }
 
-        return matchesSearch && matchesType
-    })
+    const filteredResources = getFilteredResources()
 
-    // Get icon for resource type
-    const getResourceIcon = (type: string) => {
-        switch (type) {
+    // Get icon for resource based on category and type
+    const getResourceIcon = (resource: Resource) => {
+        if (resource.category === "Social") {
+            // Social media specific icons would go here
+            // For now, use a generic link icon
+            return <ExternalLink className="h-4 w-4" />
+        }
+
+        switch (resource.type?.toLowerCase()) {
             case "video":
                 return <Video className="h-4 w-4" />
+            case "documentation":
             case "article":
                 return <FileText className="h-4 w-4" />
             case "pdf":
@@ -82,6 +73,20 @@ export function CourseResources({ course }: CourseResourcesProps) {
                 return <BookOpen className="h-4 w-4" />
             default:
                 return <ExternalLink className="h-4 w-4" />
+        }
+    }
+
+    // Get color scheme based on category
+    const getResourceColor = (category: string) => {
+        switch (category) {
+            case "Social":
+                return "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+            case "Creator Links":
+                return "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+            case "Other Resources":
+                return "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+            default:
+                return "bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400"
         }
     }
 
@@ -99,16 +104,14 @@ export function CourseResources({ course }: CourseResourcesProps) {
                     />
                 </div>
                 <Tabs
-                    value={resourceType}
-                    onValueChange={setResourceType}
+                    value={resourceCategory}
+                    onValueChange={setResourceCategory}
                     className="w-full sm:w-auto"
                 >
-                    <TabsList className="grid grid-cols-5 w-full sm:w-auto">
-                        <TabsTrigger value="all">All</TabsTrigger>
-                        <TabsTrigger value="video">Videos</TabsTrigger>
-                        <TabsTrigger value="article">Articles</TabsTrigger>
-                        <TabsTrigger value="pdf">PDFs</TabsTrigger>
-                        <TabsTrigger value="code">Code</TabsTrigger>
+                    <TabsList className="grid grid-cols-3 w-full sm:w-auto">
+                        <TabsTrigger value="all">All ({allResources.length})</TabsTrigger>
+                        <TabsTrigger value="Creator Links">Creator ({creatorLinks.length})</TabsTrigger>
+                        <TabsTrigger value="Other Resources">Other ({otherResources.length})</TabsTrigger>
                     </TabsList>
                 </Tabs>
             </div>
@@ -123,16 +126,17 @@ export function CourseResources({ course }: CourseResourcesProps) {
                         >
                             <div className={cn(
                                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                                resource.type === "video" ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" :
-                                    resource.type === "article" ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" :
-                                        resource.type === "pdf" ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" :
-                                            resource.type === "code" ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" :
-                                                "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+                                getResourceColor(resource.category || "Other Resources")
                             )}>
-                                {getResourceIcon(resource.type)}
+                                {getResourceIcon(resource)}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h3 className="font-medium text-base">{resource.title}</h3>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="font-medium text-base">{resource.title}</h3>
+                                    <Badge variant="outline" className="text-xs">
+                                        {resource.category || "Resource"}
+                                    </Badge>
+                                </div>
                                 {resource.description && (
                                     <p className="text-sm text-muted-foreground mt-1">{resource.description}</p>
                                 )}

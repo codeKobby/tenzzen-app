@@ -161,10 +161,13 @@ export function CourseContent({ course, onSelectLesson, completedLessons = [], i
                                 )}>
                                     {section.lessons?.map((lesson: any, lessonIndex: number) => {
                                         const isCompleted = isLessonCompleted(sectionIndex, lessonIndex);
-                                        // Format duration using the standardized format
-                                        const duration = typeof lesson.duration === 'number'
-                                            ? formatDurationFromSeconds(lesson.duration)
-                                            : lesson.duration || "10m";
+                                        // Display timestamps if available, otherwise show duration
+                                        const hasTimestamps = lesson.timestampStart && lesson.timestampEnd;
+                                        const timeDisplay = hasTimestamps
+                                            ? `${lesson.timestampStart} - ${lesson.timestampEnd}`
+                                            : (typeof lesson.duration === 'number'
+                                                ? formatDurationFromSeconds(lesson.duration)
+                                                : lesson.duration || "10m");
 
                                         return (
                                             <li key={lesson.id || `lesson-${sectionIndex}-${lessonIndex}`}>
@@ -200,7 +203,7 @@ export function CourseContent({ course, onSelectLesson, completedLessons = [], i
                                                     </div>
                                                     <div className="flex items-center text-xs text-muted-foreground">
                                                         <Clock className="h-3.5 w-3.5 mr-1" />
-                                                        <span>{duration}</span>
+                                                        <span>{timeDisplay}</span>
                                                     </div>
                                                 </Button>
                                             </li>

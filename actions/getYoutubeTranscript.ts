@@ -27,8 +27,18 @@ export async function getYoutubeTranscript(
       location: 'US'
     });
 
-    // Get video info
-    const info = await youtube.getInfo(videoId);
+    // Get video info - wrap in try-catch to catch parser errors
+    let info;
+    try {
+      info = await youtube.getInfo(videoId);
+    } catch (parseError: any) {
+      // If it's a parser error, log it and fall back immediately
+      if (parseError.message?.includes('not found') || parseError.message?.includes('Parser')) {
+        console.log('[YOUTUBEJS] Parser error detected, falling back to alternative method');
+        throw new Error('YouTube.js parser error - using fallback');
+      }
+      throw parseError;
+    }
 
     // Check if captions are available
     if (!info.captions) {

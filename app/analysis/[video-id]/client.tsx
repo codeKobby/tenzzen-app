@@ -6,7 +6,10 @@ import { ResizablePanel } from '../../../components/resizable-panel'
 import { AnalysisProvider, useAnalysis } from '../../../hooks/use-analysis-context'
 import { VideoContent } from '../../../components/analysis/video-content'
 import { MobileSheet } from '../../../components/analysis/mobile-sheet'
-import { CoursePanel } from '../../../components/analysis/course-panel'
+import dynamic from "next/dynamic"
+import { CoursePanelSkeleton } from '@/components/analysis/course-panel-skeleton'
+import { CoursePanelProvider } from '@/components/analysis/course-panel-context'
+import { useMediaQuery } from "@/hooks/use-media-query"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +31,14 @@ import { Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { Id } from '@/convex/_generated/dataModel'
 import { toast } from '@/components/custom-toast'
+
+const CoursePanel = dynamic(
+  () => import('@/components/analysis/course-panel').then((mod) => mod.CoursePanel),
+  {
+    ssr: false,
+    loading: () => <CoursePanelSkeleton />,
+  }
+)
 
 // Improve the type guard to be more specific
 const isPlaylist = (content: ContentDetails | null): content is PlaylistDetails => {
@@ -85,24 +96,34 @@ function Content({ initialContent, initialError }: ContentProps) {
   const [generatedCourseId, setGeneratedCourseId] = React.useState<Id<"courses"> | null>(null)
   const router = useRouter()
   const { user, isAuthenticated } = useAuth()
+  const isMobile = useMediaQuery("(max-width: 640px)")
   const initialOpenDoneRef = React.useRef(false)
   const initialVideoLoadError = error
 
   // Only open sheet on first load for mobile
   React.useEffect(() => {
-    if (initialOpenDoneRef.current) return;
-
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-
-    if (isMobile && !isOpen && mounted && hasMounted) {
-      const timer = setTimeout(() => {
-        toggle(true);
-        initialOpenDoneRef.current = true;
-      }, 200);
-
-      return () => clearTimeout(timer);
+    if (!isMobile && isOpen) {
+      toggle(false)
     }
-  }, [isOpen, mounted, hasMounted, toggle]);
+  }, [isMobile, isOpen, toggle])
+
+  React.useEffect(() => {
+    if (!isMobile) return;
+    if (initialOpenDoneRef.current) return;
+    if (!mounted || !hasMounted) return;
+
+    if (isOpen) {
+      initialOpenDoneRef.current = true;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      toggle(true);
+      initialOpenDoneRef.current = true;
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [isMobile, isOpen, mounted, hasMounted, toggle]);
 
   // Regular mounting logic
   React.useEffect(() => {
@@ -293,13 +314,13 @@ function Content({ initialContent, initialError }: ContentProps) {
             >
               <div className="h-full overflow-auto hover:scrollbar scrollbar-thin">
                 {/* Pass loading/error state related to initial video fetch */}
-                <VideoContent loading={loading} error={initialVideoLoadError} videoData={videoData} />
+                <VideoContent loading={loading} error={initialVideoLoadError} />
               </div>
             </ResizablePanel>
           </div>
 
           {/* Mobile bottom sheet */}
-          {mounted && hasMounted && (
+          {isMobile && mounted && hasMounted && (
             <MobileSheet
               isOpen={isOpen}
               onClose={() => toggle(false)}
@@ -310,44 +331,62 @@ function Content({ initialContent, initialError }: ContentProps) {
 
           {/* Main content area with course generation button, transcript display, or course panel */}
           <div className="flex-1 min-w-0">
-            {showCoursePanel && courseData ? (
-              <CoursePanel />
+            {showCoursePanel ? (
+              courseData ? (
+                <CoursePanelProvider courseData={courseData}>
+                  <CoursePanel />
+                </CoursePanelProvider>
+              ) : (
+                <CoursePanelSkeleton className="h-full" />
+              )
             ) : (
               <div className="p-6 h-full flex flex-col items-center justify-center">
                 {courseGenerationProgress ? (
-                  <div className="text-center max-w-md">
-                    <div className="mb-6">
-                      <div className="w-16 h-16 mx-auto mb-4 relative">
-                        <div className="w-full h-full border-4 border-primary/20 rounded-full"></div>
-                        <div
-                          className="absolute top-0 left-0 w-full h-full border-4 border-primary rounded-full transition-all duration-500 ease-out"
-                          style={{
-                            clipPath: `polygon(0 0, ${courseGenerationProgress.progress}% 0, ${courseGenerationProgress.progress}% 100%, 0 100%)`
-                          }}
-                        ></div>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+                  <div className="relative w-full max-w-5xl">
+                    <CoursePanelSkeleton
+                      showOverlay={false}
+                      className="h-full rounded-2xl border shadow-sm"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-background/80 p-4 backdrop-blur-sm">
+                      <div className="w-full max-w-md rounded-2xl border bg-card p-6 text-center shadow-lg">
+                        <div className="mx-auto mb-6 h-16 w-16">
+                          <div className="relative h-full w-full">
+                            <div className="absolute inset-0 rounded-full border-4 border-primary/20"></div>
+                            {/* eslint-disable-next-line no-inline-styles */}
+                            <div
+                              className="absolute inset-0 rounded-full border-4 border-primary transition-all duration-500 ease-out"
+                              style={{
+                                clipPath: `polygon(0 0, ${courseGenerationProgress.progress}% 0, ${courseGenerationProgress.progress}% 100%, 0 100%)`
+                              }}
+                            ></div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+                            </div>
+                          </div>
                         </div>
-                      </div>
 
-                      <h3 className="text-lg font-semibold mb-2">{courseGenerationProgress.step}</h3>
-                      <p className="text-muted-foreground text-sm mb-4">{courseGenerationProgress.message}</p>
+                        <h3 className="text-lg font-semibold mb-2">{courseGenerationProgress.step}</h3>
+                        <p className="text-muted-foreground text-sm mb-4">
+                          {courseGenerationProgress.message}
+                        </p>
 
-                      <div className="w-full bg-secondary rounded-full h-2 mb-2">
-                        <div
-                          className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
-                          style={{ width: `${courseGenerationProgress.progress}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{courseGenerationProgress.progress}% complete</p>
-
-                      {courseGenerationProgress.step === "Complete" && generatedCourseId && (
-                        <div className="mt-6 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                          <p className="text-green-700 dark:text-green-300 text-sm font-medium">
-                            🎉 Course created successfully! Redirecting...
-                          </p>
+                        <div className="w-full bg-secondary rounded-full h-2 mb-2">
+                          {/* eslint-disable-next-line no-inline-styles */}
+                          <div
+                            className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
+                            style={{ width: `${courseGenerationProgress.progress}%` }}
+                          ></div>
                         </div>
-                      )}
+                        <p className="text-xs text-muted-foreground">{courseGenerationProgress.progress}% complete</p>
+
+                        {courseGenerationProgress.step === "Complete" && generatedCourseId && (
+                          <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-left dark:border-green-800 dark:bg-green-950">
+                            <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                              🎉 Course created successfully! Redirecting...
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ) : transcriptError ? (

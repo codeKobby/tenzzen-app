@@ -2,8 +2,11 @@
 
 import React, { createContext, useContext, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMutation } from 'convex/react';
 import { toast } from '@/components/custom-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 
 // Define the shape of the context
 interface CoursePanelContextType {
@@ -30,6 +33,7 @@ export const CoursePanelProvider = ({
     const router = useRouter();
     const { user } = useAuth();
     const [isEnrolling, setIsEnrolling] = useState(false);
+    const enrollMutation = useMutation(api.enrollments.enrollInCourse);
 
     const handleEnroll = async (courseData: any) => {
         console.log("[CoursePanelContext] handleEnroll called with courseData:", courseData);
@@ -62,78 +66,39 @@ export const CoursePanelProvider = ({
         });
 
         try {
+            const targetCourseId = (courseData?._id || courseData?.id || courseData?.courseId) as Id<'courses'> | undefined;
+            if (!targetCourseId) {
+                console.error('[CoursePanelContext] Missing course identifier in courseData');
+                setTimeout(() => {
+                    toast.error('Unable to start course', {
+                        description: 'Missing course identifier. Please regenerate the course and try again.'
+                    });
+                }, 0);
+                return;
+            }
+
             setIsEnrolling(true);
-            // Show loading toast
-            console.log("[CoursePanelContext] Setting isEnrolling to true and showing loading toast");
-            // Use setTimeout to avoid React state updates during rendering
+            console.log('[CoursePanelContext] Enrolling user via Convex mutation', {
+                courseId: targetCourseId,
+                userId: user.id,
+            });
+
             setTimeout(() => {
-                toast.info('Enrolling in course...', {
-                    description: 'Please wait while we process your enrollment'
+                toast.info('Preparing your course...', {
+                    description: 'Just a moment while we open your workspace.',
                 });
             }, 0);
 
-            console.log("[CoursePanelContext] Enrolling user in course:", {
-                title: courseData.title,
-                videoId: courseData.videoId,
-                userId: user.id
-            });
+            await enrollMutation({ userId: user.id, courseId: targetCourseId });
 
-            // First try to save the course to Supabase
-            console.log("[CoursePanelContext] Saving course to Supabase...");
-            const saveResponse = await fetch('/api/supabase/courses/save', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    courseData: {
-                        title: courseData.title,
-                        description: courseData.description || "",
-                        videoId: courseData.videoId,
-                        thumbnail: courseData.image || null,
-                        metadata: courseData.metadata || {},
-                        courseItems: courseData.courseItems || []
-                    }
-                }),
-            });
+            const targetPath = `/courses/${targetCourseId}`;
+            console.log('[CoursePanelContext] Enrollment successful, navigating to', targetPath);
 
-            if (!saveResponse.ok) {
-                console.error('[CoursePanelContext] Failed to save course to Supabase:', await saveResponse.json());
-                throw new Error('Failed to save course to Supabase');
-            }
-
-            const saveResult = await saveResponse.json();
-            console.log('[CoursePanelContext] Course saved to Supabase:', saveResult);
-
-            // Now enroll the user in the course
-            console.log("[CoursePanelContext] Enrolling user in Supabase course:", saveResult.courseId);
-            const enrollResponse = await fetch('/api/supabase/courses/enroll', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ courseId: saveResult.courseId }),
-            });
-
-            if (!enrollResponse.ok) {
-                console.error('[CoursePanelContext] Failed to enroll in Supabase course:', await enrollResponse.json());
-                throw new Error('Failed to enroll in course');
-            }
-
-            const enrollResult = await enrollResponse.json();
-            console.log('[CoursePanelContext] Enrolled in Supabase course:', enrollResult);
-
-            // Handle success - use setTimeout to avoid React state updates during rendering
             setTimeout(() => {
-                toast.success('Successfully enrolled in course!');
-
-                // Add a small delay to ensure the toast is visible before navigation
-                console.log("[CoursePanelContext] Setting timeout for navigation");
+                toast.success('Course ready!');
                 setTimeout(() => {
-                    // Redirect to courses page after enrollment
-                    console.log("[CoursePanelContext] Navigating to courses page");
-                    router.push('/courses');
-                }, 1500); // 1.5 second delay
+                    router.push(targetPath);
+                }, 1200);
             }, 0);
         } catch (error) {
             console.error("[CoursePanelContext] Error enrolling in course:", error);

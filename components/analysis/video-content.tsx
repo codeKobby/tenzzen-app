@@ -14,17 +14,40 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
-import { getYoutubeData } from "@/actions/getYoutubeData"; // Changed from getVideoDetails
-import type { VideoDetails, PlaylistDetails, PlaylistVideo, ContentDetails } from "@/types/youtube";
-import { startUrl } from "@/lib/utils";
+import { getVideoDetails } from "@/actions/getYoutubeData";
+import type { VideoDetails, PlaylistDetails, VideoItem, ContentDetails } from "@/types/youtube";
 import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton";
 import { PlaceholderImage } from "@/components/ui/placeholder-image";
 import { YouTubeThumbnail } from "@/components/youtube-thumbnail";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+// Type definitions
+interface VideoContentProps {
+  loading?: boolean;
+  error?: string | null;
+}
+
+// Helper functions
 const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
   return content.type === "playlist";
+};
+
+const isValidContentDetails = (data: unknown): data is ContentDetails => {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'type' in data &&
+    (data.type === 'video' || data.type === 'playlist')
+  );
+};
+
+const createVideoKey = (video: VideoItem, index: number): string => {
+  return `${video.id || video.videoId}-${index}`;
+};
+
+const openInNewTab = (url: string): void => {
+  window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 export function VideoContent({ loading, error }: VideoContentProps) {
@@ -39,7 +62,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
     return false;
   });
   const [showFullDescription, setShowFullDescription] = useState(false);
-  const [removedVideos, setRemovedVideos] = useState<Record<string, PlaylistVideo>>({});
+  const [removedVideos, setRemovedVideos] = useState<Record<string, VideoItem>>({});
   const [activeCancelId, setActiveCancelId] = useState<string | null>(null);
 
   const activeVideoCount = useMemo(() => {
@@ -99,7 +122,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
 
     const url = `https://youtube.com/watch?v=${videoId}`
     if (dontShowVideoDialog) {
-      startUrl(url, '_blank', 'noopener,noreferrer')
+      window.open(url, '_blank', 'noopener,noreferrer')
     } else {
       setSelectedVideoUrl(url)
       setShowVideoOpenDialog(true)
@@ -109,10 +132,10 @@ export function VideoContent({ loading, error }: VideoContentProps) {
   const handlePlaylistClick = useCallback((playlistId: string): void => {
     const url = `https://youtube.com/playlist?list=${playlistId}`
     if (dontShowVideoDialog) {
-      startUrl(url, '_blank', 'noopener,noreferrer')
+      window.open(url, '_blank', 'noopener,noreferrer')
     } else {
-      console.error('Invalid content type:', data);
-      setVideoData(null);
+      setSelectedVideoUrl(url)
+      setShowVideoOpenDialog(true)
     }
   }, [dontShowVideoDialog])
 
@@ -165,6 +188,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
           </div>
 
           <div className="w-full h-[3px] bg-muted rounded-full overflow-hidden mt-2">
+            {/* eslint-disable-next-line react/no-inline-styles */}
             <div
               className="h-full bg-primary animate-countdown-progress"
               style={{ animationDuration: "5s" }}
@@ -400,7 +424,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                               size="sm"
                               className="h-6 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground hover:bg-transparent flex items-center gap-1 z-10"
                             >
-                              {expandedVideoIds.has(video.id) ? (
+                              {expandedVideoId === video.id ? (
                                 <>
                                   <ChevronUp className="h-3.5 w-3.5" />
                                   Show less
@@ -416,6 +440,7 @@ export function VideoContent({ loading, error }: VideoContentProps) {
 
                           {activeCancelId === video.id && (
                             <div className="w-full mt-1 bg-muted h-[3px] rounded-full overflow-hidden">
+                              {/* eslint-disable-next-line react/no-inline-styles */}
                               <div
                                 className="bg-primary h-full animate-countdown-progress"
                                 style={{ animationDuration: "5s" }}

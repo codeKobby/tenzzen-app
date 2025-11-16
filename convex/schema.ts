@@ -45,10 +45,34 @@ export default defineSchema({
   courses: defineTable({
     title: v.string(),
     description: v.string(),
+    detailedOverview: v.string(),
+    category: v.string(), // Main category like "Web Development", "Mobile Development"
+    difficulty: v.string(), // "Beginner", "Intermediate", "Advanced"
     learningObjectives: v.array(v.string()),
     prerequisites: v.array(v.string()),
     targetAudience: v.string(),
     estimatedDuration: v.string(),
+    tags: v.array(v.string()), // Specific keywords
+    resources: v.array(v.object({
+      title: v.string(),
+      url: v.string(),
+      type: v.string(),
+      description: v.optional(v.string()),
+      category: v.string(), // "Creator Links" or "Other Resources"
+    })),
+    assessmentPlan: v.optional(v.object({
+      quizLocations: v.array(v.object({
+        afterModule: v.optional(v.number()),
+        afterLesson: v.optional(v.object({
+          moduleIndex: v.number(),
+          lessonIndex: v.number(),
+        })),
+        type: v.literal('quiz'),
+      })),
+      hasEndOfCourseTest: v.boolean(),
+      hasFinalProject: v.boolean(),
+      projectDescription: v.optional(v.string()),
+    })),
 
     // Source information
     sourceType: v.union(v.literal('youtube'), v.literal('manual'), v.literal('topic')),
@@ -97,6 +121,8 @@ export default defineSchema({
     description: v.string(),
     content: v.string(),
     durationMinutes: v.number(),
+    timestampStart: v.optional(v.string()), // Video timestamp start \"0:00:00\"
+    timestampEnd: v.optional(v.string()),   // Video timestamp end \"0:13:00\"
     keyPoints: v.array(v.string()),
     order: v.number(),
 

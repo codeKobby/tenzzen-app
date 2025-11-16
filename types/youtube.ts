@@ -58,6 +58,7 @@ export interface VideoItem {
   thumbnail: string
   channelId: string
   channelName: string
+  channelAvatar?: string
   duration: string
   views?: string
   likes?: string

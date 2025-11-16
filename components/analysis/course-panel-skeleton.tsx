@@ -6,7 +6,12 @@ import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
 import { useAnalysis } from "@/hooks/use-analysis-context";
 
-export function CoursePanelSkeleton({ className }: { className?: string }) {
+interface CoursePanelSkeletonProps {
+  className?: string;
+  showOverlay?: boolean;
+}
+
+export function CoursePanelSkeleton({ className, showOverlay = true }: CoursePanelSkeletonProps) {
   // Get video data from the analysis context
   const { videoData } = useAnalysis();
 
@@ -58,53 +63,55 @@ export function CoursePanelSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn("bg-background flex flex-col w-full h-full overflow-hidden transition-all duration-300 ease-in-out relative", className)}>
       {/* Loading overlay */}
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
-        <div className="bg-card border shadow-lg rounded-lg p-8 max-w-md w-full mx-4 flex flex-col items-center">
-          <LoadingSpinner size="lg" className="text-primary mb-6" />
-          <h3 className="text-xl font-medium mb-3 animate-pulse">Generating Your Course</h3>
-          <p className="text-muted-foreground text-center mb-4">
-            Our AI is analyzing the content and structuring your personalized learning path...
-          </p>
-          <div className="w-full mb-4">
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{Math.round(progress)}%</span>
+      {showOverlay && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border shadow-lg rounded-lg p-8 max-w-md w-full mx-4 flex flex-col items-center">
+            <LoadingSpinner size="lg" className="text-primary mb-6" />
+            <h3 className="text-xl font-medium mb-3 animate-pulse">Generating Your Course</h3>
+            <p className="text-muted-foreground text-center mb-4">
+              Our AI is analyzing the content and structuring your personalized learning path...
+            </p>
+            <div className="w-full mb-4">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-muted-foreground">Progress</span>
+                <span className="font-medium">{Math.round(progress)}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
             </div>
-            <Progress value={progress} className="h-2" />
+
+            <div className="w-full space-y-1 text-sm text-muted-foreground">
+              <div className={cn("flex justify-between", currentStep > 1 && "text-primary")}>
+                <span>Analyzing video transcript</span>
+                <span>{currentStep === 1 ? <span className="animate-pulse">...</span> : currentStep > 1 ? "✓" : "-"}</span>
+              </div>
+              <div className={cn("flex justify-between", currentStep < 2 && "opacity-50", currentStep > 2 && "text-primary")}>
+                <span>Identifying key concepts</span>
+                <span>{currentStep === 2 ? <span className="animate-pulse">...</span> : currentStep > 2 ? "✓" : "-"}</span>
+              </div>
+              <div className={cn("flex justify-between", currentStep < 3 && "opacity-50", currentStep > 3 && "text-primary")}>
+                <span>Creating learning objectives</span>
+                <span>{currentStep === 3 ? <span className="animate-pulse">...</span> : currentStep > 3 ? "✓" : "-"}</span>
+              </div>
+              <div className={cn("flex justify-between", currentStep < 4 && "opacity-50", currentStep > 4 && "text-primary")}>
+                <span>Structuring course modules</span>
+                <span>{currentStep === 4 ? <span className="animate-pulse">...</span> : currentStep > 4 ? "✓" : "-"}</span>
+              </div>
+              <div className={cn("flex justify-between", currentStep < 5 && "opacity-50", currentStep === 5 && "text-primary")}>
+                <span>Finalizing course content</span>
+                <span>{currentStep === 5 ? <span className="animate-pulse">...</span> : "-"}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground mt-4">
+              Step {currentStep} of {totalSteps}
+            </p>
+
+            <p className="text-xs text-muted-foreground mt-2">
+              {timeMessage}
+            </p>
           </div>
-
-          <div className="w-full space-y-1 text-sm text-muted-foreground">
-            <div className={cn("flex justify-between", currentStep > 1 && "text-primary")}>
-              <span>Analyzing video transcript</span>
-              <span>{currentStep === 1 ? <span className="animate-pulse">...</span> : currentStep > 1 ? "✓" : "-"}</span>
-            </div>
-            <div className={cn("flex justify-between", currentStep < 2 && "opacity-50", currentStep > 2 && "text-primary")}>
-              <span>Identifying key concepts</span>
-              <span>{currentStep === 2 ? <span className="animate-pulse">...</span> : currentStep > 2 ? "✓" : "-"}</span>
-            </div>
-            <div className={cn("flex justify-between", currentStep < 3 && "opacity-50", currentStep > 3 && "text-primary")}>
-              <span>Creating learning objectives</span>
-              <span>{currentStep === 3 ? <span className="animate-pulse">...</span> : currentStep > 3 ? "✓" : "-"}</span>
-            </div>
-            <div className={cn("flex justify-between", currentStep < 4 && "opacity-50", currentStep > 4 && "text-primary")}>
-              <span>Structuring course modules</span>
-              <span>{currentStep === 4 ? <span className="animate-pulse">...</span> : currentStep > 4 ? "✓" : "-"}</span>
-            </div>
-            <div className={cn("flex justify-between", currentStep < 5 && "opacity-50", currentStep === 5 && "text-primary")}>
-              <span>Finalizing course content</span>
-              <span>{currentStep === 5 ? <span className="animate-pulse">...</span> : "-"}</span>
-            </div>
-          </div>
-
-          <p className="text-xs text-muted-foreground mt-4">
-            Step {currentStep} of {totalSteps}
-          </p>
-
-          <p className="text-xs text-muted-foreground mt-2">
-            {timeMessage}
-          </p>
         </div>
-      </div>
+      )}
 
       <div className="flex flex-col flex-1 overflow-hidden">
         <div className="p-4 border-b">

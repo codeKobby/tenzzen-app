@@ -16,12 +16,12 @@ export const aiConfig = {
   // API configuration
   apiKey,
 
-  // Model selection - using Gemini 2.0 Flash experimental model
-  // gemini-2.0-flash-exp: Latest experimental model with enhanced capabilities
+  // Model selection - using Gemini 2.5 Flash model
+  // gemini-2.5-flash: Latest stable model with 1M token context window and enhanced capabilities
   models: {
-    default: process.env.AI_MODEL_DEFAULT || "models/gemini-2.0-flash-exp",
-    fast: process.env.AI_MODEL_FAST || "models/gemini-2.0-flash-exp", 
-    smart: process.env.AI_MODEL_SMART || "models/gemini-2.0-flash-exp",
+    default: process.env.AI_MODEL_DEFAULT || "models/gemini-2.5-flash",
+    fast: process.env.AI_MODEL_FAST || "models/gemini-2.5-flash", 
+    smart: process.env.AI_MODEL_SMART || "models/gemini-2.5-flash",
   },
 
   // Generation parameters - matching old ADK service settings

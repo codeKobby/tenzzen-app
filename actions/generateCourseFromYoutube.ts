@@ -8,6 +8,7 @@ import { getVideoDetails, getPlaylistDetails } from "./getYoutubeData";
 import { getYoutubeTranscript } from "./getYoutubeTranscript";
 import type { Id } from "@/convex/_generated/dataModel";
 import { auth } from "@clerk/nextjs/server";
+import { getCachedTranscript, setCachedTranscript } from "@/lib/server/transcript-cache";
 
 interface GenerateCourseResult {
   success: boolean;
@@ -97,27 +98,56 @@ export async function generateCourseFromYoutube(
 
     // Step 2: Get transcript
     console.log("Fetching transcript...");
-    const transcriptSegments = await getYoutubeTranscript(videoId);
+    const cachedTranscript = getCachedTranscript(videoId);
+    let transcriptSegments = cachedTranscript?.segments;
+    let transcript = cachedTranscript?.transcriptText;
 
-    if (!transcriptSegments || transcriptSegments.length === 0) {
-      return {
-        success: false,
-        error: "Failed to fetch transcript",
-      };
+    if (!transcriptSegments || !transcript || transcriptSegments.length === 0) {
+      console.log("Transcript cache miss, fetching from YouTube...");
+      transcriptSegments = await getYoutubeTranscript(videoId);
+
+      if (!transcriptSegments || transcriptSegments.length === 0) {
+        return {
+          success: false,
+          error: "Failed to fetch transcript",
+        };
+      }
+
+      transcript = transcriptSegments
+        .map((entry: any) => entry.text)
+        .join(" ")
+        .trim();
+
+      setCachedTranscript(videoId, transcriptSegments, transcript);
+    } else {
+      console.log("Using cached transcript for video", videoId);
     }
-
-    const transcript = transcriptSegments
-      .map((entry: any) => entry.text)
-      .join(" ");
 
     // Step 3: Generate course outline with AI
     console.log("Generating course outline with AI...");
-    const courseOutline = await AIClient.generateCourseOutline({
-      videoTitle: data.title || "Unknown Title",
-      videoDescription: data.description || "",
-      transcript,
-      channelName: data.channelName || "Unknown",
+    console.log("Video description length:", data.description?.length || 0);
+    console.log("Video description preview:", data.description?.substring(0, 500) || "No description");
+    
+    // Add timeout to prevent runaway generation (3 minutes max)
+    const GENERATION_TIMEOUT = 3 * 60 * 1000; // 3 minutes
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Course generation timed out after 3 minutes")), GENERATION_TIMEOUT);
     });
+
+    const courseOutline = await Promise.race([
+      AIClient.generateCourseOutline({
+        videoTitle: data.title || "Unknown Title",
+        videoDescription: data.description || "",
+        transcript,
+        transcriptSegments, // Pass segments for timestamp extraction
+        channelName: data.channelName || "Unknown",
+        videoDuration: data.duration || "",
+      }),
+      timeoutPromise
+    ]);
+    
+    console.log("Generated resources count:", courseOutline.resources?.length || 0);
+    console.log("Generated resources:", JSON.stringify(courseOutline.resources, null, 2));
 
     // Step 4: Store in Convex
     console.log("Storing course in database...");
@@ -125,10 +155,15 @@ export async function generateCourseFromYoutube(
       course: {
         title: data.title || courseOutline.title, // Use YouTube title, fallback to AI title
         description: courseOutline.description,
+        detailedOverview: courseOutline.detailedOverview,
+        category: courseOutline.category,
+        difficulty: courseOutline.difficulty,
         learningObjectives: courseOutline.learningObjectives,
         prerequisites: courseOutline.prerequisites,
         targetAudience: courseOutline.targetAudience,
-        estimatedDuration: courseOutline.estimatedDuration,
+        estimatedDuration: data.duration || courseOutline.estimatedDuration, // Use actual video duration
+        tags: courseOutline.tags,
+        resources: courseOutline.resources,
         sourceType: "youtube" as const,
         sourceId: videoId,
         sourceUrl: youtubeUrl,
@@ -143,9 +178,12 @@ export async function generateCourseFromYoutube(
           description: lesson.description,
           content: lesson.content,
           durationMinutes: lesson.durationMinutes,
+          timestampStart: lesson.timestampStart,
+          timestampEnd: lesson.timestampEnd,
           keyPoints: lesson.keyPoints,
         })),
       })),
+      assessmentPlan: courseOutline.assessmentPlan,
     });
 
     console.log("Course generated successfully:", courseId);

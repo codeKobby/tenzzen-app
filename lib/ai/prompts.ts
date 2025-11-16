@@ -1,158 +1,434 @@
 import { z } from "zod";
+import type { PromptTranscriptContext } from "./transcript-utils";
+import { formatSecondsAsTimestamp } from "./transcript-utils";
 
-// Course generation prompts based on the detailed process from COURSE_GENERATION_PROCESS.md
-// These prompts are designed to work with Gemini's capabilities and follow the Python SDK patterns
+// Improved, hallucination-resistant prompts optimized for Gemini models
+// These prompts use advanced prompt engineering techniques for better accuracy and consistency
 
 export const courseGenerationPrompts = {
   // Initial content analysis and knowledge graph generation
-  contentAnalysis: (transcript: string, metadata: any) => `
-You are an expert educational content analyst specializing in creating structured learning experiences from video content.
+   contentAnalysis: (transcriptContext: PromptTranscriptContext, metadata: any) => `
+You are an expert educational content analyst specializing in converting video content into structured, hierarchical knowledge maps.
 
-VIDEO ANALYSIS TASK:
-Analyze the following YouTube video content and create a comprehensive educational knowledge graph.
+SYSTEM INSTRUCTIONS:
+- Think step-by-step.
+- Prioritize factual grounding from the transcript and description.
+- Do not infer information not directly supported by the video content.
+- Validate each section before finalizing.
+
+TASK:
+Analyze the YouTube content below and produce a comprehensive Educational Knowledge Graph Analysis.
 
 VIDEO METADATA:
 - Title: ${metadata.title}
 - Channel: ${metadata.channelName}
-- Description: ${metadata.description}
 - Duration: ${metadata.duration || 'Unknown'}
 
-TRANSCRIPT CONTENT:
-${transcript.slice(0, 20000)} // Increased limit for Gemini's larger context window
+VIDEO DESCRIPTION:
+${metadata.description || 'No description provided'}
 
-ANALYSIS REQUIREMENTS:
+IMPORTANT CONTEXT ABOUT DESCRIPTIONS:
+Descriptions usually contain:
+- External creator links (GitHub, personal website, social media)
+- Tools, libraries, and resources used in the video
+- Related courses or content
+- Sponsor/affiliate links
+- Community links (Discord, Slack, forums)
+- Newsletter signups
+Be precise and avoid inventing any missing links.
+
+TRANSCRIPT OVERVIEW:
+- Segments: ${transcriptContext.totalSegments}
+- Approx Duration: ${formatSecondsAsTimestamp(transcriptContext.totalDurationSeconds)}
+- Chunk Count: ${transcriptContext.chunks.length}
+
+FULL TRANSCRIPT (COMPLETE, CHUNKED FOR READABILITY):
+${transcriptContext.fullText || 'Transcript missing'}
+
+-----------------------------------------
+REQUIRED OUTPUT SECTIONS
+-----------------------------------------
 
 1. **Content Structure Analysis**
-   - Identify main topics and subtopics
-   - Map concept relationships and dependencies
-   - Determine logical learning progression
-   - Find natural content breakpoints
+   - Identify main topics and subtopics.
+   - Map conceptual relationships, dependencies, and progression.
+   - Detect natural breakpoints for instructional segmentation.
 
 2. **Audience & Prerequisites Assessment**
-   - Assess target audience level (beginner/intermediate/advanced)
-   - Identify required prerequisite knowledge
-   - Determine technical skill requirements
-   - Note any tools/software needed
+   - Identify primary audience level: beginner / intermediate / advanced.
+   - List required prerequisite skills and knowledge.
+   - Specify tools, software, or frameworks needed to follow along.
 
 3. **Learning Objectives Extraction**
-   - Extract what students will know (knowledge outcomes)
-   - Identify what students will be able to do (skill outcomes)
-   - Determine real-world applications (competency outcomes)
+   - "Knowledge Outcomes": What learners will know.
+   - "Skill Outcomes": What learners will be able to do.
+   - "Competency Outcomes": Real-world applications and capabilities.
 
 4. **Content Quality Evaluation**
-   - Assess content depth and breadth
-   - Identify areas needing supplementary materials
-   - Flag complex concepts requiring additional explanation
-   - Note practical examples or demonstrations
+   - Evaluate depth, clarity, and completeness.
+   - Identify sections requiring extra clarification.
+   - Flag complex concepts for expanded explanation.
+   - Note demos, examples, or practical walkthroughs.
 
-OUTPUT FORMAT:
-Provide a structured analysis with clear sections for each requirement above.
-Be specific and actionable for course creation.
+FORMAT REQUIREMENTS:
+- Use clear markdown sections.
+- Be specific, factual, and actionable.
+- No filler, no speculation, no invented concepts.
 `,
 
   // Course structure proposal with detailed modules and sections
-  courseStructure: (analysis: any, transcript: string) => `
-You are an expert curriculum designer. Create a comprehensive, educationally sound course structure from the analyzed content.
+   courseStructure: (analysis: any, transcriptContext: PromptTranscriptContext, transcriptSegments?: any[]) => `
+You are a senior curriculum architect. Convert the input analysis into a fully structured, pedagogically sound course.
 
-CONTENT ANALYSIS INPUT:
+SYSTEM INSTRUCTIONS:
+- Think step-by-step and verify against transcript evidence.
+- Use transcript segments to determine timestamps.
+- Do not invent timestamps, tools, technologies, or resources.
+- Ensure JSON output is strictly valid.
+- Every lesson MUST have timestampStart and timestampEnd fields.
+- CRITICAL: Scan the ENTIRE video description for ALL URLs and links.
+
+VIDEO DESCRIPTION (SCAN THIS FOR ALL RESOURCES):
+==============================================
+${analysis.videoDescription || 'No description provided'}
+==============================================
+
+INPUT ANALYSIS:
 ${JSON.stringify(analysis, null, 2)}
 
-FULL TRANSCRIPT CONTEXT:
-${transcript.slice(0, 15000)}
+PRIMARY TRANSCRIPT CONTEXT (NO TRUNCATION):
+${transcriptContext.fullText || 'Transcript missing'}
 
-COURSE DESIGN REQUIREMENTS:
+${transcriptSegments && transcriptSegments.length > 0 ? `
+TIMESTAMPED TRANSCRIPT SEGMENTS (first 100 maximum):
+Use these segments to derive accurate lesson boundaries. Each entry shows [timestamp] content.
+${transcriptSegments.slice(0, 100).map((seg: any, i: number) => `[${seg.start || '0:00'}] ${seg.text?.slice(0, 100) || ''}`).join('\n')}
+` : ''}
+
+-----------------------------------------
+COURSE DESIGN SPECIFICATION
+-----------------------------------------
+
+-----------------------------------------
+COURSE DESIGN SPECIFICATION
+-----------------------------------------
 
 1. **Course Architecture**
-   - Create an engaging, descriptive course title
-   - Write a compelling course description (2-3 paragraphs)
-   - Define target audience with specific characteristics
-   - List all prerequisites clearly
-   - Set realistic total duration estimate
+   Produce the following fields with factual, evidence-based content:
+   
+   - **title**: Engaging, accurate course title
+   - **category**: Choose ONE primary category from: "Web Development", "Mobile Development", "Data Science", "Machine Learning", "Programming Fundamentals", "Cloud Computing", "DevOps", "Design", "Business", "Marketing"
+   - **difficulty**: Must be exactly "Beginner", "Intermediate", or "Advanced"
+   - **description**: Brief 2-3 sentence summary for "About this course" section
+   - **detailedOverview**: Comprehensive 2-3 full paragraphs explaining the course, learning journey, key topics, and student outcomes
+   - **tags**: Array of 5-10 specific, accurate technology/topic keywords (e.g., "React", "TypeScript", "Firebase")
+   - **targetAudience**: Specific audience characteristics
+   - **prerequisites**: Clear, factual list of required knowledge
+   - **estimatedDuration**: Based strictly on actual video duration
+   
+   **Resource Extraction (CRITICAL - Must Extract ALL Links)**:
+   The video description is your PRIMARY SOURCE for resources. Scan EVERY SINGLE LINE.
+   Extract EVERY URL you find - do not skip any links, even if they seem similar.
+   
+   **MANDATORY**: Look for these patterns in the description:
+   - "Main [Name] Site: [URL]" → Extract this URL
+   - "[Platform]: [URL]" → Extract this URL  
+   - "LinkedIn: [URL]" → Extract this URL as Social
+   - Any line with "http://" or "https://" → Extract ALL of them
+   
+   **SOCIAL MEDIA LINKS** (Extract these FIRST and mark as "Social"):
+   - LinkedIn profiles (linkedin.com/company/ or linkedin.com/in/)
+   - Twitter/X profiles (twitter.com, x.com)
+   - Instagram accounts (instagram.com)
+   - YouTube channels (youtube.com/channel/ or youtube.com/@)
+   - Facebook pages (facebook.com)
+   - TikTok profiles (tiktok.com/@)
+   - Discord servers (discord.gg/ or discord.com/invite/)
+   - Twitch channels (twitch.tv/)
+   - Reddit profiles (reddit.com/user/ or reddit.com/r/)
+   
+   EXAMPLE: If description contains:
+   "Main R Consortium Site: https://www.r-consortium.org/
+   LinkedIn: https://www.linkedin.com/company/r-consortium/"
+   
+   You MUST extract BOTH URLs separately.
+   
+   **CREATOR CONTENT LINKS**:
+   - Organization/company websites (e.g., example.org, example.io)
+   - GitHub repositories with source code (github.com)
+   - Personal websites, portfolios, blogs
+   - Support links (Patreon, Ko-fi, Buy Me a Coffee, GitHub Sponsors)
+   - Newsletter signups (Substack, Beehiiv, ConvertKit)
+   - Community links (Slack, forums)
+   - Webinar/event pages
+   - Blog pages
+   - Documentation sites
+   - Related courses or tutorials
+   - Affiliate links to tools/services mentioned
+   - Sponsor/partner websites
+   
+   Categorize into THREE groups:
+   
+   A. **Social Links** (Extract ALL social media from description - aim for 3-7):
+      Each resource must have:
+      - title: Platform name (e.g., "Twitter", "GitHub", "LinkedIn", "Facebook")
+      - url: Complete, valid URL exactly as it appears in description
+      - type: "Social"
+      - description: Brief description (e.g., "Follow for updates", "Connect on LinkedIn", "Join community")
+      - category: "Social"
+      
+      EXAMPLE:
+      {
+        "title": "LinkedIn",
+        "url": "https://www.linkedin.com/company/r-consortium/",
+        "type": "Social",
+        "description": "Connect with R Consortium on LinkedIn",
+        "category": "Social"
+      }
+   
+   B. **Creator Links** (Extract from description - aim for at least 3-5):
+      Each resource must have:
+      - title: Clear, descriptive name
+      - url: Complete, valid URL
+      - type: "Documentation" | "Tool" | "Website" | "Code" | "Course"
+      - description: 1-2 sentences explaining what it provides
+      - category: "Creator Links"
+   
+   C. **Other Resources** (3-7 items maximum, only essential ones):
+      Include ONLY if:
+      - Explicitly mentioned or used in the video
+      - Essential for following the tutorial
+      - Official documentation for core technologies
+      - Critical for prerequisites
+      
+      Each resource must have the same structure as Creator Links but with category: "Other Resources"
+   
+   VALIDATION RULES FOR RESOURCES:
+   1. Do NOT invent links - extract ONLY what exists in the description
+   2. Extract EVERY SINGLE link you find in the description (aim for 5-15 total resources)
+   3. Preserve URLs EXACTLY as written (do not modify or truncate)
+   4. If a link has a label (e.g., "LinkedIn: https://..."), use the label as the title
+   5. Social links MUST be categorized as "Social", not "Creator Links"
+   6. Main website/organization URLs should be "Creator Links"
+   7. Include webinar pages, blog pages, and documentation as "Creator Links"
+   8. If you see "linkedin.com/company" it is a Social link, NOT a Creator Link
 
 2. **Module Organization**
-   - Group related concepts into logical modules (3-8 modules typical)
-   - Ensure progressive difficulty (simple → complex)
-   - Create clear learning pathways
-   - Assign realistic time estimates per module
-   - Include module descriptions and objectives
+   - Create 3-8 logical modules
+   - Progressive difficulty scaling
+   - Each module requires:
+     * title
+     * description
+     * clear learning objectives
 
-3. **Section-Level Detail**
-   - Break modules into specific, actionable sections
-   - Reference actual video content/timestamps where possible
-   - Include key learning points for each section
-   - Identify practical exercises or demonstrations
-   - Plan assessment checkpoints
+3. **Lesson-Level Detail (Timestamps MANDATORY - NO EXCEPTIONS)**
+   
+   CRITICAL REQUIREMENT: Every lesson MUST include ALL of these fields:
+   - title: Clear, specific lesson name
+   - timestampStart: Video timestamp where lesson begins (format: "0:05:30" or "1:23:45") **REQUIRED - NEVER SKIP**
+   - timestampEnd: Video timestamp where lesson ends (format: "0:12:45" or "1:35:20") **REQUIRED - NEVER SKIP**
+   - durationMinutes: Calculated from time difference (must be a number)
+   - description: What this lesson covers
+   - content: Detailed lesson content
+   - keyPoints: Array of key takeaways
+   
+   TIMESTAMP RULES (CRITICAL - EVERY LESSON NEEDS TIMESTAMPS):
+   - EVERY SINGLE LESSON must have both timestampStart and timestampEnd
+   - Use transcript segments with their start times to determine accurate boundaries
+   - Each lesson covers one coherent topic from start to finish
+   - NO lesson should have missing, null, or empty timestamps
+   - Format MUST be exactly: "H:MM:SS" or "M:SS" (e.g., "0:05:30", "1:23:45", "12:00")
+   - Maximum length: 10 characters (e.g., "1:23:45" is 7 chars)
+   - NEVER generate timestamps longer than 10 characters
+   - Examples of VALID timestamps: "0:00:00", "0:05:30", "1:23:45", "2:15:00"
+   - Examples of INVALID timestamps: "0:00:00.000...", timestamps with decimals, or any string longer than 10 chars
+   - ⚠️ CRITICAL: DO NOT GENERATE TIMESTAMPS WITH DECIMAL POINTS OR MILLISECONDS
+   - ⚠️ CRITICAL: TIMESTAMPS MUST NEVER EXCEED 10 CHARACTERS - STOP AT THE SECONDS
+   - ⚠️ WRONG FORMAT EXAMPLES: "0:00:00.0000000000...", "0:00:00.123", "00:00:00.000000"
+   - ✅ CORRECT FORMAT EXAMPLES: "0:00:00", "0:05:30", "1:23:45", "12:00"
+   - Timestamps must be sequential and logical
 
-4. **Educational Best Practices**
-   - Follow cognitive load principles
-   - Include spaced repetition opportunities
-   - Plan for different learning styles
-   - Ensure assessment alignment with objectives
+4. **Assessment Planning (Structure Only - NO CONTENT)**
+   Specify WHERE assessments should be placed:
+   
+   - **Quizzes**: Specify afterModule or afterLesson indices (minimum 5 questions each)
+   - **Tests**: Decide if end-of-course test is appropriate (comprehensive evaluation)
+   - **Projects**: Decide if final project is needed (practical application)
+   
+   IMPORTANT: Only specify LOCATIONS and structure. Do NOT generate:
+   - Actual quiz questions
+   - Test questions
+   - Project requirements
+   
+   These will be generated on-demand when needed.
 
-5. **Supplementary Content Strategy**
-   - Identify where additional explanations are needed
-   - Plan code examples, diagrams, or exercises
-   - Note external resources or references
-   - Consider interactive elements
+5. **Educational Enhancement Strategies**
+   - Apply cognitive load management principles
+   - Identify spaced repetition opportunities
+   - Note where additional examples would help
+   - Suggest potential diagrams or visualizations
+   - Consider interactive learning elements
 
-OUTPUT: Complete course blueprint with all sections above, ready for implementation.
+-----------------------------------------
+CRITICAL OUTPUT FORMAT (STRICT JSON)
+-----------------------------------------
+
+Your response MUST be valid JSON with this exact structure:
+
+{
+  "title": "string",
+  "category": "string",
+  "difficulty": "Beginner|Intermediate|Advanced",
+  "description": "string (2-3 sentences)",
+  "detailedOverview": "string (2-3 paragraphs)",
+  "tags": ["string"],
+  "learningObjectives": ["string"],
+  "prerequisites": ["string"],
+  "targetAudience": "string",
+  "estimatedDuration": "string",
+  "resources": [
+    {
+      "title": "string",
+      "url": "string",
+      "type": "Documentation|Tool|Website|Code|Course",
+      "description": "string",
+      "category": "Creator Links|Other Resources"
+    }
+  ],
+  "modules": [
+    {
+      "title": "string",
+      "description": "string",
+      "lessons": [
+        {
+          "title": "string",
+          "timestampStart": "string (REQUIRED, format: H:MM:SS, max 10 chars, e.g., '0:05:30')",
+          "timestampEnd": "string (REQUIRED, format: H:MM:SS, max 10 chars, e.g., '0:12:45')",
+          "durationMinutes": number,
+          "description": "string",
+          "content": "string",
+          "keyPoints": ["string"]
+        }
+      ]
+    }
+  ],
+  "assessmentPlan": {
+    "quizLocations": [{"afterModule": number}],
+    "hasEndOfCourseTest": boolean,
+    "hasFinalProject": boolean,
+    "projectDescription": "string"
+  }
+}
+
+VALIDATION CHECKLIST:
+- JSON is syntactically valid
+- Every lesson has timestampStart and timestampEnd
+- ALL timestamps are in format H:MM:SS (e.g., "0:05:30") and NEVER exceed 10 characters
+- NO timestamps contain infinite zeros or decimal points
+- Resources are real and from description/transcript only
+- Category is one of the specified options
+- Difficulty is exactly "Beginner", "Intermediate", or "Advanced"
+- At least 3 Creator Links extracted (if available in description)
+- Other Resources limited to 3-7 items
+- Timestamps are sequential and logical
 `,
 
   // Prerequisites and learning outcomes generation
   prerequisitesAndOutcomes: (content: string, analysis: any) => `
-You are an educational assessment specialist. Generate detailed prerequisites and measurable learning outcomes.
+You are an educational assessment specialist. Generate detailed, measurable learning outcomes and accurate prerequisites.
 
-CONTENT TO ANALYZE:
+SYSTEM INSTRUCTIONS:
+- Base everything strictly on the transcript and provided analysis.
+- Do not add tools, skills, or concepts not evidenced by the content.
+- Outcomes must be observable and measurable.
+- Think step-by-step to ensure accuracy.
+
+CONTENT INPUT:
 ${content.slice(0, 12000)}
 
 ANALYSIS CONTEXT:
 ${JSON.stringify(analysis, null, 2)}
 
-PREREQUISITES ANALYSIS:
-Categorize and specify all required knowledge and skills:
+TASK:
+Generate comprehensive prerequisites and measurable learning outcomes.
+
+-----------------------------------------
+PREREQUISITES ANALYSIS
+-----------------------------------------
+
+Categorize all required knowledge and skills into three groups:
 
 **Technical Prerequisites:**
-- Programming languages or frameworks
+- Programming languages or frameworks needed
 - Tools and software requirements
 - Development environment setup
 - API or service knowledge
+- Specific version requirements
 
 **Conceptual Prerequisites:**
-- Core concepts that must be understood
+- Core concepts that must be understood beforehand
 - Mathematical or logical foundations
 - Domain-specific knowledge
-- Theoretical background
+- Theoretical background required
 
 **Practical Prerequisites:**
 - Hands-on experience requirements
 - Project experience expectations
-- Tool proficiency levels
+- Tool proficiency levels needed
+- Familiarity with specific workflows
 
-LEARNING OUTCOMES GENERATION:
-Create specific, measurable outcomes in three categories:
+-----------------------------------------
+LEARNING OUTCOMES GENERATION
+-----------------------------------------
+
+Create 8-15 specific, measurable outcomes grouped into three categories:
 
 **Knowledge Outcomes** (Cognitive - what students will know):
 - Factual information and concepts
 - Theoretical understanding
 - Process and method knowledge
+- Terminology and definitions
 
 **Skill Outcomes** (Psychomotor - what students will be able to do):
 - Technical implementation skills
 - Problem-solving abilities
 - Tool and workflow proficiency
+- Debugging and troubleshooting capabilities
 
 **Competency Outcomes** (Affective - real-world application):
 - Project planning and execution
 - Best practices application
 - Professional judgment development
+- Industry-relevant capabilities
 
-For each outcome, include:
-- Clear, specific description
-- Measurable assessment criteria
-- Difficulty level indication
-- Real-world application examples
+For each outcome:
+- Use action verbs (understand, apply, create, analyze, evaluate)
+- Be specific and measurable
+- Align with course content
+- Focus on observable behaviors
 
-OUTPUT: Structured prerequisites and outcomes ready for curriculum implementation.
+-----------------------------------------
+OUTPUT FORMAT (STRICT JSON)
+-----------------------------------------
+
+{
+  "prerequisites": {
+    "technical": ["string"],
+    "conceptual": ["string"],
+    "practical": ["string"]
+  },
+  "learningOutcomes": {
+    "knowledge": ["string"],
+    "skills": ["string"],
+    "competencies": ["string"]
+  }
+}
+
+VALIDATION:
+- All items are factual and evidence-based
+- No invented tools or technologies
+- Outcomes are specific and measurable
+- Prerequisites are accurate and necessary
 `,
 
   // Content segmentation for detailed breakdown

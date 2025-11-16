@@ -8,10 +8,21 @@ export const createAICourse = mutation({
     course: v.object({
       title: v.string(),
       description: v.string(),
+      detailedOverview: v.string(),
+      category: v.string(),
+      difficulty: v.string(),
       learningObjectives: v.array(v.string()),
       prerequisites: v.array(v.string()),
       targetAudience: v.string(),
       estimatedDuration: v.string(),
+      tags: v.array(v.string()),
+      resources: v.array(v.object({
+        title: v.string(),
+        url: v.string(),
+        type: v.string(),
+        description: v.optional(v.string()),
+        category: v.string(),
+      })),
       sourceType: v.union(
         v.literal("youtube"),
         v.literal("manual"),
@@ -32,11 +43,26 @@ export const createAICourse = mutation({
             description: v.string(),
             content: v.string(),
             durationMinutes: v.number(),
+            timestampStart: v.optional(v.string()),
+            timestampEnd: v.optional(v.string()),
             keyPoints: v.array(v.string()),
           })
         ),
       })
     ),
+    assessmentPlan: v.optional(v.object({
+      quizLocations: v.array(v.object({
+        afterModule: v.optional(v.number()),
+        afterLesson: v.optional(v.object({
+          moduleIndex: v.number(),
+          lessonIndex: v.number(),
+        })),
+        type: v.literal('quiz'),
+      })),
+      hasEndOfCourseTest: v.boolean(),
+      hasFinalProject: v.boolean(),
+      projectDescription: v.optional(v.string()),
+    })),
   },
   handler: async (ctx, args) => {
     const userId = await getUserId(ctx);
@@ -47,6 +73,12 @@ export const createAICourse = mutation({
     // Create course
     const courseId = await ctx.db.insert("courses", {
       ...args.course,
+      detailedOverview: args.course.detailedOverview,
+      category: args.course.category,
+      difficulty: args.course.difficulty,
+      tags: args.course.tags,
+      resources: args.course.resources,
+      assessmentPlan: args.assessmentPlan,
       createdBy: userId,
       isPublished: false,
       enrollmentCount: 0,
@@ -87,6 +119,8 @@ export const createAICourse = mutation({
           description: lessonData.description,
           content: lessonData.content,
           durationMinutes: lessonData.durationMinutes,
+          timestampStart: lessonData.timestampStart,
+          timestampEnd: lessonData.timestampEnd,
           keyPoints: lessonData.keyPoints,
           order: lessonIndex,
           createdAt: now,

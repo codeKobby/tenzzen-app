@@ -3,6 +3,7 @@ import { getModel, aiConfig } from "./config";
 import { CourseOutlineSchema, QuizSchema, VideoRecommendationsSchema } from "./types";
 import { courseGenerationPrompts, quizGenerationPrompts, tutorPrompts, videoRecommendationPrompts, prompts, formatPrompt } from "./prompts";
 import type { CourseOutline, Quiz, VideoRecommendations } from "./types";
+import { buildPromptTranscriptContext } from "./transcript-utils";
 
 export class AIClient {
   /**
@@ -13,15 +14,24 @@ export class AIClient {
     videoTitle: string;
     videoDescription: string;
     transcript: string;
+    transcriptSegments?: any[]; // Array of {text, start, duration}
     channelName: string;
+    videoDuration?: string;
   }): Promise<CourseOutline> {
+    const transcriptContext = buildPromptTranscriptContext({
+      transcriptSegments: params.transcriptSegments,
+      fallbackTranscript: params.transcript,
+    });
+
     // Step 1: Initial content analysis
     const analysisPrompt = courseGenerationPrompts.contentAnalysis(
-      params.transcript,
+      transcriptContext,
       {
         title: params.videoTitle,
         channelName: params.channelName,
-        description: params.videoDescription
+        description: params.videoDescription,
+        duration: params.videoDuration,
+        transcriptSegments: params.transcriptSegments
       }
     );
 
@@ -33,8 +43,12 @@ export class AIClient {
 
     // Step 2: Generate course structure based on analysis
     const structurePrompt = courseGenerationPrompts.courseStructure(
-      { analysis: analysisText },
-      params.transcript
+      { 
+        analysis: analysisText,
+        videoDescription: params.videoDescription // Pass description separately
+      },
+      transcriptContext,
+      params.transcriptSegments
     );
 
     const { object } = await generateObject({
@@ -42,6 +56,7 @@ export class AIClient {
       schema: CourseOutlineSchema,
       prompt: structurePrompt,
       temperature: aiConfig.parameters.temperature,
+      maxRetries: 2, // Retry on transient failures
     });
 
     return object;

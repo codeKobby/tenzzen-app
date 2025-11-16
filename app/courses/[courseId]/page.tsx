@@ -37,6 +37,7 @@ import { CourseOverview } from "./components/course-overview"
 import { CourseResources } from "./components/course-resources"
 import { CourseSettings } from "./components/course-settings"
 import { CoursePlayer } from "./components/course-player"
+import { SocialLinks } from "./components/social-links"
 
 // Import hooks for normalized course structure
 import { useNormalizedCourse, NormalizedLesson, NormalizedSection } from "@/hooks/use-normalized-course"
@@ -304,15 +305,23 @@ export default function CoursePage() {
             <p className="text-muted-foreground mb-8">
               You need to enroll in this course to access the learning materials and track your progress.
             </p>
-            <Button
-              size="lg"
-              onClick={handleEnroll}
-              disabled={enrolling}
-              className="px-8"
-            >
-              {enrolling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Enroll Now
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button
+                size="lg"
+                onClick={handleEnroll}
+                disabled={enrolling}
+                className="px-8"
+              >
+                {enrolling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Enroll Now
+              </Button>
+              {course.metadata?.resources && (
+                <SocialLinks
+                  resources={course.metadata.resources}
+                  size="lg"
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -398,6 +407,12 @@ export default function CoursePage() {
                 <Clock className="h-3 w-3 mr-1" />
                 {completedLessonsCount}/{totalLessons} lessons
               </Badge>
+              {course.metadata?.resources && (
+                <SocialLinks
+                  resources={course.metadata.resources}
+                  className="hidden md:flex"
+                />
+              )}
               <Badge variant="outline" className={cn(
                 "hidden md:flex",
                 progress === 100 ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" : ""
