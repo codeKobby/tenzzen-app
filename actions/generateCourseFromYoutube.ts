@@ -7,8 +7,7 @@ import { AIClient } from "@/lib/ai/client";
 import { getVideoDetails, getPlaylistDetails } from "./getYoutubeData";
 import { getYoutubeTranscript } from "./getYoutubeTranscript";
 import type { Id } from "@/convex/_generated/dataModel";
-
-const convex = new ConvexHttpClient(config.convex.url);
+import { auth } from "@clerk/nextjs/server";
 
 interface GenerateCourseResult {
   success: boolean;
@@ -24,6 +23,21 @@ export async function generateCourseFromYoutube(
   }
 ): Promise<GenerateCourseResult> {
   try {
+    // Get authentication token from Clerk
+    const { getToken } = await auth();
+    const token = await getToken({ template: "convex" });
+    
+    if (!token) {
+      return {
+        success: false,
+        error: "Authentication required. Please sign in.",
+      };
+    }
+
+    // Create authenticated Convex client
+    const convex = new ConvexHttpClient(config.convex.url);
+    convex.setAuth(token);
+
     // Step 1: Parse YouTube URL and fetch data
     console.log("Parsing YouTube URL...");
     const urlPattern = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
@@ -66,6 +80,21 @@ export async function generateCourseFromYoutube(
       };
     }
 
+    // Step 1.5: Check if course already exists for this video
+    console.log("Checking for existing course...");
+    const existingCourse = await convex.query(api.courses.getCourseBySourceId, {
+      sourceId: videoId,
+      userId: options.userId,
+    });
+
+    if (existingCourse) {
+      console.log("Course already exists, returning existing course ID:", existingCourse._id);
+      return {
+        success: true,
+        courseId: existingCourse._id,
+      };
+    }
+
     // Step 2: Get transcript
     console.log("Fetching transcript...");
     const transcriptSegments = await getYoutubeTranscript(videoId);
@@ -84,24 +113,17 @@ export async function generateCourseFromYoutube(
     // Step 3: Generate course outline with AI
     console.log("Generating course outline with AI...");
     const courseOutline = await AIClient.generateCourseOutline({
-      videoTitle:
-        data.type === "video" ? data.video.title : data.playlist.title,
-      videoDescription:
-        data.type === "video"
-          ? data.video.description
-          : data.playlist.description,
+      videoTitle: data.title || "Unknown Title",
+      videoDescription: data.description || "",
       transcript,
-      channelName:
-        data.type === "video"
-          ? data.video.channelTitle
-          : data.playlist.channelTitle || "Unknown",
+      channelName: data.channelName || "Unknown",
     });
 
     // Step 4: Store in Convex
     console.log("Storing course in database...");
     const courseId = await convex.mutation(api.courses.createAICourse, {
       course: {
-        title: courseOutline.title,
+        title: data.title || courseOutline.title, // Use YouTube title, fallback to AI title
         description: courseOutline.description,
         learningObjectives: courseOutline.learningObjectives,
         prerequisites: courseOutline.prerequisites,

@@ -6,7 +6,9 @@ import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "./custom-toast";
 import { useAnalysis } from "@/hooks/use-analysis-context";
 import { getYoutubeTranscript } from "@/actions/getYoutubeTranscript";
+import { generateCourseFromYoutube } from "@/actions/generateCourseFromYoutube";
 import { useSupabaseVideoQuery, useUpdateSupabaseVideoCourseData, useSaveSupabaseCourseToPublic } from "@/hooks/use-supabase-courses";
+import { useAuth } from "@/hooks/use-auth";
 
 interface GoogleAICourseGenerateButtonProps {
   className?: string;
@@ -30,6 +32,8 @@ export function GoogleAICourseGenerateButton({
     setCourseGenerating,
     courseGenerating
   } = useAnalysis();
+
+  const { user, isAuthenticated } = useAuth();
 
   // Reference to the abort controller for cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -86,186 +90,137 @@ export function GoogleAICourseGenerateButton({
 
     while (retryCount <= maxRetries) {
       try {
-      // First check if we already have this course in the database
-      if (existingVideo && isFullVideoDoc(existingVideo) && hasValidCourseData(existingVideo)) {
-        // Use existing course data
-        setCourseData(existingVideo.course_data);
-        toast.success("Course loaded from database");
+        // First check if we already have this course in the database
+        if (existingVideo && isFullVideoDoc(existingVideo) && hasValidCourseData(existingVideo)) {
+          // Use existing course data
+          setCourseData(existingVideo.course_data);
+          toast.success("Course loaded from database");
 
-        // Log the existing course data structure for debugging
-        console.log("[GoogleAICourseGenerateButton] Existing course data structure:", {
-          hasTitle: !!existingVideo.course_data.title,
-          hasDescription: !!existingVideo.course_data.description,
-          hasVideoId: !!videoData.id,
-          hasCourseItems: Array.isArray(existingVideo.course_data.courseItems) && existingVideo.course_data.courseItems.length > 0,
-          courseItemsCount: Array.isArray(existingVideo.course_data.courseItems) ? existingVideo.course_data.courseItems.length : 0,
-          hasMetadata: !!existingVideo.course_data.metadata
-        });
+          // Log the existing course data structure for debugging
+          console.log("[GoogleAICourseGenerateButton] Existing course data structure:", {
+            hasTitle: !!existingVideo.course_data.title,
+            hasDescription: !!existingVideo.course_data.description,
+            hasVideoId: !!videoData.id,
+            hasCourseItems: Array.isArray(existingVideo.course_data.courseItems) && existingVideo.course_data.courseItems.length > 0,
+            courseItemsCount: Array.isArray(existingVideo.course_data.courseItems) ? existingVideo.course_data.courseItems.length : 0,
+            hasMetadata: !!existingVideo.course_data.metadata
+          });
 
-        // Get transcript for existing course
+          // Get transcript for existing course
+          const transcriptSegments = await getYoutubeTranscript(videoData.id);
+          const transcript = transcriptSegments.map(seg => seg.text).join(" ").trim();
+
+          try {
+            // Also save to public courses database
+            console.log("[GoogleAICourseGenerateButton] Saving existing course to public database...");
+            await saveGeneratedCourseToPublic({
+              courseData: {
+                title: existingVideo.course_data.title,
+                description: existingVideo.course_data.description || "",
+                videoId: videoData.id,
+                thumbnail: existingVideo.course_data.image || videoData.thumbnail,
+                courseItems: existingVideo.course_data.courseItems || [],
+                metadata: existingVideo.course_data.metadata || {},
+                transcript: transcript // Pass the transcript to the API
+              },
+              userId: undefined // No user ID for now, could be added later
+            });
+            console.log("[GoogleAICourseGenerateButton] Successfully saved existing course to public database");
+          } catch (err) {
+            console.error("Error saving existing course to public database:", err);
+            // Don't show error to user as this is a background operation
+          }
+
+          return;
+        }
+
+        // Check authentication
+        if (!isAuthenticated || !user?.id) {
+          throw new Error("Please sign in to generate courses");
+        }
+
+        // Get transcript
         const transcriptSegments = await getYoutubeTranscript(videoData.id);
         const transcript = transcriptSegments.map(seg => seg.text).join(" ").trim();
 
+        if (!transcript) {
+          throw new Error("Could not retrieve transcript for this video.");
+        }
+
+        // Generate course using server action
+        console.log("[GoogleAICourseGenerateButton] Starting course generation...");
+
+        const youtubeUrl = `https://www.youtube.com/watch?v=${videoData.id}`;
+        const result = await generateCourseFromYoutube(youtubeUrl, {
+          userId: user.id,
+          isPublic: false,
+        });
+
+        if (!result.success || !result.courseId) {
+          throw new Error(result.error || "Failed to generate course");
+        }
+
+        console.log("[GoogleAICourseGenerateButton] Course generated successfully:", result.courseId);
+
+        // Create course data structure for context (simplified version)
+        const generatedCourse = {
+          title: videoData.title,
+          description: videoData.description || "",
+          videoId: videoData.id,
+          thumbnail: videoData.thumbnail,
+          courseId: result.courseId,
+          metadata: {
+            generatedAt: new Date().toISOString(),
+            sourceType: 'youtube',
+          }
+        };
+
+        // Set course data in context
+        setCourseData(generatedCourse);
+
+        // Log the course data structure for debugging
+        console.log("[GoogleAICourseGenerateButton] Course data structure:", {
+          hasTitle: !!result.data.title,
+          hasDescription: !!result.data.description,
+          hasVideoId: !!videoData.id,
+          hasCourseItems: Array.isArray(result.data.courseItems) && result.data.courseItems.length > 0,
+          courseItemsCount: Array.isArray(result.data.courseItems) ? result.data.courseItems.length : 0,
+          hasMetadata: !!result.data.metadata
+        });
+
         try {
-          // Also save to public courses database
-          console.log("[GoogleAICourseGenerateButton] Saving existing course to public database...");
+          // Save to video cache database
+          console.log("[GoogleAICourseGenerateButton] Saving course to video cache database...");
+          await updateVideoCourseData({
+            youtubeId: videoData.id,
+            courseData: result.data
+          });
+          console.log("[GoogleAICourseGenerateButton] Successfully saved course to video cache database");
+        } catch (err) {
+          console.error("Error saving to video database:", err);
+          // Don't show error to user as this is a background operation
+        }
+
+        try {
+          // Save to public courses database
+          console.log("[GoogleAICourseGenerateButton] Saving course to public database...");
           await saveGeneratedCourseToPublic({
             courseData: {
-              title: existingVideo.course_data.title,
-              description: existingVideo.course_data.description || "",
+              title: result.data.title,
+              description: result.data.description || "",
               videoId: videoData.id,
-              thumbnail: existingVideo.course_data.image || videoData.thumbnail,
-              courseItems: existingVideo.course_data.courseItems || [],
-              metadata: existingVideo.course_data.metadata || {},
+              thumbnail: result.data.image || videoData.thumbnail,
+              courseItems: result.data.courseItems || [],
+              metadata: result.data.metadata || {},
               transcript: transcript // Pass the transcript to the API
             },
             userId: undefined // No user ID for now, could be added later
           });
-          console.log("[GoogleAICourseGenerateButton] Successfully saved existing course to public database");
+          console.log("[GoogleAICourseGenerateButton] Successfully saved course to public database");
         } catch (err) {
-          console.error("Error saving existing course to public database:", err);
+          console.error("Error saving to public database:", err);
           // Don't show error to user as this is a background operation
         }
-
-        return;
-      }
-
-      // Get transcript
-      const transcriptSegments = await getYoutubeTranscript(videoData.id);
-      const transcript = transcriptSegments.map(seg => seg.text).join(" ").trim();
-
-      if (!transcript) {
-        throw new Error("Could not retrieve transcript for this video.");
-      }
-
-      // Call the API to generate the course
-      // Note: This request can take a long time for large videos
-      // We intentionally don't set a timeout to allow the ADK service to complete naturally
-      abortControllerRef.current = new AbortController();
-
-      console.log("[GoogleAICourseGenerateButton] Calling course generation API...");
-
-      // Add a timeout for the initial connection
-      const timeoutId = setTimeout(() => {
-        console.log("[GoogleAICourseGenerateButton] Request timed out, but not aborting to allow background processing");
-        // We don't abort the request, just log the timeout
-        // This allows the request to continue in the background
-      }, 30000); // 30 second timeout for logging purposes only
-
-      const response = await fetch('/api/course-generation/google-adk', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          videoId: videoData.id,
-          videoTitle: videoData.title,
-          videoDescription: videoData.description || "",
-          transcript,
-          video_data: videoData
-        }),
-        // No timeout - let the request complete naturally
-        // The ADK service can take a long time for large videos
-        signal: abortControllerRef.current.signal
-      });
-
-      // Clear the timeout
-      clearTimeout(timeoutId);
-
-      console.log("[GoogleAICourseGenerateButton] Received response from course generation API:", response.status);
-
-      if (!response.ok) {
-        // Get more detailed error information from the response
-        const errorData = await response.json().catch(() => ({ error: `Error: ${response.status}` }));
-        const errorMessage = errorData.error || `Error: ${response.status}`;
-
-        console.log("[GoogleAICourseGenerateButton] Error response details:", {
-          status: response.status,
-          errorMessage,
-          errorData
-        });
-
-        // Check for specific status codes
-        if (response.status === 503) {
-          // Service Unavailable - The ADK service is not running or not accessible
-          console.error("[GoogleAICourseGenerateButton] ADK Service Unavailable:", errorMessage);
-
-          // Try to get more specific information about the error
-          if (errorMessage.includes("Headers Timeout")) {
-            throw new Error(`ADK Service Headers Timeout: The service is running but not responding properly. This might be due to high load or a configuration issue.`);
-          } else if (errorMessage.includes("connection refused")) {
-            throw new Error(`ADK Service Connection Refused: The service is not running. Please ensure the ADK service is running at http://localhost:8001 with 'cd adk_service; uvicorn server:app --reload'`);
-          } else {
-            throw new Error(`ADK Service Unavailable: ${errorMessage}. Please ensure the ADK service is running at http://localhost:8001 with 'cd adk_service; uvicorn server:app --reload'`);
-          }
-        } else if (response.status === 504) {
-          // Gateway Timeout - The ADK service is running but taking too long to respond
-          console.error("[GoogleAICourseGenerateButton] ADK Service Timeout:", errorMessage);
-          throw new Error(`ADK Service Timeout: ${errorMessage}. The service might be running but taking too long to respond.`);
-        } else if (response.status === 502) {
-          // Bad Gateway - The ADK service is running but returning an error
-          console.error("[GoogleAICourseGenerateButton] ADK Service Error:", errorMessage);
-          throw new Error(`ADK Service Error: ${errorMessage}. The service might be running but returning an error.`);
-        } else {
-          // Other errors
-          console.error("[GoogleAICourseGenerateButton] Unexpected error:", errorMessage);
-          throw new Error(`Error ${response.status}: ${errorMessage}`);
-        }
-      }
-
-      // Parse the response
-      const result = await response.json();
-
-      if (!result.data) {
-        throw new Error("No course data received");
-      }
-
-      // Set course data in context
-      setCourseData(result.data);
-
-      // Log the course data structure for debugging
-      console.log("[GoogleAICourseGenerateButton] Course data structure:", {
-        hasTitle: !!result.data.title,
-        hasDescription: !!result.data.description,
-        hasVideoId: !!videoData.id,
-        hasCourseItems: Array.isArray(result.data.courseItems) && result.data.courseItems.length > 0,
-        courseItemsCount: Array.isArray(result.data.courseItems) ? result.data.courseItems.length : 0,
-        hasMetadata: !!result.data.metadata
-      });
-
-      try {
-        // Save to video cache database
-        console.log("[GoogleAICourseGenerateButton] Saving course to video cache database...");
-        await updateVideoCourseData({
-          youtubeId: videoData.id,
-          courseData: result.data
-        });
-        console.log("[GoogleAICourseGenerateButton] Successfully saved course to video cache database");
-      } catch (err) {
-        console.error("Error saving to video database:", err);
-        // Don't show error to user as this is a background operation
-      }
-
-      try {
-        // Save to public courses database
-        console.log("[GoogleAICourseGenerateButton] Saving course to public database...");
-        await saveGeneratedCourseToPublic({
-          courseData: {
-            title: result.data.title,
-            description: result.data.description || "",
-            videoId: videoData.id,
-            thumbnail: result.data.image || videoData.thumbnail,
-            courseItems: result.data.courseItems || [],
-            metadata: result.data.metadata || {},
-            transcript: transcript // Pass the transcript to the API
-          },
-          userId: undefined // No user ID for now, could be added later
-        });
-        console.log("[GoogleAICourseGenerateButton] Successfully saved course to public database");
-      } catch (err) {
-        console.error("Error saving to public database:", err);
-        // Don't show error to user as this is a background operation
-      }
 
         // If we reach here, we've successfully completed the request
         break;
@@ -285,7 +240,7 @@ export function GoogleAICourseGenerateButton({
 
           // Inform the user about the retry
           toast.info(`Retrying course generation (${retryCount}/${maxRetries})`, {
-            description: `The ADK service is not responding. Retrying in ${retryDelay/1000} seconds...`
+            description: `The ADK service is not responding. Retrying in ${retryDelay / 1000} seconds...`
           });
 
           // Wait before retrying

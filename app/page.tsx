@@ -13,6 +13,8 @@ import { PlaceholderImage } from "@/components/ui/placeholder-image";
 import { CourseGenerateButton } from "@/components/course-generate-button";
 import { FeatureCard } from "@/components/ui/feature-card";
 
+export const dynamic = 'force-dynamic';
+
 interface Feature {
   icon: LucideIcon;
   title: string;
@@ -112,7 +114,7 @@ export default function HomePage() {
   return (
     <div className="pb-26">
       <Header />
-      
+
       {/* Hero Section */}
       <section className="section-light relative min-h-[85vh] py-20 lg:py-24 flex items-center justify-center">
         <div className="background-grid" />
@@ -190,26 +192,26 @@ export default function HomePage() {
           <div className="background-grid" />
           <div className="background-gradient" />
           <div className="pattern-grid opacity-30" />
-          
+
           <div className="w-[85%] mx-auto max-w-6xl py-24">
             <div className="text-center max-w-2xl mx-auto mb-12 fade-in-up">
-            <h2 className="text-3xl font-bold mb-4">How It Works</h2>
-            <p className="text-muted-foreground">
-              Transform any educational video into a structured course in four simple steps
-            </p>
-          </div>
+              <h2 className="text-3xl font-bold mb-4">How It Works</h2>
+              <p className="text-muted-foreground">
+                Transform any educational video into a structured course in four simple steps
+              </p>
+            </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {steps.map((step, index) => (
-              <Card key={step.number} className={`relative overflow-hidden transition-colors hover:border-primary/50 fade-in-up delay-${(index + 1) * 100}`}>
-                <CardHeader>
-                  <div className="text-4xl font-bold text-primary/20 mb-4">{step.number}</div>
-                  <CardTitle>{step.title}</CardTitle>
-                  <CardDescription>{step.description}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {steps.map((step, index) => (
+                <Card key={step.number} className={`relative overflow-hidden transition-colors hover:border-primary/50 fade-in-up delay-${(index + 1) * 100}`}>
+                  <CardHeader>
+                    <div className="text-4xl font-bold text-primary/20 mb-4">{step.number}</div>
+                    <CardTitle>{step.title}</CardTitle>
+                    <CardDescription>{step.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
           </div>
         </RevealOnScroll>
       </section>
@@ -236,67 +238,66 @@ export default function HomePage() {
             </div>
 
             <div className="flex flex-col gap-48">
-            {features.map((feature, index) => (
-              <div
-                key={feature.title}
-                className={`flex flex-col ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} gap-8 lg:gap-16 items-start fade-in-up delay-${(index + 1) * 100}`}
-              >
-                <div className={`w-full lg:w-[40%] space-y-8 ${index % 2 === 0 ? '' : 'lg:text-right'}`}>
-                  <div>
-                    <div className={`inline-flex items-center gap-4 mb-6 ${index % 2 === 0 ? '' : 'lg:flex-row-reverse lg:justify-end'}`}>
-                      <div className="relative group/icon">
-                        <div className="absolute -inset-2 bg-gradient-to-br from-primary/20 to-primary/0 rounded-xl blur-lg opacity-0 group-hover/icon:opacity-100 transition-opacity" />
-                        <div className="relative p-3 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-sm transform hover:scale-110 transition-all duration-300">
-                          <feature.icon className="h-8 w-8 text-primary" />
+              {features.map((feature, index) => (
+                <div
+                  key={feature.title}
+                  className={`flex flex-col ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} gap-8 lg:gap-16 items-start fade-in-up delay-${(index + 1) * 100}`}
+                >
+                  <div className={`w-full lg:w-[40%] space-y-8 ${index % 2 === 0 ? '' : 'lg:text-right'}`}>
+                    <div>
+                      <div className={`inline-flex items-center gap-4 mb-6 ${index % 2 === 0 ? '' : 'lg:flex-row-reverse lg:justify-end'}`}>
+                        <div className="relative group/icon">
+                          <div className="absolute -inset-2 bg-gradient-to-br from-primary/20 to-primary/0 rounded-xl blur-lg opacity-0 group-hover/icon:opacity-100 transition-opacity" />
+                          <div className="relative p-3 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-sm transform hover:scale-110 transition-all duration-300">
+                            <feature.icon className="h-8 w-8 text-primary" />
+                          </div>
+                        </div>
+                        <h3 className="text-3xl font-bold text-foreground">
+                          {feature.title}
+                        </h3>
+                      </div>
+                      <p className="text-muted-foreground text-lg leading-relaxed">
+                        {feature.description}
+                      </p>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      className={`group/btn relative overflow-hidden border-primary/20 hover:border-primary/50 ${index % 2 === 0 ? '' : 'lg:ml-auto'
+                        }`}
+                    >
+                      <span className="relative z-10 flex items-center">
+                        Learn more
+                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                      </span>
+                      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                    </Button>
+                  </div>
+
+                  <div className="w-full lg:w-[60%]">
+                    <div className="relative">
+                      <FeatureCard className="interactive group p-2 shadow-2xl bg-gradient-to-br from-card/50 to-card/30">
+                        <div className="relative aspect-[16/9] rounded-xl overflow-hidden">
+                          <PlaceholderImage title={feature.preview} />
+                        </div>
+                      </FeatureCard>
+
+                      <div className={`feature-card-label ${index % 2 === 0 ? 'right-10' : 'left-10'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-full bg-primary/10">
+                            <feature.icon className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="text-sm">
+                            <div className="font-medium">AI-Powered</div>
+                            <div className="text-muted-foreground">Feature</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-                      </div>
-                      <h3 className="text-3xl font-bold text-foreground">
-                        {feature.title}
-                      </h3>
-                    </div>
-                    <p className="text-muted-foreground text-lg leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    className={`group/btn relative overflow-hidden border-primary/20 hover:border-primary/50 ${
-                      index % 2 === 0 ? '' : 'lg:ml-auto'
-                    }`}
-                  >
-                    <span className="relative z-10 flex items-center">
-                      Learn more
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-                    </span>
-                    <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-                  </Button>
-                </div>
-
-                <div className="w-full lg:w-[60%]">
-                  <div className="relative">
-                    <FeatureCard className="interactive group p-2 shadow-2xl bg-gradient-to-br from-card/50 to-card/30">
-                      <div className="relative aspect-[16/9] rounded-xl overflow-hidden">
-                        <PlaceholderImage title={feature.preview} />
-                      </div>
-                    </FeatureCard>
-                    
-                    <div className={`feature-card-label ${index % 2 === 0 ? 'right-10' : 'left-10'}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-full bg-primary/10">
-                          <feature.icon className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="text-sm">
-                          <div className="font-medium">AI-Powered</div>
-                          <div className="text-muted-foreground">Feature</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
           </div>
         </RevealOnScroll>
       </section>
@@ -307,25 +308,25 @@ export default function HomePage() {
           <div className="background-grid" />
           <div className="background-gradient" />
           <div className="pattern-grid opacity-30" />
-        
+
           <div className="w-[85%] mx-auto max-w-6xl py-24">
             <div className="text-center max-w-2xl mx-auto mb-12 fade-in-up">
-            <h2 className="text-3xl font-bold mb-4">Key Benefits</h2>
-            <p className="text-muted-foreground">
-              Experience a new way of learning with our comprehensive features
-            </p>
-          </div>
+              <h2 className="text-3xl font-bold mb-4">Key Benefits</h2>
+              <p className="text-muted-foreground">
+                Experience a new way of learning with our comprehensive features
+              </p>
+            </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {benefits.map((benefit, index) => (
-              <Card key={benefit.title} className={`relative overflow-hidden transition-colors hover:border-primary/50 fade-in-up delay-${(index + 1) * 100}`}>
-                <CardHeader>
-                  <CardTitle>{benefit.title}</CardTitle>
-                  <CardDescription>{benefit.description}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {benefits.map((benefit, index) => (
+                <Card key={benefit.title} className={`relative overflow-hidden transition-colors hover:border-primary/50 fade-in-up delay-${(index + 1) * 100}`}>
+                  <CardHeader>
+                    <CardTitle>{benefit.title}</CardTitle>
+                    <CardDescription>{benefit.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
           </div>
         </RevealOnScroll>
       </section>

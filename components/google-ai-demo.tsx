@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { toast } from './custom-toast';
+import { generateCourseFromYoutube } from '@/actions/generateCourseFromYoutube';
+import { useAuth } from '@/hooks/use-auth';
 
 /**
  * Simple demo component for testing Google AI course generation
@@ -14,6 +16,7 @@ export function GoogleAIDemo() {
   const [videoUrl, setVideoUrl] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCourse, setGeneratedCourse] = useState<any>(null);
+  const { user, isAuthenticated } = useAuth();
 
   // Extract YouTube video ID from URL
   const extractVideoId = (url: string): string | null => {
@@ -38,46 +41,32 @@ export function GoogleAIDemo() {
 
     try {
       setIsGenerating(true);
+
+      if (!isAuthenticated || !user?.id) {
+        toast.error("Authentication Required", {
+          description: "Please sign in to generate courses"
+        });
+        return;
+      }
+
       toast.info("Starting Generation", {
-        description: "Fetching video information and generating course..."
+        description: "Generating course from YouTube video..."
       });
 
-      // Fetch video data
-      const videoResponse = await fetch(`/api/youtube?id=${videoId}`);
-      if (!videoResponse.ok) {
-        throw new Error("Failed to fetch video information");
-      }
-
-      const videoData = await videoResponse.json();
-
-      // Start course generation
-      const response = await fetch('/api/course-generation/google-ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          videoId,
-          videoTitle: videoData.title,
-          videoDescription: videoData.description || '',
-          // The transcript would typically be fetched separately
-          // but we'll skip that for this demo component
-          transcript: ''
-        }),
+      // Generate course using server action
+      const result = await generateCourseFromYoutube(videoUrl, {
+        userId: user.id,
+        isPublic: false,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to generate course");
+      if (!result.success || !result.courseId) {
+        throw new Error(result.error || "Failed to generate course");
       }
 
-      const result = await response.json();
-
-      if (!result.data) {
-        throw new Error("No course data returned");
-      }
-
-      setGeneratedCourse(result.data);
+      setGeneratedCourse({
+        courseId: result.courseId,
+        message: "Course generated successfully!"
+      });
       toast.success("Course Generated", {
         description: "Your course has been successfully generated!"
       });

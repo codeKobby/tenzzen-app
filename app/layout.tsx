@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { RootLayoutClient } from "./root-layout-client"
 import { Providers } from "./providers"
+import NextTopLoader from "nextjs-toploader"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -19,6 +20,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <NextTopLoader
+          color="#2563eb"
+          height={3}
+          showSpinner={false}
+          easing="ease"
+          speed={200}
+        />
         <Providers>
           <RootLayoutClient>
             {children}

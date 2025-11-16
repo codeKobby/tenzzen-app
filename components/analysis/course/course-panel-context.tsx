@@ -4,7 +4,6 @@ import React, { createContext, useContext, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/components/custom-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { useSupabase } from '@/contexts/supabase-context';
 
 // Define the shape of the context
 interface CoursePanelContextType {
@@ -30,7 +29,6 @@ export const CoursePanelProvider = ({
 }) => {
     const router = useRouter();
     const { user } = useAuth();
-    const supabase = useSupabase();
     const [isEnrolling, setIsEnrolling] = useState(false);
 
     const handleEnroll = async (course: any) => {

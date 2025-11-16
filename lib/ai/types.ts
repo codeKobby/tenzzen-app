@@ -47,3 +47,23 @@ export const QuizSchema = z.object({
 
 export type Quiz = z.infer<typeof QuizSchema>;
 export type QuizQuestion = z.infer<typeof QuizQuestionSchema>;
+
+// Video recommendation structure
+export const VideoRecommendationSchema = z.object({
+  videoId: z.string(),
+  title: z.string(),
+  channelName: z.string(),
+  thumbnail: z.string(),
+  duration: z.string(),
+  views: z.string(),
+  publishDate: z.string(),
+  relevanceScore: z.number(),
+  benefit: z.string(),
+});
+
+export const VideoRecommendationsSchema = z.object({
+  recommendations: z.array(VideoRecommendationSchema),
+});
+
+export type VideoRecommendation = z.infer<typeof VideoRecommendationSchema>;
+export type VideoRecommendations = z.infer<typeof VideoRecommendationsSchema>;

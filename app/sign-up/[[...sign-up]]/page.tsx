@@ -2,32 +2,12 @@
 
 import * as React from "react"
 import { SignUp } from "@clerk/nextjs"
-<<<<<<< HEAD
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
-
-export default function SignUpPage() {
-  return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-white">
-      {/* Back Button - Positioned at top left */}
-      <div className="absolute top-4 left-4">
-        <Link href="/" className="inline-flex items-center text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
-        </Link>
-      </div>
-
-      <div className="flex-grow flex items-center justify-center">
-        <div className="w-full max-w-sm px-3">
-          {/* Sign Up Form */}
-=======
 
 export default function SignUpPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-sm px-3">
         {/* Sign Up Form */}
->>>>>>> master
         <SignUp
           appearance={{
             elements: {
@@ -50,7 +30,6 @@ export default function SignUpPage() {
           fallbackRedirectUrl="/dashboard"
           forceRedirectUrl="/dashboard"
         />
-        </div>
       </div>
     </div>
   )

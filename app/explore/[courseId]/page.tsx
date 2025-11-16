@@ -9,7 +9,6 @@ import { useNormalizedCourse } from "@/hooks/use-normalized-course"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { useSupabase } from "@/contexts/supabase-context"
 import { CoursePanel } from "@/components/analysis/course-panel"
 import { CoursePanelProvider } from "@/components/analysis/course-panel-context"
 import { AnalysisProvider } from "@/hooks/use-analysis-context"
@@ -21,7 +20,6 @@ export default function ExploreCourseDetailsPage() {
   const pathname = usePathname()
   const courseId = typeof params.courseId === 'string' ? params.courseId : ''
   const { user } = useAuth()
-  const supabase = useSupabase()
   const [activeTab, setActiveTab] = useState("overview")
   const [enrolling, setEnrolling] = useState(false)
   const { setCourseTitleForPath } = useBreadcrumb()

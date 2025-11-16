@@ -1,5 +1,4 @@
 import { useCallback, useState, useEffect } from 'react';
-import { useSupabase } from '@/contexts/supabase-context';
 import { Id } from '@/types/convex-types';
 
 interface UseAssessmentProps {
@@ -44,7 +43,6 @@ export function useAssessment({
   const [progress, setProgress] = useState<AssessmentProgress | null>(null);
   const [assessment, setAssessment] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const supabase = useSupabase();
 
   // Fetch assessment data
   useEffect(() => {
@@ -270,41 +268,19 @@ interface UseSectionAssessmentsReturn {
 }
 
 // Helper hook to get all assessments for a section
+// TODO: Migrate to Convex - use quizzes table
 export function useSectionAssessments(
   courseId: Id<"courses">,
   sectionId: string
 ): UseSectionAssessmentsReturn {
   const [assessments, setAssessments] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const supabase = useSupabase();
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Stubbed - return empty assessments until Convex migration
   useEffect(() => {
-    async function fetchAssessments() {
-      try {
-        setIsLoading(true);
-
-        const { data, error } = await supabase
-          .from('assessments')
-          .select('*')
-          .eq('course_id', courseId)
-          .eq('section_id', sectionId);
-
-        if (error) {
-          console.error('Error fetching section assessments:', error);
-          setAssessments([]);
-        } else {
-          setAssessments(data || []);
-        }
-      } catch (err) {
-        console.error('Error in fetchAssessments:', err);
-        setAssessments([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchAssessments();
-  }, [supabase, courseId, sectionId]);
+    setAssessments([]);
+    setIsLoading(false);
+  }, [courseId, sectionId]);
 
   return {
     assessments,

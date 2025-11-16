@@ -1,48 +1,158 @@
-<<<<<<< HEAD
-- Always use context7 mcp to get the latest docs before making any new implementations or any edits.
-- Never make ui changes unless specified in the prompt and always stick to what you have been asked to edit and avoid completely editing or altering any ui, if the need arises for you to make a change ask for confirmation first
-- Use sequential thinking mcp together with context7 for all database setups.
-- use sequential thinking to fix problems and all error fixing tasks.
-- use web search tool when necessary.
-=======
 # Tenzzen AI Agent Instructions
 
 ## Project Architecture
 
-This is a **Next.js 15 App Router** application with **Convex** backend, **Clerk** authentication, and **Vercel AI SDK (TypeScript)** for AI features. It transforms YouTube videos/playlists into structured learning experiences.
+This is a **Next.js 15 App Router** application with **Convex** backend, **Clerk** authentication, and **Vercel AI SDK + Google AI** for course generation from YouTube content.
 
 ### Tech Stack
 
 - **Frontend**: Next.js 15 (App Router), React 18, TypeScript
 - **Backend**: Convex (realtime database + serverless functions)
-- **Auth**: Clerk with JWT integration to Convex
-- **UI**: Radix UI primitives + Tailwind CSS (shadcn/ui components)
-- **State**: Zustand for client state
-- **Package Manager**: pnpm (required, see `engines` in package.json)
+- **Auth**: Clerk with JWT integration (`convex/auth.config.ts`)
+- **AI**: Vercel AI SDK + Google Gemini (`@ai-sdk/google`, `ai` package)
+- **Optional Python Service**: ADK service (`adk_service/`) with FastAPI + Google ADK
+- **UI**: shadcn/ui (Radix UI + Tailwind CSS)
+- **Package Manager**: pnpm (strict requirement, see `pnpm-workspace.yaml`)
 
 ## Critical Workflows
 
-### Development Commands
+### Development Setup (Sequential)
 
 ```bash
-pnpm install          # Install dependencies (ALWAYS use pnpm, not npm/yarn)
-pnpm dev              # Start Next.js dev server (port 3000)
-pnpm convex           # Start Convex dev server (run in separate terminal)
-pnpm build            # Build for production
+pnpm install                    # Install dependencies (NEVER use npm/yarn)
+pnpm convex                     # Terminal 1: Start Convex dev (required)
+pnpm dev                        # Terminal 2: Start Next.js (port 3000)
 ```
 
-**Important**: Always run `pnpm convex` alongside `pnpm dev` for full functionality.
+**Critical**: Convex must run before Next.js. Frontend depends on Convex realtime connection.
 
-### Environment Setup
+### Environment Variables
 
-Required env vars in `.env.local`:
+Required in `.env.local`:
 
 ```bash
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
-CLERK_JWT_ISSUER_DOMAIN=       # From Clerk JWT template named "convex"
-NEXT_PUBLIC_CONVEX_URL=         # From convex dashboard
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=       # From Clerk dashboard
+CLERK_SECRET_KEY=                        # From Clerk dashboard
+CLERK_JWT_ISSUER_DOMAIN=                 # From JWT template named "convex"
+
+# Convex Backend
+NEXT_PUBLIC_CONVEX_URL=                  # From `npx convex dev` output
+
+# YouTube & AI
+YOUTUBE_API_KEY=                         # For video metadata
+GOOGLE_GENERATIVE_AI_API_KEY=            # For Gemini AI generation
+
+# Optional: ADK Python Service (if using)
+NEXT_PUBLIC_ADK_SERVICE_URL=             # URL to deployed ADK service
+NEXT_PUBLIC_ADK_SERVICE_TIMEOUT=300000   # 5 minute timeout
 ```
+
+## Architecture Patterns
+
+### Convex Backend: Query/Mutation/Action Pattern
+
+**Schema-first design** (`convex/schema.ts`):
+
+```typescript
+courses: defineTable({
+  createdBy: v.string(), // Clerk user ID
+  sourceType: v.union(v.literal("youtube"), v.literal("manual")),
+  sourceId: v.optional(v.string()),
+  // ... more fields
+})
+  .index("by_user", ["createdBy"]) // ALWAYS index query fields
+  .index("by_source", ["sourceType", "sourceId"]);
+```
+
+**Queries** (client-side realtime reads):
+
+```typescript
+// convex/courses.ts
+export const getUserCourses = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("courses")
+      .withIndex("by_user", (q) => q.eq("createdBy", args.userId))
+      .collect();
+  },
+});
+
+// Client usage (automatically reactive)
+import { useQuery } from "convex/react";
+const courses = useQuery(api.courses.getUserCourses, { userId: user.id });
+```
+
+**Mutations** (write data):
+
+```typescript
+export const createCourse = mutation({
+  args: { title: v.string(), userId: v.string() },
+  handler: async (ctx, args) => {
+    const courseId = await ctx.db.insert("courses", {
+      title: args.title,
+      createdBy: args.userId,
+      createdAt: new Date().toISOString(),
+      // ...
+    });
+    return courseId;
+  },
+});
+```
+
+**Actions** (can call external APIs, not realtime):
+
+```typescript
+export const generateCourse = action({
+  args: { videoId: v.string() },
+  handler: async (ctx, args) => {
+    // Can call external APIs, YouTube API, AI services
+    // Use ctx.runMutation() to write to DB
+  },
+});
+```
+
+### Authentication: getUserIdentity Pattern
+
+**In Convex functions** (`convex/helpers.ts`):
+
+```typescript
+export async function getUserId(ctx: QueryCtx): Promise<string | null> {
+  const identity = await ctx.auth.getUserIdentity();
+  return identity?.subject ?? null; // Clerk user ID
+}
+
+// Usage in queries/mutations
+const userId = await getUserId(ctx);
+if (!userId) throw new Error("Unauthorized");
+```
+
+**Client-side**: Always use Clerk hooks from `@clerk/nextjs`:
+
+```typescript
+import { useUser } from "@clerk/nextjs";
+const { user } = useUser(); // user.id is Clerk user ID
+```
+
+### Middleware: Onboarding Gate
+
+`middleware.ts` enforces onboarding completion:
+
+```typescript
+// Public routes (no auth required)
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/explore(.*)",
+]);
+
+// Checks sessionClaims?.metadata?.onboardingComplete
+// Redirects incomplete users to /onboarding
+```
+
+**Key Flow**: Sign up → Clerk metadata check → `/onboarding` (if incomplete) → Protected routes
 
 ## Code Conventions
 
@@ -63,139 +173,29 @@ NEXT_PUBLIC_CONVEX_URL=         # From convex dashboard
 - Add `"use server"` for Server Actions in `actions/`
 - See `app/providers.tsx` for provider wrapping pattern
 
-### Authentication Flow
+### Provider Architecture
 
-1. **Middleware** (`middleware.ts`) handles routing protection:
-
-   - Public routes: `/`, `/sign-in`, `/sign-up`, `/explore`
-   - Onboarding check: `sessionClaims?.metadata?.onboardingComplete`
-   - Redirects unauthenticated users and incomplete onboarding
-
-2. **Clerk + Convex Integration**:
-
-   - `ConvexClientProvider` wraps Clerk + Convex providers
-   - JWT template in Clerk named "convex" required
-   - `convex/auth.config.ts` configures Clerk domain validation
-
-3. **Auth Components**:
-   - Use `<Authenticated>`, `<Unauthenticated>`, `<AuthLoading>` from `convex/react`
-   - See `components/authenticated-layout-client.tsx` for pattern
-
-### Convex Backend Patterns
-
-**Schema Definition** (`convex/schema.ts`):
+**Root-level providers** (`app/ConvexClientProvider.tsx`):
 
 ```typescript
-// Always index fields used in queries
-videos: defineTable({
-  youtubeId: v.string(),
-  title: v.string(),
-  // ...
-}).index("by_youtube_id", ["youtubeId"]);
+<ClerkProvider>
+  <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+    {children}
+  </ConvexProviderWithClerk>
+</ClerkProvider>
 ```
 
-**Queries** (read data):
-
-```typescript
-export const getCachedVideo = query({
-  args: { youtubeId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("videos")
-      .withIndex("by_youtube_id", (q) => q.eq("youtubeId", args.youtubeId))
-      .unique();
-  },
-});
-```
-
-**Mutations** (write data):
-
-```typescript
-export const cacheVideo = mutation({
-  args: { youtubeId: v.string(), title: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db.insert("videos", {
-      ...args,
-      cachedAt: new Date().toISOString(),
-    });
-  },
-});
-```
-
-**Client Usage** (`hooks/use-convex.ts`):
-
-```typescript
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-
-const video = useQuery(api.videos.getCachedVideo, { youtubeId: "abc123" });
-const cacheVideo = useMutation(api.videos.cacheVideo);
-```
-
-### Server Actions Pattern
-
-Located in `actions/`, always marked with `"use server"`:
-
-```typescript
-"use server";
-
-export async function getYoutubeData(url: string) {
-  // Server-side only code
-  // Can access env vars, make API calls (including Vercel AI)
-  // Returns serializable data to client
-}
-```
-
-Use `ConvexHttpClient` for server-side Convex calls:
-
-```typescript
-import { ConvexHttpClient } from "convex/browser";
-const convex = new ConvexHttpClient(config.convex.url);
-await convex.query(api.videos.getCachedVideo, { youtubeId });
-```
-
-### AI Integration (Vercel AI SDK)
-
-- AI logic lives in **TypeScript** inside this repo (no separate Python service by default).
-- Use a small abstraction in `lib/ai/` (for example `lib/ai/client.ts`) to wrap the Vercel AI SDK and model configuration.
-- Server Actions in `actions/` orchestrate AI calls:
-  - Read video/playlist data and transcripts (e.g. via `getYoutubeData`, `getYoutubeTranscript`, and Convex queries).
-  - Call the AI client to generate course outlines, quizzes, or summaries.
-  - Write the structured results back into Convex tables.
-- Prefer **streaming responses** and server-side generation when using AI for interactive features.
-
-### UI Component Patterns
-
-**shadcn/ui Usage**:
-
-- All UI components in `components/ui/`
-- Use `cn()` utility for conditional classes: `cn("base-class", condition && "conditional-class")`
-- Theme-aware: CSS variables defined in `app/globals.css`
-
-**Layout Pattern**:
-
-```typescript
-// Authenticated pages use wrapper
-import { AuthenticatedLayout } from "@/components/authenticated-layout";
-
-export default function Page() {
-  return <AuthenticatedLayout>{/* content */}</AuthenticatedLayout>;
-}
-```
-
-**Styling**:
-
-- Use Tailwind utility classes
-- Use CSS variables for theme colors: `bg-background`, `text-foreground`, `border-border`
-- Constants for animations: `TRANSITION_DURATION`, `TRANSITION_TIMING` from `lib/constants.ts`
+- Clerk wraps Convex for JWT integration
+- `convex` client created in `hooks/use-convex.ts`
+- All Convex hooks need this wrapper
 
 ### Path Aliases
 
-Configured in `tsconfig.json` and `next.config.js`:
+Configured in `tsconfig.json`:
 
 ```typescript
 import { Button } from "@/components/ui/button";
-import { useConvex } from "@/hooks/use-convex";
+import { api } from "@/convex/_generated/api";
 import { config } from "@/lib/config";
 ```
 
@@ -207,25 +207,47 @@ import { config } from "@/lib/config";
 - Convex caches video/playlist metadata to reduce API calls
 - Uses relational table `playlist_videos` for playlist-video mappings
 
+### AI Course Generation Flow
+
+**TypeScript-first approach** (`lib/ai/client.ts`):
+
+1. Server Action receives YouTube URL (`actions/generateCourseFromYoutube.ts`)
+2. Fetch video metadata and transcript
+3. AIClient generates structured course outline using Vercel AI SDK
+4. Write modules, lessons, and quizzes to Convex tables
+5. Return course ID for navigation
+
+**ADK Python Service** (optional, in `adk_service/`):
+
+- Separate FastAPI service for advanced AI workflows
+- Uses Google ADK with Gemini models
+- Deployed independently (Cloud Run recommended)
+- Called via `NEXT_PUBLIC_ADK_SERVICE_URL` if configured
+
+### Database Schema Patterns
+
+**Relational patterns in Convex**:
+
+```typescript
+// One-to-many with index
+courses: defineTable({ ... }).index('by_user', ['createdBy'])
+modules: defineTable({ courseId: v.id('courses') }).index('by_course', ['courseId'])
+
+// Many-to-many junction table
+playlist_videos: defineTable({
+  playlistId: v.string(),
+  videoId: v.string(),
+  position: v.float64()
+})
+  .index('by_playlist', ['playlistId'])
+  .index('by_video', ['videoId'])
+```
+
 ### Theme System
 
 - `next-themes` provider in `components/providers.tsx`
 - Toggle in `components/theme-toggle.tsx`
 - Supports system, light, dark modes with `suppressHydrationWarning` on `<html>`
-
-### Error Handling
-
-- Use `formatErrorMessage()` from `lib/utils.ts` for user-friendly errors
-- Convex errors: see `convex/types.ts` for `ApiError` type
-
-## Documentation References
-
-Extensive docs in `docs/`:
-
-- `BACKEND_ARCHITECTURE.md` - API design patterns
-- `AUTH_IMPLEMENTATION.md` - Clerk authentication details
-- `DESIGN_SYSTEM.md` - Theme tokens and component usage
-- `DEVELOPMENT_STATE.md` - Current feature status
 
 ## Common Pitfalls
 
@@ -235,4 +257,3 @@ Extensive docs in `docs/`:
 4. **Index Convex queries** - Missing indexes cause slow queries
 5. **Server Actions are server-only** - Can't use browser APIs or hooks
 6. **Onboarding gate** - Authenticated users without `onboardingComplete` redirect to `/onboarding`
->>>>>>> master

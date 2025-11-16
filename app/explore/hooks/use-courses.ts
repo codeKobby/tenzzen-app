@@ -1,6 +1,6 @@
 'use client';
 
-import { useSupabase } from '@/contexts/supabase-context';
+// TODO: Migrate to Convex
 import { Course } from '@/app/courses/types';
 import { useEffect, useState } from 'react';
 import { normalizeCategory } from '@/app/utils/category-utils';
@@ -15,8 +15,7 @@ interface UseCourseOptions {
   searchQuery?: string;
 }
 
-export function useCourses(options: UseCourseOptions = {}) {
-  const supabase = useSupabase();
+export function useCourses(options: UseCoursesOptions = {}) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);

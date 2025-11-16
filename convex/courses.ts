@@ -132,6 +132,20 @@ export const getCourseWithContent = query({
   },
 });
 
+// Query to find existing course by sourceId
+export const getCourseBySourceId = query({
+  args: { sourceId: v.string(), userId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("courses")
+      .withIndex("by_source", (q) => 
+        q.eq("sourceType", "youtube").eq("sourceId", args.sourceId)
+      )
+      .filter((q) => q.eq(q.field("createdBy"), args.userId))
+      .first();
+  },
+});
+
 // Query to get user's courses
 export const getUserCourses = query({
   args: { userId: v.string() },

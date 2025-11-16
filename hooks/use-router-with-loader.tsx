@@ -1,36 +1,42 @@
 "use client";
 
 import { useRouter as useNextRouter } from "next/navigation";
-import { useTopLoader } from "nextjs-toploader";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
+import NProgress from "nprogress";
 
 /**
- * A custom router hook that triggers the top loader on navigation
- * This ensures the loader appears for programmatic navigation with router.push/replace
+ * A custom router hook that integrates with the top loader
  */
 export function useRouter() {
   const router = useNextRouter();
-  const loader = useTopLoader();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    NProgress.done();
+  }, [pathname, searchParams]);
 
   return {
     ...router,
     push: (href: string, options?: any) => {
-      loader.start();
+      NProgress.start();
       router.push(href, options);
     },
     replace: (href: string, options?: any) => {
-      loader.start();
+      NProgress.start();
       router.replace(href, options);
     },
     back: () => {
-      loader.start();
+      NProgress.start();
       router.back();
     },
     forward: () => {
-      loader.start();
+      NProgress.start();
       router.forward();
     },
     refresh: () => {
-      loader.start();
+      NProgress.start();
       router.refresh();
     }
   };

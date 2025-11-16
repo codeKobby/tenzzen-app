@@ -2,7 +2,7 @@
 
 import { ClerkProvider, useAuth } from "@clerk/clerk-react"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
-import { ReactNode } from "react"
+import { ReactNode, useEffect } from "react"
 import { convex } from "@/hooks/use-convex"
 
 if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
@@ -17,6 +17,12 @@ export function ConvexClientProvider({
 }: {
   children: ReactNode
 }) {
+  useEffect(() => {
+    console.log('ConvexClientProvider mounted')
+    console.log('Convex URL:', process.env.NEXT_PUBLIC_CONVEX_URL)
+    console.log('Clerk Key:', process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.substring(0, 20) + '...')
+  }, [])
+
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!}

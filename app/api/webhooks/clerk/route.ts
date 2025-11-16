@@ -2,7 +2,10 @@ import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+
+// TODO: Implement Convex user sync
+// When a user is created/updated/deleted in Clerk, sync to Convex users table
+// For now, this is a no-op since Clerk auth works directly with Convex via JWT
 
 export async function POST(req: Request) {
   // Get the headers
@@ -45,23 +48,21 @@ export async function POST(req: Request) {
   const eventType = evt.type;
   console.log(`Webhook received: ${eventType}`);
 
-  // Create a Supabase client
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  // Handle the event
+  // TODO: Sync to Convex instead of Supabase
+  // For now, just log the event - Clerk JWT integration handles auth
   try {
     switch (eventType) {
       case 'user.created':
-        await handleUserCreated(evt.data, supabase);
+        console.log('User created:', evt.data.id);
+        // TODO: Create user record in Convex if needed for user profiles
         break;
       case 'user.updated':
-        await handleUserUpdated(evt.data, supabase);
+        console.log('User updated:', evt.data.id);
+        // TODO: Update user record in Convex
         break;
       case 'user.deleted':
-        await handleUserDeleted(evt.data, supabase);
+        console.log('User deleted:', evt.data.id);
+        // TODO: Delete or mark user as deleted in Convex
         break;
       default:
         console.log(`Unhandled event type: ${eventType}`);
@@ -72,99 +73,4 @@ export async function POST(req: Request) {
     console.error(`Error handling ${eventType}:`, error);
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
   }
-}
-
-async function handleUserCreated(data: any, supabase: any) {
-  const { id, email_addresses, first_name, last_name, image_url } = data;
-  
-  // Check if user already exists
-  const { data: existingUser } = await supabase
-    .from('users')
-    .select('*')
-    .eq('clerk_id', id)
-    .single();
-
-  if (existingUser) {
-    console.log(`User ${id} already exists in Supabase`);
-    return;
-  }
-
-  // Create the user
-  const { data: newUser, error } = await supabase
-    .from('users')
-    .insert({
-      clerk_id: id,
-      email: email_addresses[0]?.email_address,
-      name: `${first_name || ''} ${last_name || ''}`.trim(),
-      image_url: image_url,
-      auth_provider: 'clerk',
-      role: 'user',
-      status: 'active',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      last_login: {
-        time: new Date().toISOString()
-      }
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error creating user in Supabase:', error);
-    throw error;
-  }
-
-  console.log(`User ${id} created in Supabase`);
-
-  // Initialize user profile and stats
-  if (newUser) {
-    await supabase.from('user_profiles').insert({
-      user_id: newUser.id,
-    });
-
-    await supabase.from('user_stats').insert({
-      user_id: newUser.id,
-    });
-
-    console.log(`User profile and stats initialized for user ${id}`);
-  }
-}
-
-async function handleUserUpdated(data: any, supabase: any) {
-  const { id, email_addresses, first_name, last_name, image_url } = data;
-
-  // Update the user
-  const { error } = await supabase
-    .from('users')
-    .update({
-      email: email_addresses[0]?.email_address,
-      name: `${first_name || ''} ${last_name || ''}`.trim(),
-      image_url: image_url,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('clerk_id', id);
-
-  if (error) {
-    console.error('Error updating user in Supabase:', error);
-    throw error;
-  }
-
-  console.log(`User ${id} updated in Supabase`);
-}
-
-async function handleUserDeleted(data: any, supabase: any) {
-  const { id } = data;
-
-  // Delete the user
-  const { error } = await supabase
-    .from('users')
-    .delete()
-    .eq('clerk_id', id);
-
-  if (error) {
-    console.error('Error deleting user in Supabase:', error);
-    throw error;
-  }
-
-  console.log(`User ${id} deleted from Supabase`);
 }

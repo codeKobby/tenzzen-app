@@ -508,6 +508,69 @@ OUTPUT: Comprehensive, educational explanation that builds deep understanding.
 `
 };
 
+// Video recommendation prompts optimized for Gemini
+export const videoRecommendationPrompts = {
+  // Search query generation for YouTube
+  searchQueries: (learningGoal: string, knowledgeLevel: string, additionalContext: string) => `
+As an educational content curator, analyze the following learning goal and create optimized YouTube search queries.
+
+Learning Goal: "${learningGoal}"
+Knowledge Level: ${knowledgeLevel}
+Additional Context: ${additionalContext || "None provided"}
+
+First, analyze this learning goal to identify:
+1. Core concepts and fundamentals that need to be understood
+2. Progression of topics from basic to advanced (appropriate for ${knowledgeLevel} level)
+3. Practical applications and examples that would reinforce learning
+4. Common obstacles or misconceptions learners face with this topic
+
+Then, generate 1 highly specific search query that will:
+- Match the appropriate skill level (${knowledgeLevel})
+- Target high-quality educational content with clear learning outcomes
+- Include terms like "tutorial", "course", or "lesson" to find educational content
+- Focus on content that teaches practical skills related to the learning goal
+
+Return ONLY a valid JSON array of strings with the search query, nothing else.
+Example: ["complete python for beginners tutorial step by step"]
+`,
+
+  // Video analysis and ranking
+  videoAnalysis: (videos: any[], learningGoal: string, knowledgeLevel: string) => `
+Analyze these YouTube videos for learning goal: "${learningGoal}" (Level: ${knowledgeLevel})
+
+Identify videos that:
+1. Match the knowledge level
+2. Teach relevant skills
+3. Have structured content
+4. Include practical examples
+
+Return ONLY a JSON array:
+[
+  {
+    "videoId": "abc123",
+    "relevanceScore": 8.5, // 1.0-10.0 scale
+    "benefit": "Learn core principles of X with step-by-step tutorials"
+  }
+]
+
+Videos to analyze:
+${videos.map((v, i) => `Video ${i+1}: ID=${v.videoId} | Title=${v.title} | Duration=${v.duration}`).join('\n')}
+`,
+
+  // Fallback ranking when AI analysis fails
+  fallbackRanking: (videos: any[], learningGoal: string, knowledgeLevel: string) => `
+Rank these videos by relevance to learning goal: "${learningGoal}" for ${knowledgeLevel} level.
+
+Consider:
+- Title relevance to the learning goal
+- Educational terms in title (tutorial, course, lesson, guide)
+- Knowledge level appropriateness
+- Channel credibility indicators
+
+Return videos sorted by relevance score.
+`
+};
+
 /**
  * Structured prompts for AI generation tasks
  */

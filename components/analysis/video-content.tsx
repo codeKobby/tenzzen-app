@@ -26,57 +26,12 @@ import { cn } from "@/lib/utils";
 const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
   return content.type === "playlist";
 };
-import { useState, useCallback, useMemo } from "react"
-import { useAnalysis } from "@/hooks/use-analysis-context"
-import { Button } from "@/components/ui/button"
-import { Loader2, ChevronDown, ChevronUp, AlertCircle, MinusCircle, Sparkles } from "lucide-react"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { getVideoDetails } from "@/actions/getYoutubeData"
-import type { VideoDetails, PlaylistDetails, VideoItem } from "@/types/youtube"
-import { startUrl } from "@/lib/utils"
-import { VideoContentSkeleton } from "@/components/analysis/video-content-skeleton"
-import { Toaster, toast } from "sonner"
-import { cn } from "@/lib/utils"
-import { PlaceholderImage } from "@/components/ui/placeholder-image";
-
-type ContentDetails = VideoDetails | PlaylistDetails
-
-const isPlaylist = (content: ContentDetails): content is PlaylistDetails => {
-  if (!content) return false;
-  return content.type === "playlist";
-}
-
-const isVideo = (content: ContentDetails): content is VideoDetails => {
-  if (!content) return false;
-  return content.type === "video";
-}
->>>>>>> master
-
-interface VideoContentProps {
-  loading?: boolean;
-  error?: string | null;
-  videoData: ContentDetails | null; // Added videoData prop
-}
-
-const isValidContentDetails = (data: any): data is ContentDetails => {
-  if (!data || typeof data !== 'object') return false;
-  return (
-    'type' in data &&
-    'id' in data &&
-    (data.type === 'video' || data.type === 'playlist')
-  );
-};
-
-const createVideoKey = (video: VideoItem, index: number): string => {
-  return `${video.id}-${index}`;
-};
 
 export function VideoContent({ loading, error }: VideoContentProps) {
   const { videoData, setVideoData } = useAnalysis()
   const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null)
   const [showVideoOpenDialog, setShowVideoOpenDialog] = useState(false)
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null)
->>>>>>> master
   const [dontShowVideoDialog, setDontShowVideoDialog] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('dontShowVideoDialog') === 'true';
@@ -155,7 +110,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
     const url = `https://youtube.com/playlist?list=${playlistId}`
     if (dontShowVideoDialog) {
       startUrl(url, '_blank', 'noopener,noreferrer')
->>>>>>> master
     } else {
       console.error('Invalid content type:', data);
       setVideoData(null);
@@ -191,7 +145,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
               <div className="text-xs text-muted-foreground">
                 This video has been removed from your playlist
               </div>
->>>>>>> master
             </div>
             <Button
               variant="ghost"
@@ -229,7 +182,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
       }
     );
   }, [])
->>>>>>> master
 
   if (loading) {
     return <VideoContentSkeleton />;
@@ -278,7 +230,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                     alt={videoData.title || "Video thumbnail"}
                     className="w-full aspect-video object-cover"
                   />
->>>>>>> master
                   <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
                     {videoData.duration || "0:00"}
                   </div>
@@ -347,7 +298,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
           // Playlist Display
           <div className="space-y-4">
             <div className="sticky top-0 z-50 bg-background pt-2 pb-3 -mt-2 -mx-4 px-4 border-b border-border/40">
->>>>>>> master
               <div className="flex gap-4">
                 <div className="flex-shrink-0">
                   <div
@@ -359,7 +309,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                       alt={videoData.title || "Video thumbnail"}
                       className="w-full aspect-video object-cover"
                     />
->>>>>>> master
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -385,7 +334,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                 .map((video: VideoItem, index: number) => (
                   <div key={createVideoKey(video, index)} className="group -mx-4 px-4">
                     <div className={`hover:bg-secondary/50 rounded-lg ${expandedVideoId === video.id ? "bg-secondary/30" : ""}`}>
->>>>>>> master
                       <div className="flex gap-3 p-2">
                         <div className="flex-shrink-0 self-center">
                           <Button
@@ -417,7 +365,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                               alt={video.title || "Video thumbnail"}
                               className="w-full aspect-video object-cover"
                             />
->>>>>>> master
                             <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
                               {video.duration || "0:00"}
                             </div>
@@ -467,14 +414,12 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                             </Button>
                           </div>
 
->>>>>>> master
                           {activeCancelId === video.id && (
                             <div className="w-full mt-1 bg-muted h-[3px] rounded-full overflow-hidden">
                               <div
                                 className="bg-primary h-full animate-countdown-progress"
                                 style={{ animationDuration: "5s" }}
                                 onAnimationEnd={() => setActiveCancelId(null)}
->>>>>>> master
                               />
                             </div>
                           )}
@@ -491,7 +436,6 @@ export function VideoContent({ loading, error }: VideoContentProps) {
                             </div>
                             <div className="text-xs leading-relaxed text-muted-foreground/80 whitespace-pre-wrap break-words overflow-x-hidden">
                               {video.description}
->>>>>>> master
                             </div>
                           </div>
                         </div>

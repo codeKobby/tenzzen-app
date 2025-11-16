@@ -16,11 +16,11 @@ import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger
-} from "@/components/ui/collapsible"
+}
+    from "@/components/ui/collapsible"
 import { toast } from "@/components/custom-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
-import { useSupabase } from "@/contexts/supabase-context"
 
 interface CoursePanelProps {
     className?: string
@@ -71,7 +71,6 @@ function normalizeCourseData(raw: any) {
 function ActionButtons({ className, course, onCancel }: { className?: string, course: any, onCancel: () => void }) {
     const router = useRouter();
     const { user } = useAuth();
-    const supabase = useSupabase();
     const [enrolling, setEnrolling] = useState(false);
 
     const handleEnroll = async () => {

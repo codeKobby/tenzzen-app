@@ -5,10 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-<<<<<<< HEAD
-export function startUrl(url: string, target?: string, features?: string): Window | null {
-  return window.open(url, target, features) || null;
-=======
 /**
  * Format an error into a user-friendly message
  */
@@ -116,7 +112,6 @@ export function safeAccess(obj: any, path: string, defaultValue: any = undefined
   } catch (e) {
     return defaultValue;
   }
->>>>>>> master
 }
 
 export function sleep(ms: number): Promise<void> {
@@ -180,8 +175,18 @@ export function isValidUUID(uuid: string): boolean {
 }
 
 /**
+ * Validates if a string is a valid Convex ID
+ * Convex IDs are base32-encoded strings
+ */
+export function isValidConvexId(id: string): boolean {
+  if (!id || typeof id !== 'string') return false;
+  // Convex IDs are typically 32 characters, alphanumeric lowercase
+  return /^[a-z0-9]{20,}$/.test(id);
+}
+
+/**
  * Validates if a string is a valid course ID
- * Checks that it's not a user ID and is a valid UUID
+ * Checks that it's not a user ID and is a valid Convex ID
  * @param id The ID to validate
  * @returns An object with validation result and error message if invalid
  */
@@ -197,10 +202,10 @@ export function validateCourseId(id: string): { isValid: boolean; error?: string
     };
   }
 
-  if (!isValidUUID(id)) {
+  if (!isValidConvexId(id)) {
     return {
       isValid: false,
-      error: `Invalid course ID format: Expected a valid UUID, got ${id}.`
+      error: `Invalid course ID format: Expected a valid Convex ID, got ${id}.`
     };
   }
 

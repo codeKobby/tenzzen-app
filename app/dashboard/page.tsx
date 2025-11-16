@@ -315,24 +315,24 @@ export default function DashboardPage() {
                     <div className="flex flex-col justify-between">
                       <span className="text-sm text-primary-foreground/90 font-semibold">
                         {streak.current === 1 ? 'First day!' :
-                         streak.current > 1 ? `${streak.current === streak.longest ? 'New record!' : 'Day streak!'}` :
-                         'Start your streak!'}
+                          streak.current > 1 ? `${streak.current === streak.longest ? 'New record!' : 'Day streak!'}` :
+                            'Start your streak!'}
                       </span>
-                      <p className="text-xs text-primary-foreground/80 flex items-center gap-1.5">
+                      <span className="text-xs text-primary-foreground/80 flex items-center gap-1.5">
                         Best: {streak.longest} days
                         {streak.current >= streak.longest && streak.longest > 0 && (
                           <AnimatedEmoji emoji="🏆" size="sm" />
                         )}
-                      </p>
+                      </span>
                     </div>
                     <span className="text-2xl">
                       <AnimatedEmoji
                         emoji={
                           streak.current >= 100 ? '🏆' :
-                          streak.current >= 30 ? '🔥' :
-                          streak.current >= 14 ? '💪' :
-                          streak.current >= 7 ? '✨' :
-                          streak.current >= 3 ? '🌱' : '🎯'
+                            streak.current >= 30 ? '🔥' :
+                              streak.current >= 14 ? '💪' :
+                                streak.current >= 7 ? '✨' :
+                                  streak.current >= 3 ? '🌱' : '🎯'
                         }
                         size="2xl"
                       />

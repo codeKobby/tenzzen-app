@@ -28,7 +28,6 @@ import { useAuth } from "@clerk/nextjs"
 import { toast } from "@/components/custom-toast"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useSupabase } from "@/contexts/supabase-context"
 import { useUserCourses } from "./hooks/use-user-courses"
 import { useCategoryUserCourses } from "./hooks/use-category-user-courses"
 import { CategoryPills } from "@/components/category-pills"
@@ -202,9 +201,6 @@ export default function CoursesPage() {
 
   // Count of selected enrolled courses
   const selectedCount = selectedCourses.size
-
-  // Import Supabase context
-  const supabase = useSupabase();
 
   // Show error toast if there's an error loading courses
   useEffect(() => {

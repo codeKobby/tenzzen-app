@@ -4,7 +4,6 @@ import React, { createContext, useContext, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from "@/components/custom-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { useSupabase } from "@/contexts/supabase-context";
 
 interface CoursePanelContextType {
     enrollUserInCourse: (courseData: any) => Promise<void>;
@@ -19,7 +18,6 @@ export const CoursePanelContext = createContext<CoursePanelContextType | undefin
 export function CoursePanelProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { user } = useAuth();
-    const supabase = useSupabase();
     const [isEnrolling, setIsEnrolling] = useState(false);
 
     // Enroll user in a course

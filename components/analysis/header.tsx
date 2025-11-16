@@ -24,27 +24,8 @@ export function AnalysisHeader() {
 
   // Simplified return statement
   return (
-<<<<<<< HEAD
-    <header className="flex items-center justify-between h-16 px-4 border-b bg-background sticky top-0 z-20">
-      <div className="flex items-center gap-3">
-        {/* Back Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 hover:bg-transparent"
-          onClick={handleBack}
-        >
-          <ArrowLeft className="h-4 w-4 transition-colors hover:text-primary" />
-        </Button>
-=======
-    <header className={cn(
-      "sticky top-0 z-40 w-full border-b bg-background shadow-sm",
-      scrolled && "shadow-sm"
-    )}>
-      <div className={cn(
-        "mx-auto w-[95%] lg:w-[90%] flex h-16 items-center justify-between",
-        `transition-all duration-&lsqb;300ms&rsqb; ease-in-out`
-      )}>
+    <header className="sticky top-0 z-40 w-full border-b bg-background shadow-sm">
+      <div className="mx-auto w-[95%] lg:w-[90%] flex h-16 items-center justify-between transition-all duration-300 ease-in-out">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <Button
@@ -57,29 +38,29 @@ export function AnalysisHeader() {
             </Button>
             <div className="h-4 w-px bg-border" />
           </div>
->>>>>>> master
 
-        {/* Mobile Sheet Trigger */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 hover:bg-transparent sm:hidden"
-          onClick={() => toggle(!isOpen)}
-        >
-          <Menu className="h-4 w-4 transition-colors hover:text-primary" />
-          <span className="sr-only">Toggle content panel</span>
-        </Button>
+          {/* Mobile Sheet Trigger */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 hover:bg-transparent sm:hidden"
+            onClick={() => toggle(!isOpen)}
+          >
+            <Menu className="h-4 w-4 transition-colors hover:text-primary" />
+            <span className="sr-only">Toggle content panel</span>
+          </Button>
+        </div>
+
+        {/* Title */}
+        <div className="flex-1 text-center truncate px-4">
+          <h1 className="text-lg font-semibold truncate">
+            {videoData?.title || "Video Analysis"}
+          </h1>
+        </div>
+
+        {/* Placeholder for right actions */}
+        <div className="w-9"></div>
       </div>
-
-      {/* Title */}
-      <div className="flex-1 text-center truncate px-4">
-        <h1 className="text-lg font-semibold truncate">
-          {videoData?.title || "Video Analysis"}
-        </h1>
-      </div>
-
-      {/* Placeholder for right actions */}
-      <div className="w-9"></div>
     </header>
   );
 }

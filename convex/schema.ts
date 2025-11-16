@@ -61,6 +61,7 @@ export default defineSchema({
     isPublished: v.boolean(),
     enrollmentCount: v.number(),
     rating: v.optional(v.number()),
+    categoryId: v.optional(v.id('categories')),
 
     // AI generation metadata
     generatedBy: v.literal('ai'),
@@ -73,7 +74,8 @@ export default defineSchema({
   })
     .index('by_user', ['createdBy'])
     .index('by_source', ['sourceType', 'sourceId'])
-    .index('by_public', ['isPublic', 'isPublished']),
+    .index('by_public', ['isPublic', 'isPublished'])
+    .index('by_category', ['categoryId']),
 
   // Course modules
   modules: defineTable({
@@ -144,4 +146,76 @@ export default defineSchema({
     createdAt: v.string(),
   })
     .index('by_quiz', ['quizId']),
+
+  // Categories for course organization
+  categories: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    color: v.optional(v.string()),
+    icon: v.optional(v.string()),
+    order: v.number(),
+    isActive: v.boolean(),
+
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_active', ['isActive']),
+
+  // User course enrollments
+  user_enrollments: defineTable({
+    userId: v.string(), // Clerk user ID
+    courseId: v.id('courses'),
+    enrolledAt: v.string(),
+    lastAccessedAt: v.optional(v.string()),
+    progress: v.number(), // 0-100 percentage
+    isCompleted: v.boolean(),
+    completedAt: v.optional(v.string()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_course', ['courseId'])
+    .index('by_user_course', ['userId', 'courseId']),
+
+  // User streak tracking
+  user_streaks: defineTable({
+    userId: v.string(), // Clerk user ID
+    streakDays: v.number(),
+    longestStreak: v.number(),
+    lastCheckIn: v.string(), // ISO date
+    weeklyActivity: v.array(v.number()), // 7 numbers for weekly activity
+  })
+    .index('by_user', ['userId']),
+
+  // Lesson progress tracking
+  lesson_progress: defineTable({
+    userId: v.string(), // Clerk user ID
+    lessonId: v.id('lessons'),
+    courseId: v.id('courses'),
+    isCompleted: v.boolean(),
+    completedAt: v.optional(v.string()),
+    timeSpentMinutes: v.optional(v.number()),
+    lastAccessedAt: v.optional(v.string()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_lesson', ['lessonId'])
+    .index('by_course', ['courseId'])
+    .index('by_user_course', ['userId', 'courseId']),
+
+  // User activity tracking for dashboard
+  user_activities: defineTable({
+    userId: v.string(), // Clerk user ID
+    activityType: v.union(
+      v.literal('course_enrolled'),
+      v.literal('lesson_completed'),
+      v.literal('quiz_attempted'),
+      v.literal('course_generated'),
+      v.literal('login')
+    ),
+    entityId: v.optional(v.string()), // courseId, lessonId, etc.
+    entityType: v.optional(v.string()), // 'course', 'lesson', 'quiz'
+    metadata: v.optional(v.any()), // Additional data like scores, etc.
+    createdAt: v.string(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_type', ['userId', 'activityType'])
+    .index('by_created_at', ['createdAt']),
 });

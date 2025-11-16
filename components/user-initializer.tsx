@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useSupabase } from "@/contexts/supabase-context";
 
 /**
  * This component handles initializing user data in Supabase when a user signs in
@@ -11,7 +10,6 @@ import { useSupabase } from "@/contexts/supabase-context";
 export function UserInitializer() {
     const { user, isLoaded, isSignedIn } = useUser();
     const [initialized, setInitialized] = useState(false);
-    const supabase = useSupabase();
 
     useEffect(() => {
         // Only run this effect when auth is loaded and user is signed in
@@ -55,7 +53,7 @@ export function UserInitializer() {
         };
 
         initUser();
-    }, [isLoaded, isSignedIn, user, initialized, supabase]);
+    }, [isLoaded, isSignedIn, user, initialized]);
 
     // Helper function to implement retry logic with exponential backoff
     const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 3, initialTimeout = 30000) => {
@@ -111,9 +109,9 @@ export function UserInitializer() {
 
                 // Check if it's a timeout error
                 const isTimeout = lastError.name === 'TimeoutError' ||
-                                 lastError.name === 'AbortError' ||
-                                 lastError.message.includes('timeout') ||
-                                 lastError.message.includes('aborted');
+                    lastError.name === 'AbortError' ||
+                    lastError.message.includes('timeout') ||
+                    lastError.message.includes('aborted');
 
                 if (!isTimeout && !lastError.message.includes('HTML response')) {
                     console.error(`Client: Non-timeout error, not retrying:`, lastError);
@@ -204,7 +202,7 @@ export function UserInitializer() {
                         preview: textPreview.substring(0, 200)
                     });
 
-                        // Check if the response contains HTML (likely an error page)
+                    // Check if the response contains HTML (likely an error page)
                     if (textPreview.includes('<!DOCTYPE') || textPreview.includes('<html')) {
                         console.error('Client: Received HTML instead of JSON:', textPreview.substring(0, 200));
                         // Create a more complete fallback result with all necessary user fields
