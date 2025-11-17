@@ -124,6 +124,14 @@ const config = {
           '50%': {
             transform: 'translateY(-10px)'
           }
+        },
+        'shimmer': {
+          '0%': {
+            transform: 'translateX(-100%)'
+          },
+          '100%': {
+            transform: 'translateX(100%)'
+          }
         }
       },
       animation: {
@@ -133,7 +141,8 @@ const config = {
         'confetti-fade': 'confetti-fade 5s ease-out forwards',
         'scale-up': 'scale-up 0.3s ease-out forwards',
         'bounce-in': 'bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-        'float-y': 'float-y 3s ease-in-out infinite'
+        'float-y': 'float-y 3s ease-in-out infinite',
+        'shimmer': 'shimmer 2s ease-in-out infinite'
       },
       backgroundImage: {
         'gradient-primary': 'linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary) / 0.8))',

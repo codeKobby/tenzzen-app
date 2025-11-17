@@ -1,12 +1,52 @@
 import { z } from "zod";
 
+// Helper to sanitize timestamps - truncate to valid format and validate strictly
+const sanitizeTimestamp = (val: string): string => {
+  if (!val) return "0:00:00";
+  
+  // Remove any whitespace
+  val = val.trim();
+  
+  // If it's already short and valid, return it
+  if (val.length <= 8 && /^\d{1,2}:\d{2}(:\d{2})?$/.test(val)) {
+    return val;
+  }
+  
+  // Truncate overly long timestamps to valid H:MM:SS format (max 8 chars: "00:00:00")
+  const match = val.match(/^(\d{1,2}:\d{2}:\d{2})/);
+  if (match && match[1].length <= 8) {
+    return match[1];
+  }
+  
+  // If still invalid, return default
+  return "0:00:00";
+};
+
+// Strict timestamp schema with preprocess to handle malformed data
+const TimestampSchema = z.preprocess(
+  (val) => {
+    if (typeof val !== 'string') return "0:00:00";
+    
+    // Log if we're getting malformed data
+    if (val.length > 10) {
+      console.warn(`⚠️ Truncating malformed timestamp (${val.length} chars): ${val.substring(0, 20)}...`);
+    }
+    
+    // Aggressively truncate to valid format before validation
+    return sanitizeTimestamp(val);
+  },
+  z.string()
+    .regex(/^\d{1,2}:\d{2}(:\d{2})?$/, "Timestamp must be in format H:MM:SS (e.g., '0:05:30' or '1:23:45')")
+    .optional()
+);
+
 // Course structure
 export const LessonSchema = z.object({
   title: z.string().max(200, "Title must be 200 characters or less"),
   description: z.string().max(1000, "Description must be 1000 characters or less"),
   durationMinutes: z.number(),
-  timestampStart: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/, "Timestamp must be in format H:MM:SS or M:SS").max(10).optional(), // Format: "0:00:00" or "0:13:00" (max 10 chars)
-  timestampEnd: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/, "Timestamp must be in format H:MM:SS or M:SS").max(10).optional(),   // Format: "0:13:00" or "0:23:00" (max 10 chars)
+  timestampStart: TimestampSchema,
+  timestampEnd: TimestampSchema,
   keyPoints: z.array(z.string().max(500, "Each key point must be 500 characters or less")),
   content: z.string().max(5000, "Lesson content must be 5000 characters or less"),
 });

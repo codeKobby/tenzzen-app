@@ -1,4 +1,4 @@
-import { generateObject, generateText } from "ai";
+import { generateObject, generateText, streamObject } from "ai";
 import { getModel, aiConfig } from "./config";
 import { CourseOutlineSchema, QuizSchema, VideoRecommendationsSchema } from "./types";
 import { courseGenerationPrompts, quizGenerationPrompts, tutorPrompts, videoRecommendationPrompts, prompts, formatPrompt } from "./prompts";
@@ -60,6 +60,68 @@ export class AIClient {
     });
 
     return object;
+  }
+
+  /**
+   * Stream a structured course outline from YouTube transcript and metadata
+   * Returns a stream that progressively builds the course structure
+   */
+  static async streamCourseOutline(params: {
+    videoTitle: string;
+    videoDescription: string;
+    transcript: string;
+    transcriptSegments?: any[]; // Array of {text, start, duration}
+    channelName: string;
+    videoDuration?: string;
+  }) {
+    const transcriptContext = buildPromptTranscriptContext({
+      transcriptSegments: params.transcriptSegments,
+      fallbackTranscript: params.transcript,
+    });
+
+    // Step 1: Initial content analysis
+    const analysisPrompt = courseGenerationPrompts.contentAnalysis(
+      transcriptContext,
+      {
+        title: params.videoTitle,
+        channelName: params.channelName,
+        description: params.videoDescription,
+        duration: params.videoDuration,
+        transcriptSegments: params.transcriptSegments
+      }
+    );
+
+    const { text: analysisText } = await generateText({
+      model: getModel("smart"),
+      prompt: analysisPrompt,
+      temperature: 0.3, // Lower temperature for analysis
+    });
+
+    // Step 2: Stream course structure based on analysis
+    const structurePrompt = courseGenerationPrompts.courseStructure(
+      { 
+        analysis: analysisText,
+        videoDescription: params.videoDescription // Pass description separately
+      },
+      transcriptContext,
+      params.transcriptSegments
+    );
+
+    return streamObject({
+      model: getModel("smart"),
+      schema: CourseOutlineSchema,
+      mode: "json", // Force JSON mode for more reliable structured output
+      prompt: structurePrompt,
+      temperature: 0.1, // Very low temperature for structured output
+      maxRetries: 3, // More retries for invalid responses
+      onFinish: async ({ object, error }) => {
+        if (error) {
+          console.error('Course generation stream error:', error);
+        } else {
+          console.log('Course generation stream completed successfully');
+        }
+      },
+    });
   }
 
   /**

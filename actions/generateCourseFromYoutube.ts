@@ -128,23 +128,15 @@ export async function generateCourseFromYoutube(
     console.log("Video description length:", data.description?.length || 0);
     console.log("Video description preview:", data.description?.substring(0, 500) || "No description");
     
-    // Add timeout to prevent runaway generation (3 minutes max)
-    const GENERATION_TIMEOUT = 3 * 60 * 1000; // 3 minutes
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Course generation timed out after 3 minutes")), GENERATION_TIMEOUT);
+    // No timeout - streaming handles long-running tasks naturally
+    const courseOutline = await AIClient.generateCourseOutline({
+      videoTitle: data.title || "Unknown Title",
+      videoDescription: data.description || "",
+      transcript,
+      transcriptSegments, // Pass segments for timestamp extraction
+      channelName: data.channelName || "Unknown",
+      videoDuration: data.duration || "",
     });
-
-    const courseOutline = await Promise.race([
-      AIClient.generateCourseOutline({
-        videoTitle: data.title || "Unknown Title",
-        videoDescription: data.description || "",
-        transcript,
-        transcriptSegments, // Pass segments for timestamp extraction
-        channelName: data.channelName || "Unknown",
-        videoDuration: data.duration || "",
-      }),
-      timeoutPromise
-    ]);
     
     console.log("Generated resources count:", courseOutline.resources?.length || 0);
     console.log("Generated resources:", JSON.stringify(courseOutline.resources, null, 2));

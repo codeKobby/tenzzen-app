@@ -237,15 +237,14 @@ COURSE DESIGN SPECIFICATION
    - Use transcript segments with their start times to determine accurate boundaries
    - Each lesson covers one coherent topic from start to finish
    - NO lesson should have missing, null, or empty timestamps
-   - Format MUST be exactly: "H:MM:SS" or "M:SS" (e.g., "0:05:30", "1:23:45", "12:00")
-   - Maximum length: 10 characters (e.g., "1:23:45" is 7 chars)
-   - NEVER generate timestamps longer than 10 characters
-   - Examples of VALID timestamps: "0:00:00", "0:05:30", "1:23:45", "2:15:00"
-   - Examples of INVALID timestamps: "0:00:00.000...", timestamps with decimals, or any string longer than 10 chars
-   - ⚠️ CRITICAL: DO NOT GENERATE TIMESTAMPS WITH DECIMAL POINTS OR MILLISECONDS
-   - ⚠️ CRITICAL: TIMESTAMPS MUST NEVER EXCEED 10 CHARACTERS - STOP AT THE SECONDS
-   - ⚠️ WRONG FORMAT EXAMPLES: "0:00:00.0000000000...", "0:00:00.123", "00:00:00.000000"
-   - ✅ CORRECT FORMAT EXAMPLES: "0:00:00", "0:05:30", "1:23:45", "12:00"
+   - Format MUST be EXACTLY: "H:MM:SS" (e.g., "0:05:30", "1:23:45")
+   - ⚠️ CRITICAL: Timestamps are STRINGS of EXACTLY 7-8 characters (H:MM:SS or HH:MM:SS)
+   - ⚠️ CRITICAL: DO NOT add ANY characters after the seconds field
+   - ⚠️ CRITICAL: DO NOT add decimal points, milliseconds, or trailing zeros
+   - ⚠️ CRITICAL: Count your characters: "0:00:00" = 7 chars ✅, "0:00:00.0" = 9 chars ❌
+   - ✅ VALID: "0:00:00", "0:05:30", "1:23:45", "2:15:00"
+   - ❌ INVALID: "0:00:00.0", "0:00:00.000", any string with more than 8 characters
+   - ❌ NEVER DO THIS: "0:00:00.00000000000000..."
    - Timestamps must be sequential and logical
 
 4. **Assessment Planning (Structure Only - NO CONTENT)**

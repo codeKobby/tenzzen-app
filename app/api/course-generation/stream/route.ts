@@ -1,0 +1,300 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import { AIClient } from '@/lib/ai/client';
+import { getVideoDetails, getPlaylistDetails } from '@/actions/getYoutubeData';
+import { getYoutubeTranscript } from '@/actions/getYoutubeTranscript';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '@/convex/_generated/api';
+import { config } from '@/lib/config';
+import { getCachedTranscript, setCachedTranscript } from '@/lib/server/transcript-cache';
+
+export const runtime = 'nodejs';
+export const maxDuration = 300; // 5 minutes max
+
+interface StreamMessage {
+  type: 'progress' | 'partial' | 'complete' | 'error';
+  step?: string;
+  progress?: number;
+  message?: string;
+  data?: any;
+  error?: string;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { getToken, userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = await getToken({ template: 'convex' });
+    if (!token) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { youtubeUrl, isPublic = false } = body;
+
+    if (!youtubeUrl) {
+      return NextResponse.json({ error: 'YouTube URL is required' }, { status: 400 });
+    }
+
+    // Create a TransformStream for sending updates
+    const encoder = new TextEncoder();
+    const stream = new TransformStream();
+    const writer = stream.writable.getWriter();
+
+    // Helper to send messages to client
+    const sendMessage = async (msg: StreamMessage) => {
+      await writer.write(encoder.encode(`data: ${JSON.stringify(msg)}\n\n`));
+    };
+
+    // Start the generation process asynchronously
+    (async () => {
+      try {
+        await sendMessage({
+          type: 'progress',
+          step: 'Parsing',
+          progress: 5,
+          message: 'Parsing YouTube URL...'
+        });
+
+        // Parse YouTube URL
+        const urlPattern = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const playlistPattern = /(?:youtube\.com\/(?:playlist\?|.*[?&]list=)|youtu\.be\/.*[?&]list=)([^"&?\/\s]+)/;
+
+        let videoId: string | null = null;
+        let playlistId: string | null = null;
+
+        const playlistMatch = youtubeUrl.match(playlistPattern);
+        if (playlistMatch) {
+          playlistId = playlistMatch[1];
+        } else {
+          const videoMatch = youtubeUrl.match(urlPattern);
+          if (videoMatch) {
+            videoId = videoMatch[1];
+          }
+        }
+
+        if (!videoId && !playlistId) {
+          throw new Error('Invalid YouTube URL');
+        }
+
+        await sendMessage({
+          type: 'progress',
+          step: 'Fetching',
+          progress: 15,
+          message: 'Fetching video metadata...'
+        });
+
+        // Fetch video/playlist data
+        let data: any;
+        if (playlistId) {
+          data = await getPlaylistDetails(playlistId);
+          videoId = data.videos[0]?.videoId;
+        } else if (videoId) {
+          data = await getVideoDetails(videoId);
+        }
+
+        if (!videoId) {
+          throw new Error('No video found to generate course from');
+        }
+
+        // Check for existing course
+        const convex = new ConvexHttpClient(config.convex.url);
+        convex.setAuth(token);
+
+        await sendMessage({
+          type: 'progress',
+          step: 'Checking',
+          progress: 20,
+          message: 'Checking for existing course...'
+        });
+
+        const existingCourse = await convex.query(api.courses.getCourseBySourceId, {
+          sourceId: videoId,
+          userId,
+        });
+
+        if (existingCourse) {
+          await sendMessage({
+            type: 'complete',
+            data: { courseId: existingCourse._id }
+          });
+          await writer.close();
+          return;
+        }
+
+        await sendMessage({
+          type: 'progress',
+          step: 'Transcript',
+          progress: 30,
+          message: 'Fetching video transcript...'
+        });
+
+        // Get transcript
+        const cachedTranscript = getCachedTranscript(videoId);
+        let transcriptSegments = cachedTranscript?.segments;
+        let transcript = cachedTranscript?.transcriptText;
+
+        if (!transcriptSegments || !transcript || transcriptSegments.length === 0) {
+          transcriptSegments = await getYoutubeTranscript(videoId);
+
+          if (!transcriptSegments || transcriptSegments.length === 0) {
+            throw new Error('Failed to fetch transcript');
+          }
+
+          transcript = transcriptSegments
+            .map((entry: any) => entry.text)
+            .join(' ')
+            .trim();
+
+          setCachedTranscript(videoId, transcriptSegments, transcript);
+        }
+
+        await sendMessage({
+          type: 'progress',
+          step: 'Generating',
+          progress: 40,
+          message: 'AI is analyzing content and generating course structure...'
+        });
+
+        // Stream course generation
+        const result = await AIClient.streamCourseOutline({
+          videoTitle: data.title || 'Unknown Title',
+          videoDescription: data.description || '',
+          transcript,
+          transcriptSegments,
+          channelName: data.channelName || 'Unknown',
+          videoDuration: data.duration || '',
+        });
+
+        // Track progress through streaming with validation
+        let lastProgress = 40;
+        let partialCount = 0;
+        
+        for await (const partialObject of result.partialObjectStream) {
+          partialCount++;
+          
+          // Validate timestamps in partial data to catch issues early
+          if (partialObject && typeof partialObject === 'object') {
+            const modules = (partialObject as any).modules || [];
+            
+            // Check for malformed timestamps and log warnings
+            for (const module of modules) {
+              if (module && module.lessons) {
+                for (const lesson of module.lessons) {
+                  if (lesson) {
+                    // Check for overly long timestamps
+                    if (lesson.timestampStart && lesson.timestampStart.length > 10) {
+                      console.warn(`⚠️ Malformed timestampStart detected (${lesson.timestampStart.length} chars): ${lesson.timestampStart.substring(0, 20)}...`);
+                      // Truncate immediately
+                      lesson.timestampStart = lesson.timestampStart.match(/^(\d{1,2}:\d{2}:\d{2})/)?.[1] || "0:00:00";
+                    }
+                    if (lesson.timestampEnd && lesson.timestampEnd.length > 10) {
+                      console.warn(`⚠️ Malformed timestampEnd detected (${lesson.timestampEnd.length} chars): ${lesson.timestampEnd.substring(0, 20)}...`);
+                      // Truncate immediately
+                      lesson.timestampEnd = lesson.timestampEnd.match(/^(\d{1,2}:\d{2}:\d{2})/)?.[1] || "0:00:00";
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // Increment progress gradually as we receive parts
+          lastProgress = Math.min(85, lastProgress + 5);
+          
+          await sendMessage({
+            type: 'partial',
+            progress: lastProgress,
+            message: `Building course structure... (${partialCount} updates)`,
+            data: partialObject
+          });
+        }
+
+        console.log(`✅ Stream completed with ${partialCount} partial updates`);
+
+        // Get final object (this will apply Zod schema validation)
+        const courseOutline = await result.object;
+        
+        console.log('✅ Final course outline validated successfully');
+
+        await sendMessage({
+          type: 'progress',
+          step: 'Saving',
+          progress: 90,
+          message: 'Saving course to database...'
+        });
+
+        // Store in Convex
+        const courseId = await convex.mutation(api.courses.createAICourse, {
+          course: {
+            title: data.title || courseOutline.title,
+            description: courseOutline.description,
+            detailedOverview: courseOutline.detailedOverview,
+            category: courseOutline.category,
+            difficulty: courseOutline.difficulty,
+            learningObjectives: courseOutline.learningObjectives,
+            prerequisites: courseOutline.prerequisites,
+            targetAudience: courseOutline.targetAudience,
+            estimatedDuration: data.duration || courseOutline.estimatedDuration,
+            tags: courseOutline.tags,
+            resources: courseOutline.resources,
+            sourceType: 'youtube' as const,
+            sourceId: videoId,
+            sourceUrl: youtubeUrl,
+            isPublic: isPublic ?? false,
+            aiModel: 'gpt-4o',
+          },
+          modules: courseOutline.modules.map((module) => ({
+            title: module.title,
+            description: module.description,
+            lessons: module.lessons.map((lesson) => ({
+              title: lesson.title,
+              description: lesson.description,
+              content: lesson.content,
+              durationMinutes: lesson.durationMinutes,
+              timestampStart: lesson.timestampStart,
+              timestampEnd: lesson.timestampEnd,
+              keyPoints: lesson.keyPoints,
+            })),
+          })),
+          assessmentPlan: courseOutline.assessmentPlan,
+        });
+
+        await sendMessage({
+          type: 'complete',
+          progress: 100,
+          message: 'Course generated successfully!',
+          data: { courseId }
+        });
+
+        await writer.close();
+      } catch (error) {
+        console.error('Error in stream generation:', error);
+        await sendMessage({
+          type: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
+        await writer.close();
+      }
+    })();
+
+    // Return the readable stream
+    return new Response(stream.readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
+  } catch (error) {
+    console.error('Error setting up stream:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Unknown error occurred' },
+      { status: 500 }
+    );
+  }
+}

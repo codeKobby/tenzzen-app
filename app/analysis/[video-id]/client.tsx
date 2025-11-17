@@ -170,111 +170,154 @@ function Content({ initialContent, initialError }: ContentProps) {
     setTranscriptError(null); // Clear any previous errors
     setCourseGenerationProgress({
       step: "Preparing",
-      progress: 10,
+      progress: 5,
       message: "Getting ready to analyze your content..."
     });
 
     try {
-      // Step 1: Construct YouTube URL
+      // Construct YouTube URL
       const youtubeUrl = videoData.type === "playlist"
         ? `https://www.youtube.com/playlist?list=${videoData.id}`
         : `https://www.youtube.com/watch?v=${videoData.id}`;
 
-      setCourseGenerationProgress({
-        step: "Fetching Transcript",
-        progress: 20,
-        message: "Extracting video transcript..."
+      // Use streaming API for course generation
+      const response = await fetch('/api/course-generation/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          youtubeUrl,
+          isPublic: false,
+        }),
       });
 
-      // Step 2: Generate course with AI (this handles transcript fetching internally)
-      setCourseGenerationProgress({
-        step: "Analyzing Content",
-        progress: 40,
-        message: "AI is analyzing the content and extracting key concepts..."
-      });
-
-      const result = await generateCourseFromYoutube(youtubeUrl, {
-        userId: user.id,
-        isPublic: false,
-      });
-
-      if (!result.success || !result.courseId) {
-        throw new Error(result.error || "Failed to generate course");
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
       }
 
-      setCourseGenerationProgress({
-        step: "Generating Structure",
-        progress: 70,
-        message: "Creating modules and lessons..."
-      });
+      if (!response.body) {
+        throw new Error('No response body');
+      }
 
-      // Small delay for UX
-      await new Promise(r => setTimeout(r, 1000));
+      // Read the stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      setCourseGenerationProgress({
-        step: "Finalizing",
-        progress: 90,
-        message: "Saving your personalized course..."
-      });
+      while (true) {
+        const { done, value } = await reader.read();
 
-      await new Promise(r => setTimeout(r, 500));
+        if (done) break;
 
-      // Step 3: Success! Fetch the generated course data
-      setGeneratedCourseId(result.courseId);
-      setCourseGenerationProgress({
-        step: "Complete",
-        progress: 100,
-        message: "Your course is ready!"
-      });
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
 
-      // Fetch the course data and show in panel
-      setTimeout(async () => {
-        if (result.courseId) {
-          try {
-            const { ConvexHttpClient } = await import('convex/browser');
-            const { api } = await import('@/convex/_generated/api');
+        // Keep the last incomplete line in the buffer
+        buffer = lines.pop() || '';
 
-            // Use the public Convex URL from environment variable
-            const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-            if (!convexUrl) {
-              throw new Error('NEXT_PUBLIC_CONVEX_URL not configured');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6);
+
+              // Check if the JSON string is suspiciously long (possible malformed timestamp issue)
+              if (jsonStr.length > 100000) {
+                console.warn(`⚠️ Unusually large JSON payload detected (${jsonStr.length} chars), possible malformed data`);
+                // Try to parse anyway, but we're aware of the issue
+              }
+
+              const message = JSON.parse(jsonStr);
+
+              if (message.type === 'progress') {
+                setCourseGenerationProgress({
+                  step: message.step || "Processing",
+                  progress: message.progress || 0,
+                  message: message.message || "Processing..."
+                });
+              } else if (message.type === 'partial') {
+                // Update UI with partial course data if needed
+                setCourseGenerationProgress({
+                  step: "Generating",
+                  progress: message.progress || 50,
+                  message: message.message || "Building course structure..."
+                });
+              } else if (message.type === 'complete') {
+                // Course generation complete
+                setGeneratedCourseId(message.data.courseId);
+                setCourseGenerationProgress({
+                  step: "Complete",
+                  progress: 100,
+                  message: "Your course is ready!"
+                });
+
+                // Fetch the course data and show in panel
+                setTimeout(async () => {
+                  if (message.data.courseId) {
+                    try {
+                      const { ConvexHttpClient } = await import('convex/browser');
+                      const { api } = await import('@/convex/_generated/api');
+
+                      const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+                      if (!convexUrl) {
+                        throw new Error('NEXT_PUBLIC_CONVEX_URL not configured');
+                      }
+
+                      const convex = new ConvexHttpClient(convexUrl);
+
+                      // Fetch the full course with modules and lessons
+                      const courseWithContent = await convex.query(api.courses.getCourseWithContent, {
+                        courseId: message.data.courseId
+                      });
+
+                      if (courseWithContent) {
+                        setCourseData(courseWithContent);
+                        setShowCoursePanel(true);
+                        toast.success("Course generated successfully!");
+                      }
+                    } catch (fetchError) {
+                      console.error('Error fetching generated course:', fetchError);
+                      toast.error("Course generated but failed to load details");
+                    }
+                  }
+                }, 500);
+              } else if (message.type === 'error') {
+                throw new Error(message.error || 'Unknown error occurred');
+              }
+            } catch (parseError) {
+              // Enhanced error logging for JSON parse failures
+              if (parseError instanceof SyntaxError) {
+                const jsonStr = line.slice(6);
+                console.error('JSON parse error details:', {
+                  error: parseError.message,
+                  lineLength: jsonStr.length,
+                  linePreview: jsonStr.substring(0, 200),
+                  position: parseError.message.match(/position (\d+)/)?.[1]
+                });
+
+                // If it's a massive string (likely malformed timestamps), show specific error
+                if (jsonStr.length > 50000) {
+                  console.error('⚠️ CRITICAL: Detected overly large JSON payload - likely malformed timestamp data');
+                  toast.error("AI generated invalid data. Please try again.");
+                  setIsGeneratingCourse(false);
+                  setCourseGenerationProgress(null);
+                  return; // Stop processing this stream
+                }
+              } else {
+                console.error('Error parsing stream message:', parseError);
+              }
             }
-
-            const convex = new ConvexHttpClient(convexUrl);
-
-            // Fetch the full course with modules and lessons
-            const courseWithContent = await convex.query(api.courses.getCourseWithContent, {
-              courseId: result.courseId
-            });
-
-            if (courseWithContent) {
-              // Set course data and show panel
-              setCourseData(courseWithContent);
-              setShowCoursePanel(true);
-            } else {
-              console.error('No course content returned from query');
-            }
-          } catch (error) {
-            console.error('Error fetching course data:', error);
-            toast.error("Failed to load course", {
-              description: "Your course was created but couldn't be loaded. You can find it in your courses page."
-            });
-          } finally {
-            setIsGeneratingCourse(false);
-            setCourseGenerationProgress(null);
           }
         }
-      }, 1500);
-
-    } catch (error) {
-      console.error('Error generating course:', error);
-      setTranscriptError(error instanceof Error ? error.message : 'Something went wrong while creating your course. Please try again.');
-      setCourseGenerationProgress(null);
-      setIsGeneratingCourse(false);
+      }
+    } catch (err) {
+      console.error("Error generating course:", err);
+      setTranscriptError(err instanceof Error ? err.message : "An unknown error occurred");
+      toast.error("Failed to generate course");
     } finally {
-      setCurrentLoadingVideoId(null);
+      setIsGeneratingCourse(false);
     }
-  }, [videoData, isAuthenticated, user, router]);
+  }, [videoData, isAuthenticated, user?.id, setCourseGenerationProgress, setGeneratedCourseId, setCourseData, setShowCoursePanel]);
 
   // Create formatted video data for transcript display
   const formattedPlaylistVideos = React.useMemo(() => {
@@ -342,51 +385,208 @@ function Content({ initialContent, initialError }: ContentProps) {
             ) : (
               <div className="p-6 h-full flex flex-col items-center justify-center">
                 {courseGenerationProgress ? (
-                  <div className="relative w-full max-w-5xl">
-                    <CoursePanelSkeleton
-                      showOverlay={false}
-                      className="h-full rounded-2xl border shadow-sm"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-background/80 p-4 backdrop-blur-sm">
-                      <div className="w-full max-w-md rounded-2xl border bg-card p-6 text-center shadow-lg">
-                        <div className="mx-auto mb-6 h-16 w-16">
-                          <div className="relative h-full w-full">
+                  <div className="relative w-full max-w-6xl h-full">
+                    {/* Enhanced Progressive Loading UI */}
+                    <div className="h-full flex flex-col gap-6 overflow-auto">
+                      {/* Header with Progress */}
+                      <div className="sticky top-0 z-10 rounded-2xl border bg-card/95 backdrop-blur-sm p-6 shadow-lg">
+                        <div className="flex items-start gap-4">
+                          {/* Animated Icon */}
+                          <div className="relative h-14 w-14 flex-shrink-0">
+                            <div className="absolute inset-0 rounded-full bg-primary/10 animate-pulse"></div>
                             <div className="absolute inset-0 rounded-full border-4 border-primary/20"></div>
-                            {/* eslint-disable-next-line no-inline-styles */}
                             <div
-                              className="absolute inset-0 rounded-full border-4 border-primary transition-all duration-500 ease-out"
+                              className="absolute inset-0 rounded-full border-4 border-primary transition-all duration-700 ease-out"
                               style={{
-                                clipPath: `polygon(0 0, ${courseGenerationProgress.progress}% 0, ${courseGenerationProgress.progress}% 100%, 0 100%)`
+                                clipPath: `polygon(0 0, 100% 0, 100% ${courseGenerationProgress.progress}%, 0 ${courseGenerationProgress.progress}%)`
                               }}
                             ></div>
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+                              <Sparkles className="h-6 w-6 text-primary animate-spin" style={{ animationDuration: '3s' }} />
+                            </div>
+                          </div>
+
+                          {/* Progress Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-4 mb-2">
+                              <h3 className="text-xl font-bold truncate">{courseGenerationProgress.step}</h3>
+                              <span className="text-2xl font-bold text-primary tabular-nums">
+                                {courseGenerationProgress.progress}%
+                              </span>
+                            </div>
+                            <p className="text-muted-foreground text-sm mb-3">
+                              {courseGenerationProgress.message}
+                            </p>
+
+                            {/* Progress Bar */}
+                            <div className="relative w-full bg-secondary rounded-full h-3 overflow-hidden">
+                              <div
+                                className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-700 ease-out"
+                                style={{ width: `${courseGenerationProgress.progress}%` }}
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                              </div>
+                            </div>
+
+                            {/* Stage Indicators */}
+                            <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+                              <div className={`flex items-center gap-1 ${courseGenerationProgress.progress >= 5 ? 'text-primary' : ''}`}>
+                                <div className={`w-2 h-2 rounded-full ${courseGenerationProgress.progress >= 5 ? 'bg-primary' : 'bg-muted'}`}></div>
+                                <span>Parse</span>
+                              </div>
+                              <div className="w-8 h-px bg-border"></div>
+                              <div className={`flex items-center gap-1 ${courseGenerationProgress.progress >= 40 ? 'text-primary' : ''}`}>
+                                <div className={`w-2 h-2 rounded-full ${courseGenerationProgress.progress >= 40 ? 'bg-primary' : 'bg-muted'}`}></div>
+                                <span>Analyze</span>
+                              </div>
+                              <div className="w-8 h-px bg-border"></div>
+                              <div className={`flex items-center gap-1 ${courseGenerationProgress.progress >= 70 ? 'text-primary' : ''}`}>
+                                <div className={`w-2 h-2 rounded-full ${courseGenerationProgress.progress >= 70 ? 'bg-primary' : 'bg-muted'}`}></div>
+                                <span>Structure</span>
+                              </div>
+                              <div className="w-8 h-px bg-border"></div>
+                              <div className={`flex items-center gap-1 ${courseGenerationProgress.progress >= 90 ? 'text-primary' : ''}`}>
+                                <div className={`w-2 h-2 rounded-full ${courseGenerationProgress.progress >= 90 ? 'bg-primary' : 'bg-muted'}`}></div>
+                                <span>Finalize</span>
+                              </div>
                             </div>
                           </div>
                         </div>
 
-                        <h3 className="text-lg font-semibold mb-2">{courseGenerationProgress.step}</h3>
-                        <p className="text-muted-foreground text-sm mb-4">
-                          {courseGenerationProgress.message}
-                        </p>
-
-                        <div className="w-full bg-secondary rounded-full h-2 mb-2">
-                          {/* eslint-disable-next-line no-inline-styles */}
-                          <div
-                            className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
-                            style={{ width: `${courseGenerationProgress.progress}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{courseGenerationProgress.progress}% complete</p>
-
+                        {/* Success Message */}
                         {courseGenerationProgress.step === "Complete" && generatedCourseId && (
-                          <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-left dark:border-green-800 dark:bg-green-950">
-                            <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                              🎉 Course created successfully! Redirecting...
-                            </p>
+                          <div className="mt-4 rounded-lg border border-green-500/50 bg-green-500/10 p-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-green-700 dark:text-green-300">
+                                  🎉 Course Generated Successfully!
+                                </p>
+                                <p className="text-xs text-green-600/80 dark:text-green-400/80 mt-0.5">
+                                  Loading your personalized course content...
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
+
+                      {/* Progressive Content Preview */}
+                      {courseGenerationProgress.progress >= 40 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                          {/* AI Processing Steps */}
+                          <div className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                </svg>
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-sm">AI Analysis</h4>
+                                <p className="text-xs text-muted-foreground">Content breakdown</p>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className={`w-1.5 h-1.5 rounded-full ${courseGenerationProgress.progress >= 40 ? 'bg-green-500 animate-pulse' : 'bg-muted'}`}></div>
+                                <span className={courseGenerationProgress.progress >= 40 ? 'text-foreground' : 'text-muted-foreground'}>Transcript processed</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className={`w-1.5 h-1.5 rounded-full ${courseGenerationProgress.progress >= 50 ? 'bg-green-500 animate-pulse' : 'bg-muted'}`}></div>
+                                <span className={courseGenerationProgress.progress >= 50 ? 'text-foreground' : 'text-muted-foreground'}>Key concepts identified</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className={`w-1.5 h-1.5 rounded-full ${courseGenerationProgress.progress >= 60 ? 'bg-green-500 animate-pulse' : 'bg-muted'}`}></div>
+                                <span className={courseGenerationProgress.progress >= 60 ? 'text-foreground' : 'text-muted-foreground'}>Learning path mapped</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Course Structure */}
+                          <div className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                </svg>
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-sm">Structure</h4>
+                                <p className="text-xs text-muted-foreground">Course organization</p>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className={`w-1.5 h-1.5 rounded-full ${courseGenerationProgress.progress >= 60 ? 'bg-green-500 animate-pulse' : 'bg-muted'}`}></div>
+                                <span className={courseGenerationProgress.progress >= 60 ? 'text-foreground' : 'text-muted-foreground'}>Modules created</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className={`w-1.5 h-1.5 rounded-full ${courseGenerationProgress.progress >= 70 ? 'bg-green-500 animate-pulse' : 'bg-muted'}`}></div>
+                                <span className={courseGenerationProgress.progress >= 70 ? 'text-foreground' : 'text-muted-foreground'}>Lessons organized</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className={`w-1.5 h-1.5 rounded-full ${courseGenerationProgress.progress >= 80 ? 'bg-green-500 animate-pulse' : 'bg-muted'}`}></div>
+                                <span className={courseGenerationProgress.progress >= 80 ? 'text-foreground' : 'text-muted-foreground'}>Objectives defined</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Content Enhancement */}
+                          <div className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                </svg>
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-sm">Enhancement</h4>
+                                <p className="text-xs text-muted-foreground">Resources & polish</p>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className={`w-1.5 h-1.5 rounded-full ${courseGenerationProgress.progress >= 75 ? 'bg-green-500 animate-pulse' : 'bg-muted'}`}></div>
+                                <span className={courseGenerationProgress.progress >= 75 ? 'text-foreground' : 'text-muted-foreground'}>Resources linked</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className={`w-1.5 h-1.5 rounded-full ${courseGenerationProgress.progress >= 85 ? 'bg-green-500 animate-pulse' : 'bg-muted'}`}></div>
+                                <span className={courseGenerationProgress.progress >= 85 ? 'text-foreground' : 'text-muted-foreground'}>Content polished</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className={`w-1.5 h-1.5 rounded-full ${courseGenerationProgress.progress >= 90 ? 'bg-green-500 animate-pulse' : 'bg-muted'}`}></div>
+                                <span className={courseGenerationProgress.progress >= 90 ? 'text-foreground' : 'text-muted-foreground'}>Quality validated</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Development Tips */}
+                      {courseGenerationProgress.progress >= 20 && courseGenerationProgress.progress < 90 && (
+                        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mt-0.5">
+                              <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-sm text-blue-700 dark:text-blue-300 mb-1.5">Development Insight</h4>
+                              <p className="text-xs text-blue-600/80 dark:text-blue-400/80 leading-relaxed">
+                                {courseGenerationProgress.progress < 40 && "Our AI is analyzing the video transcript using advanced NLP to extract key concepts, identify learning patterns, and understand the content structure. This ensures high-quality course generation."}
+                                {courseGenerationProgress.progress >= 40 && courseGenerationProgress.progress < 70 && "The course structure is being intelligently organized into modules and lessons. We're mapping timestamps, creating learning objectives, and ensuring logical content flow for optimal learning experience."}
+                                {courseGenerationProgress.progress >= 70 && "Final touches are being applied: enriching content with external resources, validating lesson coherence, and ensuring all components meet quality standards before delivery."}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : transcriptError ? (
