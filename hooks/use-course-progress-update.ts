@@ -1,50 +1,51 @@
 'use client';
 
 import { useState } from 'react';
+import { useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 
 interface ProgressUpdateOptions {
-  courseId: string;
-  lessonId?: string;
-  sectionIndex: number;
-  lessonIndex: number;
+  userId: string;
+  courseId: Id<'courses'>;
+  lessonId: Id<'lessons'>;
   completed: boolean;
 }
 
 interface ProgressUpdateResult {
   success: boolean;
   progress: number;
-  completedLessons: string[];
-  completionStatus: string;
+  completedLessons: Id<'lessons'>[];
+  completionStatus: 'in-progress' | 'completed';
 }
 
 export function useCourseProgressUpdate() {
+  const recordLessonProgress = useMutation(api.enrollments.recordLessonProgress);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const updateProgress = async (options: ProgressUpdateOptions): Promise<ProgressUpdateResult | null> => {
+    if (!options.userId) {
+      setError('Authentication required to update progress');
+      return null;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/supabase/courses/progress', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(options),
+      const data = await recordLessonProgress({
+        userId: options.userId,
+        courseId: options.courseId,
+        lessonId: options.lessonId,
+        completed: options.completed,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update progress');
-      }
-
-      const data = await response.json();
       return {
         success: data.success,
         progress: data.progress,
         completedLessons: data.completedLessons,
-        completionStatus: data.completionStatus,
+        completionStatus: data.completionStatus as 'in-progress' | 'completed',
       };
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');

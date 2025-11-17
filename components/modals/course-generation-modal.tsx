@@ -241,23 +241,35 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
               if (!response.ok) {
                 // For 502 Bad Gateway or 504 Gateway Timeout errors
                 if (response.status === 502 || response.status === 504) {
-                  const errorData = await response.json();
+                  // Check content-type before parsing
+                  const contentType = response.headers.get('content-type');
+                  if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
 
-                  // Check if the ADK service is not running
-                  if (errorData.serviceStatus) {
-                    toast.error(errorData.serviceStatus);
-                    console.error("ADK Service Error:", errorData.serviceStatus);
+                    // Check if the ADK service is not running
+                    if (errorData.serviceStatus) {
+                      toast.error(errorData.serviceStatus);
+                      console.error("ADK Service Error:", errorData.serviceStatus);
+                    }
+
+                    // If we retried the request, let the user know
+                    if (errorData.retried) {
+                      console.log("Request was retried but still failed");
+                    }
+
+                    throw new Error(errorData.error || "The server encountered an error. The ADK service might not be running or is taking longer than expected to respond.");
+                  } else {
+                    throw new Error(`Server error: ${response.status} - ${response.statusText}`);
                   }
-
-                  // If we retried the request, let the user know
-                  if (errorData.retried) {
-                    console.log("Request was retried but still failed");
-                  }
-
-                  throw new Error(errorData.error || "The server encountered an error. The ADK service might not be running or is taking longer than expected to respond.");
                 } else {
                   throw new Error(`Error: ${response.status} ${response.statusText}`);
                 }
+              }
+
+              // Check content-type before parsing successful response
+              const contentType = response.headers.get('content-type');
+              if (!contentType || !contentType.includes('application/json')) {
+                throw new Error(`Server returned non-JSON response: ${contentType || 'unknown'}`);
               }
 
               data = await response.json();

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
 
 interface BreadcrumbContextType {
   courseTitle: string | null
@@ -13,16 +13,16 @@ const BreadcrumbContext = createContext<BreadcrumbContextType | undefined>(undef
 export function BreadcrumbProvider({ children }: { children: ReactNode }) {
   const [courseTitles, setCourseTitles] = useState<Record<string, string>>({})
 
-  const setCourseTitleForPath = (path: string, title: string) => {
+  const setCourseTitleForPath = useCallback((path: string, title: string) => {
     setCourseTitles(prev => ({
       ...prev,
       [path]: title
     }))
-  }
+  }, [])
 
-  const getCourseTitle = (path: string) => {
+  const getCourseTitle = useCallback((path: string) => {
     return courseTitles[path] || null
-  }
+  }, [courseTitles])
 
   return (
     <BreadcrumbContext.Provider value={{

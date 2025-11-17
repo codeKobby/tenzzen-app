@@ -24,10 +24,17 @@ export async function POST(req: NextRequest) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const contentType = response.headers.get('content-type');
+      const error = contentType?.includes('application/json')
+        ? await response.json()
+        : { message: `API error: ${response.status}` };
       return NextResponse.json({ error: error.message || 'Failed to generate course' }, { status: response.status });
     }
 
+    const contentType = response.headers.get('content-type');
+    if (!contentType?.includes('application/json')) {
+      throw new Error(`API returned non-JSON: ${contentType}`);
+    }
     const data = await response.json();
     return NextResponse.json({ data });
   } catch (error) {

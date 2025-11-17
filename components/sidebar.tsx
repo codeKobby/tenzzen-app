@@ -184,7 +184,8 @@ export function Sidebar({ className }: { className?: string }) {
   }
 
   const NavigationLink = ({ item }: { item: NavigationItem }) => {
-    const isActive = pathname === item.href
+    // Check if current route matches or is a child route of this nav item
+    const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
     const Icon = item.icon
 
     return (

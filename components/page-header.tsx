@@ -39,6 +39,11 @@ function getBreadcrumbFromPath(path: string, courseTitle: string | null = null):
       // Capitalize each word
       label = label.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
+    // Special case for courses/[courseId] route with UUID-like IDs
+    else if (index === 1 && segments[0] === "courses" && /^[a-zA-Z0-9-_]{20,}$/.test(segment)) {
+      // Use the course title from context if available, otherwise fallback to "Course"
+      label = courseTitle || "Course";
+    }
     // Special case for explore/[courseId] route with UUID-like IDs
     else if (index === 1 && segments[0] === "explore" && /^[a-zA-Z0-9-]{20,}$/.test(segment)) {
       // Use the course title from context if available, otherwise fallback to "Course Details"

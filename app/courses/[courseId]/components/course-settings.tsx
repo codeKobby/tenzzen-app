@@ -28,6 +28,9 @@ import {
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@clerk/nextjs"
+import { useMutation } from "convex/react"
+import type { Id } from "@/convex/_generated/dataModel"
+import { api } from "@/convex/_generated/api"
 import { NormalizedCourse } from "@/hooks/use-normalized-course"
 
 interface CourseSettingsProps {
@@ -37,6 +40,7 @@ interface CourseSettingsProps {
 export function CourseSettings({ course }: CourseSettingsProps) {
     const router = useRouter()
     const { userId } = useAuth()
+    const unenrollMutation = useMutation(api.enrollments.unenrollFromCourse)
 
     // Settings state
     const [autoplay, setAutoplay] = useState(true)
@@ -75,29 +79,20 @@ export function CourseSettings({ course }: CourseSettingsProps) {
         setIsDeleting(true)
 
         try {
-            // Call the API to unenroll from the course
-            const response = await fetch('/api/supabase/courses/unenroll', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ courseId: course.id }),
-            });
+            await unenrollMutation({
+                userId,
+                courseId: course.id as Id<'courses'>,
+            })
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to unenroll');
-            }
-
-            toast.success("Course deleted successfully", {
+            toast.success("Course removed", {
                 description: "The course has been removed from your library",
             })
 
             // Navigate back to courses page
             router.push("/courses")
         } catch (error) {
-            toast.error("Failed to delete course", {
-                description: "Please try again later",
+            toast.error("Failed to remove course", {
+                description: error instanceof Error ? error.message : "Please try again later",
             })
             console.error('Error deleting course:', error);
         } finally {

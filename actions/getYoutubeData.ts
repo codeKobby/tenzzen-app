@@ -250,17 +250,30 @@ export async function getVideoDetails(videoId: string) {
         case 429:
           throw new Error('YouTube API quota exceeded. Please try again later.')
         default:
-          // Try to parse error response
-          try {
-            const errorJson = JSON.parse(responseText)
-            if (errorJson.error?.message) {
-              throw new Error(errorJson.error.message)
+          // Check content-type before trying to parse JSON
+          const contentType = response.headers.get('content-type')
+          const isJson = contentType && contentType.includes('application/json')
+          
+          if (isJson) {
+            try {
+              const errorJson = JSON.parse(responseText)
+              if (errorJson.error?.message) {
+                throw new Error(errorJson.error.message)
+              }
+            } catch (e) {
+              throw new Error(`YouTube API error: ${response.status}`)
             }
-          } catch (e) {
-            // Default error message if we can't parse the response
-            throw new Error(`YouTube API error: ${response.status}`)
+          } else {
+            // Not JSON (likely HTML error page)
+            throw new Error(`YouTube API error: ${response.status} - ${response.statusText}`)
           }
       }
+    }
+
+    // Even for successful responses, validate content-type before parsing JSON
+    const successContentType = response.headers.get('content-type')
+    if (!successContentType || !successContentType.includes('application/json')) {
+      throw new Error(`YouTube API returned non-JSON response: ${successContentType || 'unknown'}`)
     }
 
     const data = await response.json()
@@ -344,10 +357,16 @@ export async function getVideoDetails(videoId: string) {
         )
 
         if (channelResponse.ok) {
-          const channelData = await channelResponse.json()
-          const channel = channelData.items?.[0]
-          if (channel?.snippet?.thumbnails?.default?.url) {
-            videoData.channelAvatar = channel.snippet.thumbnails.default.url
+          // Check content-type before parsing JSON
+          const contentType = channelResponse.headers.get('content-type')
+          if (contentType && contentType.includes('application/json')) {
+            const channelData = await channelResponse.json()
+            const channel = channelData.items?.[0]
+            if (channel?.snippet?.thumbnails?.default?.url) {
+              videoData.channelAvatar = channel.snippet.thumbnails.default.url
+            }
+          } else {
+            console.warn('Channel API returned non-JSON response, continuing without avatar')
           }
         } else {
           console.warn('Failed to fetch channel avatar, continuing without it')
@@ -444,26 +463,33 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
         case 429:
           throw new Error('YouTube API quota exceeded. Please try again later.')
         default:
-          // Try to parse error response
-          try {
-            const errorJson = JSON.parse(responseText)
-            if (errorJson.error?.message) {
-              throw new Error(errorJson.error.message)
+          // Check content-type before trying to parse JSON
+          const contentType = response.headers.get('content-type')
+          const isJson = contentType && contentType.includes('application/json')
+          
+          if (isJson) {
+            try {
+              const errorJson = JSON.parse(responseText)
+              if (errorJson.error?.message) {
+                throw new Error(errorJson.error.message)
+              }
+            } catch (e) {
+              throw new Error(`YouTube API error: ${response.status}`)
             }
-          } catch (e) {
-            // Default error message if we can't parse the response
-            throw new Error(`YouTube API error: ${response.status}`)
+          } else {
+            // Not JSON (likely HTML error page)
+            throw new Error(`YouTube API error: ${response.status} - ${response.statusText}`)
           }
       }
     }
 
-    const data = await response.json()
-
-    // Handle YouTube API errors
-    if (data.error) {
-      // ...existing error handling code...
-      throw new Error(data.error.message || 'YouTube API error')
+    // Even for successful responses, validate content-type before parsing JSON
+    const successContentType = response.headers.get('content-type')
+    if (!successContentType || !successContentType.includes('application/json')) {
+      throw new Error(`Playlist API returned non-JSON response: ${successContentType || 'unknown'}`)
     }
+
+    const data = await response.json()
 
     if (!data.items || data.items.length === 0) {
       throw new Error('Playlist not found')
@@ -556,6 +582,11 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
           throw new Error(`Failed to fetch playlist items: ${itemsResponse.status}`);
         }
 
+        // Check content-type before parsing JSON
+        const contentType = itemsResponse.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error(`Playlist items API returned non-JSON response: ${contentType}`);
+        }
         const itemsData = await itemsResponse.json();
         if (!itemsData.items?.length) {
           console.log('No items found in this page');
@@ -586,11 +617,17 @@ export async function getPlaylistDetails(playlistId: string, fetchVideoDetails =
             let videoDetailsMap = new Map();
 
             if (videoResponse.ok) {
-              const videoData = await videoResponse.json();
-              if (videoData.items?.length) {
-                videoDetailsMap = new Map(
-                  videoData.items.map((item: any) => [item.id, item])
-                );
+              // Check content-type before parsing JSON
+              const videoContentType = videoResponse.headers.get('content-type');
+              if (videoContentType && videoContentType.includes('application/json')) {
+                const videoData = await videoResponse.json();
+                if (videoData.items?.length) {
+                  videoDetailsMap = new Map(
+                    videoData.items.map((item: any) => [item.id, item])
+                  );
+                }
+              } else {
+                console.warn('Video details API returned non-JSON response, continuing without video details');
               }
             }
 

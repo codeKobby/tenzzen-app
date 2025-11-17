@@ -1,516 +1,623 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
-import { useRouter } from "@/hooks/use-router-with-loader"
-import { Button } from "@/components/ui/button"
+import { useParams, usePathname } from "next/navigation"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useAuth } from "@clerk/nextjs"
+import { useMutation } from "convex/react"
+import { toast } from "sonner"
 import {
   BookOpen,
-  Clock,
-  FileText,
-  LayoutGrid,
-  PlayCircle,
-  Settings,
-  Star,
-  Users,
-  Loader2,
-  ChevronLeft,
-  Menu,
-  X,
-  ChevronRight,
+  Camera,
   CheckCircle,
-  Info,
-  Download
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  FileQuestion,
+  FileText,
+  Lock,
+  StickyNote,
+  Trophy,
 } from "lucide-react"
-import { cn, validateCourseId } from "@/lib/utils"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Progress } from "@/components/ui/progress"
-import { useAuth } from "@clerk/nextjs"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { toast } from "sonner"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
-// Import required components
-import { CourseContent } from "./components/course-content"
-import { CourseOverview } from "./components/course-overview"
-import { CourseResources } from "./components/course-resources"
-import { CourseSettings } from "./components/course-settings"
-import { CoursePlayer } from "./components/course-player"
-import { SocialLinks } from "./components/social-links"
-
-// Import hooks for normalized course structure
-import { useNormalizedCourse, NormalizedLesson, NormalizedSection } from "@/hooks/use-normalized-course"
+import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
+import { useRouter } from "@/hooks/use-router-with-loader"
 import { useCourseProgressUpdate } from "@/hooks/use-course-progress-update"
+import {
+  useNormalizedCourse,
+  type NormalizedCourse,
+  type NormalizedLesson,
+} from "@/hooks/use-normalized-course"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { validateCourseId } from "@/lib/utils"
+import { useBreadcrumb } from "@/contexts/breadcrumb-context"
+
+import { CourseContent } from "./components/course-content"
+import { CoursePlayer } from "./components/course-player"
+import { CourseResources } from "./components/course-resources"
 
 export default function CoursePage() {
-  const params = useParams();
-  const courseId = typeof params.courseId === 'string' ? params.courseId : '';
-  const router = useRouter();
-  const { userId, isSignedIn } = useAuth();
+  const params = useParams()
+  const courseId = typeof params.courseId === "string" ? params.courseId : ""
+  const pathname = usePathname()
+  const router = useRouter()
+  const { userId, isSignedIn } = useAuth()
+  const { setCourseTitleForPath } = useBreadcrumb()
+  const enrollMutation = useMutation(api.enrollments.enrollInCourse)
+  const playerRef = useRef<HTMLDivElement>(null)
 
-  // Validate courseId format before proceeding
+  const [enrolling, setEnrolling] = useState(false)
+  const [sectionIndex, setSectionIndex] = useState(0)
+  const [lessonIndex, setLessonIndex] = useState(0)
+  const [currentQuiz, setCurrentQuiz] = useState<any>(null)
+  const [generatingQuiz, setGeneratingQuiz] = useState(false)
+
   useEffect(() => {
-    const validation = validateCourseId(courseId);
+    const validation = validateCourseId(courseId)
     if (!validation.isValid) {
-      console.error(`Invalid course ID: ${validation.error}`);
-      toast.error('Invalid course ID', {
-        description: validation.error || 'The course ID is invalid. Redirecting to courses page.'
-      });
-      // Redirect to courses page
-      router.push('/courses');
-      return;
+      toast.error("Invalid course ID", {
+        description: validation.error || "Redirecting back to Courses",
+      })
+      router.push("/courses")
     }
-  }, [courseId, router]);
-  const [currentSection, setCurrentSection] = useState<NormalizedSection | null>(null);
-  const [currentLesson, setCurrentLesson] = useState<NormalizedLesson | null>(null);
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-  const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
-  const [enrolling, setEnrolling] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  }, [courseId, router])
 
-  // Fetch course data using the normalized course hook
   const {
     course,
     loading,
     error,
     isEnrolled,
-    progress,
-    completedLessons
-  } = useNormalizedCourse(courseId, { includeProgress: true });
+    progress = 0,
+    completedLessons = [],
+  } = useNormalizedCourse(courseId, { includeProgress: true })
 
-  // Progress update hook
-  const { updateProgress, loading: updatingProgress } = useCourseProgressUpdate();
-
-  // Set initial lesson when course loads
+  // Set breadcrumb title when course loads
   useEffect(() => {
-    if (course) {
-      if (course.sections && course.sections.length > 0) {
-        const firstSection = course.sections[0];
-        setCurrentSection(firstSection);
+    if (course?.title && pathname) {
+      setCourseTitleForPath(pathname, course.title)
+    }
+  }, [course?.title, pathname, setCourseTitleForPath])
 
-        if (firstSection.lessons && firstSection.lessons.length > 0) {
-          setCurrentLesson(firstSection.lessons[0]);
-          setCurrentSectionIndex(0);
-          setCurrentLessonIndex(0);
-        } else {
-          // Section has no lessons
-          setCurrentLesson(null);
-        }
-      } else {
-        // Course has no sections, create a default section
-        console.log('Course has no sections, using default section');
-        const defaultSection = {
-          id: 'default-section',
-          title: 'Course Content',
-          description: 'This course has no sections yet.',
-          orderIndex: 0,
-          lessons: [{
-            id: 'default-lesson',
-            title: 'Introduction',
-            content: 'This course has no lessons yet.',
+  const { updateProgress } = useCourseProgressUpdate()
+
+  const sections = useMemo(() => {
+    if (!course) return []
+    if (course.sections?.length) return course.sections
+    return [
+      {
+        id: "pending-section",
+        title: "Curriculum coming soon",
+        description: "The team is finalizing modules for this experience.",
+        orderIndex: 0,
+        lessons: [
+          {
+            id: "pending-lesson",
+            title: "Stay tuned",
+            orderIndex: 0,
+            content: "Once published, lessons will appear here automatically.",
             videoTimestamp: 0,
             duration: 0,
-            orderIndex: 0,
-            completed: false
-          }]
-        };
+          },
+        ],
+      },
+    ]
+  }, [course])
 
-        setCurrentSection(defaultSection);
-        setCurrentLesson(defaultSection.lessons[0]);
-        setCurrentSectionIndex(0);
-        setCurrentLessonIndex(0);
+  const safeSectionIndex = Math.min(sectionIndex, Math.max(sections.length - 1, 0))
+  const currentSection = sections[safeSectionIndex]
+  const sectionLessons = currentSection?.lessons || []
+  const safeLessonIndex = Math.min(lessonIndex, Math.max(sectionLessons.length - 1, 0))
+  const currentLesson: NormalizedLesson | null = sectionLessons[safeLessonIndex] || null
 
-        // Update the course object to include the default section
-        if (!course.sections || course.sections.length === 0) {
-          course.sections = [defaultSection];
+  const outlineCourse = course ? ({ ...course, sections } as NormalizedCourse) : null
+  const hasNext =
+    safeSectionIndex < sections.length - 1 ||
+    (sectionLessons.length > 0 && safeLessonIndex < sectionLessons.length - 1)
+  const hasPrevious = safeSectionIndex > 0 || safeLessonIndex > 0
+
+  const handleEnroll = async () => {
+    if (!isSignedIn || !userId) {
+      router.push(`/sign-in?redirect=/courses/${courseId}`)
+      return
+    }
+    if (!course || enrolling) return
+
+    try {
+      setEnrolling(true)
+      await enrollMutation({ userId, courseId: course.id as Id<"courses"> })
+      toast.success("You're enrolled", { description: "Opening your learning workspace" })
+    } catch (err) {
+      console.error(err)
+      toast.error("Unable to enroll", {
+        description: err instanceof Error ? err.message : "Please try again",
+      })
+    } finally {
+      setEnrolling(false)
+    }
+  }
+
+  const scrollPlayerIntoView = () => {
+    playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  const handleLessonSelect = (sectionIdx: number, lessonIdx: number, _lesson: NormalizedLesson) => {
+    setSectionIndex(sectionIdx)
+    setLessonIndex(lessonIdx)
+    setCurrentQuiz(null) // Clear quiz when selecting a lesson
+    scrollPlayerIntoView()
+  }
+
+  const handleQuizSelect = async (
+    newSectionIndex: number,
+    assessmentIndex: number,
+    assessment: any
+  ) => {
+    // Projects don't need generation, just display them
+    if (assessment.type === 'project') {
+      setCurrentQuiz(assessment)
+      setSectionIndex(newSectionIndex)
+      scrollPlayerIntoView()
+      return
+    }
+
+    // Check if this is a placeholder quiz/test that needs to be generated
+    if (assessment.isGenerated === false) {
+      const assessmentType = assessment.type === 'test' ? 'test' : 'quiz'
+      const numQuestions = assessment.type === 'test' ? 15 : 5 // Tests have more questions
+
+      // Trigger quiz/test generation
+      setGeneratingQuiz(true)
+      toast.info(`Generating ${assessmentType}...`, {
+        description: "This may take a few moments"
+      })
+
+      try {
+        // Get the first lesson of the module to generate quiz from
+        const moduleSection = sections[newSectionIndex]
+        const firstLesson = moduleSection?.lessons?.[0]
+
+        if (!firstLesson) {
+          toast.error(`Cannot generate ${assessmentType}`, {
+            description: "No lessons found in this module"
+          })
+          setGeneratingQuiz(false)
+          return
         }
+
+        // Import generateQuiz action dynamically
+        const { generateQuiz } = await import("@/actions/generateQuiz")
+
+        const result = await generateQuiz(
+          firstLesson.id as Id<"lessons">,
+          {
+            userId: userId as string,
+            numQuestions: numQuestions,
+            difficulty: "mixed"
+          }
+        )
+
+        if (result.success && result.quizId) {
+          toast.success(`${assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1)} generated!`, {
+            description: `You can now take the ${assessmentType}`
+          })
+          // Refresh the page to load the new quiz
+          window.location.reload()
+        } else {
+          toast.error(`Failed to generate ${assessmentType}`, {
+            description: result.error || "Please try again"
+          })
+        }
+      } catch (error) {
+        console.error(`Error generating ${assessmentType}:`, error)
+        toast.error(`Failed to generate ${assessmentType}`, {
+          description: error instanceof Error ? error.message : "Unknown error"
+        })
+      } finally {
+        setGeneratingQuiz(false)
+      }
+      return
+    }
+
+    // Normal quiz selection for already generated quizzes
+    setCurrentQuiz(assessment)
+    setSectionIndex(newSectionIndex)
+    scrollPlayerIntoView()
+  }
+
+  const navigateLesson = (direction: "next" | "prev") => {
+    if (!sections.length) return
+
+    const currentLessons = sections[safeSectionIndex]?.lessons || []
+    if (direction === "next") {
+      if (safeLessonIndex < currentLessons.length - 1) {
+        setLessonIndex(safeLessonIndex + 1)
+      } else if (safeSectionIndex < sections.length - 1) {
+        setSectionIndex(safeSectionIndex + 1)
+        setLessonIndex(0)
+      }
+    } else {
+      if (safeLessonIndex > 0) {
+        setLessonIndex(safeLessonIndex - 1)
+      } else if (safeSectionIndex > 0) {
+        const previousLessons = sections[safeSectionIndex - 1]?.lessons || []
+        setSectionIndex(safeSectionIndex - 1)
+        setLessonIndex(Math.max(previousLessons.length - 1, 0))
       }
     }
-  }, [course]);
+    scrollPlayerIntoView()
+  }
 
-  // Navigation functions
-  const navigateLesson = (direction: 'next' | 'prev') => {
-    if (!course || !currentSection) return;
+  const handleVideoEnd = () => {
+    // Check if current section has a quiz/assessment after this lesson
+    const currentSection = sections[safeSectionIndex]
+    const hasQuiz = currentSection?.assessments && currentSection.assessments.length > 0
 
-    if (direction === 'next') {
-      // If there are more lessons in the current section
-      if (currentLessonIndex < currentSection.lessons.length - 1) {
-        setCurrentLessonIndex(currentLessonIndex + 1);
-        setCurrentLesson(currentSection.lessons[currentLessonIndex + 1]);
-      }
-      // Move to the next section
-      else if (currentSectionIndex < course.sections.length - 1) {
-        const nextSection = course.sections[currentSectionIndex + 1];
-        setCurrentSectionIndex(currentSectionIndex + 1);
-        setCurrentSection(nextSection);
-
-        if (nextSection.lessons.length > 0) {
-          setCurrentLessonIndex(0);
-          setCurrentLesson(nextSection.lessons[0]);
-        }
-      }
-    } else if (direction === 'prev') {
-      // If we're not at the first lesson of the current section
-      if (currentLessonIndex > 0) {
-        setCurrentLessonIndex(currentLessonIndex - 1);
-        setCurrentLesson(currentSection.lessons[currentLessonIndex - 1]);
-      }
-      // Move to the previous section
-      else if (currentSectionIndex > 0) {
-        const prevSection = course.sections[currentSectionIndex - 1];
-        setCurrentSectionIndex(currentSectionIndex - 1);
-        setCurrentSection(prevSection);
-
-        if (prevSection.lessons.length > 0) {
-          setCurrentLessonIndex(prevSection.lessons.length - 1);
-          setCurrentLesson(prevSection.lessons[prevSection.lessons.length - 1]);
-        }
-      }
+    // If there's a quiz after this lesson, don't auto-advance
+    // You can customize this logic based on when quizzes appear
+    if (hasQuiz && safeLessonIndex === (currentSection?.lessons?.length || 0) - 1) {
+      toast.info("Quiz available", {
+        description: "Complete the quiz before moving to the next section"
+      })
+      return
     }
-  };
 
-  // Mark lesson as complete
+    // Check if there's a next lesson available
+    const hasNextLesson = safeLessonIndex < (sections[safeSectionIndex]?.lessons?.length || 0) - 1
+    const hasNextSection = safeSectionIndex < sections.length - 1
+
+    if (hasNextLesson || hasNextSection) {
+      // Auto-advance to next lesson
+      navigateLesson("next")
+      toast.success("Moving to next lesson", {
+        description: "Video completed successfully"
+      })
+    } else {
+      toast.success("Course section completed!", {
+        description: "You've finished this section"
+      })
+    }
+  }
+
   const markLessonComplete = async () => {
-    if (!course || !currentLesson || !isEnrolled) return;
-
+    if (!course || !currentLesson || !isEnrolled || !userId) return
     try {
       const result = await updateProgress({
-        courseId: course.id,
-        lessonId: currentLesson.id,
-        sectionIndex: currentSectionIndex,
-        lessonIndex: currentLessonIndex,
-        completed: true
-      });
+        userId,
+        courseId: course.id as Id<"courses">,
+        lessonId: currentLesson.id as Id<"lessons">,
+        completed: true,
+      })
 
-      if (result && result.success) {
-        toast.success('Progress updated');
-
-        // Auto-navigate to next lesson if available
-        navigateLesson('next');
+      if (result?.success) {
+        toast.success("Progress saved", { description: `You are ${result.progress}% complete` })
+        navigateLesson("next")
       }
     } catch (err) {
-      toast.error('Failed to update progress');
-      console.error('Error updating progress:', err);
+      console.error(err)
+      toast.error("Couldn't update progress")
     }
-  };
+  }
 
-  // Handle enrollment
-  const handleEnroll = async () => {
-    if (!isSignedIn) {
-      // Redirect to sign in
-      router.push(`/sign-in?redirect=/courses/${courseId}`);
-      return;
-    }
-
-    if (enrolling) return;
-
-    setEnrolling(true);
-    try {
-      const response = await fetch('/api/supabase/courses/enroll', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ courseId }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to enroll');
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success(data.newEnrollment ? 'Successfully enrolled in course' : 'Already enrolled in this course');
-        // Refresh the page to update enrollment status
-        window.location.reload();
-      }
-    } catch (err) {
-      toast.error('Failed to enroll in course');
-      console.error('Error enrolling in course:', err);
-    } finally {
-      setEnrolling(false);
-    }
-  };
-
-  // Calculate total lessons and completed lessons
-  const totalLessons = course?.total_lessons || course?.sections?.reduce((acc, section) =>
-    acc + section.lessons.length, 0) || 0;
-  const completedLessonsCount = completedLessons?.length || 0;
-
-  // Loading state
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-3/4" />
-          <Skeleton className="h-6 w-1/2" />
-          <div className="flex flex-col md:flex-row gap-6 mt-6">
-            <Skeleton className="h-[600px] w-full md:w-1/3" />
-            <Skeleton className="h-[600px] w-full md:w-2/3" />
+      <div className="min-h-screen bg-[#0a1628] p-6">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+            <div className="h-[600px] animate-pulse rounded-2xl bg-white/5" />
+            <div className="h-[600px] animate-pulse rounded-2xl bg-white/5" />
           </div>
         </div>
       </div>
-    );
+    )
   }
 
-  // Error state
   if (error || !course) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold mb-2">Course Not Found</h2>
-          <p className="text-muted-foreground mb-6">
-            {error || "We couldn't find the course you're looking for."}
-          </p>
-          <Button onClick={() => router.push('/courses')}>
-            Back to Courses
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Not enrolled state
-  if (!isEnrolled) {
-    return (
-      <div className="flex flex-col min-h-screen">
-        {/* Course Header */}
-        <div className="bg-muted/40 border-b">
-          <div className="container mx-auto px-4 py-4 max-w-7xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.push('/courses')}
-                  className="mb-2"
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" /> Back to Courses
-                </Button>
-                <h1 className="text-2xl font-bold">{course.title}</h1>
-                <p className="text-muted-foreground">{course.description?.substring(0, 100)}{course.description && course.description.length > 100 ? '...' : ''}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Enrollment CTA */}
-        <div className="container mx-auto px-4 py-12 max-w-7xl flex-1 flex flex-col items-center justify-center">
-          <div className="text-center max-w-2xl">
-            <h2 className="text-3xl font-bold mb-4">Enroll to Start Learning</h2>
-            <p className="text-muted-foreground mb-8">
-              You need to enroll in this course to access the learning materials and track your progress.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button
-                size="lg"
-                onClick={handleEnroll}
-                disabled={enrolling}
-                className="px-8"
-              >
-                {enrolling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Enroll Now
-              </Button>
-              {course.metadata?.resources && (
-                <SocialLinks
-                  resources={course.metadata.resources}
-                  size="lg"
-                />
-              )}
-            </div>
+      <div className="min-h-screen bg-[#0a1628] p-6">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-2xl border border-white/10 bg-[#0f1e35] p-10 text-center">
+            <p className="text-lg font-semibold text-white">We couldn't load that course</p>
+            <p className="mt-2 text-sm text-white/60">{error || "The course may have moved or been removed."}</p>
+            <Button className="mt-6" onClick={() => router.push("/courses")}>
+              Return to catalog
+            </Button>
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Course Header */}
-      <div className="bg-muted/40 border-b">
-        <div className="container mx-auto px-4 py-4 max-w-7xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/courses')}
-                className="hidden md:flex"
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" /> Back to Courses
-              </Button>
+    <div className="min-h-screen bg-[#0a1628] p-4">
+      <div className="mx-auto max-w-[1400px]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,900px)_1fr] lg:items-start">
+          <div className="space-y-3 max-w-full">
+            {/* Video Player */}
+            <div className="w-full">
+              <div ref={playerRef} className="relative w-full bg-black rounded-lg overflow-hidden aspect-video">
+                {isEnrolled ? (
+                  currentQuiz ? (
+                    <div className="flex h-full items-center justify-center p-10 text-center bg-[#0f1e35]">
+                      <div className="max-w-2xl w-full">
+                        {/* Determine icon and color based on assessment type */}
+                        {currentQuiz.type === 'project' ? (
+                          <>
+                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-500/10 mb-4">
+                              <Trophy className="h-8 w-8 text-purple-500" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-3">{currentQuiz.title}</h2>
+                            <p className="text-white/70 mb-6">{currentQuiz.description || "Complete this capstone project to demonstrate your learning"}</p>
+                            <div className="bg-white/5 rounded-lg p-6 text-left space-y-3 mb-6">
+                              <h3 className="text-sm font-semibold text-purple-400">Project Requirements:</h3>
+                              <p className="text-sm text-white/70 leading-relaxed">
+                                {currentQuiz.description || "Detailed project requirements will be provided here."}
+                              </p>
+                            </div>
+                            <Button className="mt-6 bg-purple-500 hover:bg-purple-600 text-white">
+                              View Project Details
+                            </Button>
+                          </>
+                        ) : currentQuiz.type === 'test' ? (
+                          <>
+                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/10 mb-4">
+                              <FileText className="h-8 w-8 text-blue-500" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-3">{currentQuiz.title}</h2>
+                            <p className="text-white/70 mb-6">{currentQuiz.description || "Comprehensive test covering all course material"}</p>
+                            {currentQuiz.isGenerated === false ? (
+                              <>
+                                <p className="text-blue-500/80 text-sm mb-6">
+                                  This test hasn't been generated yet. Click below to create it.
+                                </p>
+                                <Button
+                                  className="mt-6 bg-blue-500 hover:bg-blue-600 text-white"
+                                  onClick={() => handleQuizSelect(sectionIndex, 0, currentQuiz)}
+                                  disabled={generatingQuiz}
+                                >
+                                  {generatingQuiz ? "Generating..." : "Generate Test"}
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center justify-center gap-4 text-sm text-white/60">
+                                  <span className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4" />
+                                    Questions: Loading...
+                                  </span>
+                                  <span className="flex items-center gap-2">
+                                    <CheckCircle className="h-4 w-4" />
+                                    Passing Score: {currentQuiz.passingScore || 70}%
+                                  </span>
+                                </div>
+                                <Button className="mt-6 bg-blue-500 hover:bg-blue-600 text-white">
+                                  Start Test
+                                </Button>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-500/10 mb-4">
+                              <FileQuestion className="h-8 w-8 text-amber-500" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-3">{currentQuiz.title}</h2>
+                            <p className="text-white/70 mb-6">{currentQuiz.description || "Test your knowledge with this quiz"}</p>
+                            {currentQuiz.isGenerated === false ? (
+                              <>
+                                <p className="text-amber-500/80 text-sm mb-6">
+                                  This quiz hasn't been generated yet. Click below to create it.
+                                </p>
+                                <Button
+                                  className="mt-6 bg-amber-500 hover:bg-amber-600 text-white"
+                                  onClick={() => handleQuizSelect(sectionIndex, 0, currentQuiz)}
+                                  disabled={generatingQuiz}
+                                >
+                                  {generatingQuiz ? "Generating..." : "Generate Quiz"}
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center justify-center gap-4 text-sm text-white/60">
+                                  <span className="flex items-center gap-2">
+                                    <FileQuestion className="h-4 w-4" />
+                                    Questions: Loading...
+                                  </span>
+                                  <span className="flex items-center gap-2">
+                                    <CheckCircle className="h-4 w-4" />
+                                    Passing Score: {currentQuiz.passingScore || 70}%
+                                  </span>
+                                </div>
+                                <Button className="mt-6 bg-amber-500 hover:bg-amber-600 text-white">
+                                  Start Quiz
+                                </Button>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : currentLesson ? (
+                    <CoursePlayer
+                      lesson={currentLesson}
+                      videoOnly={true}
+                      onVideoEnd={handleVideoEnd}
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center p-10 text-center">
+                      <div>
+                        <p className="text-lg font-semibold text-white">Lessons will appear here soon</p>
+                        <p className="mt-2 text-sm text-white/60">
+                          The curriculum is being finalized. Explore the outline to prepare.
+                        </p>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <button
+                      className="flex size-20 items-center justify-center rounded-full border-2 border-white/30 bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
+                      onClick={handleEnroll}
+                      disabled={enrolling}
+                      aria-label="Play lesson"
+                    >
+                      <svg className="h-10 w-10" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
 
-              {/* Mobile menu button */}
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="icon" className="md:hidden">
-                    <Menu className="h-4 w-4" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-[90%] sm:max-w-sm p-0 rounded-r-lg">
-                  <div className="p-6 border-b">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="font-semibold">Course Content</h2>
+            {/* Course Info Section */}
+            {isEnrolled && (currentLesson || currentQuiz) && (
+              <div className="rounded-xl border border-white/10 bg-[#0f1e35] overflow-hidden">
+                {/* Linear Progress Bar */}
+                <div className="h-1 w-full bg-white/10">
+                  <div
+                    className="h-full bg-[#3b82f6] transition-all duration-500"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+
+                <div className="p-5 space-y-4">
+                  {/* Title */}
+                  <div className="flex items-start justify-between gap-4">
+                    <h1 className="text-2xl font-bold text-white leading-tight flex-1 truncate">
+                      {currentQuiz ? currentQuiz.title : currentLesson?.title}
+                    </h1>
+                    <span className="text-sm font-semibold text-white/60 flex-shrink-0">
+                      {Math.round(progress)}%
+                    </span>
+                  </div>
+
+                  {/* Description */}
+                  {currentLesson && (
+                    <div>
+                      <p className="text-white/70 text-sm leading-relaxed">
+                        {currentLesson.description || "Dive into the fundamental principles that underpin great user interface design. This lesson covers hierarchy, contrast, repetition, and alignment."}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Action Buttons Row */}
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Navigation Buttons - Left Side */}
+                    <div className="flex items-center gap-2">
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setMobileMenuOpen(false)}
+                        variant="outline"
+                        className="border-white/20 bg-white/5 text-white hover:bg-white/10 h-9 px-4"
+                        onClick={() => navigateLesson("prev")}
+                        disabled={!hasPrevious}
                       >
-                        <X className="h-4 w-4" />
+                        <ChevronLeft className="mr-1.5 h-4 w-4" />
+                        Previous
+                      </Button>
+                      <Button
+                        className="bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white h-9 px-4"
+                        onClick={() => navigateLesson("next")}
+                        disabled={!hasNext}
+                      >
+                        Next Lesson
+                        <ChevronRight className="ml-1.5 h-4 w-4" />
                       </Button>
                     </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Progress value={progress} className="h-2 flex-1" />
-                      <span className="text-sm font-medium">{progress}%</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {completedLessonsCount} of {totalLessons} lessons completed
-                    </p>
-                  </div>
-                  <div className="p-0 overflow-y-auto max-h-[calc(100vh-150px)]">
-                    <CourseContent
-                      course={course}
-                      onSelectLesson={(sectionIndex, lessonIndex, lesson) => {
-                        setCurrentSectionIndex(sectionIndex);
-                        setCurrentLessonIndex(lessonIndex);
-                        setCurrentSection(course.sections[sectionIndex]);
-                        setCurrentLesson(lesson);
-                        setMobileMenuOpen(false);
-                      }}
-                      completedLessons={completedLessons || []}
-                      isSidebar={true}
-                    />
-                  </div>
-                </SheetContent>
-              </Sheet>
 
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold">{course.title}</h1>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <span>{currentSection?.title}</span>
-                  {currentLesson && (
-                    <>
-                      <ChevronRight className="h-3 w-3 mx-1" />
-                      <span>{currentLesson.title}</span>
-                    </>
-                  )}
+                    {/* Utility Buttons - Right Side */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        className="border-white/20 bg-white/5 text-white hover:bg-white/10 h-9 px-3 text-sm"
+                      >
+                        <Camera className="mr-1.5 h-4 w-4" />
+                        Screenshot
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-white/20 bg-white/5 text-white hover:bg-white/10 h-9 px-3 text-sm"
+                      >
+                        <Clock className="mr-1.5 h-4 w-4" />
+                        Timestamp Note
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="hidden md:flex">
-                <Clock className="h-3 w-3 mr-1" />
-                {completedLessonsCount}/{totalLessons} lessons
-              </Badge>
-              {course.metadata?.resources && (
-                <SocialLinks
-                  resources={course.metadata.resources}
-                  className="hidden md:flex"
-                />
-              )}
-              <Badge variant="outline" className={cn(
-                "hidden md:flex",
-                progress === 100 ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" : ""
-              )}>
-                {progress === 100 ? (
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                ) : (
-                  <PlayCircle className="h-3 w-3 mr-1" />
-                )}
-                {progress}% complete
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col md:flex-row">
-        {/* Course Content Sidebar - Desktop */}
-        <div className={cn(
-          "hidden md:block border-r bg-background w-[320px] overflow-y-auto transition-all duration-300",
-          !sidebarOpen && "w-0 opacity-0"
-        )}>
-          <div className="p-4 border-b sticky top-0 bg-background z-10">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-semibold">Course Content</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSidebarOpen(false)}
-                title="Hide sidebar"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex items-center gap-2 mb-1">
-              <Progress value={progress} className="h-2 flex-1" />
-              <span className="text-sm font-medium">{progress}%</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {completedLessonsCount} of {totalLessons} lessons completed
-            </p>
-          </div>
-          <div className="p-0 overflow-y-auto">
-            <CourseContent
-              course={course}
-              onSelectLesson={(sectionIndex, lessonIndex, lesson) => {
-                setCurrentSectionIndex(sectionIndex);
-                setCurrentLessonIndex(lessonIndex);
-                setCurrentSection(course.sections[sectionIndex]);
-                setCurrentLesson(lesson);
-              }}
-              completedLessons={completedLessons || []}
-              isSidebar={true}
-            />
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Sidebar toggle button - when sidebar is closed */}
-          {!sidebarOpen && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSidebarOpen(true)}
-              className="fixed left-4 top-24 z-20 hidden md:flex"
-              title="Show course content"
-            >
-              <Menu className="h-4 w-4 mr-1" />
-              <span>Content</span>
-            </Button>
-          )}
-
-          {/* Course Player */}
-          <div className="p-4 md:p-6 max-w-5xl mx-auto">
-            {currentLesson ? (
-              <CoursePlayer
-                lesson={currentLesson}
-                onComplete={markLessonComplete}
-                onNext={() => navigateLesson('next')}
-                onPrevious={() => navigateLesson('prev')}
-                hasNext={currentSectionIndex < (course.sections.length - 1) ||
-                  currentLessonIndex < (currentSection?.lessons.length - 1)}
-                hasPrevious={currentSectionIndex > 0 || currentLessonIndex > 0}
-              />
-            ) : (
-              <div className="text-center py-12">
-                <h2 className="text-xl font-bold mb-2">No Lesson Selected</h2>
-                <p className="text-muted-foreground mb-6">
-                  Please select a lesson from the course content to begin learning.
-                </p>
-              </div>
             )}
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-[#0f1e35] sticky top-4 self-start h-[calc(100vh-32px)] flex flex-col overflow-hidden">
+            <Tabs defaultValue="outline" className="flex flex-col h-full">
+              <TabsList className="grid w-full grid-cols-3 border-b border-white/10 bg-[#0f1e35] p-0 rounded-t-xl flex-shrink-0 sticky top-0 z-10">
+                <TabsTrigger
+                  value="outline"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#3b82f6] data-[state=active]:bg-transparent data-[state=active]:text-white text-xs py-2.5"
+                >
+                  <BookOpen className="mr-1 h-3.5 w-3.5" />
+                  Outline
+                </TabsTrigger>
+                <TabsTrigger
+                  value="notes"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#3b82f6] data-[state=active]:bg-transparent data-[state=active]:text-white text-xs py-2.5"
+                >
+                  <StickyNote className="mr-1 h-3.5 w-3.5" />
+                  My Notes
+                </TabsTrigger>
+                <TabsTrigger
+                  value="resources"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#3b82f6] data-[state=active]:bg-transparent data-[state=active]:text-white text-xs py-2.5"
+                >
+                  <FileText className="mr-1 h-3.5 w-3.5" />
+                  Resources
+                </TabsTrigger>
+              </TabsList>
+
+              <div className="flex-1 overflow-hidden">
+                <TabsContent value="outline" className="h-full overflow-y-auto p-3 m-0 data-[state=inactive]:hidden">
+                  {outlineCourse ? (
+                    <CourseContent
+                      course={outlineCourse}
+                      onSelectLesson={handleLessonSelect}
+                      onSelectQuiz={handleQuizSelect}
+                      completedLessons={completedLessons}
+                      currentLessonId={currentLesson?.id}
+                      currentQuizId={currentQuiz?.id}
+                      activeSectionIndex={safeSectionIndex}
+                      isSidebar
+                    />
+                  ) : (
+                    <div className="flex min-h-[200px] items-center justify-center p-4 text-center">
+                      <div>
+                        <Lock className="mx-auto h-7 w-7 text-white/30" />
+                        <p className="mt-3 text-xs text-white/60">Outline will appear here soon.</p>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="notes" className="h-full overflow-y-auto p-3 m-0 data-[state=inactive]:hidden">
+                  <div className="flex min-h-[200px] items-center justify-center text-center">
+                    <div>
+                      <StickyNote className="mx-auto h-7 w-7 text-white/30" />
+                      <p className="mt-3 text-xs font-medium text-white">Timestamped note taking</p>
+                      <p className="mt-1.5 text-xs text-white/60">
+                        {isEnrolled
+                          ? "Your notes will appear here"
+                          : "Enroll to unlock note-taking features"}
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="resources" className="h-full overflow-y-auto p-3 m-0 data-[state=inactive]:hidden">
+                  <CourseResources course={course} />
+                </TabsContent>
+              </div>
+            </Tabs>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
-

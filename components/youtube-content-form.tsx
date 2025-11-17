@@ -53,21 +53,21 @@ const formSchema = z.object({
 
       if (ctx.path[0] === "url") {
         const formData = ctx.path[2] as { contentType: string }
-        
+
         if (formData.contentType === "video" && !videoId) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Must be a valid YouTube video URL",
           })
         }
-        
+
         if (formData.contentType === "playlist" && !playlistId) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Must be a valid YouTube playlist URL",
           })
         }
-        
+
         if (formData.contentType === "channel") {
           const channelPattern = /^https?:\/\/(www\.)?youtube\.com\/(c|channel|user)\/[\w-]+/
           if (!channelPattern.test(url)) {
@@ -97,7 +97,7 @@ export function YoutubeContentForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setLoading(true)
-      
+
       // Server-side validation
       const response = await fetch("/api/youtube/validate", {
         method: "POST",
@@ -108,22 +108,25 @@ export function YoutubeContentForm() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
+        const contentType = response.headers.get('content-type');
+        const error = contentType?.includes('application/json')
+          ? await response.json()
+          : { message: `Server error: ${response.status} ${response.statusText}` };
         throw new Error(error.message || "Failed to validate YouTube content")
       }
 
       // TODO: Implement course generation logic after validation passes
       console.log("Validation passed:", values)
-      
+
     } catch (error) {
       if (error instanceof Error) {
-        form.setError("url", { 
+        form.setError("url", {
           type: "manual",
           message: error.message
         })
       } else {
         console.error(error)
-        form.setError("url", { 
+        form.setError("url", {
           type: "manual",
           message: "An unexpected error occurred"
         })

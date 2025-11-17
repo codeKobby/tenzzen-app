@@ -92,7 +92,7 @@ export default function ExploreCourseDetailsPage() {
 
       // Create video data object
       const videoDataObj = {
-        id: course.video_id || '',
+        id: course.videoId || '',
         title: course.title || '',
         description: course.description || '',
         thumbnail: course.thumbnail || '',
@@ -103,9 +103,10 @@ export default function ExploreCourseDetailsPage() {
 
       // Create course data object
       const coursePanelDataObj = {
+        _id: course.id,
         title: course.title,
         description: course.description,
-        videoId: course.video_id,
+        videoId: course.videoId,
         image: course.thumbnail,
         metadata: {
           category: course.category || 'General',
@@ -131,7 +132,9 @@ export default function ExploreCourseDetailsPage() {
             title: lesson.title,
             description: lesson.description || '',
             duration: lesson.duration ? `${lesson.duration} min` : undefined,
-            keyPoints: []
+            keyPoints: [],
+            timestampStart: lesson.timestampStart,
+            timestampEnd: lesson.timestampEnd,
           }))
         }))
       }

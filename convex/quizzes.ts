@@ -5,6 +5,7 @@ import { mutation, query } from "./_generated/server";
 export const createAIQuiz = mutation({
   args: {
     lessonId: v.optional(v.id("lessons")),
+    moduleId: v.optional(v.id("modules")),
     courseId: v.id("courses"),
     title: v.string(),
     description: v.string(),
@@ -30,6 +31,7 @@ export const createAIQuiz = mutation({
     // Create quiz
     const quizId = await ctx.db.insert("quizzes", {
       lessonId: args.lessonId,
+      moduleId: args.moduleId,
       courseId: args.courseId,
       title: args.title,
       description: args.description,
@@ -101,6 +103,17 @@ export const getLessonQuizzes = query({
     return await ctx.db
       .query("quizzes")
       .withIndex("by_lesson", (q) => q.eq("lessonId", args.lessonId))
+      .collect();
+  },
+});
+
+// Query to get quizzes for a module
+export const getModuleQuizzes = query({
+  args: { moduleId: v.id("modules") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("quizzes")
+      .withIndex("by_module", (q) => q.eq("moduleId", args.moduleId))
       .collect();
   },
 });

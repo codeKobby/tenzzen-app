@@ -47,6 +47,7 @@ export async function generateQuiz(
     console.log("Storing quiz in database...");
     const quizId = await convex.mutation(api.quizzes.createAIQuiz, {
       lessonId,
+      moduleId: lesson.moduleId,
       courseId: lesson.courseId,
       title: quiz.title,
       description: quiz.description,

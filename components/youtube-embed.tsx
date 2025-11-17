@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -14,6 +14,8 @@ interface YouTubeEmbedProps {
     autoplay?: boolean
     mute?: boolean
     type?: 'youtube' | 'vimeo'
+    onProgressUpdate?: (progress: number) => void
+    onVideoEnd?: () => void
 }
 
 // Remove the incorrect import
@@ -82,13 +84,19 @@ export function YouTubeEmbed({
     endTime,
     autoplay = false,
     mute = false,
-    type = 'youtube'
+    type = 'youtube',
+    onProgressUpdate,
+    onVideoEnd
 }: YouTubeEmbedProps) {
     const [isPiP, setIsPiP] = useState(false)
     const [iframeLoaded, setIframeLoaded] = useState(false)
-    const [ytPlayer, setYtPlayer] = useState<YouTubePlayerInstance | null>(null)
     const [apiReady, setApiReady] = useState(false)
-    const [timeCheckInterval, setTimeCheckInterval] = useState<NodeJS.Timeout | null>(null)
+
+    // Use refs instead of state for player to avoid re-render loops
+    const ytPlayerRef = useRef<YouTubePlayerInstance | null>(null)
+
+    // Use useRef for interval instead of useState to avoid re-render loops
+    const timeCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
     // Single iframe reference
     const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -106,10 +114,8 @@ export function YouTubeEmbed({
     const dragStartRef = useRef({ x: 0, y: 0 })
 
     // Build embed URL based on platform type
-    const getEmbedUrl = (id: string, start: number = 0, end?: number) => {
+    const getEmbedUrl = useCallback((id: string, start: number = 0, end?: number) => {
         if (type === 'youtube') {
-            console.log(`Creating YouTube embed with ID: ${id}, start: ${start}, end: ${end || 'none'}`);
-
             // Ensure we have a valid video ID
             if (!id || id.trim() === '') {
                 console.warn("Invalid YouTube video ID, using fallback");
@@ -146,9 +152,7 @@ export function YouTubeEmbed({
             // This is required for the 'end' parameter to work properly
             params.append('playlist', id)
 
-            const embedUrl = `https://www.youtube.com/embed/${id}?${params.toString()}`;
-            console.log(`YouTube embed URL: ${embedUrl}`);
-            return embedUrl;
+            return `https://www.youtube.com/embed/${id}?${params.toString()}`;
         } else if (type === 'vimeo') {
             const params = new URLSearchParams({
                 title: '0',
@@ -165,7 +169,10 @@ export function YouTubeEmbed({
         }
 
         return ''
-    }
+    }, [type, autoplay, mute])
+
+    // Memoize embed URL to prevent unnecessary recalculations
+    const embedUrl = useMemo(() => getEmbedUrl(videoId, startTime, endTime), [getEmbedUrl, videoId, startTime, endTime])
 
     // Load YouTube API
     useEffect(() => {
@@ -202,6 +209,9 @@ export function YouTubeEmbed({
     useEffect(() => {
         if (type !== 'youtube' || !apiReady || !iframeRef.current || !iframeLoaded) return
 
+        // Only initialize if player doesn't already exist
+        if (ytPlayerRef.current) return
+
         // Use a simpler approach without explicitly defining types
         // This avoids conflicts with existing type declarations
         if (window.YT && iframeRef.current.id) {
@@ -211,33 +221,83 @@ export function YouTubeEmbed({
                 const player = new window.YT.Player(iframeRef.current.id, {
                     events: {
                         'onReady': (event: any) => {
-                            setYtPlayer(event.target)
+                            console.log('YouTube player ready')
+                            ytPlayerRef.current = event.target
                         },
                         'onStateChange': (event: any) => {
+                            // Store player reference to use in interval
+                            const playerInstance = event.target
+
                             // Watch for state changes to enforce end time
                             // @ts-ignore - Using YT API but avoiding type conflicts
                             if (event.data === window.YT.PlayerState.PLAYING && endTime) {
                                 // Clear any existing interval
-                                if (timeCheckInterval) {
-                                    clearInterval(timeCheckInterval)
+                                if (timeCheckIntervalRef.current) {
+                                    clearInterval(timeCheckIntervalRef.current)
                                 }
 
                                 // Set interval to check time and stop video at end time
                                 const interval = setInterval(() => {
-                                    const currentTime = event.target.getCurrentTime()
-                                    if (currentTime >= endTime) {
-                                        event.target.pauseVideo()
-                                        clearInterval(interval)
-                                        setTimeCheckInterval(null)
+                                    try {
+                                        if (!playerInstance || typeof playerInstance.getCurrentTime !== 'function') {
+                                            console.warn('Player not ready yet')
+                                            return
+                                        }
+
+                                        const currentTime = playerInstance.getCurrentTime()
+
+                                        // Enforce seeking boundaries - if user seeks outside lesson range, bring them back
+                                        if (startTime !== undefined && currentTime < startTime) {
+                                            playerInstance.seekTo(startTime, true)
+                                        } else if (currentTime > endTime) {
+                                            // If user seeks past end, pause and reset to end
+                                            playerInstance.seekTo(endTime, true)
+                                            playerInstance.pauseVideo()
+                                            if (timeCheckIntervalRef.current) {
+                                                clearInterval(timeCheckIntervalRef.current)
+                                                timeCheckIntervalRef.current = null
+                                            }
+                                            // Call onVideoEnd callback when video reaches end
+                                            if (onVideoEnd) {
+                                                onVideoEnd()
+                                            }
+                                            return
+                                        }
+
+                                        // Calculate progress if callback provided
+                                        if (onProgressUpdate && endTime && startTime !== undefined) {
+                                            const duration = endTime - startTime
+                                            const elapsed = currentTime - startTime
+                                            const progressPercent = Math.min(100, Math.max(0, (elapsed / duration) * 100))
+                                            onProgressUpdate(progressPercent)
+                                        }
+
+                                        if (currentTime >= endTime) {
+                                            playerInstance.pauseVideo()
+                                            if (timeCheckIntervalRef.current) {
+                                                clearInterval(timeCheckIntervalRef.current)
+                                                timeCheckIntervalRef.current = null
+                                            }
+                                            // Call onVideoEnd callback when video reaches end
+                                            if (onVideoEnd) {
+                                                onVideoEnd()
+                                            }
+                                        }
+                                    } catch (err) {
+                                        console.error('Error in time check interval:', err)
+                                        if (timeCheckIntervalRef.current) {
+                                            clearInterval(timeCheckIntervalRef.current)
+                                            timeCheckIntervalRef.current = null
+                                        }
                                     }
                                 }, 100)
 
-                                setTimeCheckInterval(interval)
+                                timeCheckIntervalRef.current = interval
                                 // @ts-ignore - Using YT API but avoiding type conflicts
-                            } else if (event.data !== window.YT.PlayerState.PLAYING && timeCheckInterval) {
+                            } else if (event.data !== window.YT.PlayerState.PLAYING && timeCheckIntervalRef.current) {
                                 // Clear interval if video is not playing
-                                clearInterval(timeCheckInterval)
-                                setTimeCheckInterval(null)
+                                clearInterval(timeCheckIntervalRef.current)
+                                timeCheckIntervalRef.current = null
                             }
                         }
                     }
@@ -249,11 +309,14 @@ export function YouTubeEmbed({
 
         // Cleanup
         return () => {
-            if (timeCheckInterval) {
-                clearInterval(timeCheckInterval)
+            if (timeCheckIntervalRef.current) {
+                clearInterval(timeCheckIntervalRef.current)
+                timeCheckIntervalRef.current = null
             }
+            // Clear player reference on cleanup
+            ytPlayerRef.current = null
         }
-    }, [apiReady, iframeLoaded, endTime, timeCheckInterval, type, videoId])
+    }, [apiReady, iframeLoaded, type])
 
     // Handle iframe load events
     const handleIframeLoad = () => {
@@ -430,11 +493,12 @@ export function YouTubeEmbed({
     // Cleanup when component unmounts
     useEffect(() => {
         return () => {
-            if (timeCheckInterval) {
-                clearInterval(timeCheckInterval);
+            if (timeCheckIntervalRef.current) {
+                clearInterval(timeCheckIntervalRef.current);
+                timeCheckIntervalRef.current = null;
             }
         };
-    }, [timeCheckInterval]);
+    }, []);
 
     return (
         <>
@@ -451,7 +515,7 @@ export function YouTubeEmbed({
                             id="youtube-player" // Add an ID for the Player constructor
                             ref={iframeRef}
                             className="w-full h-full"
-                            src={getEmbedUrl(videoId, startTime, endTime)}
+                            src={embedUrl}
                             title={title}
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

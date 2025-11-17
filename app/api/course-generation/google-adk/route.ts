@@ -50,7 +50,10 @@ export async function POST(req: NextRequest) {
         clearTimeout(healthTimeoutId); // Clear the timeout if fetch completes
 
         if (testResponse.ok) {
-          const healthData = await testResponse.json();
+          const contentType = testResponse.headers.get('content-type');
+          const healthData = contentType?.includes('application/json')
+            ? await testResponse.json()
+            : { status: 'unknown' };
           logger.log('[google-adk route] ADK service health check successful:', healthData);
         } else {
           logger.error('[google-adk route] ADK service health check failed with status:', testResponse.status);

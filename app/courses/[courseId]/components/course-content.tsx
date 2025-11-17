@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
     Accordion,
     AccordionContent,
@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
 import {
-    CheckCircle, FileQuestion, PlayCircle, Clock, ChevronRight
+    CheckCircle, FileQuestion, PlayCircle, Clock, ChevronRight, FileText, Trophy
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -20,28 +20,59 @@ import { formatDurationFromSeconds } from "@/lib/utils/duration"
 interface CourseContentProps {
     course: NormalizedCourse
     onSelectLesson?: (sectionIndex: number, lessonIndex: number, lesson: NormalizedLesson) => void
+    onSelectQuiz?: (sectionIndex: number, assessmentIndex: number, assessment: any) => void
     completedLessons?: string[]
     isSidebar?: boolean
+    currentLessonId?: string
+    currentQuizId?: string
+    activeSectionIndex?: number
 }
 
-export function CourseContent({ course, onSelectLesson, completedLessons = [], isSidebar = false }: CourseContentProps) {
+export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedLessons = [], isSidebar = false, currentLessonId, currentQuizId, activeSectionIndex }: CourseContentProps) {
     // Get sections from the normalized course
     const sections = course.sections || []
+    const completedLessonSet = new Set(completedLessons)
 
-    // Calculate section completion
-    const getSectionCompletion = (sectionIndex: number, lessonCount: number) => {
-        let completed = 0
-        for (let i = 0; i < lessonCount; i++) {
-            if (completedLessons.includes(`${sectionIndex}-${i}`)) {
-                completed++
-            }
+    // State to control which accordion sections are expanded
+    const [expandedSections, setExpandedSections] = useState<string[]>(() => {
+        if (!isSidebar) {
+            // In full view, expand all sections by default
+            return sections.map((_, i) => `section-${i}`)
         }
-        return { completed, total: lessonCount }
+        // In sidebar, expand the active section or first section
+        return activeSectionIndex !== undefined ? [`section-${activeSectionIndex}`] : ['section-0']
+    })
+    const [lastActiveSectionIndex, setLastActiveSectionIndex] = useState<number | undefined>(activeSectionIndex)
+
+    // Update expanded sections when activeSectionIndex changes (for sidebar)
+    useEffect(() => {
+        if (isSidebar && activeSectionIndex !== undefined && activeSectionIndex !== lastActiveSectionIndex) {
+            const sectionKey = `section-${activeSectionIndex}`
+            // Always set to only the active section in sidebar
+            setExpandedSections([sectionKey])
+            setLastActiveSectionIndex(activeSectionIndex)
+        }
+    }, [activeSectionIndex, isSidebar, lastActiveSectionIndex])
+
+    const getSectionCompletion = (section: NormalizedSection) => {
+        const lessons = section.lessons || []
+        const total = lessons.length
+        const completed = lessons.filter((lesson) => completedLessonSet.has(lesson.id)).length
+        return { completed, total }
     }
 
-    // Check if a specific lesson is completed
-    const isLessonCompleted = (sectionIndex: number, lessonIndex: number) => {
-        return completedLessons.includes(`${sectionIndex}-${lessonIndex}`)
+    const isLessonCompleted = (lessonId: string) => completedLessonSet.has(lessonId)
+
+    const formatTimeLabel = (value?: number | null) => {
+        if (typeof value !== "number" || Number.isNaN(value)) return null
+        return formatDurationFromSeconds(Math.floor(value))
+    }
+
+    const formatTimeRange = (start?: number, end?: number) => {
+        const startLabel = formatTimeLabel(start)
+        const endLabel = formatTimeLabel(end)
+        if (startLabel && endLabel) return `${startLabel} - ${endLabel}`
+        return startLabel || endLabel || null
     }
 
     // If the course doesn't have sections, display a message
@@ -57,8 +88,8 @@ export function CourseContent({ course, onSelectLesson, completedLessons = [], i
     }
 
     // Calculate completed lessons count
-    const completedLessonsCount = completedLessons.length
-    const totalLessons = course.total_lessons || course.totalLessons || sections.reduce((acc: number, section: any) =>
+    const completedLessonsCount = completedLessonSet.size
+    const totalLessons = sections.reduce((acc: number, section: any) =>
         acc + (section.lessons?.length || 0), 0)
 
     return (
@@ -82,8 +113,9 @@ export function CourseContent({ course, onSelectLesson, completedLessons = [], i
                             for (let i = 0; i < sections.length; i++) {
                                 const section = sections[i]
                                 for (let j = 0; j < (section.lessons?.length || 0); j++) {
-                                    if (!isLessonCompleted(i, j) && onSelectLesson) {
-                                        onSelectLesson(i, j, section.lessons[j])
+                                    const lesson = section.lessons[j]
+                                    if (lesson && !isLessonCompleted(lesson.id) && onSelectLesson) {
+                                        onSelectLesson(i, j, lesson)
                                         return
                                     }
                                 }
@@ -102,48 +134,152 @@ export function CourseContent({ course, onSelectLesson, completedLessons = [], i
             {/* Course Content Accordion */}
             <Accordion
                 type="multiple"
-                defaultValue={sections.map((_, i) => `section-${i}`)}
+                value={expandedSections}
+                onValueChange={setExpandedSections}
                 className={cn("space-y-3", isSidebar && "space-y-0 border-0")}
             >
                 {sections.map((section: any, sectionIndex: number) => {
-                    const { completed, total } = getSectionCompletion(sectionIndex, section.lessons?.length || 0)
-                    const sectionId = section.id || `section-${sectionIndex}`;
+                    const sectionKey = `section-${sectionIndex}`
+
+                    // Check if this is an assessment section
+                    if (section.isAssessment) {
+                        const isActiveQuiz = currentQuizId === section.id;
+                        const isPlaceholder = section.isGenerated === false;
+
+                        // Determine icon and color based on type
+                        const AssessmentIcon = section.assessmentType === 'test' ? FileText
+                            : section.assessmentType === 'project' ? Trophy
+                                : FileQuestion;
+
+                        const colorClasses = section.assessmentType === 'test'
+                            ? {
+                                bg: isActiveQuiz ? "bg-blue-500" : isPlaceholder ? "bg-blue-500/5 border border-blue-500/30" : "bg-blue-500/10",
+                                text: isActiveQuiz ? "text-white" : isPlaceholder ? "text-blue-500/70" : "text-blue-500",
+                                activeBg: "bg-blue-500/10 border-l-2 border-blue-500 hover:bg-blue-500/15",
+                                badge: isActiveQuiz ? "border-blue-500 text-blue-500" : isPlaceholder ? "border-blue-500/30 text-blue-500/70" : "",
+                                sectionBg: "bg-blue-500/5 border-blue-500/20"
+                            }
+                            : section.assessmentType === 'project'
+                                ? {
+                                    bg: isActiveQuiz ? "bg-purple-500" : isPlaceholder ? "bg-purple-500/5 border border-purple-500/30" : "bg-purple-500/10",
+                                    text: isActiveQuiz ? "text-white" : isPlaceholder ? "text-purple-500/70" : "text-purple-500",
+                                    activeBg: "bg-purple-500/10 border-l-2 border-purple-500 hover:bg-purple-500/15",
+                                    badge: isActiveQuiz ? "border-purple-500 text-purple-500" : isPlaceholder ? "border-purple-500/30 text-purple-500/70" : "",
+                                    sectionBg: "bg-purple-500/5 border-purple-500/20"
+                                }
+                                : {
+                                    bg: isActiveQuiz ? "bg-amber-500" : isPlaceholder ? "bg-amber-500/5 border border-amber-500/30" : "bg-amber-500/10",
+                                    text: isActiveQuiz ? "text-white" : isPlaceholder ? "text-amber-500/70" : "text-amber-500",
+                                    activeBg: "bg-amber-500/10 border-l-2 border-amber-500 hover:bg-amber-500/15",
+                                    badge: isActiveQuiz ? "border-amber-500 text-amber-500" : isPlaceholder ? "border-amber-500/30 text-amber-500/70" : "",
+                                    sectionBg: "bg-amber-500/5 border-amber-500/20"
+                                };
+
+                        const badgeLabel = section.assessmentType === 'test' ? 'Test'
+                            : section.assessmentType === 'project' ? 'Project'
+                                : 'Quiz';
+
+                        return (
+                            <div
+                                key={section.id || sectionKey}
+                                className={cn(
+                                    "border rounded-lg overflow-hidden",
+                                    isSidebar && "border-0 rounded-none border-b border-white/10",
+                                    !isSidebar && colorClasses.sectionBg
+                                )}
+                            >
+                                <Button
+                                    variant="ghost"
+                                    className={cn(
+                                        "flex items-center w-full justify-between h-auto text-left transition-colors",
+                                        isSidebar ? "px-3 py-2.5 hover:bg-white/5" : "px-4 py-3",
+                                        isActiveQuiz && isSidebar && colorClasses.activeBg,
+                                        isPlaceholder && "opacity-60 hover:opacity-100"
+                                    )}
+                                    onClick={() => onSelectQuiz?.(sectionIndex, 0, section)}
+                                >
+                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                        <div className={cn(
+                                            "flex shrink-0 items-center justify-center rounded-full",
+                                            isSidebar ? "h-5 w-5" : "h-6 w-6",
+                                            colorClasses.bg,
+                                            colorClasses.text
+                                        )}>
+                                            <AssessmentIcon className={cn(isSidebar ? "h-3 w-3" : "h-3.5 w-3.5")} />
+                                        </div>
+                                        <div className="truncate flex-1 min-w-0">
+                                            <span className={cn(
+                                                "block truncate font-medium",
+                                                isSidebar ? "text-xs leading-tight" : "text-sm",
+                                                isActiveQuiz && colorClasses.text
+                                            )}>{section.title}</span>
+                                            {isPlaceholder && (
+                                                <span className={cn(
+                                                    "block text-[10px] text-white/50 mt-0.5",
+                                                    isSidebar && "text-[9px]"
+                                                )}>
+                                                    {section.assessmentType === 'project' ? 'View requirements' : 'Click to generate'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <Badge
+                                        variant="outline"
+                                        className={cn(
+                                            "ml-2 flex-shrink-0",
+                                            isSidebar && "text-[10px] px-1.5 py-0",
+                                            colorClasses.badge
+                                        )}
+                                    >
+                                        {isPlaceholder && section.assessmentType !== 'project' ? "Generate" : badgeLabel}
+                                    </Badge>
+                                </Button>
+                            </div>
+                        );
+                    }
+
+                    // Regular module section with lessons - calculate module number by counting non-assessment sections before this one
+                    const moduleNumber = sections.slice(0, sectionIndex).filter((s: any) => !s.isAssessment).length + 1;
+                    const { completed, total } = getSectionCompletion(section)
                     const isCompleted = completed === total && total > 0;
 
                     return (
                         <AccordionItem
-                            key={sectionId}
-                            value={sectionId}
+                            key={section.id || sectionKey}
+                            value={sectionKey}
                             className={cn(
                                 "border rounded-lg overflow-hidden",
-                                isSidebar && "border-0 rounded-none border-b"
+                                isSidebar && "border-0 rounded-none border-b border-white/10"
                             )}
                         >
                             <AccordionTrigger className={cn(
                                 "px-4 py-3 hover:bg-muted/50",
-                                isSidebar && "px-4 py-2"
+                                isSidebar && "px-3 py-2.5 hover:bg-white/5 [&[data-state=open]]:bg-white/5"
                             )}>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-left w-full">
-                                    <div className="flex items-center gap-3 flex-1">
+                                    <div className="flex items-center gap-2.5 flex-1">
                                         <div className={cn(
-                                            "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-medium",
+                                            "flex shrink-0 items-center justify-center rounded-full font-semibold",
+                                            isSidebar ? "h-6 w-6 text-xs" : "h-7 w-7 text-sm",
                                             isCompleted
-                                                ? "bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400"
-                                                : "bg-primary/10 text-primary",
-                                            isSidebar && "h-6 w-6"
+                                                ? "bg-green-500/10 text-green-500"
+                                                : "bg-white/10 text-white/80"
                                         )}>
                                             {isCompleted ? (
-                                                <CheckCircle className="h-4 w-4" />
+                                                <CheckCircle className={cn(isSidebar ? "h-3.5 w-3.5" : "h-4 w-4")} />
                                             ) : (
-                                                sectionIndex + 1
+                                                moduleNumber
                                             )}
                                         </div>
-                                        <div>
+                                        <div className="flex-1 min-w-0">
                                             <h3 className={cn(
-                                                "font-medium text-sm",
-                                                isSidebar && "text-xs"
+                                                "font-semibold truncate",
+                                                isSidebar ? "text-xs text-white" : "text-sm"
                                             )}>{section.title}</h3>
-                                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                            <div className={cn(
+                                                "flex items-center gap-2 mt-0.5 text-xs",
+                                                isSidebar ? "text-[10px] text-white/50" : "text-muted-foreground"
+                                            )}>
                                                 <span>{completed}/{total} completed</span>
                                             </div>
                                         </div>
@@ -153,20 +289,19 @@ export function CourseContent({ course, onSelectLesson, completedLessons = [], i
 
                             <AccordionContent className={cn(
                                 "border-t pt-0",
-                                isSidebar && "border-t-0"
+                                isSidebar && "border-t-0 pt-0"
                             )}>
                                 <ul className={cn(
                                     "divide-y",
-                                    isSidebar && "divide-y-0"
+                                    isSidebar && "divide-y divide-white/5"
                                 )}>
                                     {section.lessons?.map((lesson: any, lessonIndex: number) => {
-                                        const isCompleted = isLessonCompleted(sectionIndex, lessonIndex);
-                                        // Display timestamps if available, otherwise show duration
-                                        const hasTimestamps = lesson.timestampStart && lesson.timestampEnd;
-                                        const timeDisplay = hasTimestamps
-                                            ? `${lesson.timestampStart} - ${lesson.timestampEnd}`
-                                            : (typeof lesson.duration === 'number'
-                                                ? formatDurationFromSeconds(lesson.duration)
+                                        const lessonCompleted = isLessonCompleted(lesson.id);
+                                        const isActive = currentLessonId === lesson.id;
+                                        const timeDisplay =
+                                            formatTimeRange(lesson.timestampStart, lesson.timestampEnd) ||
+                                            (typeof lesson.duration === 'number'
+                                                ? formatDurationFromSeconds(Math.max(1, lesson.duration * 60))
                                                 : lesson.duration || "10m");
 
                                         return (
@@ -174,70 +309,48 @@ export function CourseContent({ course, onSelectLesson, completedLessons = [], i
                                                 <Button
                                                     variant="ghost"
                                                     className={cn(
-                                                        "flex items-center w-full justify-between px-4 py-3 h-auto text-left",
-                                                        isCompleted && "text-green-600 dark:text-green-400",
-                                                        isSidebar && "px-4 py-2 h-auto"
+                                                        "flex items-center w-full justify-between h-auto text-left transition-colors",
+                                                        isSidebar ? "px-3 py-2.5 hover:bg-white/5" : "px-4 py-3",
+                                                        isActive && isSidebar && "bg-[#3b82f6]/10 border-l-2 border-[#3b82f6] hover:bg-[#3b82f6]/15",
+                                                        !isActive && lessonCompleted && "text-green-600 dark:text-green-400"
                                                     )}
                                                     onClick={() => onSelectLesson?.(sectionIndex, lessonIndex, lesson)}
                                                 >
-                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                                         <div className={cn(
-                                                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border",
-                                                            isCompleted
-                                                                ? "bg-green-600/10 border-green-600 dark:border-green-400"
-                                                                : "border-muted-foreground/30",
-                                                            isSidebar && "h-5 w-5"
+                                                            "flex shrink-0 items-center justify-center rounded-full",
+                                                            isSidebar ? "h-5 w-5" : "h-6 w-6",
+                                                            isActive
+                                                                ? "bg-[#3b82f6] text-white"
+                                                                : lessonCompleted
+                                                                    ? "bg-green-600/10 text-green-600 dark:text-green-400"
+                                                                    : "bg-white/5 text-white/60"
                                                         )}>
-                                                            {isCompleted ? (
-                                                                <CheckCircle className="h-3.5 w-3.5" />
+                                                            {lessonCompleted && !isActive ? (
+                                                                <CheckCircle className={cn(isSidebar ? "h-3 w-3" : "h-3.5 w-3.5")} />
                                                             ) : (
-                                                                <PlayCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                <PlayCircle className={cn(isSidebar ? "h-3 w-3" : "h-3.5 w-3.5")} />
                                                             )}
                                                         </div>
-                                                        <div className="truncate flex-1">
+                                                        <div className="truncate flex-1 min-w-0">
                                                             <span className={cn(
-                                                                "block truncate text-sm",
-                                                                isSidebar && "text-xs"
+                                                                "block truncate font-medium",
+                                                                isSidebar ? "text-xs leading-tight" : "text-sm",
+                                                                isActive && "text-[#3b82f6]"
                                                             )}>{lesson.title}</span>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center text-xs text-muted-foreground">
-                                                        <Clock className="h-3.5 w-3.5 mr-1" />
-                                                        <span>{timeDisplay}</span>
+                                                    <div className={cn(
+                                                        "flex items-center text-xs flex-shrink-0 ml-2",
+                                                        isActive ? "text-[#3b82f6]" : "text-white/50"
+                                                    )}>
+                                                        <Clock className={cn(isSidebar ? "h-3 w-3 mr-1" : "h-3.5 w-3.5 mr-1")} />
+                                                        <span className={cn(isSidebar && "text-[10px]")}>{timeDisplay}</span>
                                                     </div>
                                                 </Button>
                                             </li>
                                         )
                                     })}
-
-                                    {/* Quiz or assessment if available */}
-                                    {section.assessments?.length > 0 && (
-                                        section.assessments.map((assessment: any, assessmentIndex: number) => (
-                                            <li key={`assessment-${sectionIndex}-${assessmentIndex}`}>
-                                                <Button
-                                                    variant="ghost"
-                                                    className={cn(
-                                                        "flex items-center w-full justify-between px-4 py-3 h-auto",
-                                                        isSidebar && "px-4 py-2 h-auto"
-                                                    )}
-                                                >
-                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                        <div className={cn(
-                                                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30",
-                                                            isSidebar && "h-5 w-5"
-                                                        )}>
-                                                            <FileQuestion className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                                                        </div>
-                                                        <span className={cn(
-                                                            "text-sm truncate",
-                                                            isSidebar && "text-xs"
-                                                        )}>{assessment.title}</span>
-                                                    </div>
-                                                    <Badge variant="outline" className="ml-2">Quiz</Badge>
-                                                </Button>
-                                            </li>
-                                        ))
-                                    )}
                                 </ul>
                             </AccordionContent>
                         </AccordionItem>

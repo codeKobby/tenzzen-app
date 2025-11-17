@@ -153,7 +153,8 @@ export default defineSchema({
     updatedAt: v.string(),
   })
     .index('by_course', ['courseId'])
-    .index('by_lesson', ['lessonId']),
+    .index('by_lesson', ['lessonId'])
+    .index('by_module', ['moduleId']),
 
   // Quiz questions
   quizQuestions: defineTable({

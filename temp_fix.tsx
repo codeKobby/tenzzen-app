@@ -1,0 +1,1 @@
+export function CourseOutlineModal({ course, onSelectLesson, completedLessons = [], currentLessonId, trigger }: CourseOutlineModalProps) { const [open, setOpen] = useState(false); if (!course) { return null; } const sections = course.sections || []; const completedLessonSet = new Set(completedLessons);

@@ -102,6 +102,10 @@ export async function POST(req: NextRequest) {
 
       try {
         // Parse the JSON response
+        const contentType = response.headers.get('content-type');
+        if (!contentType?.includes('application/json')) {
+          throw new Error(`ADK service returned non-JSON: ${contentType}`);
+        }
         const data = await response.json();
         console.log('[video-discovery route] Successfully received recommendations');
 

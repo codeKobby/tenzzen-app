@@ -34,6 +34,11 @@ export function useNotes({
       setLoading(true)
       setError(null)
 
+      // Notes API not yet implemented - return empty array
+      console.warn('Notes API not yet implemented')
+      setNotes([])
+      return
+      
       // Build query parameters
       const params = new URLSearchParams()
       if (filter !== 'all') {
@@ -57,10 +62,17 @@ export function useNotes({
       const response = await fetch(`/api/notes?${params.toString()}`)
       
       if (!response.ok) {
-        const errorData = await response.json()
+        const contentType = response.headers.get('content-type')
+        const errorData = contentType?.includes('application/json')
+          ? await response.json()
+          : { error: `Server error: ${response.status}` }
         throw new Error(errorData.error || 'Failed to fetch notes')
       }
       
+      const contentType = response.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        throw new Error('Server returned non-JSON response')
+      }
       const data = await response.json()
       
       // Sort notes based on sort option
@@ -95,10 +107,17 @@ export function useNotes({
           toast.error('Note not found')
           return null
         }
-        const errorData = await response.json()
+        const contentType = response.headers.get('content-type')
+        const errorData = contentType?.includes('application/json')
+          ? await response.json()
+          : { error: `Server error: ${response.status}` }
         throw new Error(errorData.error || 'Failed to fetch note')
       }
       
+      const contentType = response.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        throw new Error('Server returned non-JSON response')
+      }
       return await response.json()
     } catch (err) {
       console.error(`Error fetching note ${id}:`, err)
@@ -119,10 +138,17 @@ export function useNotes({
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
+        const contentType = response.headers.get('content-type')
+        const errorData = contentType?.includes('application/json')
+          ? await response.json()
+          : { error: `Server error: ${response.status}` }
         throw new Error(errorData.error || 'Failed to create note')
       }
       
+      const contentType = response.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        throw new Error('Server returned non-JSON response')
+      }
       const newNote = await response.json()
       
       // Update local state
@@ -151,10 +177,17 @@ export function useNotes({
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
+        const contentType = response.headers.get('content-type')
+        const errorData = contentType?.includes('application/json')
+          ? await response.json()
+          : { error: `Server error: ${response.status}` }
         throw new Error(errorData.error || 'Failed to update note')
       }
       
+      const contentType = response.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        throw new Error('Server returned non-JSON response')
+      }
       const updatedNote = await response.json()
       
       // Update local state
@@ -177,7 +210,10 @@ export function useNotes({
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
+        const contentType = response.headers.get('content-type')
+        const errorData = contentType?.includes('application/json')
+          ? await response.json()
+          : { error: `Server error: ${response.status}` }
         throw new Error(errorData.error || 'Failed to delete note')
       }
       
@@ -205,10 +241,17 @@ export function useNotes({
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
+        const contentType = response.headers.get('content-type')
+        const errorData = contentType?.includes('application/json')
+          ? await response.json()
+          : { error: `Server error: ${response.status}` }
         throw new Error(errorData.error || 'Failed to update note')
       }
       
+      const contentType = response.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        throw new Error('Server returned non-JSON response')
+      }
       const updatedNote = await response.json()
       
       // Update local state
