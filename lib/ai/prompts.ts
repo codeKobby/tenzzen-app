@@ -126,76 +126,63 @@ COURSE DESIGN SPECIFICATION
    - **prerequisites**: Clear, factual list of required knowledge
    - **estimatedDuration**: Based strictly on actual video duration
    
-   **Resource Extraction (CRITICAL - Must Extract ALL Links)**:
-   The video description is your PRIMARY SOURCE for resources. Scan EVERY SINGLE LINE.
-   Extract EVERY URL you find - do not skip any links, even if they seem similar.
+   🚨 CRITICAL RESOURCE EXTRACTION REQUIREMENT 🚨
    
-   **MANDATORY**: Look for these patterns in the description:
-   - "Main [Name] Site: [URL]" → Extract this URL
-   - "[Platform]: [URL]" → Extract this URL  
-   - "LinkedIn: [URL]" → Extract this URL as Social
-   - Any line with "http://" or "https://" → Extract ALL of them
+   **Resource Extraction is MANDATORY - Not Optional**:
+   The video description is your PRIMARY SOURCE. You MUST scan EVERY SINGLE LINE.
    
-   **SOCIAL MEDIA LINKS** (Extract these FIRST and mark as "Social"):
-   - LinkedIn profiles (linkedin.com/company/ or linkedin.com/in/)
-   - Twitter/X profiles (twitter.com, x.com)
-   - Instagram accounts (instagram.com)
-   - YouTube channels (youtube.com/channel/ or youtube.com/@)
-   - Facebook pages (facebook.com)
-   - TikTok profiles (tiktok.com/@)
-   - Discord servers (discord.gg/ or discord.com/invite/)
-   - Twitch channels (twitch.tv/)
-   - Reddit profiles (reddit.com/user/ or reddit.com/r/)
+   **STEP 1: Extract ALL URLs from Description**
+   Look through the description line by line and find EVERY URL (http:// or https://).
+   Do NOT skip any links. Extract them ALL.
    
-   EXAMPLE: If description contains:
-   "Main R Consortium Site: https://www.r-consortium.org/
-   LinkedIn: https://www.linkedin.com/company/r-consortium/"
+   **STEP 2: Categorize Each URL**
    
-   You MUST extract BOTH URLs separately.
+   A. **Social Links** (MANDATORY - Extract ALL social media):
+   Look for these domains and extract them as "Social":
+   - linkedin.com → "LinkedIn"
+   - twitter.com or x.com → "Twitter"
+   - github.com → "GitHub" (social profile, not code repos)
+   - instagram.com → "Instagram"
+   - facebook.com → "Facebook"
+   - youtube.com → "YouTube"
+   - discord.gg or discord.com → "Discord"
    
-   **CREATOR CONTENT LINKS**:
-   - Organization/company websites (e.g., example.org, example.io)
-   - GitHub repositories with source code (github.com)
-   - Personal websites, portfolios, blogs
-   - Support links (Patreon, Ko-fi, Buy Me a Coffee, GitHub Sponsors)
-   - Newsletter signups (Substack, Beehiiv, ConvertKit)
-   - Community links (Slack, forums)
-   - Webinar/event pages
-   - Blog pages
-   - Documentation sites
-   - Related courses or tutorials
-   - Affiliate links to tools/services mentioned
-   - Sponsor/partner websites
+   Each social link MUST have:
+   {
+     "title": "Platform Name",
+     "url": "exact URL from description",
+     "type": "Social",
+     "description": "Follow/Connect/Join on [Platform]",
+     "category": "Social"
+   }
    
-   Categorize into THREE groups:
+   B. **Creator Links** (MANDATORY - Extract organization/project sites):
+   Look for:
+   - Main website mentioned (e.g., "Main Site:", "Website:", "Learn more:")
+   - GitHub repos with code (mark as type: "Code")
+   - Documentation sites (mark as type: "Documentation")
+   - Course platforms (mark as type: "Course")
    
-   A. **Social Links** (Extract ALL social media from description - aim for 3-7):
-      Each resource must have:
-      - title: Platform name (e.g., "Twitter", "GitHub", "LinkedIn", "Facebook")
-      - url: Complete, valid URL exactly as it appears in description
-      - type: "Social"
-      - description: Brief description (e.g., "Follow for updates", "Connect on LinkedIn", "Join community")
-      - category: "Social"
-      
-      EXAMPLE:
-      {
-        "title": "LinkedIn",
-        "url": "https://www.linkedin.com/company/r-consortium/",
-        "type": "Social",
-        "description": "Connect with R Consortium on LinkedIn",
-        "category": "Social"
-      }
+   Each creator link MUST have:
+   {
+     "title": "Descriptive Name",
+     "url": "exact URL from description",
+     "type": "Website" | "Code" | "Documentation" | "Course" | "Tool",
+     "description": "What this resource provides",
+     "category": "Creator Links"
+   }
    
-   B. **Creator Links** (Extract from description - aim for at least 3-5):
-      Each resource must have:
-      - title: Clear, descriptive name
-      - url: Complete, valid URL
-      - type: "Documentation" | "Tool" | "Website" | "Code" | "Course"
-      - description: 1-2 sentences explaining what it provides
-      - category: "Creator Links"
+   C. **Other Resources** (OPTIONAL - Only if video mentions specific tools):
+   Only include if explicitly used in the video content.
    
-   C. **Other Resources** (3-7 items maximum, only essential ones):
-      Include ONLY if:
+   **VALIDATION BEFORE SUBMITTING**:
+   - Did you scan the ENTIRE description for URLs? ✓
+   - Did you extract ALL social media links? ✓
+   - Did you extract the main website/organization site? ✓
+   - Do you have at least 3-7 total resources? ✓
+   - Are all URLs complete and valid? ✓
+   
+   ⚠️ IF THE DESCRIPTION HAS URLS AND YOU RETURN EMPTY RESOURCES ARRAY, YOU FAILED.
       - Explicitly mentioned or used in the video
       - Essential for following the tutorial
       - Official documentation for core technologies
@@ -203,7 +190,7 @@ COURSE DESIGN SPECIFICATION
       
       Each resource must have the same structure as Creator Links but with category: "Other Resources"
    
-   VALIDATION RULES FOR RESOURCES:
+   **VALIDATION RULES FOR RESOURCES (MANDATORY CHECKS)**:
    1. Do NOT invent links - extract ONLY what exists in the description
    2. Extract EVERY SINGLE link you find in the description (aim for 5-15 total resources)
    3. Preserve URLs EXACTLY as written (do not modify or truncate)
@@ -212,6 +199,8 @@ COURSE DESIGN SPECIFICATION
    6. Main website/organization URLs should be "Creator Links"
    7. Include webinar pages, blog pages, and documentation as "Creator Links"
    8. If you see "linkedin.com/company" it is a Social link, NOT a Creator Link
+   9. **MINIMUM REQUIREMENT**: If description has URLs, you MUST return at least 3 resources
+   10. **EMPTY RESOURCES ARRAY = FAILURE** if description contains any URLs
 
 2. **Module Organization**
    - Create 3-8 logical modules
@@ -222,30 +211,50 @@ COURSE DESIGN SPECIFICATION
      * clear learning objectives
 
 3. **Lesson-Level Detail (Timestamps MANDATORY - NO EXCEPTIONS)**
-   
-   CRITICAL REQUIREMENT: Every lesson MUST include ALL of these fields:
-   - title: Clear, specific lesson name
-   - timestampStart: Video timestamp where lesson begins (format: "0:05:30" or "1:23:45") **REQUIRED - NEVER SKIP**
-   - timestampEnd: Video timestamp where lesson ends (format: "0:12:45" or "1:35:20") **REQUIRED - NEVER SKIP**
-   - durationMinutes: Calculated from time difference (must be a number)
-   - description: What this lesson covers
-   - content: Detailed lesson content
-   - keyPoints: Array of key takeaways
-   
-   TIMESTAMP RULES (CRITICAL - EVERY LESSON NEEDS TIMESTAMPS):
-   - EVERY SINGLE LESSON must have both timestampStart and timestampEnd
-   - Use transcript segments with their start times to determine accurate boundaries
-   - Each lesson covers one coherent topic from start to finish
-   - NO lesson should have missing, null, or empty timestamps
-   - Format MUST be EXACTLY: "H:MM:SS" (e.g., "0:05:30", "1:23:45")
-   - ⚠️ CRITICAL: Timestamps are STRINGS of EXACTLY 7-8 characters (H:MM:SS or HH:MM:SS)
-   - ⚠️ CRITICAL: DO NOT add ANY characters after the seconds field
-   - ⚠️ CRITICAL: DO NOT add decimal points, milliseconds, or trailing zeros
-   - ⚠️ CRITICAL: Count your characters: "0:00:00" = 7 chars ✅, "0:00:00.0" = 9 chars ❌
-   - ✅ VALID: "0:00:00", "0:05:30", "1:23:45", "2:15:00"
-   - ❌ INVALID: "0:00:00.0", "0:00:00.000", any string with more than 8 characters
-   - ❌ NEVER DO THIS: "0:00:00.00000000000000..."
-   - Timestamps must be sequential and logical
+
+CRITICAL TIMESTAMP INSTRUCTIONS:
+- You MUST use timestamps EXACTLY as they appear in transcriptSegments.
+- NEVER normalize, reformat, or extend timestamps beyond what is provided.
+- NEVER generate decimals, milliseconds, or extended zero sequences.
+- ONLY use these formats:
+  • "0:00"
+  • "12:35"
+  • "1:02:15"   (HH:MM:SS only when transcript uses it)
+
+STRICT FORMAT RULES:
+1. Do NOT generate timestamps like:
+   - "00:00:00.0000000000"
+   - "0:00:00.000"
+   - "0:00:00"
+   - "00:00"
+   - Any timestamp containing decimals or trailing zeros
+2. Do NOT "guess" or "compute" timestamps.
+3. Do NOT expand timestamps to HH:MM:SS unless the transcript provides that format.
+4. If uncertain, ALWAYS default to the nearest transcriptSegment timestamp.
+
+VALID EXAMPLES:
+- GOOD: "timestampStart": "0:00"
+- GOOD: "timestampStart": "5:42"
+- GOOD: "timestampStart": "1:04:22"
+- BAD: "timestampStart": "00:00:00.000000000000"
+- BAD: "timestampStart": "00:00"
+- BAD: "timestampStart": "01:04:22.000"
+
+MANDATORY:
+For every lesson, include:
+- title
+- timestampStart (must match transcript format)
+- timestampEnd (must match transcript format)
+- summary
+- keyConcepts
+- prerequisites
+- outcomes
+
+IMPORTANT:
+If transcriptSegments do NOT give a clear boundary,
+use the PREVIOUS segment timestamp for timestampStart
+and the NEXT segment timestamp for timestampEnd.
+Never manufacture new timestamp formats.
 
 4. **Assessment Planning (Structure Only - NO CONTENT)**
    Specify WHERE assessments should be placed:

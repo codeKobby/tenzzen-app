@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { ClockIcon } from "lucide-react";
 import type { ContentDetails } from "@/types/youtube";
+import { CourseContentSkeleton, LessonItemSkeleton, OverviewSkeleton, ResourcesSkeleton } from "./course-content-skeleton";
 
 const GENERIC_CATEGORY_PLACEHOLDERS = [
   "General",
@@ -355,7 +356,7 @@ function normalizeCourseData(
 
 // --- Action Buttons ---
 function ActionButtons({ className, course }: { className?: string, course: any }) {
-  const { handleEnroll, handleCancel, isEnrolling } = useCoursePanelContext();
+  const { handleEnroll, handleCancel, isEnrolling, isStreaming } = useCoursePanelContext();
 
   const onEnrollClick = () => {
     console.log("[ActionButtons] Enroll button clicked with course:", course);
@@ -372,10 +373,24 @@ function ActionButtons({ className, course }: { className?: string, course: any 
         className="gap-1.5"
         size="default"
         onClick={onEnrollClick}
-        disabled={isEnrolling}
+        disabled={isEnrolling || isStreaming}
       >
-        {isEnrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-        Start Course
+        {isStreaming ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Generating...
+          </>
+        ) : isEnrolling ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Starting...
+          </>
+        ) : (
+          <>
+            <Play className="h-4 w-4" />
+            Start Course
+          </>
+        )}
       </Button>
     </div>
   );
@@ -398,7 +413,7 @@ function CourseSummary({ course }: { course: any }) {
       return acc;
     }, {} as Record<string, any[]>);
 
-    return Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]));
+    return Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0])) as Array<[string, any[]]>;
   }, [course.metadata?.resources]);
 
   const displayCategory = useMemo(() => {
@@ -534,7 +549,7 @@ function CourseSummary({ course }: { course: any }) {
         <ActionButtons className="flex-1" course={course} />
         {socialGroups.length > 0 && (
           <div className="flex w-full flex-wrap justify-end gap-2 lg:w-auto">
-            {socialGroups.map(([platform, links], index) => {
+            {socialGroups.map(([platform, links]: [string, any[]], index: number) => {
               const primaryLink = links[0];
               const icon = getGroupedSocialIcon(primaryLink?.title, primaryLink?.url);
               const label = getPlatformLabel(platform);
@@ -753,22 +768,34 @@ function LessonItem({ lesson, sectionItemIndex, lessonIndex }: { lesson: any, se
 // --- TabContent Component ---
 function TabContent({ tab, course }: { tab: string; course: any }) {
   console.log(`[TabContent] Rendering tab '${tab}' with course:`, course);
+  const { isStreaming } = useCoursePanelContext();
+
   // Social icons are rendered outside TabContent
 
   if (tab === "overview") {
     // Use detailedOverview for the detailed view in this tab.
     // The top-level description is the brief "About this course" summary
-    const detailedOverview = course.metadata?.overviewText || course.detailedOverview || "No detailed overview available.";
+    const detailedOverview = course.metadata?.overviewText || course.detailedOverview || "";
+
+    // If streaming and no overview yet, show skeleton
+    if (isStreaming && !detailedOverview) {
+      return <OverviewSkeleton />;
+    }
 
     return (
       <div className="space-y-6">
         {/* Display the detailed overview text */}
-        <div><p className="text-sm text-muted-foreground whitespace-pre-wrap">{detailedOverview}</p></div>
+        {detailedOverview ? (
+          <div><p className="text-sm text-muted-foreground whitespace-pre-wrap">{detailedOverview}</p></div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">No detailed overview available.</p>
+        )}
 
         {/* Creator Socials are NOT rendered here */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mt-4 pt-4 border-t">
-          {course.metadata?.objectives && course.metadata.objectives.length > 0 && (
+          {/* Learning Objectives */}
+          {course.metadata?.objectives && course.metadata.objectives.length > 0 ? (
             <div>
               <h3 className="text-base font-semibold mb-3 text-foreground/90">Learning Objectives</h3>
               <div className="space-y-2">
@@ -780,8 +807,24 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
                 ))}
               </div>
             </div>
-          )}
-          {course.metadata?.prerequisites && course.metadata.prerequisites.length > 0 && (
+          ) : isStreaming ? (
+            <div className="space-y-3">
+              <h3 className="text-base font-semibold mb-3 text-foreground/90">Learning Objectives</h3>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3 py-1">
+                  <div className="h-5 w-5 rounded bg-muted animate-pulse shrink-0" />
+                  <div className="flex-1 h-4 bg-muted animate-pulse rounded" />
+                </div>
+                <div className="flex items-start gap-3 py-1">
+                  <div className="h-5 w-5 rounded bg-muted animate-pulse shrink-0" />
+                  <div className="flex-1 h-4 bg-muted animate-pulse rounded" />
+                </div>
+              </div>
+            </div>
+          ) : null}
+          
+          {/* Prerequisites */}
+          {course.metadata?.prerequisites && course.metadata.prerequisites.length > 0 ? (
             <div>
               <h3 className="text-base font-semibold mb-3 text-foreground/90">Prerequisites</h3>
               <div className="space-y-2">
@@ -793,10 +836,24 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
                 ))}
               </div>
             </div>
-          )}
+          ) : isStreaming ? (
+            <div className="space-y-3">
+              <h3 className="text-base font-semibold mb-3 text-foreground/90">Prerequisites</h3>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3 py-1">
+                  <div className="h-5 w-5 rounded bg-muted animate-pulse shrink-0" />
+                  <div className="flex-1 h-4 bg-muted animate-pulse rounded" />
+                </div>
+                <div className="flex items-start gap-3 py-1">
+                  <div className="h-5 w-5 rounded bg-muted animate-pulse shrink-0" />
+                  <div className="flex-1 h-4 bg-muted animate-pulse rounded" />
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
         {/* Adjust fallback condition based on detailedOverview */}
-        {(detailedOverview === "No overview details available." || !detailedOverview) && !course.creatorSocials?.length && !course.metadata?.objectives?.length && !course.metadata?.prerequisites?.length && (
+        {(detailedOverview === "No overview details available." || !detailedOverview) && !course.creatorSocials?.length && !course.metadata?.objectives?.length && !course.metadata?.prerequisites?.length && !isStreaming && (
           <p className="text-muted-foreground text-center py-4">No overview details available for this course.</p>
         )}
       </div>
@@ -805,6 +862,8 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
 
   if (tab === "content") {
     let sectionCounter = 0;
+    const hasAnySections = course.courseItems && course.courseItems.length > 0;
+    
     return (
       <div className="space-y-4">
         {course.courseItems?.map((item: any, index: number) => {
@@ -812,6 +871,8 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
             sectionCounter++;
             const section = item;
             const sectionIndex = sectionCounter - 1;
+            const hasLessons = section.lessons && section.lessons.length > 0;
+            
             return (
               <Collapsible key={`section-${index}`} className="border rounded-lg overflow-hidden" defaultOpen={sectionIndex === 0}>
                 <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/40 transition-colors">
@@ -829,7 +890,15 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
                     {section.lessons?.map((lesson: any, lessonIndex: number) => (
                       <LessonItem key={`lesson-${index}-${lessonIndex}`} lesson={lesson} sectionItemIndex={index} lessonIndex={lessonIndex} />
                     ))}
-                    {(!section.lessons || section.lessons.length === 0) && section.title && (
+                    {/* Show skeletons for incomplete lessons during streaming */}
+                    {isStreaming && (!hasLessons || section.lessons.length < 2) && (
+                      <div className="space-y-2 px-2 py-2">
+                        <LessonItemSkeleton />
+                        <LessonItemSkeleton />
+                        {!hasLessons && <LessonItemSkeleton />}
+                      </div>
+                    )}
+                    {(!section.lessons || section.lessons.length === 0) && section.title && !isStreaming && (
                       <p className="text-sm text-muted-foreground px-2 py-4 italic">No specific lessons listed for this section.</p>
                     )}
                   </div>
@@ -854,6 +923,12 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
           }
           return null;
         })}
+        
+        {/* Show loading skeletons for missing modules during streaming */}
+        {isStreaming && (!hasAnySections || sectionCounter < 3) && (
+          <CourseContentSkeleton count={Math.max(1, 3 - sectionCounter)} />
+        )}
+        
         {course.project && course.project.type === 'assessment_placeholder' && course.project.assessmentType === 'project' && (
           <button
             type="button"
@@ -864,7 +939,9 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
             <Lock className="h-4 w-4 text-muted-foreground" />
           </button>
         )}
-        {(!course.courseItems || course.courseItems.length === 0) && !course.project && (
+        
+        {/* Only show empty state when NOT streaming and truly empty */}
+        {!isStreaming && (!course.courseItems || course.courseItems.length === 0) && !course.project && (
           <p className="text-muted-foreground text-center py-4">No course content available.</p>
         )}
       </div>
@@ -883,6 +960,9 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
     const hasAnyResources = creatorLinks.length > 0 || otherResources.length > 0;
 
     if (!hasAnyResources) {
+      if (isStreaming) {
+        return <ResourcesSkeleton />;
+      }
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <BookOpen className="h-12 w-12 text-muted-foreground/50 mb-3" />

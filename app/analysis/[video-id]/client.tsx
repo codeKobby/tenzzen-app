@@ -94,6 +94,8 @@ function Content({ initialContent, initialError }: ContentProps) {
   } | null>(null)
   const [isGeneratingCourse, setIsGeneratingCourse] = React.useState(false)
   const [generatedCourseId, setGeneratedCourseId] = React.useState<Id<"courses"> | null>(null)
+  const [partialCourseData, setPartialCourseData] = React.useState<any>(null)
+  const [isStreamingCourse, setIsStreamingCourse] = React.useState(false)
   const router = useRouter()
   const { user, isAuthenticated } = useAuth()
   const isMobile = useMediaQuery("(max-width: 640px)")
@@ -236,12 +238,25 @@ function Content({ initialContent, initialError }: ContentProps) {
                   message: message.message || "Processing..."
                 });
               } else if (message.type === 'partial') {
-                // Update UI with partial course data if needed
+                // Update UI with partial course data and show panel immediately
                 setCourseGenerationProgress({
                   step: "Generating",
                   progress: message.progress || 50,
                   message: message.message || "Building course structure..."
                 });
+
+                // Show course panel IMMEDIATELY with any partial data (even if empty)
+                // This allows progressive loading as data streams in
+                if (message.data) {
+                  setPartialCourseData(message.data);
+                  setIsStreamingCourse(true);
+                  
+                  // Update the course data in context so CoursePanel receives updates
+                  setCourseData(message.data);
+                  
+                  // Always show the panel during streaming (remove the condition)
+                  setShowCoursePanel(true);
+                }
               } else if (message.type === 'complete') {
                 // Course generation complete
                 setGeneratedCourseId(message.data.courseId);
@@ -252,6 +267,9 @@ function Content({ initialContent, initialError }: ContentProps) {
                 });
 
                 // Fetch the course data and show in panel
+                setIsStreamingCourse(false);
+                setPartialCourseData(null);
+
                 setTimeout(async () => {
                   if (message.data.courseId) {
                     try {
@@ -376,15 +394,33 @@ function Content({ initialContent, initialError }: ContentProps) {
           <div className="flex-1 min-w-0">
             {showCoursePanel ? (
               courseData ? (
-                <CoursePanelProvider courseData={courseData}>
+                <CoursePanelProvider courseData={courseData} isStreaming={false}>
                   <CoursePanel />
+                </CoursePanelProvider>
+              ) : isStreamingCourse && partialCourseData ? (
+                <CoursePanelProvider courseData={partialCourseData} isStreaming={true}>
+                  <div className="relative h-full">
+                    <CoursePanel />
+                    {/* Streaming overlay indicator */}
+                    <div className="absolute top-4 right-4 z-50 animate-in fade-in slide-in-from-top-2 duration-500">
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 backdrop-blur-sm shadow-lg">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-medium text-primary">Building course...</span>
+                          {courseGenerationProgress && (
+                            <span className="text-[10px] text-primary/70">{courseGenerationProgress.progress}% complete</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </CoursePanelProvider>
               ) : (
                 <CoursePanelSkeleton className="h-full" />
               )
             ) : (
               <div className="p-6 h-full flex flex-col items-center justify-center">
-                {courseGenerationProgress ? (
+                {courseGenerationProgress && !showCoursePanel ? (
                   <div className="relative w-full max-w-6xl h-full">
                     {/* Enhanced Progressive Loading UI */}
                     <div className="h-full flex flex-col gap-6 overflow-auto">

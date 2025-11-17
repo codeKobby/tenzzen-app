@@ -13,6 +13,7 @@ interface CoursePanelContextType {
     handleEnroll: (courseData: any) => Promise<void>;
     handleCancel: () => void;
     isEnrolling: boolean;
+    isStreaming: boolean;
 }
 
 // Create the context with default values
@@ -20,15 +21,18 @@ export const CoursePanelContext = createContext<CoursePanelContextType>({
     handleEnroll: async () => { },
     handleCancel: () => { },
     isEnrolling: false,
+    isStreaming: false,
 });
 
 // Define the provider component
 export const CoursePanelProvider = ({
     children,
     courseData,
+    isStreaming = false,
 }: {
     children: React.ReactNode,
     courseData?: any,
+    isStreaming?: boolean,
 }) => {
     const router = useRouter();
     const { user } = useAuth();
@@ -133,7 +137,7 @@ export const CoursePanelProvider = ({
     };
 
     return (
-        <CoursePanelContext.Provider value={{ handleEnroll, handleCancel, isEnrolling }}>
+        <CoursePanelContext.Provider value={{ handleEnroll, handleCancel, isEnrolling, isStreaming }}>
             {children}
         </CoursePanelContext.Provider>
     );

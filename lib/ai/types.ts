@@ -1,42 +1,58 @@
 import { z } from "zod";
 
-// Helper to sanitize timestamps - truncate to valid format and validate strictly
+// Helper to sanitize timestamps - AGGRESSIVELY truncate decimals and invalid formats
 const sanitizeTimestamp = (val: string): string => {
-  if (!val) return "0:00:00";
+  if (!val) return "0:00";
   
   // Remove any whitespace
   val = val.trim();
   
-  // If it's already short and valid, return it
+  // CRITICAL: If it contains a decimal point, truncate IMMEDIATELY at the decimal
+  if (val.includes('.')) {
+    const beforeDecimal = val.split('.')[0];
+    val = beforeDecimal;
+    console.warn(`🔴 Truncated timestamp with decimal: original had decimal point, using "${val}"`);
+  }
+  
+  // If it's already short and valid (M:SS or H:MM:SS), return it
   if (val.length <= 8 && /^\d{1,2}:\d{2}(:\d{2})?$/.test(val)) {
     return val;
   }
   
-  // Truncate overly long timestamps to valid H:MM:SS format (max 8 chars: "00:00:00")
-  const match = val.match(/^(\d{1,2}:\d{2}:\d{2})/);
+  // Extract only valid M:SS or H:MM:SS format (NO decimals allowed)
+  const match = val.match(/^(\d{1,2}:\d{2}(?::\d{2})?)$/);
   if (match && match[1].length <= 8) {
     return match[1];
   }
   
-  // If still invalid, return default
-  return "0:00:00";
+  // If still invalid or too long, return default
+  if (val.length > 8) {
+    console.warn(`🔴 Timestamp too long (${val.length} chars), using default: "${val.substring(0, 20)}..."`);
+  }
+  return "0:00";
 };
 
-// Strict timestamp schema with preprocess to handle malformed data
+// ULTRA-STRICT timestamp schema with aggressive preprocessing
 const TimestampSchema = z.preprocess(
   (val) => {
-    if (typeof val !== 'string') return "0:00:00";
+    if (typeof val !== 'string') return "0:00";
     
-    // Log if we're getting malformed data
-    if (val.length > 10) {
-      console.warn(`⚠️ Truncating malformed timestamp (${val.length} chars): ${val.substring(0, 20)}...`);
+    // IMMEDIATE truncation if decimal detected or length exceeds 8
+    if (val.includes('.') || val.length > 8) {
+      if (val.length > 10) {
+        console.warn(`⚠️ Malformed timestamp detected (${val.length} chars): ${val.substring(0, 30)}...`);
+      }
+      // Split at decimal and take only the part before it
+      const cleaned = val.split('.')[0];
+      return sanitizeTimestamp(cleaned);
     }
     
-    // Aggressively truncate to valid format before validation
     return sanitizeTimestamp(val);
   },
   z.string()
-    .regex(/^\d{1,2}:\d{2}(:\d{2})?$/, "Timestamp must be in format H:MM:SS (e.g., '0:05:30' or '1:23:45')")
+    .max(8, "Timestamp must be 8 characters or less (format: H:MM:SS or M:SS)")
+    .regex(/^\d{1,2}:\d{2}(:\d{2})?$/, "Timestamp must be in format M:SS or H:MM:SS (e.g., '5:30' or '1:23:45')")
+    .refine((val) => !val.includes('.'), "Timestamp must NOT contain decimal points")
     .optional()
 );
 

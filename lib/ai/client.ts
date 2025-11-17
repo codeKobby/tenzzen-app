@@ -5,6 +5,65 @@ import { courseGenerationPrompts, quizGenerationPrompts, tutorPrompts, videoReco
 import type { CourseOutline, Quiz, VideoRecommendations } from "./types";
 import { buildPromptTranscriptContext } from "./transcript-utils";
 
+/**
+ * Sanitize timestamp to ensure it's in correct format
+ * Prevents malformed timestamps with infinite zeros
+ */
+function sanitizeTimestamp(timestamp: string | undefined | null): string {
+  if (!timestamp) return "0:00:00";
+  
+  // Remove any whitespace
+  timestamp = timestamp.trim();
+  
+  // If it's already valid and short, return it
+  if (timestamp.length <= 8 && /^\d{1,2}:\d{2}:\d{2}$/.test(timestamp)) {
+    return timestamp;
+  }
+  
+  // Extract only the H:MM:SS part, ignore everything after
+  const match = timestamp.match(/^(\d{1,2}:\d{2}:\d{2})/);
+  if (match) {
+    return match[1];
+  }
+  
+  // If still invalid, return default
+  console.warn(`⚠️ Invalid timestamp format: "${timestamp}", using default`);
+  return "0:00:00";
+}
+
+/**
+ * Sanitize course outline to ensure all timestamps are valid
+ */
+function sanitizeCourseOutline(outline: any): any {
+  if (!outline || !outline.modules) return outline;
+  
+  outline.modules = outline.modules.map((module: any) => {
+    if (!module.lessons) return module;
+    
+    module.lessons = module.lessons.map((lesson: any) => {
+      if (lesson.timestampStart) {
+        const original = lesson.timestampStart;
+        lesson.timestampStart = sanitizeTimestamp(lesson.timestampStart);
+        if (original !== lesson.timestampStart && original.length > 10) {
+          console.log(`✅ Sanitized timestampStart: "${original.substring(0, 20)}..." → "${lesson.timestampStart}"`);
+        }
+      }
+      if (lesson.timestampEnd) {
+        const original = lesson.timestampEnd;
+        lesson.timestampEnd = sanitizeTimestamp(lesson.timestampEnd);
+        if (original !== lesson.timestampEnd && original.length > 10) {
+          console.log(`✅ Sanitized timestampEnd: "${original.substring(0, 20)}..." → "${lesson.timestampEnd}"`);
+        }
+      }
+      return lesson;
+    });
+    
+    return module;
+  });
+  
+  return outline;
+}
+
 export class AIClient {
   /**
    * Generate a structured course outline from YouTube transcript and metadata

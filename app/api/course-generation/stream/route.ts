@@ -177,25 +177,49 @@ export async function POST(request: NextRequest) {
         for await (const partialObject of result.partialObjectStream) {
           partialCount++;
           
-          // Validate timestamps in partial data to catch issues early
+          // AGGRESSIVE timestamp validation to stop malformed generation immediately
           if (partialObject && typeof partialObject === 'object') {
             const modules = (partialObject as any).modules || [];
             
-            // Check for malformed timestamps and log warnings
             for (const module of modules) {
               if (module && module.lessons) {
                 for (const lesson of module.lessons) {
                   if (lesson) {
-                    // Check for overly long timestamps
-                    if (lesson.timestampStart && lesson.timestampStart.length > 10) {
-                      console.warn(`⚠️ Malformed timestampStart detected (${lesson.timestampStart.length} chars): ${lesson.timestampStart.substring(0, 20)}...`);
-                      // Truncate immediately
-                      lesson.timestampStart = lesson.timestampStart.match(/^(\d{1,2}:\d{2}:\d{2})/)?.[1] || "0:00:00";
+                    // Aggressive truncation for timestampStart
+                    if (lesson.timestampStart) {
+                      const original = lesson.timestampStart;
+                      // If it has a decimal or is too long, truncate IMMEDIATELY
+                      if (original.includes('.') || original.length > 8) {
+                        // Extract only M:SS or H:MM:SS format (no decimals)
+                        const match = original.match(/^(\d{1,2}:\d{2}(?::\d{2})?)(?=\.|$)/);
+                        if (match) {
+                          lesson.timestampStart = match[1];
+                        } else {
+                          // Fallback: try to extract just the time part before any decimal
+                          const beforeDecimal = original.split('.')[0];
+                          lesson.timestampStart = beforeDecimal.length <= 8 ? beforeDecimal : "0:00";
+                        }
+                        if (original.length > 10) {
+                          console.warn(`⚠️ Truncated malformed timestampStart (${original.length} chars): "${original.substring(0, 20)}..." → "${lesson.timestampStart}"`);
+                        }
+                      }
                     }
-                    if (lesson.timestampEnd && lesson.timestampEnd.length > 10) {
-                      console.warn(`⚠️ Malformed timestampEnd detected (${lesson.timestampEnd.length} chars): ${lesson.timestampEnd.substring(0, 20)}...`);
-                      // Truncate immediately
-                      lesson.timestampEnd = lesson.timestampEnd.match(/^(\d{1,2}:\d{2}:\d{2})/)?.[1] || "0:00:00";
+                    
+                    // Aggressive truncation for timestampEnd
+                    if (lesson.timestampEnd) {
+                      const original = lesson.timestampEnd;
+                      if (original.includes('.') || original.length > 8) {
+                        const match = original.match(/^(\d{1,2}:\d{2}(?::\d{2})?)(?=\.|$)/);
+                        if (match) {
+                          lesson.timestampEnd = match[1];
+                        } else {
+                          const beforeDecimal = original.split('.')[0];
+                          lesson.timestampEnd = beforeDecimal.length <= 8 ? beforeDecimal : "0:00";
+                        }
+                        if (original.length > 10) {
+                          console.warn(`⚠️ Truncated malformed timestampEnd (${original.length} chars): "${original.substring(0, 20)}..." → "${lesson.timestampEnd}"`);
+                        }
+                      }
                     }
                   }
                 }
