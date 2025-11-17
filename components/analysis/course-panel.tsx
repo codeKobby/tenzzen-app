@@ -822,7 +822,7 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
               </div>
             </div>
           ) : null}
-          
+
           {/* Prerequisites */}
           {course.metadata?.prerequisites && course.metadata.prerequisites.length > 0 ? (
             <div>
@@ -863,7 +863,7 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
   if (tab === "content") {
     let sectionCounter = 0;
     const hasAnySections = course.courseItems && course.courseItems.length > 0;
-    
+
     return (
       <div className="space-y-4">
         {course.courseItems?.map((item: any, index: number) => {
@@ -872,7 +872,7 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
             const section = item;
             const sectionIndex = sectionCounter - 1;
             const hasLessons = section.lessons && section.lessons.length > 0;
-            
+
             return (
               <Collapsible key={`section-${index}`} className="border rounded-lg overflow-hidden" defaultOpen={sectionIndex === 0}>
                 <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/40 transition-colors">
@@ -923,12 +923,12 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
           }
           return null;
         })}
-        
+
         {/* Show loading skeletons for missing modules during streaming */}
         {isStreaming && (!hasAnySections || sectionCounter < 3) && (
           <CourseContentSkeleton count={Math.max(1, 3 - sectionCounter)} />
         )}
-        
+
         {course.project && course.project.type === 'assessment_placeholder' && course.project.assessmentType === 'project' && (
           <button
             type="button"
@@ -939,7 +939,7 @@ function TabContent({ tab, course }: { tab: string; course: any }) {
             <Lock className="h-4 w-4 text-muted-foreground" />
           </button>
         )}
-        
+
         {/* Only show empty state when NOT streaming and truly empty */}
         {!isStreaming && (!course.courseItems || course.courseItems.length === 0) && !course.project && (
           <p className="text-muted-foreground text-center py-4">No course content available.</p>

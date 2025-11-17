@@ -250,10 +250,10 @@ function Content({ initialContent, initialError }: ContentProps) {
                 if (message.data) {
                   setPartialCourseData(message.data);
                   setIsStreamingCourse(true);
-                  
+
                   // Update the course data in context so CoursePanel receives updates
                   setCourseData(message.data);
-                  
+
                   // Always show the panel during streaming (remove the condition)
                   setShowCoursePanel(true);
                 }
