@@ -5,6 +5,75 @@ import { courseGenerationPrompts, quizGenerationPrompts, tutorPrompts, videoReco
 import type { CourseOutline, Quiz, VideoRecommendations } from "./types";
 import { buildPromptTranscriptContext } from "./transcript-utils";
 
+// Helper: sleep
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+// Helper: heuristically determine transient errors
+function isTransientError(e: any) {
+  const msg = String(e?.message || e);
+  return /ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket hang up|Failed to fetch|network|502|503|504|timed out/i.test(msg);
+}
+
+// Retry wrapper for generateText
+async function safeGenerateText(opts: Parameters<typeof generateText>[0], attempts = 3) {
+  let lastErr: any = null;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await generateText(opts as any);
+    } catch (e: any) {
+      lastErr = e;
+      if (isTransientError(e) && i < attempts) {
+        const backoff = Math.pow(2, i) * 250;
+        console.warn(`generateText attempt ${i} failed, retrying after ${backoff}ms:`, e?.message || e);
+        await sleep(backoff);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
+// Retry wrapper for generateObject
+async function safeGenerateObject(opts: Parameters<typeof generateObject>[0], attempts = 3) {
+  let lastErr: any = null;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await generateObject(opts as any);
+    } catch (e: any) {
+      lastErr = e;
+      if (isTransientError(e) && i < attempts) {
+        const backoff = Math.pow(2, i) * 300;
+        console.warn(`generateObject attempt ${i} failed, retrying after ${backoff}ms:`, e?.message || e);
+        await sleep(backoff);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
+// Retry wrapper for streamObject _creation_. Once created, streaming is handled by caller.
+async function safeStreamObject(opts: Parameters<typeof streamObject>[0], attempts = 3) {
+  let lastErr: any = null;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await streamObject(opts as any);
+    } catch (e: any) {
+      lastErr = e;
+      if (isTransientError(e) && i < attempts) {
+        const backoff = Math.pow(2, i) * 500;
+        console.warn(`streamObject creation attempt ${i} failed, retrying after ${backoff}ms:`, e?.message || e);
+        await sleep(backoff);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
 /**
  * Sanitize timestamp to ensure it's in correct format
  * Prevents malformed timestamps with infinite zeros
@@ -77,8 +146,45 @@ export class AIClient {
     channelName: string;
     videoDuration?: string;
   }): Promise<CourseOutline> {
+    // Pre-process transcript segments: merge adjacent very short segments
+    const mergeThresholdSeconds = 90; // Merge segments shorter than this into larger lessons
+    let mergedSegments = params.transcriptSegments ?? [];
+
+    try {
+      mergedSegments = [];
+      if (params.transcriptSegments && params.transcriptSegments.length > 0) {
+        let buffer: any = null;
+        for (const seg of params.transcriptSegments) {
+          const segStart = typeof seg.offset === 'number' ? seg.offset : seg.start ?? 0;
+          const segDuration = typeof seg.duration === 'number' ? seg.duration : seg.duration ?? 0;
+
+          if (!buffer) {
+            buffer = { text: seg.text || '', offset: segStart, duration: segDuration };
+            continue;
+          }
+
+          // If buffer is short or current segment is short, merge to avoid micro-segments
+          if (buffer.duration < mergeThresholdSeconds || segDuration < mergeThresholdSeconds) {
+            // merge into buffer
+            buffer.text = `${buffer.text} ${seg.text || ''}`.trim();
+            // keep original start, extend duration
+            buffer.duration = (buffer.duration || 0) + (segDuration || 0);
+          } else {
+            // flush buffer and start new one
+            mergedSegments.push(buffer);
+            buffer = { text: seg.text || '', offset: segStart, duration: segDuration };
+          }
+        }
+
+        if (buffer) mergedSegments.push(buffer);
+      }
+    } catch (e) {
+      console.warn('Transcript merging failed, falling back to original segments', e);
+      mergedSegments = params.transcriptSegments ?? [];
+    }
+
     const transcriptContext = buildPromptTranscriptContext({
-      transcriptSegments: params.transcriptSegments,
+      transcriptSegments: mergedSegments,
       fallbackTranscript: params.transcript,
     });
 
@@ -94,7 +200,7 @@ export class AIClient {
       }
     );
 
-    const { text: analysisText } = await generateText({
+    const { text: analysisText } = await safeGenerateText({
       model: getModel("smart"),
       prompt: analysisPrompt,
       temperature: 0.3, // Lower temperature for analysis
@@ -110,15 +216,22 @@ export class AIClient {
       params.transcriptSegments
     );
 
-    const { object } = await generateObject({
+    const { object } = await safeGenerateObject({
       model: getModel("smart"),
       schema: CourseOutlineSchema,
       prompt: structurePrompt,
       temperature: aiConfig.parameters.temperature,
-      maxRetries: 2, // Retry on transient failures
     });
 
-    return object;
+    // Defensive checks: `generateObject` may return null or JSONValue types.
+    if (!object) {
+      throw new Error("AI did not return a valid course outline object");
+    }
+
+    // Sanitize timestamps and ensure shape matches CourseOutline at runtime.
+    const sanitized = sanitizeCourseOutline(object as any);
+
+    return sanitized as CourseOutline;
   }
 
   /**
@@ -150,7 +263,7 @@ export class AIClient {
       }
     );
 
-    const { text: analysisText } = await generateText({
+    const { text: analysisText } = await safeGenerateText({
       model: getModel("smart"),
       prompt: analysisPrompt,
       temperature: 0.3, // Lower temperature for analysis
@@ -166,13 +279,13 @@ export class AIClient {
       params.transcriptSegments
     );
 
-    return streamObject({
+    // Create the streaming object with retry on transient network errors
+    const streamResult = await safeStreamObject({
       model: getModel("smart"),
       schema: CourseOutlineSchema,
       mode: "json", // Force JSON mode for more reliable structured output
       prompt: structurePrompt,
       temperature: 0.1, // Very low temperature for structured output
-      maxRetries: 3, // More retries for invalid responses
       onFinish: async ({ object, error }) => {
         if (error) {
           console.error('Course generation stream error:', error);
@@ -181,6 +294,8 @@ export class AIClient {
         }
       },
     });
+
+    return streamResult;
   }
 
   /**

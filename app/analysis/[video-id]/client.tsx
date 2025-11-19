@@ -182,21 +182,51 @@ function Content({ initialContent, initialError }: ContentProps) {
         ? `https://www.youtube.com/playlist?list=${videoData.id}`
         : `https://www.youtube.com/watch?v=${videoData.id}`;
 
-      // Use streaming API for course generation
-      const response = await fetch('/api/course-generation/stream', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          youtubeUrl,
-          isPublic: false,
-        }),
-      });
+      // Helper: fetch with retries, exponential backoff, and per-attempt timeout
+      const fetchWithRetries = async (input: RequestInfo, init: RequestInit, attempts = 3, timeoutMs = 30000) => {
+        let lastErr: any = null;
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const mergedInit = { ...init, signal: controller.signal } as RequestInit;
+            const resp = await fetch(input, mergedInit);
+            clearTimeout(id);
+            if (!resp.ok) {
+              lastErr = new Error(`Server error: ${resp.status}`);
+              // For 5xx errors we may retry; for 4xx do not
+              if (resp.status >= 500 && attempt < attempts) {
+                const backoff = Math.pow(2, attempt) * 250;
+                await new Promise((r) => setTimeout(r, backoff));
+                continue;
+              }
+              throw lastErr;
+            }
+            return resp;
+          } catch (e: any) {
+            clearTimeout(id);
+            lastErr = e;
+            // If abort caused by controller, treat as timeout and retry
+            const isAbort = e?.name === 'AbortError' || e?.message?.includes('The user aborted a request');
+            const shouldRetry = attempt < attempts && (isAbort || /ECONNRESET|ECONNREFUSED|Failed to fetch|network/i.test(String(e)));
+            if (shouldRetry) {
+              const backoff = Math.pow(2, attempt) * 300;
+              console.warn(`Fetch attempt ${attempt} failed, retrying after ${backoff}ms:`, e?.message || e);
+              await new Promise((r) => setTimeout(r, backoff));
+              continue;
+            }
+            throw e;
+          }
+        }
+        throw lastErr;
+      };
 
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
+      // Use streaming API for course generation with retries
+      const response = await fetchWithRetries('/api/course-generation/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ youtubeUrl, isPublic: false }),
+      }, 3, 30000);
 
       if (!response.body) {
         throw new Error('No response body');
@@ -207,131 +237,132 @@ function Content({ initialContent, initialError }: ContentProps) {
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
 
-        if (done) break;
+          if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
 
-        // Keep the last incomplete line in the buffer
-        buffer = lines.pop() || '';
+          // Keep the last incomplete line in the buffer
+          buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const jsonStr = line.slice(6);
-
-              // Check if the JSON string is suspiciously long (possible malformed timestamp issue)
-              if (jsonStr.length > 100000) {
-                console.warn(`⚠️ Unusually large JSON payload detected (${jsonStr.length} chars), possible malformed data`);
-                // Try to parse anyway, but we're aware of the issue
-              }
-
-              const message = JSON.parse(jsonStr);
-
-              if (message.type === 'progress') {
-                setCourseGenerationProgress({
-                  step: message.step || "Processing",
-                  progress: message.progress || 0,
-                  message: message.message || "Processing..."
-                });
-              } else if (message.type === 'partial') {
-                // Update UI with partial course data and show panel immediately
-                setCourseGenerationProgress({
-                  step: "Generating",
-                  progress: message.progress || 50,
-                  message: message.message || "Building course structure..."
-                });
-
-                // Show course panel IMMEDIATELY with any partial data (even if empty)
-                // This allows progressive loading as data streams in
-                if (message.data) {
-                  setPartialCourseData(message.data);
-                  setIsStreamingCourse(true);
-
-                  // Update the course data in context so CoursePanel receives updates
-                  setCourseData(message.data);
-
-                  // Always show the panel during streaming (remove the condition)
-                  setShowCoursePanel(true);
-                }
-              } else if (message.type === 'complete') {
-                // Course generation complete
-                setGeneratedCourseId(message.data.courseId);
-                setCourseGenerationProgress({
-                  step: "Complete",
-                  progress: 100,
-                  message: "Your course is ready!"
-                });
-
-                // Fetch the course data and show in panel
-                setIsStreamingCourse(false);
-                setPartialCourseData(null);
-
-                setTimeout(async () => {
-                  if (message.data.courseId) {
-                    try {
-                      const { ConvexHttpClient } = await import('convex/browser');
-                      const { api } = await import('@/convex/_generated/api');
-
-                      const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-                      if (!convexUrl) {
-                        throw new Error('NEXT_PUBLIC_CONVEX_URL not configured');
-                      }
-
-                      const convex = new ConvexHttpClient(convexUrl);
-
-                      // Fetch the full course with modules and lessons
-                      const courseWithContent = await convex.query(api.courses.getCourseWithContent, {
-                        courseId: message.data.courseId
-                      });
-
-                      if (courseWithContent) {
-                        setCourseData(courseWithContent);
-                        setShowCoursePanel(true);
-                        toast.success("Course generated successfully!");
-                      }
-                    } catch (fetchError) {
-                      console.error('Error fetching generated course:', fetchError);
-                      toast.error("Course generated but failed to load details");
-                    }
-                  }
-                }, 500);
-              } else if (message.type === 'error') {
-                throw new Error(message.error || 'Unknown error occurred');
-              }
-            } catch (parseError) {
-              // Enhanced error logging for JSON parse failures
-              if (parseError instanceof SyntaxError) {
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
                 const jsonStr = line.slice(6);
-                console.error('JSON parse error details:', {
-                  error: parseError.message,
-                  lineLength: jsonStr.length,
-                  linePreview: jsonStr.substring(0, 200),
-                  position: parseError.message.match(/position (\d+)/)?.[1]
-                });
 
-                // If it's a massive string (likely malformed timestamps), show specific error
-                if (jsonStr.length > 50000) {
-                  console.error('⚠️ CRITICAL: Detected overly large JSON payload - likely malformed timestamp data');
-                  toast.error("AI generated invalid data. Please try again.");
-                  setIsGeneratingCourse(false);
-                  setCourseGenerationProgress(null);
-                  return; // Stop processing this stream
+                // Check if the JSON string is suspiciously long (possible malformed timestamp issue)
+                if (jsonStr.length > 100000) {
+                  console.warn(`⚠️ Unusually large JSON payload detected (${jsonStr.length} chars), possible malformed data`);
                 }
-              } else {
-                console.error('Error parsing stream message:', parseError);
+
+                const message = JSON.parse(jsonStr);
+
+                if (message.type === 'progress') {
+                  setCourseGenerationProgress({
+                    step: message.step || "Processing",
+                    progress: message.progress || 0,
+                    message: message.message || "Processing..."
+                  });
+                } else if (message.type === 'partial') {
+                  setCourseGenerationProgress({
+                    step: "Generating",
+                    progress: message.progress || 50,
+                    message: message.message || "Building course structure..."
+                  });
+
+                  if (message.data) {
+                    setPartialCourseData(message.data);
+                    setIsStreamingCourse(true);
+                    setCourseData(message.data);
+                    setShowCoursePanel(true);
+                  }
+                } else if (message.type === 'complete') {
+                  setGeneratedCourseId(message.data.courseId);
+                  setCourseGenerationProgress({ step: "Complete", progress: 100, message: "Your course is ready!" });
+
+                  setIsStreamingCourse(false);
+                  setPartialCourseData(null);
+
+                  setTimeout(async () => {
+                    if (message.data.courseId) {
+                      try {
+                        const { ConvexHttpClient } = await import('convex/browser');
+                        const { api } = await import('@/convex/_generated/api');
+
+                        const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+                        if (!convexUrl) throw new Error('NEXT_PUBLIC_CONVEX_URL not configured');
+
+                        const convex = new ConvexHttpClient(convexUrl);
+                        const courseWithContent = await convex.query(api.courses.getCourseWithContent, { courseId: message.data.courseId });
+
+                        if (courseWithContent) {
+                          setCourseData(courseWithContent);
+                          setShowCoursePanel(true);
+                          toast.success("Course generated successfully!");
+                        }
+                      } catch (fetchError) {
+                        console.error('Error fetching generated course:', fetchError);
+                        toast.error("Course generated but failed to load details");
+                      }
+                    }
+                  }, 500);
+                } else if (message.type === 'error') {
+                  throw new Error(message.error || 'Unknown error occurred');
+                }
+              } catch (parseError) {
+                if (parseError instanceof SyntaxError) {
+                  const jsonStr = line.slice(6);
+                  console.error('JSON parse error details:', {
+                    error: parseError.message,
+                    lineLength: jsonStr.length,
+                    linePreview: jsonStr.substring(0, 200),
+                    position: parseError.message.match(/position (\d+)/)?.[1]
+                  });
+
+                  if (jsonStr.length > 50000) {
+                    console.error('⚠️ CRITICAL: Detected overly large JSON payload - likely malformed timestamp data');
+                    toast.error("AI generated invalid data. Please try again.");
+                    setIsGeneratingCourse(false);
+                    setCourseGenerationProgress(null);
+                    try { reader.cancel(); } catch { };
+                    return; // Stop processing this stream
+                  }
+                } else {
+                  console.error('Error parsing stream message:', parseError);
+                }
               }
             }
           }
         }
+      } catch (streamErr: any) {
+        // Handle mid-stream errors (e.g., ECONNRESET)
+        console.error('Stream read error:', streamErr);
+        if (/ECONNRESET|ECONNREFUSED|socket hang up/i.test(String(streamErr))) {
+          toast.error('Connection was reset during generation. Please try again.');
+        } else if (streamErr?.name === 'AbortError') {
+          toast.error('Request timed out. Please try again.');
+        } else {
+          toast.error('An error occurred while streaming the course generation.');
+        }
+        setIsStreamingCourse(false);
+        setCourseGenerationProgress(null);
+        try { reader.cancel(); } catch { }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error generating course:", err);
-      setTranscriptError(err instanceof Error ? err.message : "An unknown error occurred");
-      toast.error("Failed to generate course");
+      const msg = err instanceof Error ? err.message : String(err);
+      setTranscriptError(msg);
+      if (/ECONNRESET/i.test(msg)) {
+        toast.error('Network connection reset. Please retry.');
+      } else if (/timed out|AbortError/i.test(msg)) {
+        toast.error('Request timed out. Please try again.');
+      } else {
+        toast.error("Failed to generate course");
+      }
     } finally {
       setIsGeneratingCourse(false);
     }

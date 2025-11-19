@@ -90,6 +90,7 @@ export const CourseOutlineSchema = z.object({
     type: z.enum(["Documentation", "Tool", "Website", "Code", "Course", "Social"]),
     description: z.string().max(500, "Resource description must be 500 characters or less").optional(),
     category: z.enum(["Social", "Creator Links", "Other Resources"]),
+    provenance: z.enum(["found", "suggested"]).optional(),
   })),
   modules: z.array(ModuleSchema),
   assessmentPlan: z.object({

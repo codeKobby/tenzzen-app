@@ -6,7 +6,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  output: 'standalone',
+  output: "standalone",
   skipTrailingSlashRedirect: true,
   skipMiddlewareUrlNormalize: true,
   images: {
@@ -52,17 +52,17 @@ const nextConfig = {
     }
     if (config.cache) {
       config.cache = {
-        type: 'memory',
+        type: "memory",
       };
     }
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': '.',
-      '@/components': './components',
-      '@/lib': './lib',
-      '@/hooks': './hooks',
-      '@/types': './types',
-      '@/actions': './actions'
+      "@": ".",
+      "@/components": "./components",
+      "@/lib": "./lib",
+      "@/hooks": "./hooks",
+      "@/types": "./types",
+      "@/actions": "./actions",
     };
     return config;
   },
@@ -71,10 +71,33 @@ const nextConfig = {
     typedRoutes: true,
     serverActions: {
       allowedOrigins: ["localhost:3000"],
-      bodySizeLimit: '2mb'
-    }
+      bodySizeLimit: "2mb",
+    },
   },
   reactStrictMode: false,
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.youtube.com https://www.google.com https://apis.google.com https://*.clerk.accounts.dev https://challenges.cloudflare.com",
+              "style-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev",
+              "img-src 'self' data: https: blob:",
+              "font-src 'self' data: https://*.clerk.accounts.dev",
+              "connect-src 'self' https://www.youtube.com https://www.google.com https://apis.google.com https://*.convex.cloud https://*.clerk.accounts.dev wss://*.convex.cloud wss: ws:",
+              "frame-src 'self' https://www.youtube.com https://www.google.com https://*.clerk.accounts.dev https://challenges.cloudflare.com",
+              "media-src 'self' https://www.youtube.com blob:",
+              "worker-src 'self' blob:",
+            ].join("; "),
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

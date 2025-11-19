@@ -179,7 +179,6 @@ export const recordLessonProgress = mutation({
       await ctx.db.patch(existingLessonProgress._id, {
         isCompleted: args.completed,
         completedAt: args.completed ? now : existingLessonProgress.completedAt,
-        lastAccessedAt: now,
       });
     } else {
       await ctx.db.insert("lesson_progress", {
@@ -188,7 +187,6 @@ export const recordLessonProgress = mutation({
         lessonId: args.lessonId,
         isCompleted: args.completed,
         completedAt: args.completed ? now : undefined,
-        lastAccessedAt: now,
       });
     }
 

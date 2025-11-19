@@ -7,7 +7,7 @@ import { formatSecondsAsTimestamp } from "./transcript-utils";
 
 export const courseGenerationPrompts = {
   // Initial content analysis and knowledge graph generation
-   contentAnalysis: (transcriptContext: PromptTranscriptContext, metadata: any) => `
+  contentAnalysis: (transcriptContext: PromptTranscriptContext, metadata: any) => `
 You are an expert educational content analyst specializing in converting video content into structured, hierarchical knowledge maps.
 
 SYSTEM INSTRUCTIONS:
@@ -26,16 +26,6 @@ VIDEO METADATA:
 
 VIDEO DESCRIPTION:
 ${metadata.description || 'No description provided'}
-
-IMPORTANT CONTEXT ABOUT DESCRIPTIONS:
-Descriptions usually contain:
-- External creator links (GitHub, personal website, social media)
-- Tools, libraries, and resources used in the video
-- Related courses or content
-- Sponsor/affiliate links
-- Community links (Discord, Slack, forums)
-- Newsletter signups
-Be precise and avoid inventing any missing links.
 
 TRANSCRIPT OVERVIEW:
 - Segments: ${transcriptContext.totalSegments}
@@ -82,11 +72,13 @@ You are a senior curriculum architect. Convert the input analysis into a fully s
 
 SYSTEM INSTRUCTIONS:
 - Think step-by-step and verify against transcript evidence.
-- Use transcript segments to determine timestamps.
-- Do not invent timestamps, tools, technologies, or resources.
-- Ensure JSON output is strictly valid.
-- Every lesson MUST have timestampStart and timestampEnd fields.
-- CRITICAL: Scan the ENTIRE video description for ALL URLs and links.
+- Use transcript segments to determine timestamps when available, but you are allowed to MERGE adjacent short segments into a single, meaningful lesson to avoid creating an excessive number of tiny lessons.
+- If merging, choose the timestampStart as the first segment's timestamp and timestampEnd as the last merged segment's timestamp (both must be taken from the provided transcriptSegments). Do NOT invent new timestamp formats.
+- Prioritize clear learning progression and learner-friendly lesson sizes (recommended lesson length: 1.0 to 10.0 minutes; merge segments shorter than 90 seconds).
+- Limit total number of lessons across the course to a reasonable amount (recommendation: 6-18 lessons total). Prefer fewer, higher-quality lessons over many micro-lessons.
+- Aim for 3-6 modules. If the content is short, 2-3 modules is acceptable.
+- When extracting resources, scan the description AND the transcript for explicit mentions (e.g., "link in description", "on GitHub", library names). If exact URLs are present, extract them. If the video mentions helpful resources but the exact URL is NOT in the description, include a suggested resource entry with an empty or placeholder URL and mark its provenance as "suggested".
+- Ensure JSON output is strictly valid and include provenance for each resource: either "found" (from description/transcript) or "suggested" (recommended by AI; no invented URLs).
 
 VIDEO DESCRIPTION (SCAN THIS FOR ALL RESOURCES):
 ==============================================
@@ -244,17 +236,46 @@ MANDATORY:
 For every lesson, include:
 - title
 - timestampStart (must match transcript format)
-- timestampEnd (must match transcript format)
-- summary
-- keyConcepts
-- prerequisites
-- outcomes
+- timestampEnd (must match transcript format - MUST be DIFFERENT from timestampStart)
+- durationMinutes (calculate from time difference between timestampEnd and timestampStart)
+- description
+- content
+- keyPoints
+
+🔴 CRITICAL TIMESTAMP RULES:
+1. timestampStart and timestampEnd MUST be DIFFERENT timestamps
+2. timestampEnd MUST be AFTER timestampStart (later in the video)
+3. NEVER use the same timestamp for both start and end
+4. Each lesson should span a reasonable time range (at least 30 seconds)
+
+EXAMPLE - CORRECT:
+{
+  "title": "Introduction to Arrays",
+  "timestampStart": "2:15",
+  "timestampEnd": "8:45",
+  "durationMinutes": 6
+}
+
+EXAMPLE - WRONG (DO NOT DO THIS):
+{
+  "title": "Introduction to Arrays",
+  "timestampStart": "2:15",
+  "timestampEnd": "2:15",  ❌ WRONG - Same as start!
+  "durationMinutes": 0
+}
+
+HOW TO ASSIGN TIMESTAMPS:
+1. Find the transcript segment where the lesson topic BEGINS → Use this as timestampStart
+2. Find the transcript segment where the lesson topic ENDS → Use this as timestampEnd
+3. These MUST be two DIFFERENT segments with DIFFERENT timestamps
+4. If uncertain about the end, use the timestamp of the NEXT lesson's start
 
 IMPORTANT:
 If transcriptSegments do NOT give a clear boundary,
 use the PREVIOUS segment timestamp for timestampStart
 and the NEXT segment timestamp for timestampEnd.
 Never manufacture new timestamp formats.
+⚠️ The start and end timestamps MUST be from DIFFERENT segments.
 
 4. **Assessment Planning (Structure Only - NO CONTENT)**
    Specify WHERE assessments should be placed:

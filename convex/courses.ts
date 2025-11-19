@@ -22,6 +22,7 @@ export const createAICourse = mutation({
         type: v.string(),
         description: v.optional(v.string()),
         category: v.string(),
+        provenance: v.optional(v.union(v.literal("found"), v.literal("suggested"))),
       })),
       sourceType: v.union(
         v.literal("youtube"),

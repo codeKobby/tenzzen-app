@@ -144,7 +144,7 @@ export function PageHeader() {
                   <span className="text-muted-foreground/40">/</span>
                 )}
                 <Link
-                  href={item.href}
+                  href={item.href as any}
                   className={cn(
                     "transition-colors hover:text-foreground",
                     index === breadcrumbs.length - 1

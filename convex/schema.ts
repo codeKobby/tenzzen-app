@@ -198,51 +198,77 @@ export default defineSchema({
     isCompleted: v.boolean(),
     completedAt: v.optional(v.string()),
   })
-    .index('by_user', ['userId'])
-    .index('by_course', ['courseId'])
-    .index('by_user_course', ['userId', 'courseId']),
+    .index('by_user_course', ['userId', 'courseId'])
+    .index('by_user', ['userId']) // Added for dashboard queries
+    .index('by_course', ['courseId']), // Added for course-specific queries
 
-  // User streak tracking
-  user_streaks: defineTable({
-    userId: v.string(), // Clerk user ID
-    streakDays: v.number(),
-    longestStreak: v.number(),
-    lastCheckIn: v.string(), // ISO date
-    weeklyActivity: v.array(v.number()), // 7 numbers for weekly activity
-  })
-    .index('by_user', ['userId']),
-
-  // Lesson progress tracking
+  // User progress on a lesson-by-lesson basis
   lesson_progress: defineTable({
-    userId: v.string(), // Clerk user ID
-    lessonId: v.id('lessons'),
+    userId: v.string(),
     courseId: v.id('courses'),
+    lessonId: v.id('lessons'),
     isCompleted: v.boolean(),
     completedAt: v.optional(v.string()),
-    timeSpentMinutes: v.optional(v.number()),
-    lastAccessedAt: v.optional(v.string()),
   })
-    .index('by_user', ['userId'])
-    .index('by_lesson', ['lessonId'])
-    .index('by_course', ['courseId'])
-    .index('by_user_course', ['userId', 'courseId']),
+    .index('by_user_course', ['userId', 'courseId'])
+    .index('by_lesson', ['lessonId']),
 
-  // User activity tracking for dashboard
+  // User activity for streaks
   user_activities: defineTable({
-    userId: v.string(), // Clerk user ID
-    activityType: v.union(
-      v.literal('course_enrolled'),
-      v.literal('lesson_completed'),
-      v.literal('quiz_attempted'),
-      v.literal('course_generated'),
-      v.literal('login')
-    ),
-    entityId: v.optional(v.string()), // courseId, lessonId, etc.
-    entityType: v.optional(v.string()), // 'course', 'lesson', 'quiz'
-    metadata: v.optional(v.any()), // Additional data like scores, etc.
+    userId: v.string(),
+    activityType: v.string(), // e.g., 'lesson_completed', 'quiz_passed'
+    entityId: v.optional(v.string()),
+    entityType: v.optional(v.string()), // 'lesson', 'quiz', 'course'
     createdAt: v.string(),
+    metadata: v.optional(v.any()),
+  }).index('by_user', ['userId']),
+
+  // User streaks
+  user_streaks: defineTable({
+    userId: v.string(),
+    streakDays: v.number(),
+    longestStreak: v.number(),
+    lastCheckIn: v.string(), // YYYY-MM-DD
+    weeklyActivity: v.array(v.number()), // 7 numbers for last 7 days
+  }).index('by_user', ['userId']),
+
+  // User progress tracking
+  userProgress: defineTable({
+    userId: v.string(), // Clerk user ID
+    courseId: v.id('courses'),
+    lastCompletedLesson: v.optional(v.number()),
+    // Store lessonId (Convex id) and time to avoid ambiguous numeric indexes
+    lastPlaybackTime: v.optional(v.object({
+      lessonId: v.id('lessons'),
+      time: v.number()
+    }))
+  }).index('by_user_course', ['userId', 'courseId']),
+
+  // User quiz attempts
+  user_quiz_attempts: defineTable({
+    userId: v.string(), // Clerk user ID
+    quizId: v.id('quizzes'),
+    courseId: v.id('courses'),
+    score: v.number(),
+    maxScore: v.number(),
+    durationSeconds: v.number(),
+    startedAt: v.string(),
+    completedAt: v.optional(v.string()),
+    isPassed: v.boolean(),
+
+    // Metadata
+    metadata: v.optional(v.object({
+      // Additional fields can be added here
+    })),
+
+    // AI generation metadata
+    generatedBy: v.literal('ai'),
+    aiModel: v.string(),
+
+    createdAt: v.string(),
+    updatedAt: v.string(),
   })
     .index('by_user', ['userId'])
-    .index('by_user_type', ['userId', 'activityType'])
-    .index('by_created_at', ['createdAt']),
+    .index('by_quiz', ['quizId'])
+    .index('by_course', ['courseId']),
 });

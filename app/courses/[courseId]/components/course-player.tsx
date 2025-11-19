@@ -32,9 +32,13 @@ import { useNotes } from "@/hooks/use-notes"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { formatDurationFromSeconds } from "@/lib/utils/duration"
+import { useQuery, useMutation } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { Id } from "@/convex/_generated/dataModel"
 
 interface CoursePlayerProps {
     lesson: NormalizedLesson
+    courseId: string // <-- Add courseId
     videoOnly?: boolean
     onComplete?: () => void
     onNext?: () => void
@@ -42,17 +46,20 @@ interface CoursePlayerProps {
     hasNext?: boolean
     hasPrevious?: boolean
     onVideoEnd?: () => void
+    onSeekBeyondLesson?: (targetTime: number) => Promise<boolean>
 }
 
 export function CoursePlayer({
     lesson,
+    courseId, // <-- Add courseId
     videoOnly = false,
     onComplete,
     onNext,
     onPrevious,
     hasNext = false,
     hasPrevious = false,
-    onVideoEnd
+    onVideoEnd,
+    onSeekBeyondLesson
 }: CoursePlayerProps) {
     const [activeTab, setActiveTab] = useState("content")
     const [videoProgress, setVideoProgress] = useState(0)
@@ -61,8 +68,13 @@ export function CoursePlayer({
     const [showCompletionPrompt, setShowCompletionPrompt] = useState(false)
     const contentRef = useRef<HTMLDivElement>(null)
 
-    // Auth
+    // Auth & Data Fetching
     const { userId, isSignedIn } = useAuth()
+    const userProgress = useQuery(
+        api.userProgress.getUserProgress,
+        userId ? { courseId: courseId as Id<"courses"> } : "skip"
+    )
+    const updateUserProgress = useMutation(api.userProgress.updateUserProgress)
 
     // Notes state
     const [noteContent, setNoteContent] = useState("")
@@ -82,6 +94,20 @@ export function CoursePlayer({
         autoRefresh: false
     })
 
+    // Handle time updates from the video player to persist progress
+    const handleTimeUpdate = (time: number) => {
+        if (!userId || !courseId) return
+
+        // Persist playback using stable lesson id instead of ambiguous numeric index
+        updateUserProgress({
+            courseId: courseId as Id<"courses">,
+            lastPlaybackTime: {
+                lessonId: lesson.id as any,
+                time: Math.round(time)
+            }
+        })
+    }
+
     // Extract video ID from lesson data
     const videoId = (() => {
         // Try to get it directly from the lesson
@@ -99,6 +125,48 @@ export function CoursePlayer({
         // No video ID found
         return null
     })()
+
+    // Stable resume start time: apply once per lesson to avoid reload loops
+    const [resumeStartTime, setResumeStartTime] = useState<number>(() => {
+        if (typeof lesson.timestampStart === "number" && Number.isFinite(lesson.timestampStart)) {
+            return Math.max(0, Math.floor(lesson.timestampStart))
+        }
+        return 0
+    })
+    const appliedResumeRef = useRef<string | null>(null) // tracks lesson.id when resume was applied
+
+    // Reset baseline when lesson changes
+    useEffect(() => {
+        appliedResumeRef.current = null
+        const baseline = (typeof lesson.timestampStart === "number" && Number.isFinite(lesson.timestampStart))
+            ? Math.max(0, Math.floor(lesson.timestampStart))
+            : 0
+        setResumeStartTime(baseline)
+    }, [lesson.id])
+
+    // If we have saved progress for this lesson and haven't applied it yet, set once
+    useEffect(() => {
+        if (!userProgress?.lastPlaybackTime) return
+        if (appliedResumeRef.current === lesson.id) return
+        // Compare by stable lesson id to avoid collisions from per-section numeric indexes
+        if (userProgress.lastPlaybackTime.lessonId !== lesson.id) return
+        const savedTime = Math.max(0, Math.floor(userProgress.lastPlaybackTime.time))
+        // Avoid overriding the lesson's canonical start with tiny/zero saved times which cause a snap-to-start
+        const canonicalStart = (typeof lesson.timestampStart === "number" && Number.isFinite(lesson.timestampStart)) ? Math.max(0, Math.floor(lesson.timestampStart)) : 0
+        const meaningfulThreshold = canonicalStart + 2 // require at least 2s beyond the canonical start
+        console.log(`[CoursePlayer] Candidate resume for lesson ${lesson.orderIndex}: saved=${savedTime}s canonicalStart=${canonicalStart}s threshold=${meaningfulThreshold}s`)
+
+        if (savedTime <= meaningfulThreshold) {
+            // Not meaningful progress — don't override the lesson's start time
+            console.log(`[CoursePlayer] Ignoring saved resume time (${savedTime}s) because it's <= threshold (${meaningfulThreshold}s)`)
+            appliedResumeRef.current = lesson.id
+            return
+        }
+
+        console.log(`[CoursePlayer] Resuming lesson ${lesson.orderIndex} from saved time: ${savedTime}s`)
+        setResumeStartTime(prev => (prev !== savedTime ? savedTime : prev))
+        appliedResumeRef.current = lesson.id
+    }, [userProgress?.lastPlaybackTime, lesson.orderIndex, lesson.id])
 
     const startSeconds = typeof lesson.timestampStart === "number" && Number.isFinite(lesson.timestampStart)
         ? Math.max(0, Math.floor(lesson.timestampStart))
@@ -260,32 +328,45 @@ export function CoursePlayer({
     return (
         <div className="flex flex-col h-full">
             {/* Video player (if available) */}
-            {videoId ? (
-                <div className="bg-black w-full h-full">
+            <div className="relative w-full">
+                {videoId ? (
                     <YouTubeEmbed
                         videoId={videoId}
-                        title={lesson.title}
-                        startTime={startSeconds}
+                        startTime={resumeStartTime}
                         endTime={endSeconds}
-                        autoplay={true}
+                        autoplay
                         onProgressUpdate={handleVideoProgress}
                         onVideoEnd={onVideoEnd}
+                        onSeekBeyondLesson={onSeekBeyondLesson}
+                        onTimeUpdate={handleTimeUpdate} // <-- Pass the handler
                     />
+                ) : (
+                    <div className="aspect-video w-full bg-muted rounded-md flex items-center justify-center">
+                        <p className="text-muted-foreground text-center p-4">
+                            No video available for this lesson. Please refer to the content below.
+                        </p>
+                    </div>
+                )}
+                {/* Navigation buttons overlay */}
+                <div className="absolute top-1/2 left-2 right-2 flex justify-between -translate-y-1/2">
+                    <Button variant="ghost" onClick={onPrevious} disabled={!hasPrevious}>
+                        <ChevronLeft className="h-4 w-4 mr-2" />
+                        Previous Lesson
+                    </Button>
+
+                    <Button variant={hasNext ? "default" : "ghost"} onClick={onNext} disabled={!hasNext}>
+                        Next Lesson
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                    </Button>
                 </div>
-            ) : (
-                <div className="bg-muted/30 w-full h-full flex items-center justify-center p-6">
-                    <p className="text-muted-foreground text-center">
-                        No video available for this lesson. Please refer to the content below.
-                    </p>
-                </div>
-            )}
+            </div>
 
             {/* Only show tabs and other content if not videoOnly mode */}
             {!videoOnly && (
                 <>
                     {/* Content tabs */}
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-                        <TabsList className="grid grid-cols-4 mb-4">
+                        <TabsList className="grid grid-cols-3 mb-4">
                             <TabsTrigger value="content" className="flex items-center gap-1">
                                 <BookOpen className="h-4 w-4" />
                                 <span>Content</span>
@@ -297,10 +378,6 @@ export function CoursePlayer({
                             <TabsTrigger value="discussion" className="flex items-center gap-1">
                                 <MessageSquare className="h-4 w-4" />
                                 <span>Discussion</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="resources" className="flex items-center gap-1">
-                                <Lightbulb className="h-4 w-4" />
-                                <span>Resources</span>
                             </TabsTrigger>
                         </TabsList>
 
@@ -446,41 +523,6 @@ export function CoursePlayer({
                                 </div>
                             </div>
                         </TabsContent>
-
-                        <TabsContent value="resources" className="min-h-[400px]">
-                            <div className="h-full max-h-[500px] border rounded-md p-4 overflow-y-auto bg-card">
-                                {lesson.resources && lesson.resources.length > 0 ? (
-                                    <div className="grid gap-3">
-                                        {lesson.resources.map((resource: any, i: number) => (
-                                            <Card key={i}>
-                                                <CardContent className="p-3 flex items-center justify-between">
-                                                    <div>
-                                                        <h4 className="font-medium">{resource.title}</h4>
-                                                        <p className="text-xs text-muted-foreground">{resource.description}</p>
-                                                    </div>
-                                                    <Button size="sm" variant="outline" asChild>
-                                                        <a
-                                                            href={resource.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                        >
-                                                            Open
-                                                        </a>
-                                                    </Button>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center h-full flex flex-col items-center justify-center">
-                                        <Lightbulb className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                                        <p className="text-sm text-muted-foreground">
-                                            No resources available for this lesson.
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        </TabsContent>
                     </Tabs>
 
                     {/* Completion prompt */}
@@ -520,19 +562,6 @@ export function CoursePlayer({
                             <Progress value={readingProgress} className="flex-1" />
                             <span className="text-sm text-muted-foreground whitespace-nowrap w-10">{readingProgress}%</span>
                         </div>
-                    </div>
-
-                    {/* Navigation buttons at the bottom */}
-                    <div className="flex justify-between mt-4 pt-4 border-t">
-                        <Button variant="ghost" onClick={onPrevious} disabled={!hasPrevious}>
-                            <ChevronLeft className="h-4 w-4 mr-2" />
-                            Previous Lesson
-                        </Button>
-
-                        <Button variant={hasNext ? "default" : "ghost"} onClick={onNext} disabled={!hasNext}>
-                            Next Lesson
-                            <ChevronRight className="h-4 w-4 ml-2" />
-                        </Button>
                     </div>
                 </>
             )}

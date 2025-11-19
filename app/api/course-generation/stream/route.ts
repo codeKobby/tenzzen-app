@@ -242,7 +242,42 @@ export async function POST(request: NextRequest) {
 
         // Get final object (this will apply Zod schema validation)
         const courseOutline = await result.object;
-        
+
+        // Defensive runtime validation: ensure we received an object
+        if (!courseOutline || typeof courseOutline !== 'object' || Array.isArray(courseOutline)) {
+          throw new Error('AI generated an invalid course outline. Please try again.');
+        }
+
+        // Narrow the type for TypeScript and use a local alias
+        const outline = courseOutline as {
+          title: string;
+          description: string;
+          detailedOverview: string;
+          category: string;
+          difficulty: string;
+          learningObjectives: any;
+          prerequisites: any;
+          targetAudience: any;
+          estimatedDuration: string;
+          tags: string[];
+          resources?: Array<any>;
+          modules: Array<{
+            title: string;
+            description: string;
+            lessons: Array<any>;
+          }>;
+          assessmentPlan?: any;
+        };
+
+        // Validate required fields
+        if (!outline.title || !outline.description || !outline.category || !outline.difficulty) {
+          throw new Error('AI failed to generate required course information. Please try again with a different video.');
+        }
+
+        if (!outline.modules || outline.modules.length === 0) {
+          throw new Error('AI could not generate course modules from this video. Please try a different video with clearer content.');
+        }
+
         console.log('✅ Final course outline validated successfully');
 
         await sendMessage({
@@ -252,30 +287,39 @@ export async function POST(request: NextRequest) {
           message: 'Saving course to database...'
         });
 
+        // Sanitize resources: remove any extra fields (e.g., provenance) that Convex validator may reject
+        const sanitizedResources = (outline.resources || []).map((r: any) => ({
+          title: r?.title || "",
+          url: r?.url || "",
+          type: r?.type || "Website",
+          description: r?.description || undefined,
+          category: r?.category || "Other Resources",
+        }));
+
         // Store in Convex
         const courseId = await convex.mutation(api.courses.createAICourse, {
           course: {
-            title: data.title || courseOutline.title,
-            description: courseOutline.description,
-            detailedOverview: courseOutline.detailedOverview,
-            category: courseOutline.category,
-            difficulty: courseOutline.difficulty,
-            learningObjectives: courseOutline.learningObjectives,
-            prerequisites: courseOutline.prerequisites,
-            targetAudience: courseOutline.targetAudience,
-            estimatedDuration: data.duration || courseOutline.estimatedDuration,
-            tags: courseOutline.tags,
-            resources: courseOutline.resources,
+            title: data.title || outline.title,
+            description: outline.description,
+            detailedOverview: outline.detailedOverview,
+            category: outline.category,
+            difficulty: outline.difficulty,
+            learningObjectives: outline.learningObjectives,
+            prerequisites: outline.prerequisites,
+            targetAudience: outline.targetAudience,
+            estimatedDuration: data.duration || outline.estimatedDuration,
+            tags: outline.tags,
+            resources: sanitizedResources,
             sourceType: 'youtube' as const,
             sourceId: videoId,
             sourceUrl: youtubeUrl,
             isPublic: isPublic ?? false,
             aiModel: 'gpt-4o',
           },
-          modules: courseOutline.modules.map((module) => ({
+          modules: outline.modules.map((module: any) => ({
             title: module.title,
             description: module.description,
-            lessons: module.lessons.map((lesson) => ({
+            lessons: (module.lessons || []).map((lesson: any) => ({
               title: lesson.title,
               description: lesson.description,
               content: lesson.content,
@@ -285,7 +329,7 @@ export async function POST(request: NextRequest) {
               keyPoints: lesson.keyPoints,
             })),
           })),
-          assessmentPlan: courseOutline.assessmentPlan,
+          assessmentPlan: outline.assessmentPlan,
         });
 
         await sendMessage({

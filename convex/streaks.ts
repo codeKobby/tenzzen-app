@@ -12,10 +12,11 @@ export const getStreak = query({
 
     if (!streak) {
       // Return default streak data for new users
+      const todayStr = new Date().toISOString().split('T')[0];
       return {
         streakDays: 0,
         longestStreak: 0,
-        lastCheckIn: null,
+        lastCheckIn: todayStr,
         weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // 7 days
       };
     }
@@ -50,6 +51,8 @@ export const checkInStreak = mutation({
       await ctx.db.insert("user_activities", {
         userId: args.userId,
         activityType: "login",
+        entityId: args.userId,
+        entityType: "user",
         createdAt: new Date().toISOString(),
       });
 
@@ -93,6 +96,8 @@ export const checkInStreak = mutation({
     await ctx.db.insert("user_activities", {
       userId: args.userId,
       activityType: "login",
+      entityId: args.userId,
+      entityType: "user",
       createdAt: new Date().toISOString(),
     });
 

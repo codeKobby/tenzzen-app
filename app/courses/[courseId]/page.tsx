@@ -36,6 +36,7 @@ import { useBreadcrumb } from "@/contexts/breadcrumb-context"
 import { CourseContent } from "./components/course-content"
 import { CoursePlayer } from "./components/course-player"
 import { CourseResources } from "./components/course-resources"
+import { SeekConfirmationModal } from "@/components/seek-confirmation-modal"
 
 export default function CoursePage() {
   const params = useParams()
@@ -52,6 +53,9 @@ export default function CoursePage() {
   const [lessonIndex, setLessonIndex] = useState(0)
   const [currentQuiz, setCurrentQuiz] = useState<any>(null)
   const [generatingQuiz, setGeneratingQuiz] = useState(false)
+  const [seekModalOpen, setSeekModalOpen] = useState(false)
+  const [targetSeekLesson, setTargetSeekLesson] = useState<{ sectionIdx: number; lessonIdx: number; title: string; direction: 'forward' | 'backward' } | null>(null)
+  const seekResolveRef = useRef<((value: boolean) => void) | null>(null)
 
   useEffect(() => {
     const validation = validateCourseId(courseId)
@@ -248,17 +252,113 @@ export default function CoursePage() {
     scrollPlayerIntoView()
   }
 
-  const handleVideoEnd = () => {
-    // Check if current section has a quiz/assessment after this lesson
-    const currentSection = sections[safeSectionIndex]
-    const hasQuiz = currentSection?.assessments && currentSection.assessments.length > 0
+  // Handle seek beyond current lesson with confirmation
+  const handleSeekBeyondLesson = async (targetTime: number): Promise<boolean> => {
+    console.log('[CoursePage] handleSeekBeyondLesson called with targetTime:', targetTime)
+    console.log('[CoursePage] Current position:', { safeSectionIndex, safeLessonIndex })
 
-    // If there's a quiz after this lesson, don't auto-advance
-    // You can customize this logic based on when quizzes appear
-    if (hasQuiz && safeLessonIndex === (currentSection?.lessons?.length || 0) - 1) {
-      toast.info("Quiz available", {
-        description: "Complete the quiz before moving to the next section"
+    return new Promise((resolve) => {
+      // Find which lesson the target time falls into
+      let targetSectionIdx = safeSectionIndex
+      let targetLessonIdx = safeLessonIndex
+      let found = false
+
+      for (let sIdx = 0; sIdx < sections.length && !found; sIdx++) {
+        const section = sections[sIdx]
+        if (section.isAssessment) continue
+
+        const lessons = section.lessons || []
+        for (let lIdx = 0; lIdx < lessons.length; lIdx++) {
+          const lesson = lessons[lIdx]
+          if (lesson.timestampStart !== undefined && lesson.timestampEnd !== undefined) {
+            if (targetTime >= lesson.timestampStart && targetTime <= lesson.timestampEnd) {
+              targetSectionIdx = sIdx
+              targetLessonIdx = lIdx
+              found = true
+              console.log('[CoursePage] Found target lesson:', { sIdx, lIdx, title: lesson.title })
+              break
+            }
+          }
+        }
+      }
+
+      // If found a different lesson, show confirmation
+      if (found && (targetSectionIdx !== safeSectionIndex || targetLessonIdx !== safeLessonIndex)) {
+        const targetLesson = sections[targetSectionIdx]?.lessons?.[targetLessonIdx]
+        if (targetLesson) {
+          // Determine direction based on lesson position
+          const isForward = targetSectionIdx > safeSectionIndex ||
+            (targetSectionIdx === safeSectionIndex && targetLessonIdx > safeLessonIndex)
+          const direction = isForward ? 'forward' : 'backward'
+
+          console.log('[CoursePage] Showing modal for:', targetLesson.title, 'direction:', direction)
+          setTargetSeekLesson({
+            sectionIdx: targetSectionIdx,
+            lessonIdx: targetLessonIdx,
+            title: targetLesson.title,
+            direction
+          })
+          seekResolveRef.current = resolve
+          setSeekModalOpen(true)
+          return
+        }
+      }
+
+      console.log('[CoursePage] Not showing modal, resolving false')
+      // Default: don't allow seek
+      resolve(false)
+    })
+  }
+
+  const handleSeekConfirm = () => {
+    console.log('[CoursePage] handleSeekConfirm called')
+
+    // Store the target lesson info before clearing state
+    const target = targetSeekLesson
+    const resolve = seekResolveRef.current
+
+    // Clear modal state first
+    setSeekModalOpen(false)
+    setTargetSeekLesson(null)
+    seekResolveRef.current = null
+
+    // Update lesson state
+    if (target) {
+      console.log('[CoursePage] Updating to lesson:', target.title)
+      setSectionIndex(target.sectionIdx)
+      setLessonIndex(target.lessonIdx)
+    }
+
+    // Resolve promise last (this tells YouTubeEmbed the decision)
+    if (resolve) {
+      console.log('[CoursePage] Resolving Promise with true')
+      resolve(true)
+    }
+  }
+
+  const handleSeekCancel = () => {
+    console.log('[CoursePage] handleSeekCancel called')
+    if (seekResolveRef.current) {
+      console.log('[CoursePage] Resolving Promise with false')
+      seekResolveRef.current(false)
+      seekResolveRef.current = null
+    }
+    setSeekModalOpen(false)
+    setTargetSeekLesson(null)
+  }
+
+  const handleVideoEnd = () => {
+    const currentLessons = sections[safeSectionIndex]?.lessons || []
+    const isLastLessonInSection = safeLessonIndex === currentLessons.length - 1
+    const nextSection = sections[safeSectionIndex + 1]
+
+    // If it's the last lesson and the next section is an assessment, switch to it.
+    if (isLastLessonInSection && nextSection && nextSection.isAssessment) {
+      toast.success("Opening assessment", {
+        description: `Proceed to: ${nextSection.title || 'Assessment'}`
       })
+      // Assessments are treated like lessons in the flat structure
+      handleLessonSelect(safeSectionIndex + 1, 0, nextSection.lessons[0])
       return
     }
 
@@ -440,8 +540,12 @@ export default function CoursePage() {
                   ) : currentLesson ? (
                     <CoursePlayer
                       lesson={currentLesson}
+                      courseId={courseId}
                       videoOnly={true}
                       onVideoEnd={handleVideoEnd}
+                      onSeekBeyondLesson={handleSeekBeyondLesson}
+                      onNext={() => navigateLesson("next")}
+                      onPrevious={() => navigateLesson("prev")}
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center p-10 text-center">
@@ -493,10 +597,10 @@ export default function CoursePage() {
                   </div>
 
                   {/* Description */}
-                  {currentLesson && (
+                  {currentLesson && currentSection.description && (
                     <div>
                       <p className="text-white/70 text-sm leading-relaxed">
-                        {currentLesson.description || "Dive into the fundamental principles that underpin great user interface design. This lesson covers hierarchy, contrast, repetition, and alignment."}
+                        {currentSection.description}
                       </p>
                     </div>
                   )}
@@ -618,6 +722,16 @@ export default function CoursePage() {
           </div>
         </div>
       </div>
+
+      {/* Seek Confirmation Modal */}
+      <SeekConfirmationModal
+        open={seekModalOpen}
+        onOpenChange={setSeekModalOpen}
+        targetLessonTitle={targetSeekLesson?.title || ''}
+        direction={targetSeekLesson?.direction}
+        onConfirm={handleSeekConfirm}
+        onCancel={handleSeekCancel}
+      />
     </div>
   )
 }

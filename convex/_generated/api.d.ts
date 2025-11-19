@@ -18,9 +18,11 @@ import type * as courses from "../courses.js";
 import type * as dashboard from "../dashboard.js";
 import type * as enrollments from "../enrollments.js";
 import type * as helpers from "../helpers.js";
+import type * as migrateUserProgress from "../migrateUserProgress.js";
 import type * as quizzes from "../quizzes.js";
 import type * as streaks from "../streaks.js";
 import type * as types from "../types.js";
+import type * as userProgress from "../userProgress.js";
 import type * as videos from "../videos.js";
 import type * as youtubeTypes from "../youtubeTypes.js";
 
@@ -38,9 +40,11 @@ declare const fullApi: ApiFromModules<{
   dashboard: typeof dashboard;
   enrollments: typeof enrollments;
   helpers: typeof helpers;
+  migrateUserProgress: typeof migrateUserProgress;
   quizzes: typeof quizzes;
   streaks: typeof streaks;
   types: typeof types;
+  userProgress: typeof userProgress;
   videos: typeof videos;
   youtubeTypes: typeof youtubeTypes;
 }>;

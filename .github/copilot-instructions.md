@@ -68,8 +68,55 @@ Set all required variables in `.env.local` (see `README.md` for details).
 - `actions/` – Server Actions
 - `adk_service/` – Optional Python AI service
 - `middleware.ts` – Onboarding enforcement
-- `tsconfig.json` – Path aliases
 
----
+````instructions
+# Tenzzen — AI Agent Instructions (concise)
 
-For more details, see `README.md`, `SETUP.md`, and comments in key files. Update this file as architecture or workflows evolve.
+This file tells coding agents how to be immediately productive in this repository.
+
+Core facts
+- Tech stack: `Next.js 15` (App Router) + `React 18` + `TypeScript` frontend, `Convex` backend, `Clerk` auth. AI integrations use `@ai-sdk/google` and `ai`.
+- Package manager: `pnpm` (required). See `package.json` for `engines` (Node >=18.17, pnpm >=9).
+
+Quick start (exact commands)
+```bash
+pnpm install
+pnpm convex    # starts Convex dev server (run this first)
+pnpm dev       # runs Next.js on :3000
+pnpm build
+pnpm lint
+```
+
+Repository-specific rules & patterns
+- pnpm only: never use `npm` or `yarn`.
+- Convex-first: all app state and business logic are modeled through `convex/` (see `convex/schema.ts`). When adding queries, add the corresponding index in `convex/schema.ts`.
+- Server Actions: files in `actions/` are server-only. They should start with `"use server"` and may call Convex server APIs directly. Example: `actions/generateCourseFromYoutube.ts`.
+- Component split: default to Server Components. Add `"use client"` only when using hooks, browser APIs, or client-only libraries (e.g., `useState`, `useEffect`, or Convex React hooks).
+- Auth: Clerk is used site-wide. See `convex/auth.config.ts` for JWT integration and `middleware.ts` for onboarding enforcement (redirects users missing `onboardingComplete`).
+
+Important files to inspect when editing features
+- `app/ConvexClientProvider.tsx` — provider wiring (Clerk + Convex JWT flow).
+- `convex/schema.ts` — database schema and indexes (required for queries).
+- `actions/` — server-only entry points for heavy tasks (YouTube fetch, AI generation).
+- `lib/ai/client.ts` — AI client wrappers used by server actions.
+- `adk_service/` — optional FastAPI Python service; controlled by `NEXT_PUBLIC_ADK_SERVICE_URL` when present. Local runner: `start-adk-service.bat` / `deploy.sh`.
+- `middleware.ts` — global routing + onboarding enforcement.
+
+Integration notes & examples
+- YouTube → AI → Convex flow: `actions/getYoutubeData.ts` (fetch), `actions/getYoutubeTranscript.ts` (transcribe), `actions/generateCourseFromYoutube.ts` (AI outline → store). Use `lib/ai/client.ts` for model calls.
+- ADK service: only present if `NEXT_PUBLIC_ADK_SERVICE_URL` set. The Python service is under `adk_service/server.py` (FastAPI).
+
+Developer constraints
+- Follow existing coding style and TypeScript types. Avoid changing public APIs unless necessary.
+- Tests: repo does not include a full test harness; prefer small manual verification steps (run local convex + dev server, exercise UI flows).
+
+When making edits
+- Update `convex/schema.ts` when adding new queryable fields and add indexes.
+- If adding server endpoints, prefer `actions/` server actions instead of client-only routes.
+- Preserve onboarding behavior: check `middleware.ts` and Clerk metadata keys.
+
+If something is unclear, open a PR or ask the repo owner with a short note referencing the file(s) you changed.
+
+Examples to inspect for patterns: `actions/generateCourseFromYoutube.ts`, `app/ConvexClientProvider.tsx`, `convex/schema.ts`, `adk_service/server.py`.
+
+````
