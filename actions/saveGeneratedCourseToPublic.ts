@@ -1,0 +1,114 @@
+'use server'
+
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
+import { config } from "@/lib/config";
+import { auth } from "@clerk/nextjs/server";
+
+interface SaveGeneratedCourseResult {
+  success: boolean;
+  courseId?: string;
+  error?: string;
+}
+
+// Accepts a simplified course payload and saves it as a full AI-generated course
+export async function saveGeneratedCourseToPublic(
+  payload: {
+    title: string;
+    description?: string;
+    videoId?: string;
+    thumbnail?: string;
+    courseItems?: Array<{ title: string; content?: string; durationMinutes?: number }>;
+    metadata?: Record<string, any>;
+    transcript?: string;
+  },
+  options?: { userId?: string }
+): Promise<SaveGeneratedCourseResult> {
+  try {
+    const { getToken } = await auth();
+    const token = await getToken({ template: "convex" });
+    if (!token) return { success: false, error: "Authentication required" };
+
+    const convex = new ConvexHttpClient(config.convex.url);
+    convex.setAuth(token);
+
+    // Build minimal modules/lessons structure from courseItems
+    const modules = [] as any[];
+    if (payload.courseItems && payload.courseItems.length > 0) {
+      const lessons = payload.courseItems.map((ci) => ({
+        title: ci.title,
+        description: ci.content ?? "",
+        content: ci.content ?? "",
+        durationMinutes: ci.durationMinutes ?? 0,
+        timestampStart: undefined,
+        timestampEnd: undefined,
+        keyPoints: [],
+      }));
+
+      modules.push({
+        title: "Generated Content",
+        description: "Auto-generated module from video",
+        lessons,
+      });
+    } else {
+      // Fallback minimal module/lesson
+      modules.push({
+        title: "Generated Content",
+        description: "Auto-generated module",
+        lessons: [
+          {
+            title: payload.title || "Lesson",
+            description: payload.description || "",
+            content: payload.description || "",
+            durationMinutes: 0,
+            timestampStart: undefined,
+            timestampEnd: undefined,
+            keyPoints: [],
+          },
+        ],
+      });
+    }
+
+    const courseArg = {
+      title: payload.title,
+      description: payload.description ?? "",
+      detailedOverview: payload.description ?? "",
+      category: payload.metadata?.category ?? "Uncategorized",
+      difficulty: payload.metadata?.difficulty ?? "Intermediate",
+      learningObjectives: payload.metadata?.learningObjectives ?? [],
+      prerequisites: payload.metadata?.prerequisites ?? [],
+      targetAudience: payload.metadata?.targetAudience ?? "",
+      estimatedDuration: payload.metadata?.estimatedDuration ?? "",
+      tags: payload.metadata?.tags ?? [],
+      resources: payload.metadata?.resources ?? [],
+      sourceType: "youtube" as const,
+      sourceId: payload.videoId,
+      sourceUrl: payload.videoId ? `https://www.youtube.com/watch?v=${payload.videoId}` : undefined,
+      isPublic: true,
+      aiModel: "gpt-4o",
+    };
+
+    const response = await convex.mutation(api.courses.createAICourse, {
+      course: courseArg,
+      modules: modules.map((m) => ({
+        title: m.title,
+        description: m.description,
+        lessons: m.lessons.map((l: any) => ({
+          title: l.title,
+          description: l.description,
+          content: l.content,
+          durationMinutes: l.durationMinutes,
+          timestampStart: l.timestampStart,
+          timestampEnd: l.timestampEnd,
+          keyPoints: l.keyPoints || [],
+        })),
+      })),
+      assessmentPlan: undefined,
+    });
+
+    return { success: true, courseId: response };
+  } catch (error) {
+    console.error("Error saving generated course to public:", error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}

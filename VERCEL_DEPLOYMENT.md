@@ -31,11 +31,6 @@ Make sure to set the following environment variables in Vercel:
 
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Your Clerk publishable key
 - `CLERK_SECRET_KEY`: Your Clerk secret key
-- `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anonymous key
-- `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key
-- `NEXT_PUBLIC_ADK_SERVICE_URL`: URL to your deployed ADK service
-- `NEXT_PUBLIC_ADK_SERVICE_TIMEOUT`: Timeout for ADK service requests (300000 for 5 minutes)
 - `YOUTUBE_API_KEY`: Your YouTube API key
 
 ### 3. Deploy to Vercel

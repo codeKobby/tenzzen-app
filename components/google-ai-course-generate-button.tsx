@@ -7,7 +7,7 @@ import { toast } from "./custom-toast";
 import { useAnalysis } from "@/hooks/use-analysis-context";
 import { getYoutubeTranscript } from "@/actions/getYoutubeTranscript";
 import { generateCourseFromYoutube } from "@/actions/generateCourseFromYoutube";
-import { useSupabaseVideoQuery, useUpdateSupabaseVideoCourseData, useSaveSupabaseCourseToPublic } from "@/hooks/use-supabase-courses";
+import { useSupabaseVideoQuery, useUpdateSupabaseVideoCourseData, useSaveSupabaseCourseToPublic } from "@/hooks/use-courses";
 import { useAuth } from "@/hooks/use-auth";
 
 interface GoogleAICourseGenerateButtonProps {

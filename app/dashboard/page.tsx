@@ -20,7 +20,7 @@ import { useUser } from "@clerk/clerk-react";
 import { EnhancedActivityChart } from '@/components/dashboard/enhanced-activity-chart';
 import { WeeklyCalendar } from '@/components/dashboard/weekly-calendar';
 import { CourseGenerationModal } from '@/components/modals/course-generation-modal';
-import { useUserStats, useRecentCourses, useRecentActivities, useLearningTrends } from '@/hooks/use-supabase-dashboard';
+import { useUserStats, useRecentCourses, useRecentActivities, useLearningTrends } from '@/hooks/use-dashboard';
 import { useUserActivity } from '@/hooks/use-user-activity';
 import { useStreak } from '@/hooks/use-streak';
 import { useStreakCelebration } from '@/hooks/use-streak-celebration';
@@ -28,7 +28,7 @@ import { StreakCelebrationPopup } from '@/components/streak/streak-celebration-p
 import { AnimatedEmoji } from '@/components/streak/animated-emoji';
 
 // Import interfaces from our hook
-import type { Course, LearningActivity, UserStats } from '@/hooks/use-supabase-dashboard';
+import type { Course, LearningActivity, UserStats } from '@/hooks/use-dashboard';
 
 interface StatChange {
   value: string;

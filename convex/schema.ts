@@ -15,6 +15,7 @@ export default defineSchema({
     views: v.optional(v.string()),
     likes: v.optional(v.string()),
     publishDate: v.optional(v.string()),
+    course_data: v.optional(v.any()),
     cachedAt: v.string()
   }).index("by_youtube_id", ["youtubeId"]),
 

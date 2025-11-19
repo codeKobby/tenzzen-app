@@ -1,4 +1,3 @@
 @echo off
-echo Starting ADK service...
-cd adk_service
-uvicorn server:app --reload
+echo ADK service removed from repository. This script is deprecated.
+exit /b 0

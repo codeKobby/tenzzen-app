@@ -56,8 +56,8 @@ export function useUserStats() {
   return {
     userStats: {
       total_learning_hours: totalLearningHours,
-      courses_in_progress: stats.enrollmentStats?.inProgressCourses ?? stats.enrollmentStats?.inProgress || 0,
-      courses_completed: stats.enrollmentStats?.completedCourses ?? stats.enrollmentStats?.completed || 0,
+      courses_in_progress: (stats.enrollmentStats?.inProgressCourses ?? stats.enrollmentStats?.inProgress) || 0,
+      courses_completed: (stats.enrollmentStats?.completedCourses ?? stats.enrollmentStats?.completed) || 0,
       projects_submitted: stats.createdCoursesCount ?? 0
     },
     loading: !stats

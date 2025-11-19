@@ -39,7 +39,7 @@
 ### Updated Files
 
 - `middleware.ts` - Removed Supabase imports
-- `hooks/use-supabase-dashboard.ts` - **✅ MIGRATED to Convex queries**
+- `hooks/use-dashboard.ts` - **✅ MIGRATED to Convex queries**
 - `hooks/use-streak.ts` - **✅ MIGRATED to Convex mutations**
 - `hooks/use-normalized-course.ts` - Removed unused useSupabase call
 - `hooks/use-categories.ts` - Removed unused useSupabase call
@@ -71,7 +71,7 @@ All stubbed hooks now include detailed TODO comments with:
 
 **Files with Implementation Guides:**
 
-- `hooks/use-supabase-dashboard.ts` - Dashboard stats and activities
+- `hooks/use-dashboard.ts` - Dashboard stats and activities
 - `hooks/use-streak.ts` - User login streak tracking
 - `app/courses/hooks/use-category-user-courses.ts` - Course enrollment system
 
@@ -109,7 +109,7 @@ courses: defineTable({...})
 
 ### 3. Dashboard Stats
 
-**Files**: `hooks/use-supabase-dashboard.ts`, `app/dashboard/page.tsx`
+**Files**: `hooks/use-dashboard.ts`, `app/dashboard/page.tsx`
 
 - User learning statistics
 - Recent courses
@@ -213,7 +213,7 @@ user_streaks: defineTable({
 **Total Files Modified**: 30+
 
 - **Deleted**: 12 API routes, 8+ library files, 4+ test/debug pages
-- **Migrated to Convex**: 3 hooks (use-streak, use-supabase-dashboard, use-category-user-courses)
+- **Migrated to Convex**: 3 hooks (use-streak, use-dashboard, use-category-user-courses)
 - **Stubbed**: 2 hooks (use-assessment)
 - **Syntax Fixes**: 3 files (header.tsx, video-content.tsx, page.tsx)
 - **Import Cleanup**: 20+ files had Supabase imports removed
@@ -232,7 +232,7 @@ user_streaks: defineTable({
 
 2. **✅ COMPLETED: Dashboard Queries**
    - ✅ Created `convex/dashboard.ts` with getUserStats, getRecentCourses, getLearningActivity
-   - ✅ Updated `hooks/use-supabase-dashboard.ts` to use Convex queries with real-time updates
+   - ✅ Updated `hooks/use-dashboard.ts` to use Convex queries with real-time updates
 
 3. **✅ COMPLETED: Enrollment System**
    - ✅ Created `convex/enrollments.ts` with getUserEnrollments, enrollInCourse, updateEnrollmentProgress

@@ -182,3 +182,51 @@ export const cachePlaylist = mutation({
     }
   }
 });
+
+// Save course data for a video (upsert into videos table)
+export const saveCourseData = mutation({
+  args: {
+    youtubeId: v.string(),
+    courseData: v.object({
+      title: v.optional(v.string()),
+      description: v.optional(v.string()),
+      image: v.optional(v.string()),
+      courseItems: v.optional(v.array(v.object({
+        title: v.string(),
+        content: v.optional(v.string()),
+        durationMinutes: v.optional(v.number()),
+      }))),
+      metadata: v.optional(v.object({})),
+      transcript: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("videos")
+      .withIndex("by_youtube_id", (q) => q.eq("youtubeId", args.youtubeId))
+      .unique();
+
+    const now = new Date().toISOString();
+
+    if (existing) {
+      const patchData: any = { updatedAt: now, course_data: args.courseData };
+      await ctx.db.patch(existing._id, patchData);
+      return existing._id;
+    }
+
+    // Build insert object only with defined fields to satisfy types
+    const insertData: any = {
+      youtubeId: args.youtubeId,
+      cachedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      course_data: args.courseData,
+    };
+
+    if (args.courseData.title) insertData.title = args.courseData.title;
+    if (args.courseData.description) insertData.description = args.courseData.description;
+    if (args.courseData.image) insertData.thumbnail = args.courseData.image;
+
+    return await ctx.db.insert("videos", insertData);
+  },
+});

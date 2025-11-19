@@ -11,7 +11,7 @@ Tenzzen is a **Next.js 15 App Router** application with a **Convex** backend, **
 - **Auth**: Clerk (JWT integration, see `convex/auth.config.ts`)
 - **AI**: Vercel AI SDK, Google Gemini (`@ai-sdk/google`, `ai`)
 - **UI**: shadcn/ui (Radix UI + Tailwind CSS)
-- **Python Service**: Optional ADK service (`adk_service/`)
+- **Python Service**: (removed) ADK service was removed from this repository. Use built-in `actions/` server actions instead.
 
 ## Essential Workflows
 
@@ -66,7 +66,7 @@ Set all required variables in `.env.local` (see `README.md` for details).
 - `components/` – Shared React components
 - `convex/` – Backend schema, queries, mutations
 - `actions/` – Server Actions
-- `adk_service/` – Optional Python AI service
+- `adk_service/` — (removed) previously an optional Python AI service
 - `middleware.ts` – Onboarding enforcement
 
 ````instructions
@@ -99,7 +99,7 @@ Important files to inspect when editing features
 - `convex/schema.ts` — database schema and indexes (required for queries).
 - `actions/` — server-only entry points for heavy tasks (YouTube fetch, AI generation).
 - `lib/ai/client.ts` — AI client wrappers used by server actions.
-- `adk_service/` — optional FastAPI Python service; controlled by `NEXT_PUBLIC_ADK_SERVICE_URL` when present. Local runner: `start-adk-service.bat` / `deploy.sh`.
+- `adk_service/` — (removed) previously an optional FastAPI Python service. Use `actions/recommendVideos` and `lib/ai/client.ts` instead.
 - `middleware.ts` — global routing + onboarding enforcement.
 
 Integration notes & examples
@@ -117,6 +117,6 @@ When making edits
 
 If something is unclear, open a PR or ask the repo owner with a short note referencing the file(s) you changed.
 
-Examples to inspect for patterns: `actions/generateCourseFromYoutube.ts`, `app/ConvexClientProvider.tsx`, `convex/schema.ts`, `adk_service/server.py`.
+Examples to inspect for patterns: `actions/generateCourseFromYoutube.ts`, `app/ConvexClientProvider.tsx`, `convex/schema.ts`.
 
 ````

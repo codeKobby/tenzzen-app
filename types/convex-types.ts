@@ -1,6 +1,6 @@
-/**
+/*
  * This file contains type definitions to replace Convex-generated types
- * These are temporary until a proper Supabase implementation is created
+ * These are kept as internal shared types for the app.
  */
 
 // Replacement for Convex Id type

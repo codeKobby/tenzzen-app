@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as activity from "../activity.js";
 import type * as categories from "../categories.js";
 import type * as courses from "../courses.js";
 import type * as dashboard from "../dashboard.js";
@@ -35,6 +36,7 @@ import type * as youtubeTypes from "../youtubeTypes.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  activity: typeof activity;
   categories: typeof categories;
   courses: typeof courses;
   dashboard: typeof dashboard;
