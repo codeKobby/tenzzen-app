@@ -1,4 +1,4 @@
-'use server'
+"use server";
 
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -18,7 +18,11 @@ export async function saveGeneratedCourseToPublic(
     description?: string;
     videoId?: string;
     thumbnail?: string;
-    courseItems?: Array<{ title: string; content?: string; durationMinutes?: number }>;
+    courseItems?: Array<{
+      title: string;
+      content?: string;
+      durationMinutes?: number;
+    }>;
     metadata?: Record<string, any>;
     transcript?: string;
   },
@@ -83,7 +87,10 @@ export async function saveGeneratedCourseToPublic(
       resources: payload.metadata?.resources ?? [],
       sourceType: "youtube" as const,
       sourceId: payload.videoId,
-      sourceUrl: payload.videoId ? `https://www.youtube.com/watch?v=${payload.videoId}` : undefined,
+      sourceUrl:
+        payload.videoId ?
+          `https://www.youtube.com/watch?v=${payload.videoId}`
+        : undefined,
       isPublic: true,
       aiModel: "gpt-4o",
     };
@@ -109,6 +116,9 @@ export async function saveGeneratedCourseToPublic(
     return { success: true, courseId: response };
   } catch (error) {
     console.error("Error saving generated course to public:", error);
-    return { success: false, error: error instanceof Error ? error.message : String(error) };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }

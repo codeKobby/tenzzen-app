@@ -223,6 +223,7 @@ user_streaks: defineTable({
 ## 📝 Next Steps
 
 1. **✅ COMPLETED: Convex Schema Extensions**
+
    - ✅ Added `categories` table to `convex/schema.ts`
    - ✅ Added `user_enrollments` table to `convex/schema.ts`
    - ✅ Added `user_streaks` table to `convex/schema.ts`
@@ -231,19 +232,23 @@ user_streaks: defineTable({
    - ✅ Added proper indexes for efficient querying
 
 2. **✅ COMPLETED: Dashboard Queries**
+
    - ✅ Created `convex/dashboard.ts` with getUserStats, getRecentCourses, getLearningActivity
    - ✅ Updated `hooks/use-dashboard.ts` to use Convex queries with real-time updates
 
 3. **✅ COMPLETED: Enrollment System**
+
    - ✅ Created `convex/enrollments.ts` with getUserEnrollments, enrollInCourse, updateEnrollmentProgress
    - ✅ Updated `app/courses/hooks/use-category-user-courses.ts` to use Convex queries
    - ✅ Course pages now use Convex enrollment data with real-time updates
 
 4. **✅ COMPLETED: Streak Tracking**
+
    - ✅ Created `convex/streaks.ts` with getStreak, checkInStreak mutations
    - ✅ Updated `hooks/use-streak.ts` to use Convex with real-time streak updates
 
 5. **Testing & Validation** (Priority: High)
+
    - Test all CRUD operations for enrollments
    - Verify real-time updates work correctly
    - Ensure Clerk authentication integrates properly

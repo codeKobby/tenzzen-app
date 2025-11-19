@@ -10,10 +10,15 @@ export const getTodayActiveMinutes = query({
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
 
-    const todayRecord = records.find(r => r.activityType === "active_minutes" && r.metadata && r.metadata.date === args.date);
+    const todayRecord = records.find(
+      (r) =>
+        r.activityType === "active_minutes" &&
+        r.metadata &&
+        r.metadata.date === args.date
+    );
     if (!todayRecord) return null;
     return todayRecord.metadata?.minutes ?? null;
-  }
+  },
 });
 
 // Upsert active minutes for today
@@ -25,13 +30,18 @@ export const upsertActiveMinutes = mutation({
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
 
-    const todayRecord = existing.find(r => r.activityType === "active_minutes" && r.metadata && r.metadata.date === args.date);
+    const todayRecord = existing.find(
+      (r) =>
+        r.activityType === "active_minutes" &&
+        r.metadata &&
+        r.metadata.date === args.date
+    );
     const now = new Date().toISOString();
 
     if (todayRecord) {
       await ctx.db.patch(todayRecord._id, {
         metadata: { ...todayRecord.metadata, minutes: args.minutes },
-        createdAt: now
+        createdAt: now,
       });
       return { success: true };
     }
@@ -42,9 +52,9 @@ export const upsertActiveMinutes = mutation({
       entityId: args.userId,
       entityType: "user",
       createdAt: now,
-      metadata: { date: args.date, minutes: args.minutes }
+      metadata: { date: args.date, minutes: args.minutes },
     });
 
     return { success: true };
-  }
+  },
 });

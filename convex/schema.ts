@@ -16,7 +16,7 @@ export default defineSchema({
     likes: v.optional(v.string()),
     publishDate: v.optional(v.string()),
     course_data: v.optional(v.any()),
-    cachedAt: v.string()
+    cachedAt: v.string(),
   }).index("by_youtube_id", ["youtubeId"]),
 
   // Playlists table - for caching playlists (without videos field)
@@ -30,7 +30,7 @@ export default defineSchema({
     channelAvatar: v.optional(v.string()),
     publishDate: v.optional(v.string()),
     videoCount: v.optional(v.float64()),
-    cachedAt: v.string()
+    cachedAt: v.string(),
   }).index("by_youtube_id", ["youtubeId"]),
 
   // Playlist-video relations table
@@ -38,8 +38,9 @@ export default defineSchema({
     playlistId: v.string(),
     videoId: v.string(),
     position: v.float64(),
-    cachedAt: v.string()
-  }).index("by_playlist", ["playlistId"])
+    cachedAt: v.string(),
+  })
+    .index("by_playlist", ["playlistId"])
     .index("by_video", ["videoId"]),
 
   // AI-generated courses
@@ -54,29 +55,41 @@ export default defineSchema({
     targetAudience: v.string(),
     estimatedDuration: v.string(),
     tags: v.array(v.string()), // Specific keywords
-    resources: v.array(v.object({
-      title: v.string(),
-      url: v.string(),
-      type: v.string(),
-      description: v.optional(v.string()),
-      category: v.string(), // "Creator Links" or "Other Resources"
-    })),
-    assessmentPlan: v.optional(v.object({
-      quizLocations: v.array(v.object({
-        afterModule: v.optional(v.number()),
-        afterLesson: v.optional(v.object({
-          moduleIndex: v.number(),
-          lessonIndex: v.number(),
-        })),
-        type: v.literal('quiz'),
-      })),
-      hasEndOfCourseTest: v.boolean(),
-      hasFinalProject: v.boolean(),
-      projectDescription: v.optional(v.string()),
-    })),
+    resources: v.array(
+      v.object({
+        title: v.string(),
+        url: v.string(),
+        type: v.string(),
+        description: v.optional(v.string()),
+        category: v.string(), // "Creator Links" or "Other Resources"
+      })
+    ),
+    assessmentPlan: v.optional(
+      v.object({
+        quizLocations: v.array(
+          v.object({
+            afterModule: v.optional(v.number()),
+            afterLesson: v.optional(
+              v.object({
+                moduleIndex: v.number(),
+                lessonIndex: v.number(),
+              })
+            ),
+            type: v.literal("quiz"),
+          })
+        ),
+        hasEndOfCourseTest: v.boolean(),
+        hasFinalProject: v.boolean(),
+        projectDescription: v.optional(v.string()),
+      })
+    ),
 
     // Source information
-    sourceType: v.union(v.literal('youtube'), v.literal('manual'), v.literal('topic')),
+    sourceType: v.union(
+      v.literal("youtube"),
+      v.literal("manual"),
+      v.literal("topic")
+    ),
     sourceId: v.optional(v.string()), // YouTube video ID or playlist ID
     sourceUrl: v.optional(v.string()),
 
@@ -86,10 +99,10 @@ export default defineSchema({
     isPublished: v.boolean(),
     enrollmentCount: v.number(),
     rating: v.optional(v.number()),
-    categoryId: v.optional(v.id('categories')),
+    categoryId: v.optional(v.id("categories")),
 
     // AI generation metadata
-    generatedBy: v.literal('ai'),
+    generatedBy: v.literal("ai"),
     aiModel: v.string(),
     generatedAt: v.string(),
 
@@ -97,83 +110,81 @@ export default defineSchema({
     createdAt: v.string(),
     updatedAt: v.string(),
   })
-    .index('by_user', ['createdBy'])
-    .index('by_source', ['sourceType', 'sourceId'])
-    .index('by_public', ['isPublic', 'isPublished'])
-    .index('by_category', ['categoryId']),
+    .index("by_user", ["createdBy"])
+    .index("by_source", ["sourceType", "sourceId"])
+    .index("by_public", ["isPublic", "isPublished"])
+    .index("by_category", ["categoryId"]),
 
   // Course modules
   modules: defineTable({
-    courseId: v.id('courses'),
+    courseId: v.id("courses"),
     title: v.string(),
     description: v.string(),
     order: v.number(),
 
     createdAt: v.string(),
     updatedAt: v.string(),
-  })
-    .index('by_course', ['courseId']),
+  }).index("by_course", ["courseId"]),
 
   // Course lessons
   lessons: defineTable({
-    moduleId: v.id('modules'),
-    courseId: v.id('courses'),
+    moduleId: v.id("modules"),
+    courseId: v.id("courses"),
     title: v.string(),
     description: v.string(),
     content: v.string(),
     durationMinutes: v.number(),
     timestampStart: v.optional(v.string()), // Video timestamp start \"0:00:00\"
-    timestampEnd: v.optional(v.string()),   // Video timestamp end \"0:13:00\"
+    timestampEnd: v.optional(v.string()), // Video timestamp end \"0:13:00\"
     keyPoints: v.array(v.string()),
     order: v.number(),
 
     // Video association
-    videoId: v.optional(v.id('videos')),
+    videoId: v.optional(v.id("videos")),
 
     createdAt: v.string(),
     updatedAt: v.string(),
   })
-    .index('by_module', ['moduleId'])
-    .index('by_course', ['courseId']),
+    .index("by_module", ["moduleId"])
+    .index("by_course", ["courseId"]),
 
   // AI-generated quizzes
   quizzes: defineTable({
-    lessonId: v.optional(v.id('lessons')),
-    moduleId: v.optional(v.id('modules')),
-    courseId: v.id('courses'),
+    lessonId: v.optional(v.id("lessons")),
+    moduleId: v.optional(v.id("modules")),
+    courseId: v.id("courses"),
 
     title: v.string(),
     description: v.string(),
     passingScore: v.number(),
 
     // AI generation metadata
-    generatedBy: v.literal('ai'),
+    generatedBy: v.literal("ai"),
     aiModel: v.string(),
 
     createdAt: v.string(),
     updatedAt: v.string(),
   })
-    .index('by_course', ['courseId'])
-    .index('by_lesson', ['lessonId'])
-    .index('by_module', ['moduleId']),
+    .index("by_course", ["courseId"])
+    .index("by_lesson", ["lessonId"])
+    .index("by_module", ["moduleId"]),
 
   // Quiz questions
   quizQuestions: defineTable({
-    quizId: v.id('quizzes'),
+    quizId: v.id("quizzes"),
     question: v.string(),
     options: v.array(v.string()),
     correctAnswer: v.number(),
     explanation: v.string(),
     difficulty: v.union(
-      v.literal('easy'),
-      v.literal('medium'),
-      v.literal('hard')
+      v.literal("easy"),
+      v.literal("medium"),
+      v.literal("hard")
     ),
     order: v.number(),
 
     createdAt: v.string(),
-  })
-    .index('by_quiz', ['quizId']),
+  }).index("by_quiz", ["quizId"]),
 
   // Categories for course organization
   categories: defineTable({
@@ -186,33 +197,32 @@ export default defineSchema({
 
     createdAt: v.string(),
     updatedAt: v.string(),
-  })
-    .index('by_active', ['isActive']),
+  }).index("by_active", ["isActive"]),
 
   // User course enrollments
   user_enrollments: defineTable({
     userId: v.string(), // Clerk user ID
-    courseId: v.id('courses'),
+    courseId: v.id("courses"),
     enrolledAt: v.string(),
     lastAccessedAt: v.optional(v.string()),
     progress: v.number(), // 0-100 percentage
     isCompleted: v.boolean(),
     completedAt: v.optional(v.string()),
   })
-    .index('by_user_course', ['userId', 'courseId'])
-    .index('by_user', ['userId']) // Added for dashboard queries
-    .index('by_course', ['courseId']), // Added for course-specific queries
+    .index("by_user_course", ["userId", "courseId"])
+    .index("by_user", ["userId"]) // Added for dashboard queries
+    .index("by_course", ["courseId"]), // Added for course-specific queries
 
   // User progress on a lesson-by-lesson basis
   lesson_progress: defineTable({
     userId: v.string(),
-    courseId: v.id('courses'),
-    lessonId: v.id('lessons'),
+    courseId: v.id("courses"),
+    lessonId: v.id("lessons"),
     isCompleted: v.boolean(),
     completedAt: v.optional(v.string()),
   })
-    .index('by_user_course', ['userId', 'courseId'])
-    .index('by_lesson', ['lessonId']),
+    .index("by_user_course", ["userId", "courseId"])
+    .index("by_lesson", ["lessonId"]),
 
   // User activity for streaks
   user_activities: defineTable({
@@ -222,7 +232,7 @@ export default defineSchema({
     entityType: v.optional(v.string()), // 'lesson', 'quiz', 'course'
     createdAt: v.string(),
     metadata: v.optional(v.any()),
-  }).index('by_user', ['userId']),
+  }).index("by_user", ["userId"]),
 
   // User streaks
   user_streaks: defineTable({
@@ -231,25 +241,27 @@ export default defineSchema({
     longestStreak: v.number(),
     lastCheckIn: v.string(), // YYYY-MM-DD
     weeklyActivity: v.array(v.number()), // 7 numbers for last 7 days
-  }).index('by_user', ['userId']),
+  }).index("by_user", ["userId"]),
 
   // User progress tracking
   userProgress: defineTable({
     userId: v.string(), // Clerk user ID
-    courseId: v.id('courses'),
+    courseId: v.id("courses"),
     lastCompletedLesson: v.optional(v.number()),
     // Store lessonId (Convex id) and time to avoid ambiguous numeric indexes
-    lastPlaybackTime: v.optional(v.object({
-      lessonId: v.id('lessons'),
-      time: v.number()
-    }))
-  }).index('by_user_course', ['userId', 'courseId']),
+    lastPlaybackTime: v.optional(
+      v.object({
+        lessonId: v.id("lessons"),
+        time: v.number(),
+      })
+    ),
+  }).index("by_user_course", ["userId", "courseId"]),
 
   // User quiz attempts
   user_quiz_attempts: defineTable({
     userId: v.string(), // Clerk user ID
-    quizId: v.id('quizzes'),
-    courseId: v.id('courses'),
+    quizId: v.id("quizzes"),
+    courseId: v.id("courses"),
     score: v.number(),
     maxScore: v.number(),
     durationSeconds: v.number(),
@@ -258,18 +270,20 @@ export default defineSchema({
     isPassed: v.boolean(),
 
     // Metadata
-    metadata: v.optional(v.object({
-      // Additional fields can be added here
-    })),
+    metadata: v.optional(
+      v.object({
+        // Additional fields can be added here
+      })
+    ),
 
     // AI generation metadata
-    generatedBy: v.literal('ai'),
+    generatedBy: v.literal("ai"),
     aiModel: v.string(),
 
     createdAt: v.string(),
     updatedAt: v.string(),
   })
-    .index('by_user', ['userId'])
-    .index('by_quiz', ['quizId'])
-    .index('by_course', ['courseId']),
+    .index("by_user", ["userId"])
+    .index("by_quiz", ["quizId"])
+    .index("by_course", ["courseId"]),
 });

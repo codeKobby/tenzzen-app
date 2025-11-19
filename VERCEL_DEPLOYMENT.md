@@ -37,6 +37,7 @@ Make sure to set the following environment variables in Vercel:
 
 1. Connect your GitHub repository to Vercel
 2. Configure the build settings:
+
    - Build Command: `pnpm run build`
    - Output Directory: `.next`
    - Install Command: `pnpm install --no-frozen-lockfile`
@@ -49,15 +50,18 @@ Make sure to set the following environment variables in Vercel:
 If you encounter deployment issues:
 
 1. **Lock file issues**: If you see errors related to the pnpm-lock.yaml file, try:
+
    - Regenerating the lock file locally with `pnpm install --no-frozen-lockfile`
    - Committing the updated lock file
    - Redeploying
 
 2. **ESLint errors**: The project is configured to ignore ESLint errors during build. If you still see ESLint errors:
+
    - Check that the `next.config.js` file has `eslint.ignoreDuringBuilds: true`
    - Run `pnpm lint --fix` locally to fix any issues
 
 3. **TypeScript errors**: The project is configured to ignore TypeScript errors during build. If you still see TypeScript errors:
+
    - Check that the `next.config.js` file has `typescript.ignoreBuildErrors: true`
    - Run `pnpm tsc --noEmit` locally to check for errors
 

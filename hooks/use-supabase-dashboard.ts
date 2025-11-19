@@ -80,13 +80,11 @@ export function useUserStats() {
     userStats: {
       total_learning_hours: totalLearningHours,
       courses_in_progress:
-        (stats.enrollmentStats?.inProgressCourses ??
-          stats.enrollmentStats?.inProgress) ||
-        0,
+        stats.enrollmentStats?.inProgressCourses ??
+        (stats.enrollmentStats?.inProgress || 0),
       courses_completed:
-        (stats.enrollmentStats?.completedCourses ??
-          stats.enrollmentStats?.completed) ||
-        0,
+        stats.enrollmentStats?.completedCourses ??
+        (stats.enrollmentStats?.completed || 0),
       projects_submitted: stats.createdCoursesCount ?? 0,
     },
     loading: !stats,

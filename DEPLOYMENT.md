@@ -7,6 +7,7 @@ This document provides instructions for deploying the Tenzzen app to Vercel and 
 1. Push your code to GitHub.
 2. Connect your GitHub repository to Vercel.
 3. Configure the following environment variables in Vercel:
+
    - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Your Clerk publishable key
    - `CLERK_SECRET_KEY`: Your Clerk secret key
    - `YOUTUBE_API_KEY`: Your YouTube API key
@@ -18,6 +19,7 @@ This document provides instructions for deploying the Tenzzen app to Vercel and 
 The project includes the following configuration files for Vercel deployment:
 
 1. **vercel.json**: Configures the build process for Vercel
+
    ```json
    {
      "framework": "nextjs",
@@ -28,6 +30,7 @@ The project includes the following configuration files for Vercel deployment:
    ```
 
 2. **.npmrc**: Ensures consistent package installation behavior
+
    ```
    auto-install-peers=true
    node-linker=hoisted

@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { saveGeneratedCourseToPublic as serverSaveGeneratedCourseToPublic } from "@/actions/saveGeneratedCourseToPublic";
 
-// Backwards-compatible hook names for callers
+// Keep export names matching previous Supabase hook names so components don't need changes
 export function useSupabaseVideoQuery(youtubeId: string) {
   const id = youtubeId || "";
   const data = useQuery(api.videos.getCachedVideo, { youtubeId: id });
@@ -36,6 +36,7 @@ export function useSaveSupabaseCourseToPublic() {
     courseData: any;
     userId?: string;
   }) {
+    // Call server action that uses Convex createAICourse mutation
     return await serverSaveGeneratedCourseToPublic(courseData, { userId });
   }
 

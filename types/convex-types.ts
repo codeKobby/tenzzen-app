@@ -21,8 +21,8 @@ export interface Course extends Doc {
   thumbnail?: string;
   isPublic: boolean;
   createdBy: string;
-  status: 'draft' | 'published' | 'archived';
-  difficulty: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  status: "draft" | "published" | "archived";
+  difficulty: "beginner" | "intermediate" | "advanced" | "expert";
   estimatedDuration?: number;
   estimatedHours?: number;
   tags?: string[];
@@ -35,7 +35,7 @@ export interface Assessment extends Doc {
   courseId: Id<"courses">;
   title: string;
   description: string;
-  type: 'quiz' | 'project' | 'assignment';
+  type: "quiz" | "project" | "assignment";
   questions?: any[];
   instructions?: string;
   projectRequirements?: string[];
@@ -46,7 +46,7 @@ export interface Assessment extends Doc {
     type: string;
   }[];
   deadline?: number;
-  difficulty?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  difficulty?: "beginner" | "intermediate" | "advanced" | "expert";
   estimatedTime?: number;
   passingScore?: number;
   allowRetries?: boolean;
@@ -57,7 +57,7 @@ export interface Assessment extends Doc {
 export interface Progress extends Doc {
   userId: string;
   assessmentId: Id<"assessments">;
-  status: 'not_started' | 'in_progress' | 'completed' | 'graded';
+  status: "not_started" | "in_progress" | "completed" | "graded";
   score?: number;
   feedback?: any;
   submission?: any;
@@ -91,7 +91,7 @@ export interface ProjectSubmission extends Doc {
   submissionUrl?: string;
   fileIds?: string[];
   notes?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'revision_requested';
+  status: "pending" | "approved" | "rejected" | "revision_requested";
   feedback?: string;
   grade?: number;
   submittedAt: number;
