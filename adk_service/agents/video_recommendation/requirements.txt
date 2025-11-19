@@ -1,9 +1,0 @@
-google-adk
-google-generativeai
-python-dotenv
-fastapi
-uvicorn[standard]
-pydantic
-youtube-transcript-api
-isodate
-requests
