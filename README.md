@@ -2,59 +2,47 @@
 
 A Next.js application with Convex backend and Clerk authentication.
 
+## Documentation
+
+For a comprehensive overview of the project, features, and architecture, please see [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md).
+
+For deployment instructions, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Quick Start
+
+1.  **Install dependencies**:
+
+    ```bash
+    pnpm install
+    ```
+
+2.  **Start Convex**:
+
+    ```bash
+    pnpm convex
+    ```
+
+3.  **Start Next.js**:
+    ```bash
+    pnpm dev
+    ```
+
 ## Technology Stack
 
-- **Frontend**: Next.js 14 with App Router
+- **Frontend**: Next.js 15 with App Router
 - **Backend**: Convex
 - **Authentication**: Clerk
-- **Styling**: Tailwind CSS
-- **UI Components**: Radix UI
-
-## Setup
-
-1. Clone the repository
-```bash
-git clone https://github.com/yourusername/tenzzen-app.git
-cd tenzzen-app
-```
-
-- Node.js 18+ 
-- npm or pnpm
-- A Clerk account
-- A Convex account
-
-### Setup
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd tenzzen
-```
-
-2. Install dependencies:
-```bash
-pnpm install
-```
-
-3. Environment Variables:
-Copy `.env.local.example` to `.env.local` and fill in your credentials:
-
-```bash
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
-CLERK_JWT_ISSUER_DOMAIN=your_clerk_issuer_domain
-
-# Convex
-NEXT_PUBLIC_CONVEX_URL=your_convex_deployment_url
-```
+- **AI**: Vercel AI SDK (Google Gemini)
+- **Styling**: Tailwind CSS + shadcn/ui
 
 4. Initialize Convex:
+
 ```bash
 npx convex dev
 ```
 
 5. Start the development server:
+
 ```bash
 pnpm dev
 ```
@@ -71,11 +59,13 @@ pnpm dev
 ### Convex Setup
 
 1. Initialize Convex in your project:
+
 ```bash
 npx convex init
 ```
 
 2. The schema and authentication are already configured in:
+
 - `convex/schema.ts`: Database schema
 - `convex/auth.config.ts`: Authentication configuration
 - `convex/videos.ts`: API endpoints
@@ -110,11 +100,13 @@ npx convex init
 ## Deployment
 
 1. Deploy to Vercel:
+
 ```bash
 vercel deploy
 ```
 
 2. Deploy Convex:
+
 ```bash
 npx convex deploy
 ```

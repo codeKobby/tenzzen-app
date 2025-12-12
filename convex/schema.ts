@@ -64,6 +64,34 @@ export default defineSchema({
         category: v.string(), // "Creator Links" or "Other Resources"
       })
     ),
+    // Denormalized preview fields used by the dashboard UI
+    sections: v.optional(
+      v.array(
+        v.object({
+          title: v.string(),
+          description: v.string(),
+          lessons: v.array(
+            v.object({
+              title: v.string(),
+              description: v.string(),
+              content: v.string(),
+              durationMinutes: v.number(),
+              timestampStart: v.optional(v.string()),
+              timestampEnd: v.optional(v.string()),
+              keyPoints: v.array(v.string()),
+            })
+          ),
+        })
+      )
+    ),
+    overview: v.optional(
+      v.object({
+        skills: v.array(v.string()),
+        difficulty_level: v.string(),
+        total_duration: v.string(),
+      })
+    ),
+    thumbnail: v.optional(v.string()),
     assessmentPlan: v.optional(
       v.object({
         quizLocations: v.array(

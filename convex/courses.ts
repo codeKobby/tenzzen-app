@@ -16,14 +16,18 @@ export const createAICourse = mutation({
       targetAudience: v.string(),
       estimatedDuration: v.string(),
       tags: v.array(v.string()),
-      resources: v.array(v.object({
-        title: v.string(),
-        url: v.string(),
-        type: v.string(),
-        description: v.optional(v.string()),
-        category: v.string(),
-        provenance: v.optional(v.union(v.literal("found"), v.literal("suggested"))),
-      })),
+      resources: v.array(
+        v.object({
+          title: v.string(),
+          url: v.string(),
+          type: v.string(),
+          description: v.optional(v.string()),
+          category: v.string(),
+          provenance: v.optional(
+            v.union(v.literal("found"), v.literal("suggested"))
+          ),
+        })
+      ),
       sourceType: v.union(
         v.literal("youtube"),
         v.literal("manual"),
@@ -33,6 +37,7 @@ export const createAICourse = mutation({
       sourceUrl: v.optional(v.string()),
       isPublic: v.boolean(),
       aiModel: v.string(),
+      thumbnail: v.optional(v.string()),
     }),
     modules: v.array(
       v.object({
@@ -51,19 +56,25 @@ export const createAICourse = mutation({
         ),
       })
     ),
-    assessmentPlan: v.optional(v.object({
-      quizLocations: v.array(v.object({
-        afterModule: v.optional(v.number()),
-        afterLesson: v.optional(v.object({
-          moduleIndex: v.number(),
-          lessonIndex: v.number(),
-        })),
-        type: v.literal('quiz'),
-      })),
-      hasEndOfCourseTest: v.boolean(),
-      hasFinalProject: v.boolean(),
-      projectDescription: v.optional(v.string()),
-    })),
+    assessmentPlan: v.optional(
+      v.object({
+        quizLocations: v.array(
+          v.object({
+            afterModule: v.optional(v.number()),
+            afterLesson: v.optional(
+              v.object({
+                moduleIndex: v.number(),
+                lessonIndex: v.number(),
+              })
+            ),
+            type: v.literal("quiz"),
+          })
+        ),
+        hasEndOfCourseTest: v.boolean(),
+        hasFinalProject: v.boolean(),
+        projectDescription: v.optional(v.string()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getUserId(ctx);
@@ -134,6 +145,51 @@ export const createAICourse = mutation({
   },
 });
 
+// Patch course to include a denormalized preview (sections + overview + thumbnail)
+export const patchCoursePreview = mutation({
+  args: {
+    courseId: v.id("courses"),
+    preview: v.object({
+      sections: v.array(
+        v.object({
+          title: v.string(),
+          description: v.string(),
+          lessons: v.array(
+            v.object({
+              title: v.string(),
+              description: v.string(),
+              content: v.string(),
+              durationMinutes: v.number(),
+              timestampStart: v.optional(v.string()),
+              timestampEnd: v.optional(v.string()),
+              keyPoints: v.array(v.string()),
+            })
+          ),
+        })
+      ),
+      overview: v.optional(
+        v.object({
+          skills: v.array(v.string()),
+          difficulty_level: v.string(),
+          total_duration: v.string(),
+        })
+      ),
+      thumbnail: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.courseId, {
+      sections: args.preview.sections,
+      overview: args.preview.overview,
+      thumbnail: args.preview.thumbnail,
+      updatedAt: now,
+    });
+
+    return await ctx.db.get(args.courseId);
+  },
+});
+
 // Query to get full course with modules and lessons
 export const getCourseWithContent = query({
   args: { courseId: v.id("courses") },
@@ -173,7 +229,7 @@ export const getCourseBySourceId = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("courses")
-      .withIndex("by_source", (q) => 
+      .withIndex("by_source", (q) =>
         q.eq("sourceType", "youtube").eq("sourceId", args.sourceId)
       )
       .filter((q) => q.eq(q.field("createdBy"), args.userId))
@@ -229,7 +285,7 @@ export const deleteCourse = mutation({
       .query("lessons")
       .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
       .collect();
-    
+
     for (const lesson of lessons) {
       await ctx.db.delete(lesson._id);
     }
@@ -239,7 +295,7 @@ export const deleteCourse = mutation({
       .query("modules")
       .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
       .collect();
-    
+
     for (const module of modules) {
       await ctx.db.delete(module._id);
     }
@@ -249,7 +305,7 @@ export const deleteCourse = mutation({
       .query("user_enrollments")
       .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
       .collect();
-    
+
     for (const enrollment of enrollments) {
       await ctx.db.delete(enrollment._id);
     }

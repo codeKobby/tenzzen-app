@@ -77,6 +77,7 @@ export async function saveGeneratedCourseToPublic(
       title: payload.title,
       description: payload.description ?? "",
       detailedOverview: payload.description ?? "",
+      thumbnail: payload.thumbnail,
       category: payload.metadata?.category ?? "Uncategorized",
       difficulty: payload.metadata?.difficulty ?? "Intermediate",
       learningObjectives: payload.metadata?.learningObjectives ?? [],
@@ -113,7 +114,73 @@ export async function saveGeneratedCourseToPublic(
       assessmentPlan: undefined,
     });
 
-    return { success: true, courseId: response };
+    // Response is the new courseId
+    const courseId = response;
+
+    // Fetch the inserted course with modules & lessons from Convex
+    try {
+      const fullCourse = await convex.query(api.courses.getCourseWithContent, {
+        courseId,
+      });
+
+      if (fullCourse) {
+        // Normalize modules -> sections for the dashboard UI
+        const sections = (fullCourse.modules || []).map((m: any) => ({
+          title: m.title,
+          description: m.description || "",
+          lessons: (m.lessons || []).map((l: any) => ({
+            title: l.title,
+            description: l.description || "",
+            content: l.content || "",
+            durationMinutes: l.durationMinutes || 0,
+            timestampStart: l.timestampStart,
+            timestampEnd: l.timestampEnd,
+            keyPoints: l.keyPoints || [],
+          })),
+        }));
+
+        // Build a lightweight overview the dashboard expects
+        const overview = {
+          skills:
+            payload.metadata?.skills ??
+            sections
+              .flatMap((s) => s.lessons.map((l: any) => l.title))
+              .slice(0, 8),
+          difficulty_level: courseArg.difficulty || "Beginner",
+          total_duration:
+            courseArg.estimatedDuration ||
+            payload.metadata?.estimatedDuration ||
+            "",
+        };
+
+        // Patch course record with denormalized preview so that getRecentCourses includes sections/overview
+        await convex.mutation(api.courses.patchCoursePreview, {
+          courseId,
+          preview: {
+            sections,
+            overview,
+            thumbnail: payload.thumbnail,
+          },
+        });
+      }
+    } catch (err) {
+      // Non-fatal: patching preview failed. Still return success but log.
+      console.warn("Warning: failed to patch course preview", err);
+    }
+
+    // If caller provided a userId, enroll them in the new course so it appears in recentCourses
+    try {
+      if (options?.userId) {
+        await convex.mutation(api.enrollments.enrollInCourse, {
+          userId: options.userId,
+          courseId,
+        });
+      }
+    } catch (err) {
+      console.warn("Warning: failed to enroll user in generated course", err);
+    }
+
+    return { success: true, courseId };
   } catch (error) {
     console.error("Error saving generated course to public:", error);
     return {

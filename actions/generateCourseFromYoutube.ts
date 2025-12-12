@@ -1,4 +1,4 @@
-'use server'
+"use server";
 
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -8,7 +8,10 @@ import { getVideoDetails, getPlaylistDetails } from "./getYoutubeData";
 import { getYoutubeTranscript } from "./getYoutubeTranscript";
 import type { Id } from "@/convex/_generated/dataModel";
 import { auth } from "@clerk/nextjs/server";
-import { getCachedTranscript, setCachedTranscript } from "@/lib/server/transcript-cache";
+import {
+  getCachedTranscript,
+  setCachedTranscript,
+} from "@/lib/server/transcript-cache";
 
 interface GenerateCourseResult {
   success: boolean;
@@ -27,7 +30,7 @@ export async function generateCourseFromYoutube(
     // Get authentication token from Clerk
     const { getToken } = await auth();
     const token = await getToken({ template: "convex" });
-    
+
     if (!token) {
       return {
         success: false,
@@ -41,8 +44,10 @@ export async function generateCourseFromYoutube(
 
     // Step 1: Parse YouTube URL and fetch data
     console.log("Parsing YouTube URL...");
-    const urlPattern = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    const playlistPattern = /(?:youtube\.com\/(?:playlist\?|.*[?&]list=)|youtu\.be\/.*[?&]list=)([^"&?\/\s]+)/;
+    const urlPattern =
+      /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const playlistPattern =
+      /(?:youtube\.com\/(?:playlist\?|.*[?&]list=)|youtu\.be\/.*[?&]list=)([^"&?\/\s]+)/;
 
     let videoId: string | null = null;
     let playlistId: string | null = null;
@@ -89,7 +94,10 @@ export async function generateCourseFromYoutube(
     });
 
     if (existingCourse) {
-      console.log("Course already exists, returning existing course ID:", existingCourse._id);
+      console.log(
+        "Course already exists, returning existing course ID:",
+        existingCourse._id
+      );
       return {
         success: true,
         courseId: existingCourse._id,
@@ -126,8 +134,11 @@ export async function generateCourseFromYoutube(
     // Step 3: Generate course outline with AI
     console.log("Generating course outline with AI...");
     console.log("Video description length:", data.description?.length || 0);
-    console.log("Video description preview:", data.description?.substring(0, 500) || "No description");
-    
+    console.log(
+      "Video description preview:",
+      data.description?.substring(0, 500) || "No description"
+    );
+
     // No timeout - streaming handles long-running tasks naturally
     const courseOutline = await AIClient.generateCourseOutline({
       videoTitle: data.title || "Unknown Title",
@@ -137,9 +148,15 @@ export async function generateCourseFromYoutube(
       channelName: data.channelName || "Unknown",
       videoDuration: data.duration || "",
     });
-    
-    console.log("Generated resources count:", courseOutline.resources?.length || 0);
-    console.log("Generated resources:", JSON.stringify(courseOutline.resources, null, 2));
+
+    console.log(
+      "Generated resources count:",
+      courseOutline.resources?.length || 0
+    );
+    console.log(
+      "Generated resources:",
+      JSON.stringify(courseOutline.resources, null, 2)
+    );
 
     // Step 4: Store in Convex
     console.log("Storing course in database...");
@@ -148,6 +165,7 @@ export async function generateCourseFromYoutube(
         title: data.title || courseOutline.title, // Use YouTube title, fallback to AI title
         description: courseOutline.description,
         detailedOverview: courseOutline.detailedOverview,
+        thumbnail: data.thumbnail || (courseOutline as any).thumbnail,
         category: courseOutline.category,
         difficulty: courseOutline.difficulty,
         learningObjectives: courseOutline.learningObjectives,
@@ -179,6 +197,63 @@ export async function generateCourseFromYoutube(
     });
 
     console.log("Course generated successfully:", courseId);
+
+    // Attempt to denormalize preview and enroll creator so dashboard shows it
+    try {
+      const fullCourse = await convex.query(api.courses.getCourseWithContent, {
+        courseId,
+      });
+      if (fullCourse) {
+        const sections = (fullCourse.modules || []).map((m: any) => ({
+          title: m.title,
+          description: m.description || "",
+          lessons: (m.lessons || []).map((l: any) => ({
+            title: l.title,
+            description: l.description || "",
+            content: l.content || "",
+            durationMinutes: l.durationMinutes || 0,
+            timestampStart: l.timestampStart,
+            timestampEnd: l.timestampEnd,
+            keyPoints: l.keyPoints || [],
+          })),
+        }));
+
+        const overview = {
+          skills:
+            (courseOutline as any).skills ||
+            sections
+              .flatMap((s) => s.lessons.map((l: any) => l.title))
+              .slice(0, 8),
+          difficulty_level: courseOutline.difficulty || "Beginner",
+          total_duration:
+            data.duration || courseOutline.estimatedDuration || "",
+        };
+
+        await convex.mutation(api.courses.patchCoursePreview, {
+          courseId,
+          preview: {
+            sections,
+            overview,
+            thumbnail: data.thumbnail || (courseOutline as any).thumbnail,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("Warning: failed to patch course preview", err);
+    }
+
+    // Enroll creator so it shows up in recent courses
+    try {
+      if (options?.userId) {
+        await convex.mutation(api.enrollments.enrollInCourse, {
+          userId: options.userId,
+          courseId,
+        });
+      }
+    } catch (err) {
+      console.warn("Warning: failed to enroll user in generated course", err);
+    }
+
     return {
       success: true,
       courseId,

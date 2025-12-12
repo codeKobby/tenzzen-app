@@ -1,50 +1,78 @@
 # Deployment Guide for Tenzzen App
 
-This document provides instructions for deploying the Tenzzen app to Vercel and setting up the ADK service.
+This document provides detailed instructions for deploying the Tenzzen app to Vercel.
 
-## Deploying to Vercel
+## Prerequisites
 
-1. Push your code to GitHub.
-2. Connect your GitHub repository to Vercel.
-3. Configure the following environment variables in Vercel:
+1.  **Vercel Account**: [Sign up here](https://vercel.com/signup).
+2.  **GitHub Repository**: Ensure your code is pushed to a GitHub repository.
+3.  **Convex Project**: You need a live Convex deployment.
+4.  **Clerk Application**: You need a production Clerk instance.
 
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Your Clerk publishable key
-   - `CLERK_SECRET_KEY`: Your Clerk secret key
-   - `YOUTUBE_API_KEY`: Your YouTube API key
+## Environment Variables
 
-4. Deploy the application.
+Configure the following environment variables in your Vercel project settings:
 
-## Vercel Deployment Configuration
+| Variable                            | Description                                                                   |
+| :---------------------------------- | :---------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Your Clerk Publishable Key                                                    |
+| `CLERK_SECRET_KEY`                  | Your Clerk Secret Key                                                         |
+| `NEXT_PUBLIC_CONVEX_URL`            | Your Production Convex URL                                                    |
+| `CONVEX_DEPLOYMENT`                 | Your Convex Deployment Name (automatically set by Vercel integration usually) |
+| `YOUTUBE_API_KEY`                   | Google Cloud Console API Key for YouTube Data API v3                          |
+| `GOOGLE_GENERATIVE_AI_API_KEY`      | API Key for Google Gemini (AI Studio)                                         |
 
-The project includes the following configuration files for Vercel deployment:
+## Deployment Steps
 
-1. **vercel.json**: Configures the build process for Vercel
+### 1. Prepare Your Project
 
-   ```json
-   {
-     "framework": "nextjs",
-     "buildCommand": "next build",
-     "installCommand": "pnpm install --no-frozen-lockfile",
-     "outputDirectory": ".next"
-   }
-   ```
+Ensure your `package.json` scripts are correct:
 
-2. **.npmrc**: Ensures consistent package installation behavior
+```json
+"scripts": {
+  "build": "next build",
+  "install": "pnpm install --no-frozen-lockfile"
+}
+```
 
-   ```
-   auto-install-peers=true
-   node-linker=hoisted
-   strict-peer-dependencies=false
-   shamefully-hoist=true
-   ```
+### 2. Deploy to Vercel
 
-3. **.nvmrc**: Specifies the Node.js version to use
-   ```
-   18
-   ```
+1.  **Import Project**: Go to Vercel Dashboard -> Add New -> Project -> Import from GitHub.
+2.  **Configure Build Settings**:
+    - **Framework Preset**: Next.js
+    - **Build Command**: `next build` (default)
+    - **Output Directory**: `.next` (default)
+    - **Install Command**: `pnpm install --no-frozen-lockfile`
+3.  **Add Environment Variables**: Enter the variables listed above.
+4.  **Deploy**: Click "Deploy".
 
-## Notes about ADK & Supabase
+### 3. Convex Production Deployment
 
-This repository no longer uses the ADK Python service or Supabase. The codebase now relies on Convex and built-in server actions under `actions/` for AI-driven workflows and data management.
+Don't forget to deploy your Convex functions to production:
 
-If you are migrating from a legacy deployment that used ADK or Supabase, extract any necessary configuration or SQL manually — the previous ADK and Supabase integrations are deprecated and removed from this project.
+```bash
+npx convex deploy
+```
+
+Or connect Vercel to Convex to handle this automatically.
+
+## Vercel Configuration Files
+
+The project includes configuration files to ensure smooth deployment:
+
+- **vercel.json**:
+  ```json
+  {
+    "framework": "nextjs",
+    "buildCommand": "next build",
+    "installCommand": "pnpm install --no-frozen-lockfile",
+    "outputDirectory": ".next"
+  }
+  ```
+- **.npmrc**: Ensures consistent package installation.
+- **.nvmrc**: Specifies Node.js version (18).
+
+## Important Notes
+
+- **ADK & Supabase Removal**: This project previously used a Python ADK service and Supabase. These have been **completely removed**. Do not attempt to configure them. All AI logic is now handled via Vercel AI SDK and Server Actions.
+- **Path Aliases**: The project uses `@/` aliases. Vercel handles this automatically via `tsconfig.json`.
