@@ -2,6 +2,17 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // Users table - for app-specific user data (Clerk handles auth)
+  users: defineTable({
+    clerkId: v.string(), // Clerk user ID
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+    credits: v.optional(v.number()), // Available AI generation credits
+    creditsSpent: v.optional(v.number()), // Total credits used
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  }).index("by_clerk_id", ["clerkId"]),
+
   // Videos table - for caching individual videos
   videos: defineTable({
     youtubeId: v.string(),
@@ -62,7 +73,7 @@ export default defineSchema({
         type: v.string(),
         description: v.optional(v.string()),
         category: v.string(), // "Creator Links" or "Other Resources"
-      })
+      }),
     ),
     // Denormalized preview fields used by the dashboard UI
     sections: v.optional(
@@ -79,17 +90,17 @@ export default defineSchema({
               timestampStart: v.optional(v.string()),
               timestampEnd: v.optional(v.string()),
               keyPoints: v.array(v.string()),
-            })
+            }),
           ),
-        })
-      )
+        }),
+      ),
     ),
     overview: v.optional(
       v.object({
         skills: v.array(v.string()),
         difficulty_level: v.string(),
         total_duration: v.string(),
-      })
+      }),
     ),
     thumbnail: v.optional(v.string()),
     assessmentPlan: v.optional(
@@ -101,22 +112,22 @@ export default defineSchema({
               v.object({
                 moduleIndex: v.number(),
                 lessonIndex: v.number(),
-              })
+              }),
             ),
             type: v.literal("quiz"),
-          })
+          }),
         ),
         hasEndOfCourseTest: v.boolean(),
         hasFinalProject: v.boolean(),
         projectDescription: v.optional(v.string()),
-      })
+      }),
     ),
 
     // Source information
     sourceType: v.union(
       v.literal("youtube"),
       v.literal("manual"),
-      v.literal("topic")
+      v.literal("topic"),
     ),
     sourceId: v.optional(v.string()), // YouTube video ID or playlist ID
     sourceUrl: v.optional(v.string()),
@@ -127,6 +138,9 @@ export default defineSchema({
     isPublished: v.boolean(),
     enrollmentCount: v.number(),
     rating: v.optional(v.number()),
+    trustScore: v.optional(v.float64()), // Computed trust/quality score for ranking
+    forkedFrom: v.optional(v.id("courses")), // If forked, reference to original course
+    upvoteCount: v.optional(v.number()), // Community upvotes
     categoryId: v.optional(v.id("categories")),
 
     // AI generation metadata
@@ -141,7 +155,10 @@ export default defineSchema({
     .index("by_user", ["createdBy"])
     .index("by_source", ["sourceType", "sourceId"])
     .index("by_public", ["isPublic", "isPublished"])
-    .index("by_category", ["categoryId"]),
+    .index("by_category", ["categoryId"])
+    .index("by_enrollment", ["isPublic", "enrollmentCount"])
+    .index("by_upvotes", ["isPublic", "upvoteCount"])
+    .index("by_creation", ["isPublic", "createdAt"]),
 
   // Course modules
   modules: defineTable({
@@ -170,6 +187,11 @@ export default defineSchema({
     // Video association
     videoId: v.optional(v.id("videos")),
 
+    // Assessment generation flags (on-demand)
+    quizGenerated: v.optional(v.boolean()), // Multichoice flashcard quiz
+    testGenerated: v.optional(v.boolean()), // Open-ended typed questions
+    projectGenerated: v.optional(v.boolean()), // Capstone project
+
     createdAt: v.string(),
     updatedAt: v.string(),
   })
@@ -186,6 +208,11 @@ export default defineSchema({
     description: v.string(),
     passingScore: v.number(),
 
+    // Assessment type
+    type: v.optional(
+      v.union(v.literal("quiz"), v.literal("test"), v.literal("project")),
+    ),
+
     // AI generation metadata
     generatedBy: v.literal("ai"),
     aiModel: v.string(),
@@ -201,13 +228,20 @@ export default defineSchema({
   quizQuestions: defineTable({
     quizId: v.id("quizzes"),
     question: v.string(),
-    options: v.array(v.string()),
-    correctAnswer: v.number(),
+    options: v.optional(v.array(v.string())), // Optional for open-ended/project
+    correctAnswer: v.optional(v.number()), // Optional for open-ended/project
     explanation: v.string(),
     difficulty: v.union(
       v.literal("easy"),
       v.literal("medium"),
-      v.literal("hard")
+      v.literal("hard"),
+    ),
+    type: v.optional(
+      v.union(
+        v.literal("multiple_choice"),
+        v.literal("open_ended"),
+        v.literal("project_task"),
+      ),
     ),
     order: v.number(),
 
@@ -281,7 +315,7 @@ export default defineSchema({
       v.object({
         lessonId: v.id("lessons"),
         time: v.number(),
-      })
+      }),
     ),
   }).index("by_user_course", ["userId", "courseId"]),
 
@@ -301,7 +335,7 @@ export default defineSchema({
     metadata: v.optional(
       v.object({
         // Additional fields can be added here
-      })
+      }),
     ),
 
     // AI generation metadata

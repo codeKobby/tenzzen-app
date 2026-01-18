@@ -1,18 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { AIClient } from '@/lib/ai/client';
-import { getVideoDetails, getPlaylistDetails } from '@/actions/getYoutubeData';
-import { getYoutubeTranscript } from '@/actions/getYoutubeTranscript';
-import { ConvexHttpClient } from 'convex/browser';
-import { api } from '@/convex/_generated/api';
-import { config } from '@/lib/config';
-import { getCachedTranscript, setCachedTranscript } from '@/lib/server/transcript-cache';
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { AIClient } from "@/lib/ai/client";
+import { getVideoDetails, getPlaylistDetails } from "@/actions/getYoutubeData";
+import { getYoutubeTranscript } from "@/actions/getYoutubeTranscript";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
+import { config } from "@/lib/config";
+import {
+  getCachedTranscript,
+  setCachedTranscript,
+} from "@/lib/server/transcript-cache";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutes max
 
 interface StreamMessage {
-  type: 'progress' | 'partial' | 'complete' | 'error';
+  type: "progress" | "partial" | "complete" | "error";
   step?: string;
   progress?: number;
   message?: string;
@@ -23,21 +26,45 @@ interface StreamMessage {
 export async function POST(request: NextRequest) {
   try {
     const { getToken, userId } = await auth();
-    
+
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const token = await getToken({ template: 'convex' });
+    const token = await getToken({ template: "convex" });
     if (!token) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      );
     }
 
     const body = await request.json();
     const { youtubeUrl, isPublic = false } = body;
 
     if (!youtubeUrl) {
-      return NextResponse.json({ error: 'YouTube URL is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: "YouTube URL is required" },
+        { status: 400 },
+      );
+    }
+
+    // Check user credits
+    const convex = new ConvexHttpClient(config.convex.url);
+    convex.setAuth(token);
+
+    const hasCredits = await convex.query(api.users.hasCredits, {
+      clerkId: userId,
+      amount: 1,
+    });
+    if (!hasCredits) {
+      return NextResponse.json(
+        {
+          error:
+            "Insufficient credits. Please upgrade your plan or purchase more credits.",
+        },
+        { status: 403 },
+      );
     }
 
     // Create a TransformStream for sending updates
@@ -54,15 +81,17 @@ export async function POST(request: NextRequest) {
     (async () => {
       try {
         await sendMessage({
-          type: 'progress',
-          step: 'Parsing',
+          type: "progress",
+          step: "Parsing",
           progress: 5,
-          message: 'Parsing YouTube URL...'
+          message: "Parsing YouTube URL...",
         });
 
         // Parse YouTube URL
-        const urlPattern = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-        const playlistPattern = /(?:youtube\.com\/(?:playlist\?|.*[?&]list=)|youtu\.be\/.*[?&]list=)([^"&?\/\s]+)/;
+        const urlPattern =
+          /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const playlistPattern =
+          /(?:youtube\.com\/(?:playlist\?|.*[?&]list=)|youtu\.be\/.*[?&]list=)([^"&?\/\s]+)/;
 
         let videoId: string | null = null;
         let playlistId: string | null = null;
@@ -78,14 +107,14 @@ export async function POST(request: NextRequest) {
         }
 
         if (!videoId && !playlistId) {
-          throw new Error('Invalid YouTube URL');
+          throw new Error("Invalid YouTube URL");
         }
 
         await sendMessage({
-          type: 'progress',
-          step: 'Fetching',
+          type: "progress",
+          step: "Fetching",
           progress: 15,
-          message: 'Fetching video metadata...'
+          message: "Fetching video metadata...",
         });
 
         // Fetch video/playlist data
@@ -98,7 +127,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (!videoId) {
-          throw new Error('No video found to generate course from');
+          throw new Error("No video found to generate course from");
         }
 
         // Check for existing course
@@ -106,31 +135,34 @@ export async function POST(request: NextRequest) {
         convex.setAuth(token);
 
         await sendMessage({
-          type: 'progress',
-          step: 'Checking',
+          type: "progress",
+          step: "Checking",
           progress: 20,
-          message: 'Checking for existing course...'
+          message: "Checking for existing course...",
         });
 
-        const existingCourse = await convex.query(api.courses.getCourseBySourceId, {
-          sourceId: videoId,
-          userId,
-        });
+        const existingCourse = await convex.query(
+          api.courses.getCourseBySourceId,
+          {
+            sourceId: videoId,
+            userId,
+          },
+        );
 
         if (existingCourse) {
           await sendMessage({
-            type: 'complete',
-            data: { courseId: existingCourse._id }
+            type: "complete",
+            data: { courseId: existingCourse._id },
           });
           await writer.close();
           return;
         }
 
         await sendMessage({
-          type: 'progress',
-          step: 'Transcript',
+          type: "progress",
+          step: "Transcript",
           progress: 30,
-          message: 'Fetching video transcript...'
+          message: "Fetching video transcript...",
         });
 
         // Get transcript
@@ -138,49 +170,53 @@ export async function POST(request: NextRequest) {
         let transcriptSegments = cachedTranscript?.segments;
         let transcript = cachedTranscript?.transcriptText;
 
-        if (!transcriptSegments || !transcript || transcriptSegments.length === 0) {
+        if (
+          !transcriptSegments ||
+          !transcript ||
+          transcriptSegments.length === 0
+        ) {
           transcriptSegments = await getYoutubeTranscript(videoId);
 
           if (!transcriptSegments || transcriptSegments.length === 0) {
-            throw new Error('Failed to fetch transcript');
+            throw new Error("Failed to fetch transcript");
           }
 
           transcript = transcriptSegments
             .map((entry: any) => entry.text)
-            .join(' ')
+            .join(" ")
             .trim();
 
           setCachedTranscript(videoId, transcriptSegments, transcript);
         }
 
         await sendMessage({
-          type: 'progress',
-          step: 'Generating',
+          type: "progress",
+          step: "Generating",
           progress: 40,
-          message: 'AI is analyzing content and generating course structure...'
+          message: "AI is analyzing content and generating course structure...",
         });
 
         // Stream course generation
         const result = await AIClient.streamCourseOutline({
-          videoTitle: data.title || 'Unknown Title',
-          videoDescription: data.description || '',
+          videoTitle: data.title || "Unknown Title",
+          videoDescription: data.description || "",
           transcript,
           transcriptSegments,
-          channelName: data.channelName || 'Unknown',
-          videoDuration: data.duration || '',
+          channelName: data.channelName || "Unknown",
+          videoDuration: data.duration || "",
         });
 
         // Track progress through streaming with validation
         let lastProgress = 40;
         let partialCount = 0;
-        
+
         for await (const partialObject of result.partialObjectStream) {
           partialCount++;
-          
+
           // AGGRESSIVE timestamp validation to stop malformed generation immediately
-          if (partialObject && typeof partialObject === 'object') {
+          if (partialObject && typeof partialObject === "object") {
             const modules = (partialObject as any).modules || [];
-            
+
             for (const module of modules) {
               if (module && module.lessons) {
                 for (const lesson of module.lessons) {
@@ -189,35 +225,45 @@ export async function POST(request: NextRequest) {
                     if (lesson.timestampStart) {
                       const original = lesson.timestampStart;
                       // If it has a decimal or is too long, truncate IMMEDIATELY
-                      if (original.includes('.') || original.length > 8) {
+                      if (original.includes(".") || original.length > 8) {
                         // Extract only M:SS or H:MM:SS format (no decimals)
-                        const match = original.match(/^(\d{1,2}:\d{2}(?::\d{2})?)(?=\.|$)/);
+                        const match = original.match(
+                          /^(\d{1,2}:\d{2}(?::\d{2})?)(?=\.|$)/,
+                        );
                         if (match) {
                           lesson.timestampStart = match[1];
                         } else {
                           // Fallback: try to extract just the time part before any decimal
-                          const beforeDecimal = original.split('.')[0];
-                          lesson.timestampStart = beforeDecimal.length <= 8 ? beforeDecimal : "0:00";
+                          const beforeDecimal = original.split(".")[0];
+                          lesson.timestampStart =
+                            beforeDecimal.length <= 8 ? beforeDecimal : "0:00";
                         }
                         if (original.length > 10) {
-                          console.warn(`⚠️ Truncated malformed timestampStart (${original.length} chars): "${original.substring(0, 20)}..." → "${lesson.timestampStart}"`);
+                          console.warn(
+                            `⚠️ Truncated malformed timestampStart (${original.length} chars): "${original.substring(0, 20)}..." → "${lesson.timestampStart}"`,
+                          );
                         }
                       }
                     }
-                    
+
                     // Aggressive truncation for timestampEnd
                     if (lesson.timestampEnd) {
                       const original = lesson.timestampEnd;
-                      if (original.includes('.') || original.length > 8) {
-                        const match = original.match(/^(\d{1,2}:\d{2}(?::\d{2})?)(?=\.|$)/);
+                      if (original.includes(".") || original.length > 8) {
+                        const match = original.match(
+                          /^(\d{1,2}:\d{2}(?::\d{2})?)(?=\.|$)/,
+                        );
                         if (match) {
                           lesson.timestampEnd = match[1];
                         } else {
-                          const beforeDecimal = original.split('.')[0];
-                          lesson.timestampEnd = beforeDecimal.length <= 8 ? beforeDecimal : "0:00";
+                          const beforeDecimal = original.split(".")[0];
+                          lesson.timestampEnd =
+                            beforeDecimal.length <= 8 ? beforeDecimal : "0:00";
                         }
                         if (original.length > 10) {
-                          console.warn(`⚠️ Truncated malformed timestampEnd (${original.length} chars): "${original.substring(0, 20)}..." → "${lesson.timestampEnd}"`);
+                          console.warn(
+                            `⚠️ Truncated malformed timestampEnd (${original.length} chars): "${original.substring(0, 20)}..." → "${lesson.timestampEnd}"`,
+                          );
                         }
                       }
                     }
@@ -226,15 +272,15 @@ export async function POST(request: NextRequest) {
               }
             }
           }
-          
+
           // Increment progress gradually as we receive parts
           lastProgress = Math.min(85, lastProgress + 5);
-          
+
           await sendMessage({
-            type: 'partial',
+            type: "partial",
             progress: lastProgress,
             message: `Building course structure... (${partialCount} updates)`,
-            data: partialObject
+            data: partialObject,
           });
         }
 
@@ -244,8 +290,14 @@ export async function POST(request: NextRequest) {
         const courseOutline = await result.object;
 
         // Defensive runtime validation: ensure we received an object
-        if (!courseOutline || typeof courseOutline !== 'object' || Array.isArray(courseOutline)) {
-          throw new Error('AI generated an invalid course outline. Please try again.');
+        if (
+          !courseOutline ||
+          typeof courseOutline !== "object" ||
+          Array.isArray(courseOutline)
+        ) {
+          throw new Error(
+            "AI generated an invalid course outline. Please try again.",
+          );
         }
 
         // Narrow the type for TypeScript and use a local alias
@@ -270,21 +322,30 @@ export async function POST(request: NextRequest) {
         };
 
         // Validate required fields
-        if (!outline.title || !outline.description || !outline.category || !outline.difficulty) {
-          throw new Error('AI failed to generate required course information. Please try again with a different video.');
+        if (
+          !outline.title ||
+          !outline.description ||
+          !outline.category ||
+          !outline.difficulty
+        ) {
+          throw new Error(
+            "AI failed to generate required course information. Please try again with a different video.",
+          );
         }
 
         if (!outline.modules || outline.modules.length === 0) {
-          throw new Error('AI could not generate course modules from this video. Please try a different video with clearer content.');
+          throw new Error(
+            "AI could not generate course modules from this video. Please try a different video with clearer content.",
+          );
         }
 
-        console.log('✅ Final course outline validated successfully');
+        console.log("✅ Final course outline validated successfully");
 
         await sendMessage({
-          type: 'progress',
-          step: 'Saving',
+          type: "progress",
+          step: "Saving",
           progress: 90,
-          message: 'Saving course to database...'
+          message: "Saving course to database...",
         });
 
         // Sanitize resources: remove any extra fields (e.g., provenance) that Convex validator may reject
@@ -310,11 +371,11 @@ export async function POST(request: NextRequest) {
             estimatedDuration: data.duration || outline.estimatedDuration,
             tags: outline.tags,
             resources: sanitizedResources,
-            sourceType: 'youtube' as const,
+            sourceType: "youtube" as const,
             sourceId: videoId,
             sourceUrl: youtubeUrl,
             isPublic: isPublic ?? false,
-            aiModel: 'gpt-4o',
+            aiModel: "gpt-4o",
           },
           modules: outline.modules.map((module: any) => ({
             title: module.title,
@@ -332,19 +393,20 @@ export async function POST(request: NextRequest) {
           assessmentPlan: outline.assessmentPlan,
         });
 
-        await sendMessage({
-          type: 'complete',
-          progress: 100,
-          message: 'Course generated successfully!',
-          data: { courseId }
+        // Deduct credit on success
+        await convex.mutation(api.users.deductCredits, {
+          clerkId: userId,
+          amount: 1,
         });
+        console.log(`✅ Deducted 1 credit from user ${userId}`);
 
         await writer.close();
       } catch (error) {
-        console.error('Error in stream generation:', error);
+        console.error("Error in stream generation:", error);
         await sendMessage({
-          type: 'error',
-          error: error instanceof Error ? error.message : 'Unknown error occurred'
+          type: "error",
+          error:
+            error instanceof Error ? error.message : "Unknown error occurred",
         });
         await writer.close();
       }
@@ -353,16 +415,19 @@ export async function POST(request: NextRequest) {
     // Return the readable stream
     return new Response(stream.readable, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
       },
     });
   } catch (error) {
-    console.error('Error setting up stream:', error);
+    console.error("Error setting up stream:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error occurred' },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      },
+      { status: 500 },
     );
   }
 }

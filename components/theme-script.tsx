@@ -12,6 +12,8 @@ export function ThemeScript() {
           if (theme === 'dark' || (!theme && isDark)) {
             document.documentElement.classList.add('dark')
           }
+          // Always use modern theme
+          document.documentElement.classList.add('theme-modern')
         } catch (e) {}
       `}
     </Script>

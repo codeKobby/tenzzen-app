@@ -20,7 +20,7 @@ export async function generateQuiz(
     numQuestions?: number;
     difficulty?: "easy" | "medium" | "hard" | "mixed";
     userId: string;
-  }
+  },
 ): Promise<GenerateQuizResult> {
   try {
     // Step 1: Get lesson data
@@ -52,7 +52,8 @@ export async function generateQuiz(
       title: quiz.title,
       description: quiz.description,
       passingScore: quiz.passingScore,
-      questions: quiz.questions,
+      questions: quiz.questions, // Direct mapping if types match, but safer to map explicitly if needed
+      type: "quiz",
       aiModel: "gpt-4o",
     });
 

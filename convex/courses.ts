@@ -24,14 +24,14 @@ export const createAICourse = mutation({
           description: v.optional(v.string()),
           category: v.string(),
           provenance: v.optional(
-            v.union(v.literal("found"), v.literal("suggested"))
+            v.union(v.literal("found"), v.literal("suggested")),
           ),
-        })
+        }),
       ),
       sourceType: v.union(
         v.literal("youtube"),
         v.literal("manual"),
-        v.literal("topic")
+        v.literal("topic"),
       ),
       sourceId: v.optional(v.string()),
       sourceUrl: v.optional(v.string()),
@@ -52,9 +52,9 @@ export const createAICourse = mutation({
             timestampStart: v.optional(v.string()),
             timestampEnd: v.optional(v.string()),
             keyPoints: v.array(v.string()),
-          })
+          }),
         ),
-      })
+      }),
     ),
     assessmentPlan: v.optional(
       v.object({
@@ -65,15 +65,15 @@ export const createAICourse = mutation({
               v.object({
                 moduleIndex: v.number(),
                 lessonIndex: v.number(),
-              })
+              }),
             ),
             type: v.literal("quiz"),
-          })
+          }),
         ),
         hasEndOfCourseTest: v.boolean(),
         hasFinalProject: v.boolean(),
         projectDescription: v.optional(v.string()),
-      })
+      }),
     ),
   },
   handler: async (ctx, args) => {
@@ -163,16 +163,16 @@ export const patchCoursePreview = mutation({
               timestampStart: v.optional(v.string()),
               timestampEnd: v.optional(v.string()),
               keyPoints: v.array(v.string()),
-            })
+            }),
           ),
-        })
+        }),
       ),
       overview: v.optional(
         v.object({
           skills: v.array(v.string()),
           difficulty_level: v.string(),
           total_duration: v.string(),
-        })
+        }),
       ),
       thumbnail: v.optional(v.string()),
     }),
@@ -213,7 +213,7 @@ export const getCourseWithContent = query({
           ...module,
           lessons: lessons.sort((a, b) => a.order - b.order),
         };
-      })
+      }),
     );
 
     return {
@@ -230,7 +230,7 @@ export const getCourseBySourceId = query({
     return await ctx.db
       .query("courses")
       .withIndex("by_source", (q) =>
-        q.eq("sourceType", "youtube").eq("sourceId", args.sourceId)
+        q.eq("sourceType", "youtube").eq("sourceId", args.sourceId),
       )
       .filter((q) => q.eq(q.field("createdBy"), args.userId))
       .first();
@@ -254,9 +254,105 @@ export const getPublicCourses = query({
     return await ctx.db
       .query("courses")
       .withIndex("by_public", (q) =>
-        q.eq("isPublic", true).eq("isPublished", true)
+        q.eq("isPublic", true).eq("isPublished", true),
       )
       .collect();
+  },
+});
+
+export const getTrendingCourses = query({
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("courses")
+      .withIndex("by_enrollment", (q) => q.eq("isPublic", true))
+      .order("desc")
+      .take(10);
+  },
+});
+
+export const getTopRatedCourses = query({
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("courses")
+      .withIndex("by_upvotes", (q) => q.eq("isPublic", true))
+      .order("desc")
+      .take(10);
+  },
+});
+
+export const getNewCourses = query({
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("courses")
+      .withIndex("by_creation", (q) => q.eq("isPublic", true))
+      .order("desc")
+      .take(10);
+  },
+});
+
+// Mutation to fork a course
+export const forkCourse = mutation({
+  args: { courseId: v.id("courses") },
+  handler: async (ctx, args) => {
+    const userId = await getUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    const originalCourse = await ctx.db.get(args.courseId);
+    if (!originalCourse) throw new Error("Course not found");
+
+    const now = new Date().toISOString();
+
+    // 1. Clone course
+    const newCourseId = await ctx.db.insert("courses", {
+      ...originalCourse,
+      isPublished: false, // Draft mode
+      isPublic: false,
+      enrollmentCount: 0,
+      upvoteCount: 0,
+      forkedFrom: originalCourse._id,
+      createdBy: userId,
+      createdAt: now,
+      updatedAt: now,
+      // Remove system fields
+      _id: undefined,
+      _creationTime: undefined,
+    } as any); // Cast to any to avoid type issues with _id/creationTime removal
+
+    // 2. Clone modules and lessons
+    const modules = await ctx.db
+      .query("modules")
+      .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+      .collect();
+
+    for (const module of modules) {
+      const newModuleId = await ctx.db.insert("modules", {
+        ...module,
+        courseId: newCourseId,
+        createdAt: now,
+        updatedAt: now,
+        _id: undefined,
+        _creationTime: undefined,
+      } as any);
+
+      const lessons = await ctx.db
+        .query("lessons")
+        .withIndex("by_module", (q) => q.eq("moduleId", module._id))
+        .collect();
+
+      for (const lesson of lessons) {
+        await ctx.db.insert("lessons", {
+          ...lesson,
+          courseId: newCourseId,
+          moduleId: newModuleId,
+          createdAt: now,
+          updatedAt: now,
+          _id: undefined,
+          _creationTime: undefined,
+        } as any);
+      }
+    }
+
+    return newCourseId;
   },
 });
 

@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
-  Plus, Lock, MoreVertical, BookmarkPlus, Share2, Trash2, Check
+  Plus, Lock, MoreVertical, BookmarkPlus, Share2, Trash2, Check, ShieldCheck, ThumbsUp, GitFork
 } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
@@ -412,28 +412,52 @@ export function CourseCard({
         {variant === "default" && !selectionMode && (
           <>
             {course.lastAccessed && course.progress && course.progress > 0 && (
-              <div className="absolute top-2 left-2 text-white text-xs drop-shadow-md">
+              <div className="absolute top-2 left-2 text-white text-xs drop-shadow-md bg-black/40 backdrop-blur-sm rounded-md px-2 py-0.5">
                 Last accessed {formattedLastAccessed}
               </div>
             )}
             <div className="absolute bottom-1 left-2 flex items-center gap-2">
-              <div className="text-white text-xs drop-shadow-lg leading-none">
+              <div className="text-white text-xs font-medium drop-shadow-lg leading-none bg-black/50 backdrop-blur-sm rounded px-1.5 py-0.5">
                 {displayDuration}
               </div>
             </div>
             <div className="absolute bottom-1 right-2 flex items-center gap-2">
-              <div className="text-white text-xs drop-shadow-lg leading-none">
+              <div className="text-white text-xs font-medium drop-shadow-lg leading-none bg-black/50 backdrop-blur-sm rounded px-1.5 py-0.5">
                 {getCompletedLessons() || 0}/{getTotalLessons() || 0}
               </div>
             </div>
           </>
         )}
 
+        {/* Explore/Discovery Badges (Trust Score & Upvotes) */}
+        {!course.isEnrolled && (course.trustScore || course.upvoteCount !== undefined) && (
+          <div className="absolute top-2 right-2 flex flex-col gap-1.5 items-end">
+            {course.trustScore !== undefined && (
+              <Badge variant={course.trustScore > 80 ? "default" : "secondary"} className="gap-1 px-2 h-6 text-xs backdrop-blur-md bg-background/90 hover:bg-background text-foreground border-border/50 shadow-md">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                {Math.round(course.trustScore)}% Trust
+              </Badge>
+            )}
+            {course.upvoteCount !== undefined && (
+              <Badge variant="outline" className="gap-1 px-2 h-6 text-xs backdrop-blur-md bg-background/90 hover:bg-background text-foreground border-border/50 shadow-md">
+                <ThumbsUp className="h-3.5 w-3.5" />
+                {course.upvoteCount}
+              </Badge>
+            )}
+            {course.forkedFrom && (
+              <Badge variant="outline" className="gap-1 px-2 h-6 text-xs backdrop-blur-md bg-background/90 hover:bg-background text-foreground border-border/50 shadow-md">
+                <GitFork className="h-3.5 w-3.5" />
+                Forked
+              </Badge>
+            )}
+          </div>
+        )}
+
         {/* Progress bar */}
         {variant === "default" && (
-          <div className="absolute inset-x-0 bottom-0 h-[3px]">
+          <div className="absolute inset-x-0 bottom-0 h-[3px] bg-muted/30">
             <div
-              className="h-full bg-red-600 transition-all"
+              className="h-full bg-primary transition-all"
               style={{ width: `${course.progress || 0}%` }}
             />
           </div>
@@ -500,6 +524,15 @@ export function CourseCard({
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete course
+                    </DropdownMenuItem>
+                  )}
+                  {variant === "explore" && (
+                    <DropdownMenuItem
+                      onClick={(e) => handleAction(e, "fork")}
+                      className="cursor-pointer"
+                    >
+                      <GitFork className="h-4 w-4 mr-2" />
+                      Fork Course
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -620,7 +653,7 @@ export function CourseCard({
                   course.progress === 100
                     ? "bg-green-600"
                     : course.progress > 0
-                      ? "bg-red-600"
+                      ? "bg-primary"
                       : "bg-muted-foreground/30"
                 )}
                 style={{ width: `${course.progress || 5}%` }}
@@ -658,6 +691,6 @@ export function CourseCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </div >
   )
 }

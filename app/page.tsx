@@ -4,12 +4,12 @@ import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { RevealOnScroll } from "@/components/reveal-on-scroll";
-import { YoutubePreview } from "@/components/youtube-preview";
+import { HeroDemo } from "@/components/landing/hero-demo";
+import { FeatureIllustration } from "@/components/landing/feature-illustration";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { ArrowRight, Check, YoutubeIcon, BookOpen, Brain, Target, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlaceholderImage } from "@/components/ui/placeholder-image";
 import { CourseGenerateButton } from "@/components/course-generate-button";
 import { FeatureCard } from "@/components/ui/feature-card";
 
@@ -123,7 +123,8 @@ export default function HomePage() {
         <div className="pattern-noise" />
 
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="space-y-12">
+          <div className="space-y-16">
+            {/* Badge */}
             <div className="text-center">
               <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 border border-primary/20 shadow-sm">
                 <div className="size-2 rounded-full bg-primary animate-pulse" />
@@ -131,45 +132,33 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center justify-center w-full max-w-6xl mx-auto">
-              <div className="max-w-xl w-full fade-in-up">
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight [text-wrap:balance] text-left">
+            {/* Main Grid - Text and Demo */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center w-full max-w-6xl mx-auto">
+              {/* Left: Text Content */}
+              <div className="max-w-lg w-full fade-in-up text-center lg:text-left">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight [text-wrap:balance]">
                   Transform Videos into
-                  <span className="relative whitespace-nowrap block mt-2">
+                  <span className="relative whitespace-nowrap block mt-3 text-primary">
                     <span className="absolute -z-10 inset-0 bg-gradient-to-r from-primary/30 to-primary/0 blur-2xl" />
-                    <span className="relative text-foreground">Engaging Courses</span>
-                  </span>
-                  <span className="block text-2xl sm:text-3xl lg:text-3xl xl:text-4xl mt-4 lg:mt-6 text-muted-foreground/90 font-medium">
-                    With the Power of AI
+                    Engaging Courses
                   </span>
                 </h1>
-                <p className="mt-6 text-lg sm:text-xl text-muted-foreground leading-relaxed text-left">
+                <p className="mt-4 text-lg text-muted-foreground/80 font-medium">
+                  With the Power of AI
+                </p>
+                <p className="mt-6 text-base sm:text-lg text-muted-foreground leading-relaxed">
                   Turn any YouTube video into an interactive learning experience with AI-generated quizzes, notes, and personalized study plans.
                 </p>
               </div>
 
-              <div className="max-w-xl w-full fade-in-up delay-300">
-                <div className="rounded-xl p-2 lg:p-3 shadow-2xl bg-gradient-to-br from-card/50 to-card/30">
-                  <YoutubePreview videoId="demo-video-id" />
-                </div>
+              {/* Right: Demo Component */}
+              <div className="max-w-xl w-full fade-in-up delay-300 mx-auto lg:mx-0">
+                <HeroDemo />
               </div>
             </div>
 
-            <div className="w-full max-w-3xl mx-auto text-center space-y-8">
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <CourseGenerateButton />
-                <SignedIn>
-                  <Button size="lg" variant="outline" className="text-lg h-14 shadow-lg hover:bg-primary/5" asChild>
-                    <Link href="/courses">Continue Learning</Link>
-                  </Button>
-                </SignedIn>
-                <SignedOut>
-                  <Button size="lg" variant="outline" className="text-lg h-14 hover:bg-primary/5" asChild>
-                    <Link href="/sign-up">Start Learning Free</Link>
-                  </Button>
-                </SignedOut>
-              </div>
-
+            {/* CTAs - Centered below grid */}
+            <div className="w-full max-w-2xl mx-auto text-center space-y-6">
               <div className="flex flex-wrap gap-3 justify-center">
                 {benefits.slice(0, 3).map((benefit) => (
                   <div
@@ -180,6 +169,20 @@ export default function HomePage() {
                     <span className="text-sm font-medium">{benefit.title}</span>
                   </div>
                 ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <CourseGenerateButton size="lg" className="text-base h-12 px-6 shadow-lg shadow-primary/20" />
+                <SignedIn>
+                  <Button size="lg" variant="outline" className="text-base h-12 px-6 hover:bg-primary/5" asChild>
+                    <Link href="/courses">Continue Learning</Link>
+                  </Button>
+                </SignedIn>
+                <SignedOut>
+                  <Button size="lg" variant="outline" className="text-base h-12 px-6 hover:bg-primary/5" asChild>
+                    <Link href={"/sign-up" as any}>Start Learning Free</Link>
+                  </Button>
+                </SignedOut>
               </div>
             </div>
           </div>
@@ -194,8 +197,8 @@ export default function HomePage() {
           <div className="pattern-grid opacity-30" />
 
           <div className="w-[85%] mx-auto max-w-6xl py-24">
-            <div className="text-center max-w-2xl mx-auto mb-12 fade-in-up">
-              <h2 className="text-3xl font-bold mb-4">How It Works</h2>
+            <div className="text-center max-w-2xl mx-auto mb-16 fade-in-up">
+              <h2 className="text-3xl sm:text-4xl font-bold mb-4">How It Works</h2>
               <p className="text-muted-foreground">
                 Transform any educational video into a structured course in four simple steps
               </p>
@@ -224,12 +227,12 @@ export default function HomePage() {
           <div className="pattern-dots opacity-50" />
 
           <div className="w-[92%] mx-auto max-w-7xl relative">
-            <div className="text-center space-y-4 mb-24 fade-in-up">
+            <div className="text-center space-y-4 mb-20 fade-in-up">
               <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 mb-4">
                 <div className="size-2 rounded-full bg-primary animate-pulse" />
                 <span className="text-sm font-medium">Powered by Advanced AI</span>
               </div>
-              <h2 className="text-4xl sm:text-5xl font-bold text-foreground">
+              <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
                 Transform Your Learning Experience
               </h2>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -237,7 +240,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-48">
+            <div className="flex flex-col gap-24 lg:gap-32">
               {features.map((feature, index) => (
                 <div
                   key={feature.title}
@@ -252,7 +255,7 @@ export default function HomePage() {
                             <feature.icon className="h-8 w-8 text-primary" />
                           </div>
                         </div>
-                        <h3 className="text-3xl font-bold text-foreground">
+                        <h3 className="text-2xl sm:text-3xl font-bold text-foreground">
                           {feature.title}
                         </h3>
                       </div>
@@ -277,9 +280,7 @@ export default function HomePage() {
                   <div className="w-full lg:w-[60%]">
                     <div className="relative">
                       <FeatureCard className="interactive group p-2 shadow-2xl bg-gradient-to-br from-card/50 to-card/30">
-                        <div className="relative aspect-[16/9] rounded-xl overflow-hidden">
-                          <PlaceholderImage title={feature.preview} />
-                        </div>
+                        <FeatureIllustration icon={feature.icon} title={feature.preview} />
                       </FeatureCard>
 
                       <div className={`feature-card-label ${index % 2 === 0 ? 'right-10' : 'left-10'}`}>
@@ -310,8 +311,8 @@ export default function HomePage() {
           <div className="pattern-grid opacity-30" />
 
           <div className="w-[85%] mx-auto max-w-6xl py-24">
-            <div className="text-center max-w-2xl mx-auto mb-12 fade-in-up">
-              <h2 className="text-3xl font-bold mb-4">Key Benefits</h2>
+            <div className="text-center max-w-2xl mx-auto mb-16 fade-in-up">
+              <h2 className="text-3xl sm:text-4xl font-bold mb-4">Key Benefits</h2>
               <p className="text-muted-foreground">
                 Experience a new way of learning with our comprehensive features
               </p>

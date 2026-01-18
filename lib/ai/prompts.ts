@@ -7,7 +7,10 @@ import { formatSecondsAsTimestamp } from "./transcript-utils";
 
 export const courseGenerationPrompts = {
   // Initial content analysis and knowledge graph generation
-  contentAnalysis: (transcriptContext: PromptTranscriptContext, metadata: any) => `
+  contentAnalysis: (
+    transcriptContext: PromptTranscriptContext,
+    metadata: any,
+  ) => `
 You are an expert educational content analyst specializing in converting video content into structured, hierarchical knowledge maps.
 
 SYSTEM INSTRUCTIONS:
@@ -22,10 +25,10 @@ Analyze the YouTube content below and produce a comprehensive Educational Knowle
 VIDEO METADATA:
 - Title: ${metadata.title}
 - Channel: ${metadata.channelName}
-- Duration: ${metadata.duration || 'Unknown'}
+- Duration: ${metadata.duration || "Unknown"}
 
 VIDEO DESCRIPTION:
-${metadata.description || 'No description provided'}
+${metadata.description || "No description provided"}
 
 TRANSCRIPT OVERVIEW:
 - Segments: ${transcriptContext.totalSegments}
@@ -33,7 +36,7 @@ TRANSCRIPT OVERVIEW:
 - Chunk Count: ${transcriptContext.chunks.length}
 
 FULL TRANSCRIPT (COMPLETE, CHUNKED FOR READABILITY):
-${transcriptContext.fullText || 'Transcript missing'}
+${transcriptContext.fullText || "Transcript missing"}
 
 -----------------------------------------
 REQUIRED OUTPUT SECTIONS
@@ -67,7 +70,11 @@ FORMAT REQUIREMENTS:
 `,
 
   // Course structure proposal with detailed modules and sections
-   courseStructure: (analysis: any, transcriptContext: PromptTranscriptContext, transcriptSegments?: any[]) => `
+  courseStructure: (
+    analysis: any,
+    transcriptContext: PromptTranscriptContext,
+    transcriptSegments?: any[],
+  ) => `
 You are a senior curriculum architect. Convert the input analysis into a fully structured, pedagogically sound course.
 
 SYSTEM INSTRUCTIONS:
@@ -82,20 +89,30 @@ SYSTEM INSTRUCTIONS:
 
 VIDEO DESCRIPTION (SCAN THIS FOR ALL RESOURCES):
 ==============================================
-${analysis.videoDescription || 'No description provided'}
+${analysis.videoDescription || "No description provided"}
 ==============================================
 
 INPUT ANALYSIS:
 ${JSON.stringify(analysis, null, 2)}
 
 PRIMARY TRANSCRIPT CONTEXT (NO TRUNCATION):
-${transcriptContext.fullText || 'Transcript missing'}
+${transcriptContext.fullText || "Transcript missing"}
 
-${transcriptSegments && transcriptSegments.length > 0 ? `
+${
+  transcriptSegments && transcriptSegments.length > 0 ?
+    `
 TIMESTAMPED TRANSCRIPT SEGMENTS (first 100 maximum):
 Use these segments to derive accurate lesson boundaries. Each entry shows [timestamp] content.
-${transcriptSegments.slice(0, 100).map((seg: any, i: number) => `[${seg.start || '0:00'}] ${seg.text?.slice(0, 100) || ''}`).join('\n')}
-` : ''}
+${transcriptSegments
+  .slice(0, 100)
+  .map(
+    (seg: any, i: number) =>
+      `[${seg.start || "0:00"}] ${seg.text?.slice(0, 100) || ""}`,
+  )
+  .join("\n")}
+`
+  : ""
+}
 
 -----------------------------------------
 COURSE DESIGN SPECIFICATION
@@ -607,7 +624,7 @@ VALIDATION OUTPUT:
 - Areas needing improvement
 - Specific recommendations for enhancement
 - Implementation priority suggestions
-`
+`,
 };
 
 // Quiz generation prompts optimized for Gemini
@@ -701,13 +718,59 @@ ASSESSMENT DESIGN REQUIREMENTS:
    - Mastery learning opportunities
 
 OUTPUT: Complete assessment strategy with implementation details and quality metrics.
-`
+`,
+
+  // Open-ended test question generation
+  openEndedTest: (lesson: any, context: any) => `
+You are an expert examiner. Create challenging, open-ended test questions that require deep understanding and synthesis.
+
+LESSON CONTENT:
+${JSON.stringify(lesson, null, 2)}
+
+TEST REQUIREMENTS:
+1. **Question Type**: Open-ended, short essay, or code implementation (if coding course).
+2. **Cognitive Level**: Analysis, Synthesis, and Evaluation.
+3. **Assessment Goal**: Verify deep comprehension and ability to apply concepts.
+4. **Grading criteria**: Include a rubric or key points expected in the answer.
+
+OUTPUT: 5-8 high-quality questions with expected answers and rubrics.
+`,
+
+  // Capstone project generation
+  capstoneProject: (courseOverview: any, modules: any[]) => `
+You are a project-based learning architect. Design a comprehensive capstone project that integrates all key skills from this course.
+
+COURSE OVERVIEW:
+${JSON.stringify(courseOverview, null, 2)}
+
+MODULES SUMMARY:
+${JSON.stringify(
+  modules.map((m: any) => ({
+    title: m.title,
+    objectives: m.learningObjectives,
+  })),
+  null,
+  2,
+)}
+
+PROJECT REQUIREMENTS:
+1. **Real-World Scenario**: The project must simulate a real industry task.
+2. **Comprehensive**: It must require applying skills from MULTIPLE modules.
+3. **Deliverables**: Clear list of what the student must submit (code, report, presentation, etc.).
+4. **Evaluation**: strict criteria for success.
+
+OUTPUT: A structured project prompt including title, description, objectives, requirements, deliverables, and evaluation criteria.
+`,
 };
 
 // AI Tutor prompts optimized for Gemini's conversational capabilities
 export const tutorPrompts = {
   // Contextual tutoring
-  contextualResponse: (question: string, courseContext: any, chatHistory: any[]) => `
+  contextualResponse: (
+    question: string,
+    courseContext: any,
+    chatHistory: any[],
+  ) => `
 You are an expert AI tutor with deep knowledge of this course content. Provide helpful, educational responses that advance student learning.
 
 COURSE CONTEXT:
@@ -810,13 +873,17 @@ EXPLANATION STYLE:
 - Connect to student's goals
 
 OUTPUT: Comprehensive, educational explanation that builds deep understanding.
-`
+`,
 };
 
 // Video recommendation prompts optimized for Gemini
 export const videoRecommendationPrompts = {
   // Search query generation for YouTube
-  searchQueries: (learningGoal: string, knowledgeLevel: string, additionalContext: string) => `
+  searchQueries: (
+    learningGoal: string,
+    knowledgeLevel: string,
+    additionalContext: string,
+  ) => `
 As an educational content curator, analyze the following learning goal and create optimized YouTube search queries.
 
 Learning Goal: "${learningGoal}"
@@ -840,7 +907,11 @@ Example: ["complete python for beginners tutorial step by step"]
 `,
 
   // Video analysis and ranking
-  videoAnalysis: (videos: any[], learningGoal: string, knowledgeLevel: string) => `
+  videoAnalysis: (
+    videos: any[],
+    learningGoal: string,
+    knowledgeLevel: string,
+  ) => `
 Analyze these YouTube videos for learning goal: "${learningGoal}" (Level: ${knowledgeLevel})
 
 Identify videos that:
@@ -859,11 +930,15 @@ Return ONLY a JSON array:
 ]
 
 Videos to analyze:
-${videos.map((v, i) => `Video ${i+1}: ID=${v.videoId} | Title=${v.title} | Duration=${v.duration}`).join('\n')}
+${videos.map((v, i) => `Video ${i + 1}: ID=${v.videoId} | Title=${v.title} | Duration=${v.duration}`).join("\n")}
 `,
 
   // Fallback ranking when AI analysis fails
-  fallbackRanking: (videos: any[], learningGoal: string, knowledgeLevel: string) => `
+  fallbackRanking: (
+    videos: any[],
+    learningGoal: string,
+    knowledgeLevel: string,
+  ) => `
 Rank these videos by relevance to learning goal: "${learningGoal}" for ${knowledgeLevel} level.
 
 Consider:
@@ -873,7 +948,7 @@ Consider:
 - Channel credibility indicators
 
 Return videos sorted by relevance score.
-`
+`,
 };
 
 /**
@@ -990,7 +1065,10 @@ Guidelines:
 /**
  * Helper function to format prompts with variables
  */
-export function formatPrompt(template: string, variables: Record<string, any>): string {
+export function formatPrompt(
+  template: string,
+  variables: Record<string, any>,
+): string {
   return template.replace(/{(\w+)}/g, (match, key) => {
     return variables[key] !== undefined ? String(variables[key]) : match;
   });

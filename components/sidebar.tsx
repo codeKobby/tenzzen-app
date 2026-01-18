@@ -23,12 +23,10 @@ import {
   Sun,
   Moon,
   Laptop,
-  Paintbrush,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import { useTheme } from "next-themes"
-import { useThemePersistence } from "@/hooks/use-theme-persistence"
 import { Separator } from "@/components/ui/separator"
 import {
   DropdownMenu,
@@ -46,8 +44,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
-type ColorTheme = 'purple' | 'neutral' | 'minimal' | 'modern'
 
 interface NavigationItem {
   title: string
@@ -114,9 +110,7 @@ export function Sidebar({ className }: { className?: string }) {
   const { isOpen, toggle } = useSidebar()
   const { signOut } = useClerk()
   const { theme, setTheme } = useTheme()
-  const { updateTheme } = useThemePersistence()
   const [isMobile, setIsMobile] = React.useState(false)
-  const [colorTheme, setColorTheme] = React.useState<ColorTheme>('purple')
   const [systemTheme, setSystemTheme] = React.useState<'light' | 'dark'>('light')
   const [mounted, setMounted] = React.useState(false)
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = React.useState(false)
@@ -141,15 +135,6 @@ export function Sidebar({ className }: { className?: string }) {
     checkMobile()
     window.addEventListener('resize', checkMobile)
 
-    // Keep color theme in sync with persistence
-    const savedColorTheme = document.documentElement.classList.value
-      .split(' ')
-      .find(className => className.startsWith('theme-'))
-      ?.replace('theme-', '') as ColorTheme | undefined
-    if (savedColorTheme) {
-      setColorTheme(savedColorTheme)
-    }
-
     return () => {
       mediaQuery.removeEventListener('change', updateSystemTheme)
       window.removeEventListener('resize', checkMobile)
@@ -166,7 +151,7 @@ export function Sidebar({ className }: { className?: string }) {
         variant: "default",
       })
       // Manually redirect to sign-in page
-      router.push("/sign-in")
+      window.location.href = "/sign-in"
     } catch (error) {
       console.error("Sign out error:", error)
       toast({
@@ -176,12 +161,7 @@ export function Sidebar({ className }: { className?: string }) {
     }
   }
 
-  const handleThemeChange = (selectedTheme: ColorTheme) => {
-    setColorTheme(selectedTheme)
-    document.documentElement.classList.remove('theme-purple', 'theme-neutral', 'theme-minimal', 'theme-modern')
-    document.documentElement.classList.add(`theme-${selectedTheme}`)
-    updateTheme(theme as 'light' | 'dark' | 'system', selectedTheme)
-  }
+
 
   const NavigationLink = ({ item }: { item: NavigationItem }) => {
     // Check if current route matches or is a child route of this nav item
@@ -190,7 +170,7 @@ export function Sidebar({ className }: { className?: string }) {
 
     return (
       <Link
-        href={item.href}
+        href={item.href as "/dashboard"}
         className={cn(
           "group relative flex items-center gap-2.5 rounded-lg px-2.5",
           "h-9",
@@ -358,8 +338,6 @@ export function Sidebar({ className }: { className?: string }) {
                     )}
                     <span className="ml-2">Theme</span>
                     <span className="ml-auto text-muted-foreground">
-                      {colorTheme.charAt(0).toUpperCase() + colorTheme.slice(1)}
-                      {" • "}
                       {theme === 'system'
                         ? `System (${systemTheme === 'dark' ? 'Dark' : 'Light'})`
                         : theme === 'dark' ? 'Dark' : 'Light'
@@ -367,71 +345,39 @@ export function Sidebar({ className }: { className?: string }) {
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[240px] p-2">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-2">
-                      <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-2">
-                        Mode
-                      </h4>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn("flex-1 gap-1", theme === 'system' && "bg-accent")}
-                          onClick={() => {
-                            setTheme('system')
-                            updateTheme('system', colorTheme)
-                          }}
-                        >
-                          <Laptop className="h-3.5 w-3.5" />
-                          <span className="text-xs">System</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn("flex-1 gap-1", theme === 'light' && "bg-accent")}
-                          onClick={() => {
-                            setTheme('light')
-                            updateTheme('light', colorTheme)
-                          }}
-                        >
-                          <Sun className="h-3.5 w-3.5" />
-                          <span className="text-xs">Light</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn("flex-1 gap-1", theme === 'dark' && "bg-accent")}
-                          onClick={() => {
-                            setTheme('dark')
-                            updateTheme('dark', colorTheme)
-                          }}
-                        >
-                          <Moon className="h-3.5 w-3.5" />
-                          <span className="text-xs">Dark</span>
-                        </Button>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="flex flex-col gap-2">
-                      <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-2">
-                        Colors
-                      </h4>
-                      <div className="space-y-1">
-                        {(['purple', 'neutral', 'minimal', 'modern'] as const).map((color) => (
-                          <DropdownMenuItem
-                            key={color}
-                            onClick={() => handleThemeChange(color)}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-sm transition-colors"
-                            data-state={colorTheme === color ? 'active' : undefined}
-                          >
-                            <Paintbrush className="h-3.5 w-3.5" />
-                            {color.charAt(0).toUpperCase() + color.slice(1)}
-                          </DropdownMenuItem>
-                        ))}
-                      </div>
+                <DropdownMenuContent align="end" className="w-[180px] p-2">
+                  <div className="flex flex-col gap-2">
+                    <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-2">
+                      Mode
+                    </h4>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn("flex-1 gap-1", theme === 'system' && "bg-accent")}
+                        onClick={() => setTheme('system')}
+                      >
+                        <Laptop className="h-3.5 w-3.5" />
+                        <span className="text-xs">System</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn("flex-1 gap-1", theme === 'light' && "bg-accent")}
+                        onClick={() => setTheme('light')}
+                      >
+                        <Sun className="h-3.5 w-3.5" />
+                        <span className="text-xs">Light</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn("flex-1 gap-1", theme === 'dark' && "bg-accent")}
+                        onClick={() => setTheme('dark')}
+                      >
+                        <Moon className="h-3.5 w-3.5" />
+                        <span className="text-xs">Dark</span>
+                      </Button>
                     </div>
                   </div>
                 </DropdownMenuContent>

@@ -5,8 +5,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { SignedIn, SignedOut } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { UserMenu } from "@/components/user-menu"
+import { CreditsDisplay } from "@/components/user/credits-display"
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -89,8 +89,8 @@ export function Navbar() {
           </NavigationMenu>
         </div>
         <div className="flex items-center gap-4">
-          <ThemeToggle />
           <SignedIn>
+            <CreditsDisplay />
             <UserMenu />
           </SignedIn>
           <SignedOut>

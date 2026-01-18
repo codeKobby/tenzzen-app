@@ -12,7 +12,8 @@ import {
     Filter,
     X,
     Loader2,
-    RefreshCw
+    RefreshCw,
+    ArrowUp
 } from "lucide-react"
 import { CategoryPills } from "@/components/category-pills"
 import { Button } from "@/components/ui/button"
@@ -35,8 +36,11 @@ import Link from "next/link"
 import { useCourses } from "./hooks/use-courses"
 import { useCategoryCourses } from "./hooks/use-category-courses"
 import { useUserCourses } from "../courses/hooks/use-user-courses"
-import { getTrendingCourses, getRecommendedCourses } from "./utils/course-display-algorithms"
+import { getRecommendedCourses } from "./utils/course-display-algorithms"
 import { CourseCardSkeleton } from "@/components/ui/course-card-skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 const sortOptions = [
     { id: "enrollments", label: "Most Enrolled" },
@@ -60,7 +64,17 @@ export default function ExplorePage() {
     const [showGenerateModal, setShowGenerateModal] = useState(false)
     const [showAuthPrompt, setShowAuthPrompt] = useState(false)
     const [showSearch, setShowSearch] = useState(false)
+    const [showBackToTop, setShowBackToTop] = useState(false)
     const loadMoreRef = useRef<HTMLDivElement>(null)
+
+    // Track scroll position for back-to-top button
+    useEffect(() => {
+        const handleScroll = () => {
+            setShowBackToTop(window.scrollY > 400)
+        }
+        window.addEventListener('scroll', handleScroll, { passive: true })
+        return () => window.removeEventListener('scroll', handleScroll)
+    }, [])
 
     // Use our new hook for category-based course loading with infinite scroll
     const {
@@ -135,10 +149,10 @@ export default function ExplorePage() {
         }
     }, [userCoursesError]);
 
-    // Calculate trending courses using our algorithm
-    const { showTrendingSection, trendingCourses } = useMemo(() => {
-        return getTrendingCourses(allCourses);
-    }, [allCourses]);
+    // Validating Convex queries
+    const trendingCoursesData = useQuery(api.courses.getTrendingCourses);
+    const topRatedCoursesData = useQuery(api.courses.getTopRatedCourses);
+    const newCoursesData = useQuery(api.courses.getNewCourses);
 
     // Calculate recommended courses using our algorithm
     const { showRecommendations, recommendedCourses } = useMemo(() => {
@@ -312,126 +326,144 @@ export default function ExplorePage() {
                 "w-[95%] lg:w-[90%]"
             )}>
 
-                {/* Trending Courses - only shown when there are enough courses */}
-                {showTrendingSection && (
+                {/* Content Area: Tabs for Discovery or Filtered Results */}
+                {(searchQuery || currentCategory !== 'all') ? (
+                    // Filtered/Categorized View
                     <section className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-primary" />
-                            <h2 className="text-xl font-semibold">Trending Courses</h2>
-                        </div>
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            {trendingCourses.map((course) => (
-                                <CourseCard
-                                    key={course.id}
-                                    course={course}
-                                    variant="explore"
-                                    onClick={() => router.push(`/explore/${course.id}`)} // Navigate to course details page
-                                />
-                            ))}
-                        </div>
-                    </section>
-                )}
+                        <h2 className="text-xl font-semibold">
+                            {searchQuery
+                                ? `Search Results for "${searchQuery}"`
+                                : currentCategory === 'recommended'
+                                    ? 'Recommended for You'
+                                    : `${availableCategories.find(cat => cat.slug === currentCategory)?.name || currentCategory.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Courses`
+                            }
+                        </h2>
 
-                {/* All Courses */}
-                <section className="space-y-4">
-                    <h2 className="text-xl font-semibold">
-                        {currentCategory === 'all'
-                          ? 'All Courses'
-                          : currentCategory === 'recommended'
-                            ? 'Recommended for You'
-                            : `${availableCategories.find(cat => cat.slug === currentCategory)?.name || currentCategory.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Courses`}
-                    </h2>
-
-                    {coursesError && !isLoading && displayedCourses.length === 0 ? (
-                        // Error state
-                        <div className="text-center py-12 border border-dashed rounded-lg border-destructive/20 bg-destructive/5">
-                            <p className="text-muted-foreground mb-4">
-                                Failed to load courses. Please try again.
-                            </p>
-                            <Button
-                                onClick={() => window.location.reload()}
-                                variant="outline"
-                            >
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Retry
-                            </Button>
-                        </div>
-                    ) : isLoading && displayedCourses.length === 0 ? (
-                        // Initial loading state - reduced to 1-2 rows (4-8 cards)
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            {Array(8).fill(0).slice(0, 8).map((_, index) => (
-                                <CourseCardSkeleton key={index} className={cn(
-                                    // Only show 1-2 rows based on screen size
-                                    index >= 4 && "hidden xl:block", // Show 8 on xl screens (2 rows of 4)
-                                    index >= 3 && "hidden lg:block xl:block", // Show 6 on lg screens (2 rows of 3)
-                                    index >= 2 && "hidden sm:block lg:block xl:block", // Show 4 on sm screens (2 rows of 2)
-                                )} />
-                            ))}
-                        </div>
-                    ) : displayedCourses.length > 0 ? (
-                        <>
+                        {coursesError && !isLoading && displayedCourses.length === 0 ? (
+                            <div className="text-center py-12 border border-dashed rounded-lg border-destructive/20 bg-destructive/5">
+                                <p className="text-muted-foreground mb-4">Failed to load courses. Please try again.</p>
+                                <Button onClick={() => window.location.reload()} variant="outline">
+                                    <RefreshCw className="mr-2 h-4 w-4" /> Retry
+                                </Button>
+                            </div>
+                        ) : isLoading && displayedCourses.length === 0 ? (
                             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                <AnimatePresence mode="sync">
-                                    {displayedCourses.map((course) => (
-                                        <motion.div
-                                            key={course.id}
-                                            layout
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.9 }}
-                                            transition={{
-                                                opacity: { duration: 0.2 },
-                                                layout: { duration: 0.3, type: "spring" }
-                                            }}
-                                        >
-                                            <CourseCard
-                                                course={course}
-                                                variant="explore"
-                                                onClick={() => window.location.href = `/explore/${course.id}`} // Navigate to course details page
-                                            />
-                                        </motion.div>
-                                    ))}
-                                </AnimatePresence>
+                                {Array(8).fill(0).map((_, i) => <CourseCardSkeleton key={i} />)}
                             </div>
-                            <div ref={loadMoreRef} className="py-8 flex justify-center">
-                                {loadingMore ? (
-                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                ) : hasMore ? (
-                                    <div className="h-8" /> // Spacer for intersection observer
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">
-                                        {displayedCourses.length > 0
-                                            ? "No more courses to load"
-                                            : "No courses found"}
-                                    </p>
-                                )}
+                        ) : displayedCourses.length > 0 ? (
+                            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                {displayedCourses.map((course) => (
+                                    <CourseCard
+                                        key={course.id}
+                                        course={course}
+                                        variant="explore"
+                                        onClick={() => router.push(`/explore/${course.id}`)}
+                                    />
+                                ))}
                             </div>
-                        </>
-                    ) : (
-                        <div className="text-center py-12 border border-dashed rounded-lg border-muted-foreground/20 bg-muted/5">
-                            <p className="text-muted-foreground">
-                                {currentCategory === 'all'
-                                    ? "No courses found"
-                                    : currentCategory === 'recommended'
-                                        ? "No recommended courses found"
-                                        : `No courses found in ${currentCategory.replace(/-/g, ' ')}`}
-                            </p>
-                            <Button
-                                variant="link"
-                                className="mt-2"
-                                onClick={() => {
-                                    // Reset to all categories
+                        ) : (
+                            <div className="text-center py-12 border border-dashed rounded-lg border-muted-foreground/20 bg-muted/5">
+                                <p className="text-muted-foreground">No courses found.</p>
+                                <Button variant="link" className="mt-2" onClick={() => {
+                                    setSearchQuery("");
                                     const url = new URL(window.location.href);
                                     url.searchParams.delete('category');
                                     window.history.pushState({}, '', url.toString());
+                                    // wrapper hook usually listens to URL or we force update
                                     window.location.reload();
-                                }}
-                            >
-                                View all courses
-                            </Button>
+                                }}>View all courses</Button>
+                            </div>
+                        )}
+                        <div ref={loadMoreRef} className="py-4" />
+                    </section>
+                ) : (
+                    // Default Discovery Tabs
+                    <Tabs defaultValue="trending" className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <TabsList>
+                                <TabsTrigger value="trending" className="flex items-center gap-2">
+                                    <TrendingUp className="h-4 w-4" /> Trending
+                                </TabsTrigger>
+                                <TabsTrigger value="top_rated" className="flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4" /> Top Rated
+                                </TabsTrigger>
+                                <TabsTrigger value="new" className="flex items-center gap-2">
+                                    <Plus className="h-4 w-4" /> New
+                                </TabsTrigger>
+                            </TabsList>
                         </div>
-                    )}
-                </section>
+
+                        <TabsContent value="trending" className="space-y-4">
+                            {!trendingCoursesData ? (
+                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {Array(4).fill(0).map((_, i) => <CourseCardSkeleton key={i} />)}
+                                </div>
+                            ) : (
+                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {trendingCoursesData.map((course) => (
+                                        <CourseCard
+                                            key={course._id}
+                                            course={{
+                                                id: course._id,
+                                                ...course,
+                                                image: course.thumbnail,
+                                                // Adapter for differences between Convex schema and frontend Course type
+                                            } as any}
+                                            variant="explore"
+                                            onClick={() => router.push(`/explore/${course._id}`)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="top_rated" className="space-y-4">
+                            {!topRatedCoursesData ? (
+                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {Array(4).fill(0).map((_, i) => <CourseCardSkeleton key={i} />)}
+                                </div>
+                            ) : (
+                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {topRatedCoursesData.map((course) => (
+                                        <CourseCard
+                                            key={course._id}
+                                            course={{
+                                                id: course._id,
+                                                ...course,
+                                                image: course.thumbnail,
+                                            } as any}
+                                            variant="explore"
+                                            onClick={() => router.push(`/explore/${course._id}`)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="new" className="space-y-4">
+                            {!newCoursesData ? (
+                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {Array(4).fill(0).map((_, i) => <CourseCardSkeleton key={i} />)}
+                                </div>
+                            ) : (
+                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {newCoursesData.map((course) => (
+                                        <CourseCard
+                                            key={course._id}
+                                            course={{
+                                                id: course._id,
+                                                ...course,
+                                                image: course.thumbnail,
+                                            } as any}
+                                            variant="explore"
+                                            onClick={() => router.push(`/explore/${course._id}`)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
+                )}
 
                 {/* Course Generation Modal */}
                 {showGenerateModal && (
@@ -461,6 +493,28 @@ export default function ExplorePage() {
                     </DialogContent>
                 </Dialog>
             </div>
+
+            {/* Floating Back to Top Button */}
+            <AnimatePresence>
+                {showBackToTop && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="fixed bottom-6 right-6 z-50"
+                    >
+                        <Button
+                            size="icon"
+                            className="h-12 w-12 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        >
+                            <ArrowUp className="h-5 w-5" />
+                            <span className="sr-only">Back to top</span>
+                        </Button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

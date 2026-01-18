@@ -157,76 +157,97 @@ export default function CoursePage() {
     assessmentIndex: number,
     assessment: any
   ) => {
-    // Projects don't need generation, just display them
-    if (assessment.type === 'project') {
+    // Check if valid assessment
+    if (!assessment) return
+
+    // If already generated, just show it
+    if (assessment.isGenerated !== false) {
       setCurrentQuiz(assessment)
       setSectionIndex(newSectionIndex)
       scrollPlayerIntoView()
       return
     }
 
-    // Check if this is a placeholder quiz/test that needs to be generated
-    if (assessment.isGenerated === false) {
-      const assessmentType = assessment.type === 'test' ? 'test' : 'quiz'
-      const numQuestions = assessment.type === 'test' ? 15 : 5 // Tests have more questions
+    // It is a placeholder, need to generate content
+    const assessmentType = assessment.type || 'quiz'
 
-      // Trigger quiz/test generation
-      setGeneratingQuiz(true)
-      toast.info(`Generating ${assessmentType}...`, {
-        description: "This may take a few moments"
-      })
+    // Trigger generation
+    setGeneratingQuiz(true)
+    toast.info(`Generating ${assessmentType}...`, {
+      description: "This uses your AI credits and may take a few moments"
+    })
 
-      try {
-        // Get the first lesson of the module to generate quiz from
-        const moduleSection = sections[newSectionIndex]
-        const firstLesson = moduleSection?.lessons?.[0]
+    try {
+      // Get the first lesson of the module to generate assessment from
+      const moduleSection = sections[newSectionIndex]
+      const firstLesson = moduleSection?.lessons?.[0]
 
-        if (!firstLesson) {
-          toast.error(`Cannot generate ${assessmentType}`, {
-            description: "No lessons found in this module"
-          })
-          setGeneratingQuiz(false)
-          return
-        }
+      // For projects, we might use course-level data but linking to a lesson is fine for now as anchor
+      if (!firstLesson && assessmentType !== 'project') {
+        toast.error(`Cannot generate ${assessmentType}`, {
+          description: "No lessons found in this module"
+        })
+        setGeneratingQuiz(false)
+        return
+      }
 
-        // Import generateQuiz action dynamically
-        const { generateQuiz } = await import("@/actions/generateQuiz")
+      let result: any = { success: false, error: "Unknown type" }
 
-        const result = await generateQuiz(
-          firstLesson.id as Id<"lessons">,
+      if (assessmentType === 'test') {
+        const { generateTest } = await import("@/actions/generateTest")
+        result = await generateTest(
+          firstLesson!.id as Id<"lessons">,
           {
             userId: userId as string,
-            numQuestions: numQuestions,
+            numQuestions: 10,
+            difficulty: "hard"
+          }
+        )
+      } else if (assessmentType === 'project') {
+        const { generateProject } = await import("@/actions/generateProject")
+        // Project uses courseId, so we need that. The generic 'course' object should be available in scope or via props.
+        // Assuming 'course' is available in component scope based on file context
+        // If not, we can get it from firstLesson.courseId if that's available or params
+        // Checking existing code, 'course' is likely available or we use 'params.courseId'
+        // The outline shows the file path is [courseId]/page.tsx so params.courseId is available
+        const courseId = params.courseId as Id<"courses">
+
+        result = await generateProject(
+          courseId,
+          { userId: userId as string }
+        )
+      } else {
+        // Default to quiz
+        const { generateQuiz } = await import("@/actions/generateQuiz")
+        result = await generateQuiz(
+          firstLesson!.id as Id<"lessons">,
+          {
+            userId: userId as string,
+            numQuestions: 5,
             difficulty: "mixed"
           }
         )
-
-        if (result.success && result.quizId) {
-          toast.success(`${assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1)} generated!`, {
-            description: `You can now take the ${assessmentType}`
-          })
-          // Refresh the page to load the new quiz
-          window.location.reload()
-        } else {
-          toast.error(`Failed to generate ${assessmentType}`, {
-            description: result.error || "Please try again"
-          })
-        }
-      } catch (error) {
-        console.error(`Error generating ${assessmentType}:`, error)
-        toast.error(`Failed to generate ${assessmentType}`, {
-          description: error instanceof Error ? error.message : "Unknown error"
-        })
-      } finally {
-        setGeneratingQuiz(false)
       }
-      return
-    }
 
-    // Normal quiz selection for already generated quizzes
-    setCurrentQuiz(assessment)
-    setSectionIndex(newSectionIndex)
-    scrollPlayerIntoView()
+      if (result.success) {
+        toast.success(`${assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1)} generated!`, {
+          description: `You can now start the ${assessmentType}`
+        })
+        // Refresh the page to load the new assessment
+        window.location.reload()
+      } else {
+        toast.error(`Failed to generate ${assessmentType}`, {
+          description: result.error || "Please try again"
+        })
+      }
+    } catch (error) {
+      console.error(`Error generating ${assessmentType}:`, error)
+      toast.error(`Failed to generate ${assessmentType}`, {
+        description: error instanceof Error ? error.message : "Unknown error"
+      })
+    } finally {
+      setGeneratingQuiz(false)
+    }
   }
 
   const navigateLesson = (direction: "next" | "prev") => {

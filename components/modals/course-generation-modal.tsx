@@ -7,12 +7,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Bot, Link as LinkIcon, VideoIcon, X, Loader2, Bookmark } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { VideoDiscoveryResults, VideoRecommendation } from "./video-discovery-results"
 import { toast } from "sonner"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { useAuth } from "@clerk/nextjs"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { Coins } from "lucide-react"
 
 interface CourseGenerationModalProps {
   isOpen: boolean
@@ -71,6 +76,12 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
     prompt: ""
   })
   const [currentChannel, setCurrentChannel] = React.useState("")
+
+  // Credit System
+  const { userId } = useAuth()
+  const user = useQuery(api.users.getUser, userId ? { clerkId: userId } : "skip")
+  const hasCredits = (user?.credits ?? 0) > 0
+  const creditCost = 1
 
   // Discovery results state
   const [showDiscoveryResults, setShowDiscoveryResults] = React.useState(false)
@@ -531,20 +542,22 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                           Knowledge Level <span className="text-destructive">*</span>
                         </Label>
 
-                        <select
-                          id="level"
-                          aria-label="Knowledge Level"
+                        <Select
                           value={formData.knowledgeLevel}
-                          onChange={(e) => setFormData(prev => ({
+                          onValueChange={(value) => setFormData(prev => ({
                             ...prev,
-                            knowledgeLevel: e.target.value as KnowledgeLevel
+                            knowledgeLevel: value as KnowledgeLevel
                           }))}
-                          className="w-full h-10 px-3 py-2 text-base bg-background border border-input rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
-                          {knowledgeLevels.map(level => (
-                            <option key={level} value={level}>{level}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select your knowledge level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {knowledgeLevels.map(level => (
+                              <SelectItem key={level} value={level}>{level}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="space-y-2">
@@ -610,20 +623,22 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                         <Label htmlFor="videoLength" className="text-base font-medium">
                           Preferred Video Length
                         </Label>
-                        <select
-                          id="videoLength"
-                          aria-label="Preferred Video Length"
+                        <Select
                           value={formData.videoLength}
-                          onChange={(e) => setFormData(prev => ({
+                          onValueChange={(value) => setFormData(prev => ({
                             ...prev,
-                            videoLength: e.target.value as VideoLength
+                            videoLength: value as VideoLength
                           }))}
-                          className="w-full h-10 px-3 py-2 text-base bg-background border border-input rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
-                          {videoLengths.map(length => (
-                            <option key={length} value={length}>{length}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select video length" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {videoLengths.map(length => (
+                              <SelectItem key={length} value={length}>{length}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <p className="text-sm text-muted-foreground/80 mt-1">
                           Choose your preferred video duration
                         </p>
@@ -646,7 +661,7 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={isLoading || (
+              disabled={isLoading || !hasCredits || (
                 activeTab === "link"
                   ? !youtubeUrl
                   : (isPromptMode ? !promptData.prompt : !formData.title)
@@ -660,6 +675,7 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
                 )) &&
                 "cursor-not-allowed opacity-60"
               )}
+              title={!hasCredits ? "Insufficient credits" : undefined}
             >
               {isLoading ? (
                 <span className="flex items-center gap-2">
@@ -671,6 +687,39 @@ export function CourseGenerationModal({ isOpen, onClose }: CourseGenerationModal
               )}
             </Button>
           </DialogFooter>
+          {/* Credit Info - Enhanced visibility */}
+          <div className={cn(
+            "flex items-center justify-between mt-4 px-3 py-2.5 rounded-lg border",
+            hasCredits ? "bg-muted/50 border-border" : "bg-destructive/10 border-destructive/30"
+          )}>
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                "p-1.5 rounded-md",
+                hasCredits ? "bg-primary/10" : "bg-destructive/20"
+              )}>
+                <Coins className={cn(
+                  "w-4 h-4",
+                  hasCredits ? "text-primary" : "text-destructive"
+                )} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-medium">Generation Cost</span>
+                <span className="text-sm font-semibold text-foreground">{creditCost} Credit</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-xs text-muted-foreground">Your Balance</span>
+              <Badge 
+                variant={hasCredits ? "secondary" : "destructive"} 
+                className={cn(
+                  "h-6 px-2 text-xs font-semibold",
+                  !hasCredits && "animate-pulse"
+                )}
+              >
+                {user?.credits ?? 0} Credits
+              </Badge>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

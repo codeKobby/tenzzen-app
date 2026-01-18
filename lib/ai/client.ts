@@ -1,8 +1,27 @@
 import { generateObject, generateText, streamObject } from "ai";
 import { getModel, aiConfig } from "./config";
-import { CourseOutlineSchema, QuizSchema, VideoRecommendationsSchema } from "./types";
-import { courseGenerationPrompts, quizGenerationPrompts, tutorPrompts, videoRecommendationPrompts, prompts, formatPrompt } from "./prompts";
-import type { CourseOutline, Quiz, VideoRecommendations } from "./types";
+import {
+  CourseOutlineSchema,
+  QuizSchema,
+  VideoRecommendationsSchema,
+  TestQuestionsSchema,
+  ProjectPromptSchema,
+} from "./types";
+import {
+  courseGenerationPrompts,
+  quizGenerationPrompts,
+  tutorPrompts,
+  videoRecommendationPrompts,
+  prompts,
+  formatPrompt,
+} from "./prompts";
+import type {
+  CourseOutline,
+  Quiz,
+  VideoRecommendations,
+  TestQuestions,
+  ProjectPrompt,
+} from "./types";
 import { buildPromptTranscriptContext } from "./transcript-utils";
 
 // Helper: sleep
@@ -11,11 +30,16 @@ const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 // Helper: heuristically determine transient errors
 function isTransientError(e: any) {
   const msg = String(e?.message || e);
-  return /ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket hang up|Failed to fetch|network|502|503|504|timed out/i.test(msg);
+  return /ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket hang up|Failed to fetch|network|502|503|504|timed out/i.test(
+    msg,
+  );
 }
 
 // Retry wrapper for generateText
-async function safeGenerateText(opts: Parameters<typeof generateText>[0], attempts = 3) {
+async function safeGenerateText(
+  opts: Parameters<typeof generateText>[0],
+  attempts = 3,
+) {
   let lastErr: any = null;
   for (let i = 1; i <= attempts; i++) {
     try {
@@ -24,7 +48,10 @@ async function safeGenerateText(opts: Parameters<typeof generateText>[0], attemp
       lastErr = e;
       if (isTransientError(e) && i < attempts) {
         const backoff = Math.pow(2, i) * 250;
-        console.warn(`generateText attempt ${i} failed, retrying after ${backoff}ms:`, e?.message || e);
+        console.warn(
+          `generateText attempt ${i} failed, retrying after ${backoff}ms:`,
+          e?.message || e,
+        );
         await sleep(backoff);
         continue;
       }
@@ -35,7 +62,10 @@ async function safeGenerateText(opts: Parameters<typeof generateText>[0], attemp
 }
 
 // Retry wrapper for generateObject
-async function safeGenerateObject(opts: Parameters<typeof generateObject>[0], attempts = 3) {
+async function safeGenerateObject(
+  opts: Parameters<typeof generateObject>[0],
+  attempts = 3,
+) {
   let lastErr: any = null;
   for (let i = 1; i <= attempts; i++) {
     try {
@@ -44,7 +74,10 @@ async function safeGenerateObject(opts: Parameters<typeof generateObject>[0], at
       lastErr = e;
       if (isTransientError(e) && i < attempts) {
         const backoff = Math.pow(2, i) * 300;
-        console.warn(`generateObject attempt ${i} failed, retrying after ${backoff}ms:`, e?.message || e);
+        console.warn(
+          `generateObject attempt ${i} failed, retrying after ${backoff}ms:`,
+          e?.message || e,
+        );
         await sleep(backoff);
         continue;
       }
@@ -55,7 +88,10 @@ async function safeGenerateObject(opts: Parameters<typeof generateObject>[0], at
 }
 
 // Retry wrapper for streamObject _creation_. Once created, streaming is handled by caller.
-async function safeStreamObject(opts: Parameters<typeof streamObject>[0], attempts = 3) {
+async function safeStreamObject(
+  opts: Parameters<typeof streamObject>[0],
+  attempts = 3,
+) {
   let lastErr: any = null;
   for (let i = 1; i <= attempts; i++) {
     try {
@@ -64,7 +100,10 @@ async function safeStreamObject(opts: Parameters<typeof streamObject>[0], attemp
       lastErr = e;
       if (isTransientError(e) && i < attempts) {
         const backoff = Math.pow(2, i) * 500;
-        console.warn(`streamObject creation attempt ${i} failed, retrying after ${backoff}ms:`, e?.message || e);
+        console.warn(
+          `streamObject creation attempt ${i} failed, retrying after ${backoff}ms:`,
+          e?.message || e,
+        );
         await sleep(backoff);
         continue;
       }
@@ -80,21 +119,21 @@ async function safeStreamObject(opts: Parameters<typeof streamObject>[0], attemp
  */
 function sanitizeTimestamp(timestamp: string | undefined | null): string {
   if (!timestamp) return "0:00:00";
-  
+
   // Remove any whitespace
   timestamp = timestamp.trim();
-  
+
   // If it's already valid and short, return it
   if (timestamp.length <= 8 && /^\d{1,2}:\d{2}:\d{2}$/.test(timestamp)) {
     return timestamp;
   }
-  
+
   // Extract only the H:MM:SS part, ignore everything after
   const match = timestamp.match(/^(\d{1,2}:\d{2}:\d{2})/);
   if (match) {
     return match[1];
   }
-  
+
   // If still invalid, return default
   console.warn(`⚠️ Invalid timestamp format: "${timestamp}", using default`);
   return "0:00:00";
@@ -105,31 +144,35 @@ function sanitizeTimestamp(timestamp: string | undefined | null): string {
  */
 function sanitizeCourseOutline(outline: any): any {
   if (!outline || !outline.modules) return outline;
-  
+
   outline.modules = outline.modules.map((module: any) => {
     if (!module.lessons) return module;
-    
+
     module.lessons = module.lessons.map((lesson: any) => {
       if (lesson.timestampStart) {
         const original = lesson.timestampStart;
         lesson.timestampStart = sanitizeTimestamp(lesson.timestampStart);
         if (original !== lesson.timestampStart && original.length > 10) {
-          console.log(`✅ Sanitized timestampStart: "${original.substring(0, 20)}..." → "${lesson.timestampStart}"`);
+          console.log(
+            `✅ Sanitized timestampStart: "${original.substring(0, 20)}..." → "${lesson.timestampStart}"`,
+          );
         }
       }
       if (lesson.timestampEnd) {
         const original = lesson.timestampEnd;
         lesson.timestampEnd = sanitizeTimestamp(lesson.timestampEnd);
         if (original !== lesson.timestampEnd && original.length > 10) {
-          console.log(`✅ Sanitized timestampEnd: "${original.substring(0, 20)}..." → "${lesson.timestampEnd}"`);
+          console.log(
+            `✅ Sanitized timestampEnd: "${original.substring(0, 20)}..." → "${lesson.timestampEnd}"`,
+          );
         }
       }
       return lesson;
     });
-    
+
     return module;
   });
-  
+
   return outline;
 }
 
@@ -155,31 +198,49 @@ export class AIClient {
       if (params.transcriptSegments && params.transcriptSegments.length > 0) {
         let buffer: any = null;
         for (const seg of params.transcriptSegments) {
-          const segStart = typeof seg.offset === 'number' ? seg.offset : seg.start ?? 0;
-          const segDuration = typeof seg.duration === 'number' ? seg.duration : seg.duration ?? 0;
+          const segStart =
+            typeof seg.offset === "number" ? seg.offset : (seg.start ?? 0);
+          const segDuration =
+            typeof seg.duration === "number" ?
+              seg.duration
+            : (seg.duration ?? 0);
 
           if (!buffer) {
-            buffer = { text: seg.text || '', offset: segStart, duration: segDuration };
+            buffer = {
+              text: seg.text || "",
+              offset: segStart,
+              duration: segDuration,
+            };
             continue;
           }
 
           // If buffer is short or current segment is short, merge to avoid micro-segments
-          if (buffer.duration < mergeThresholdSeconds || segDuration < mergeThresholdSeconds) {
+          if (
+            buffer.duration < mergeThresholdSeconds ||
+            segDuration < mergeThresholdSeconds
+          ) {
             // merge into buffer
-            buffer.text = `${buffer.text} ${seg.text || ''}`.trim();
+            buffer.text = `${buffer.text} ${seg.text || ""}`.trim();
             // keep original start, extend duration
             buffer.duration = (buffer.duration || 0) + (segDuration || 0);
           } else {
             // flush buffer and start new one
             mergedSegments.push(buffer);
-            buffer = { text: seg.text || '', offset: segStart, duration: segDuration };
+            buffer = {
+              text: seg.text || "",
+              offset: segStart,
+              duration: segDuration,
+            };
           }
         }
 
         if (buffer) mergedSegments.push(buffer);
       }
     } catch (e) {
-      console.warn('Transcript merging failed, falling back to original segments', e);
+      console.warn(
+        "Transcript merging failed, falling back to original segments",
+        e,
+      );
       mergedSegments = params.transcriptSegments ?? [];
     }
 
@@ -196,8 +257,8 @@ export class AIClient {
         channelName: params.channelName,
         description: params.videoDescription,
         duration: params.videoDuration,
-        transcriptSegments: params.transcriptSegments
-      }
+        transcriptSegments: params.transcriptSegments,
+      },
     );
 
     const { text: analysisText } = await safeGenerateText({
@@ -208,12 +269,12 @@ export class AIClient {
 
     // Step 2: Generate course structure based on analysis
     const structurePrompt = courseGenerationPrompts.courseStructure(
-      { 
+      {
         analysis: analysisText,
-        videoDescription: params.videoDescription // Pass description separately
+        videoDescription: params.videoDescription, // Pass description separately
       },
       transcriptContext,
-      params.transcriptSegments
+      params.transcriptSegments,
     );
 
     const { object } = await safeGenerateObject({
@@ -259,8 +320,8 @@ export class AIClient {
         channelName: params.channelName,
         description: params.videoDescription,
         duration: params.videoDuration,
-        transcriptSegments: params.transcriptSegments
-      }
+        transcriptSegments: params.transcriptSegments,
+      },
     );
 
     const { text: analysisText } = await safeGenerateText({
@@ -271,12 +332,12 @@ export class AIClient {
 
     // Step 2: Stream course structure based on analysis
     const structurePrompt = courseGenerationPrompts.courseStructure(
-      { 
+      {
         analysis: analysisText,
-        videoDescription: params.videoDescription // Pass description separately
+        videoDescription: params.videoDescription, // Pass description separately
       },
       transcriptContext,
-      params.transcriptSegments
+      params.transcriptSegments,
     );
 
     // Create the streaming object with retry on transient network errors
@@ -288,9 +349,9 @@ export class AIClient {
       temperature: 0.1, // Very low temperature for structured output
       onFinish: async ({ object, error }) => {
         if (error) {
-          console.error('Course generation stream error:', error);
+          console.error("Course generation stream error:", error);
         } else {
-          console.log('Course generation stream completed successfully');
+          console.log("Course generation stream completed successfully");
         }
       },
     });
@@ -316,26 +377,67 @@ export class AIClient {
     } = params;
 
     const prompt = quizGenerationPrompts.multipleChoice(
-      {
-        title: lessonTitle,
-        content: lessonContent,
-        difficulty,
-        numQuestions
-      },
-      {} // Empty context for now, can be expanded
+      { title: lessonTitle, content: lessonContent },
+      { difficulty, numQuestions },
     );
 
-    const { object } = await generateObject({
-      model: getModel("default"),
+    return safeGenerateObject({
+      model: getModel(aiConfig.models.courseGeneration), // Use smarter model for assessment logic
       schema: QuizSchema,
       prompt,
-      temperature: 0.8,
+      temperature: 0.4, // Balanced creativity/accuracy
     });
-
-    return object;
   }
 
-  /**
+  // Generate open-ended test questions
+  static async generateTestQuestions(params: {
+    lessonTitle: string;
+    lessonContent: string;
+    keyPoints?: string[];
+    numQuestions?: number;
+    difficulty?: "easy" | "medium" | "hard" | "mixed";
+  }): Promise<TestQuestions> {
+    const {
+      lessonTitle,
+      lessonContent,
+      keyPoints,
+      numQuestions = 5,
+      difficulty = "mixed",
+    } = params;
+
+    const prompt = quizGenerationPrompts.openEndedTest(
+      { title: lessonTitle, content: lessonContent, keyPoints },
+      { difficulty, numQuestions },
+    );
+
+    return safeGenerateObject({
+      model: getModel(aiConfig.models.courseGeneration),
+      schema: TestQuestionsSchema,
+      prompt,
+      temperature: 0.5,
+    });
+  }
+
+  // Generate capstone project
+  static async generateProjectPrompt(params: {
+    courseTitle: string;
+    courseDescription: string;
+    modules: any[];
+  }): Promise<ProjectPrompt> {
+    const { courseTitle, courseDescription, modules } = params;
+
+    const prompt = quizGenerationPrompts.capstoneProject(
+      { title: courseTitle, description: courseDescription },
+      modules,
+    );
+
+    return safeGenerateObject({
+      model: getModel(aiConfig.models.courseGeneration),
+      schema: ProjectPromptSchema,
+      prompt,
+      temperature: 0.7, // More creative for projects
+    });
+  } /**
    * Generate a summary of content with educational focus
    */
   static async generateSummary(params: {
@@ -431,7 +533,7 @@ Return the complete, enhanced course structure with all improvements integrated.
   }) {
     const prompt = courseGenerationPrompts.supplementaryContent(
       params.segment,
-      params.courseContext
+      params.courseContext,
     );
 
     const { text } = await generateText({
@@ -454,7 +556,7 @@ Return the complete, enhanced course structure with all improvements integrated.
     const prompt = tutorPrompts.contextualResponse(
       params.question,
       params.courseContext,
-      params.chatHistory
+      params.chatHistory,
     );
 
     const { text } = await generateText({
@@ -475,7 +577,7 @@ Return the complete, enhanced course structure with all improvements integrated.
   }): Promise<string> {
     const prompt = tutorPrompts.conceptExplanation(
       params.concept,
-      params.courseContext
+      params.courseContext,
     );
 
     const { text } = await generateText({
@@ -498,13 +600,19 @@ Return the complete, enhanced course structure with all improvements integrated.
     additionalContext: string;
     videoLength: string;
   }): Promise<VideoRecommendations> {
-    const { query, knowledgeLevel, preferredChannels, additionalContext, videoLength } = params;
+    const {
+      query,
+      knowledgeLevel,
+      preferredChannels,
+      additionalContext,
+      videoLength,
+    } = params;
 
     // Step 1: Generate optimized search queries using AI
     const searchPrompt = videoRecommendationPrompts.searchQueries(
       query,
       knowledgeLevel,
-      additionalContext
+      additionalContext,
     );
 
     try {
@@ -524,64 +632,83 @@ Return the complete, enhanced course structure with all improvements integrated.
 
       // Step 2: Search YouTube using the same pattern as old ADK service
       // Import necessary modules for YouTube API calls
-      const { google } = await import('googleapis');
+      const { google } = await import("googleapis");
       const youtube = google.youtube({
-        version: 'v3',
+        version: "v3",
         auth: process.env.YOUTUBE_API_KEY,
       });
 
       // Use the first search query to find videos
-      const searchQuery = searchQueries[0] || `${query} ${knowledgeLevel} tutorial`;
+      const searchQuery =
+        searchQueries[0] || `${query} ${knowledgeLevel} tutorial`;
 
       // Search for videos
       const searchResponse = await youtube.search.list({
-        part: ['snippet'],
+        part: ["snippet"],
         q: searchQuery,
-        type: ['video'],
+        type: ["video"],
         maxResults: 10,
-        order: 'relevance',
-        safeSearch: 'strict',
+        order: "relevance",
+        safeSearch: "strict",
       });
 
-      if (!searchResponse.data.items || searchResponse.data.items.length === 0) {
-        throw new Error('No videos found');
+      if (
+        !searchResponse.data.items ||
+        searchResponse.data.items.length === 0
+      ) {
+        throw new Error("No videos found");
       }
 
       // Get detailed video information
-      const videoIds = searchResponse.data.items.map(item => item.id?.videoId).filter(Boolean) as string[];
+      const videoIds = searchResponse.data.items
+        .map((item) => item.id?.videoId)
+        .filter(Boolean) as string[];
       const videoResponse = await youtube.videos.list({
-        part: ['snippet', 'statistics', 'contentDetails'],
+        part: ["snippet", "statistics", "contentDetails"],
         id: videoIds,
       });
 
       // Format recommendations to match old ADK service structure
-      const recommendations = videoResponse.data.items?.map((video: any, index: number) => {
-        const snippet = video.snippet!;
-        const statistics = video.statistics!;
-        const contentDetails = video.contentDetails!;
+      const recommendations =
+        videoResponse.data.items?.map((video: any, index: number) => {
+          const snippet = video.snippet!;
+          const statistics = video.statistics!;
+          const contentDetails = video.contentDetails!;
 
-        // Parse duration (PT4M13S -> 4:13)
-        const duration = contentDetails.duration || '';
-        const durationMatch = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-        const hours = durationMatch?.[1] ? parseInt(durationMatch[1]) : 0;
-        const minutes = durationMatch?.[2] ? parseInt(durationMatch[2]) : 0;
-        const seconds = durationMatch?.[3] ? parseInt(durationMatch[3]) : 0;
-        const formattedDuration = hours > 0
-          ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-          : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+          // Parse duration (PT4M13S -> 4:13)
+          const duration = contentDetails.duration || "";
+          const durationMatch = duration.match(
+            /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/,
+          );
+          const hours = durationMatch?.[1] ? parseInt(durationMatch[1]) : 0;
+          const minutes = durationMatch?.[2] ? parseInt(durationMatch[2]) : 0;
+          const seconds = durationMatch?.[3] ? parseInt(durationMatch[3]) : 0;
+          const formattedDuration =
+            hours > 0 ?
+              `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+            : `${minutes}:${seconds.toString().padStart(2, "0")}`;
 
-        return {
-          videoId: video.id!,
-          title: snippet.title || 'Untitled',
-          channelName: snippet.channelTitle || 'Unknown Channel',
-          thumbnail: snippet.thumbnails?.high?.url || snippet.thumbnails?.default?.url || '',
-          duration: formattedDuration,
-          views: statistics.viewCount ? parseInt(statistics.viewCount).toLocaleString() : '0',
-          publishDate: snippet.publishedAt ? new Date(snippet.publishedAt).toLocaleDateString() : 'Unknown',
-          relevanceScore: Math.max(1, 10 - index), // Higher score for top results
-          benefit: `Learn ${query} concepts with this ${knowledgeLevel} level tutorial`
-        };
-      }) || [];
+          return {
+            videoId: video.id!,
+            title: snippet.title || "Untitled",
+            channelName: snippet.channelTitle || "Unknown Channel",
+            thumbnail:
+              snippet.thumbnails?.high?.url ||
+              snippet.thumbnails?.default?.url ||
+              "",
+            duration: formattedDuration,
+            views:
+              statistics.viewCount ?
+                parseInt(statistics.viewCount).toLocaleString()
+              : "0",
+            publishDate:
+              snippet.publishedAt ?
+                new Date(snippet.publishedAt).toLocaleDateString()
+              : "Unknown",
+            relevanceScore: Math.max(1, 10 - index), // Higher score for top results
+            benefit: `Learn ${query} concepts with this ${knowledgeLevel} level tutorial`,
+          };
+        }) || [];
 
       return { recommendations };
     } catch (error) {
@@ -598,9 +725,9 @@ Return the complete, enhanced course structure with all improvements integrated.
             views: "500K",
             publishDate: "6 months ago",
             relevanceScore: 7.5,
-            benefit: `Comprehensive guide to ${query} for ${knowledgeLevel} learners`
-          }
-        ]
+            benefit: `Comprehensive guide to ${query} for ${knowledgeLevel} learners`,
+          },
+        ],
       };
     }
   }

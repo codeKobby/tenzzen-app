@@ -14,9 +14,11 @@ import {
 
 interface CourseGenerateButtonProps {
   className?: string
+  size?: "default" | "sm" | "lg" | "icon"
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
 }
 
-export function CourseGenerateButton({ className }: CourseGenerateButtonProps) {
+export function CourseGenerateButton({ className, size = "default", variant = "default" }: CourseGenerateButtonProps) {
   const router = useRouter()
   const { userId } = useAuth()
 
@@ -32,10 +34,10 @@ export function CourseGenerateButton({ className }: CourseGenerateButtonProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="default"
-          size="sm"
+          variant={variant}
+          size={size}
           className={cn(
-            "group text-sm transition-all",
+            "group transition-all",
             className
           )}
         >

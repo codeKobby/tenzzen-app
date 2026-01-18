@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// Mutation to create an AI-generated quiz with questions
+// Mutation to create an AI-generated quiz/test/project
 export const createAIQuiz = mutation({
   args: {
     lessonId: v.optional(v.id("lessons")),
@@ -10,25 +10,35 @@ export const createAIQuiz = mutation({
     title: v.string(),
     description: v.string(),
     passingScore: v.number(),
+    type: v.optional(
+      v.union(v.literal("quiz"), v.literal("test"), v.literal("project")),
+    ),
     questions: v.array(
       v.object({
         question: v.string(),
-        options: v.array(v.string()),
-        correctAnswer: v.number(),
+        options: v.optional(v.array(v.string())),
+        correctAnswer: v.optional(v.number()),
         explanation: v.string(),
         difficulty: v.union(
           v.literal("easy"),
           v.literal("medium"),
-          v.literal("hard")
+          v.literal("hard"),
         ),
-      })
+        type: v.optional(
+          v.union(
+            v.literal("multiple_choice"),
+            v.literal("open_ended"),
+            v.literal("project_task"),
+          ),
+        ),
+      }),
     ),
     aiModel: v.string(),
   },
   handler: async (ctx, args) => {
     const now = new Date().toISOString();
 
-    // Create quiz
+    // Create quiz/test/project
     const quizId = await ctx.db.insert("quizzes", {
       lessonId: args.lessonId,
       moduleId: args.moduleId,
@@ -36,13 +46,14 @@ export const createAIQuiz = mutation({
       title: args.title,
       description: args.description,
       passingScore: args.passingScore,
+      type: args.type || "quiz", // Default to quiz for backward compatibility
       generatedBy: "ai" as const,
       aiModel: args.aiModel,
       createdAt: now,
       updatedAt: now,
     });
 
-    // Create quiz questions
+    // Create questions
     for (
       let questionIndex = 0;
       questionIndex < args.questions.length;
@@ -57,6 +68,7 @@ export const createAIQuiz = mutation({
         correctAnswer: questionData.correctAnswer,
         explanation: questionData.explanation,
         difficulty: questionData.difficulty,
+        type: questionData.type,
         order: questionIndex,
         createdAt: now,
       });

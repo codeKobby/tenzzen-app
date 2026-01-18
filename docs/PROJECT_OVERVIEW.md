@@ -35,7 +35,8 @@ Tenzzen is an advanced learning platform that transforms unstructured YouTube co
 
 The database is schema-first, defined in `convex/schema.ts`. Key tables include:
 
-- **courses**: Stores course metadata, structure (nested sections/lessons), and settings.
+- **users**: Manages user credits and profile metadata.
+- **courses**: Stores course metadata (including trust scores, upvotes), structure, and settings.
 - **modules**: Logical groupings of lessons.
 - **lessons**: Individual learning units with content, video timestamps, and key points.
 - **quizzes** & **quizQuestions**: AI-generated assessments.
@@ -57,13 +58,21 @@ The database is schema-first, defined in `convex/schema.ts`. Key tables include:
 
 - **YouTube Integration**: Analyzes single videos, playlists, or channels.
 - **Topic-Based Generation**: Creates courses from text prompts.
+- **Topic-Based Generation**: Creates courses from text prompts.
 - **Transcript Analysis**: Extracts key concepts and timestamps from video transcripts.
+- **Credit System**: Users spend credits to generate high-quality AI courses.
+
+### Discovery & Community
+
+- **Explore Page**: Trending, Top Rated, and New course feeds.
+- **Trust Metrics**: Courses feature transparency scores and upvote counts.
+- **Forking**: Users can clone and customize existing courses.
 
 ### Learning Experience
 
 - **Interactive Player**: Custom video player with timestamp navigation.
 - **Progress Tracking**: Granular tracking at the lesson and course level.
-- **Assessments**: Integrated quizzes to test knowledge retention.
+- **On-Demand Assessments**: Generate Quizzes (Multiple Choice), Tests (Open-Ended), and Projects (Capstone) for any lesson.
 - **Notes**: Rich text note-taking capability (planned/in-progress).
 
 ### Dashboard
