@@ -284,7 +284,8 @@ export default defineSchema({
     completedAt: v.optional(v.string()),
   })
     .index("by_user_course", ["userId", "courseId"])
-    .index("by_lesson", ["lessonId"]),
+    .index("by_lesson", ["lessonId"])
+    .index("by_user_lesson", ["userId", "lessonId"]), // Added for idempotent progress updates
 
   // User activity for streaks
   user_activities: defineTable({
@@ -304,6 +305,21 @@ export default defineSchema({
     lastCheckIn: v.string(), // YYYY-MM-DD
     weeklyActivity: v.array(v.number()), // 7 numbers for last 7 days
   }).index("by_user", ["userId"]),
+
+  // Notifications
+  notifications: defineTable({
+    userId: v.string(),
+    type: v.string(), // 'info', 'success', 'warning', 'error', 'streak_risk', 'course_completed'
+    title: v.optional(v.string()),
+    message: v.string(),
+    link: v.optional(v.string()),
+    read: v.boolean(),
+    metadata: v.optional(v.any()), // flexible for additional data
+
+    createdAt: v.string(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_read", ["userId", "read"]),
 
   // User progress tracking
   userProgress: defineTable({
@@ -348,4 +364,28 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_quiz", ["quizId"])
     .index("by_course", ["courseId"]),
+
+  // Course generation job queue (for deduplication and async processing)
+  generation_jobs: defineTable({
+    sourceId: v.string(), // YouTube video/playlist ID
+    sourceUrl: v.string(),
+    sourceType: v.union(v.literal("youtube"), v.literal("topic")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    createdBy: v.string(), // Clerk user ID who initiated
+    watchers: v.array(v.string()), // Users waiting for this course
+    resultCourseId: v.optional(v.id("courses")),
+    error: v.optional(v.string()),
+    retryCount: v.optional(v.number()),
+    createdAt: v.string(),
+    updatedAt: v.optional(v.string()),
+  })
+    .index("by_source_status", ["sourceId", "status"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"])
+    .index("by_user", ["createdBy"]),
 });

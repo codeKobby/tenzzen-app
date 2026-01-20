@@ -290,6 +290,92 @@ export const getNewCourses = query({
   },
 });
 
+// ============================================
+// PAGINATED QUERIES (for scalable explore page)
+// ============================================
+
+export const getPublicCoursesPaginated = query({
+  args: {
+    cursor: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { cursor, limit = 12 }) => {
+    const results = await ctx.db
+      .query("courses")
+      .withIndex("by_public", (q) =>
+        q.eq("isPublic", true).eq("isPublished", true),
+      )
+      .order("desc")
+      .paginate({ cursor: cursor ?? null, numItems: limit });
+
+    return {
+      courses: results.page,
+      nextCursor: results.continueCursor,
+      isDone: results.isDone,
+    };
+  },
+});
+
+export const getTrendingCoursesPaginated = query({
+  args: {
+    cursor: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { cursor, limit = 12 }) => {
+    const results = await ctx.db
+      .query("courses")
+      .withIndex("by_enrollment", (q) => q.eq("isPublic", true))
+      .order("desc")
+      .paginate({ cursor: cursor ?? null, numItems: limit });
+
+    return {
+      courses: results.page,
+      nextCursor: results.continueCursor,
+      isDone: results.isDone,
+    };
+  },
+});
+
+export const getTopRatedCoursesPaginated = query({
+  args: {
+    cursor: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { cursor, limit = 12 }) => {
+    const results = await ctx.db
+      .query("courses")
+      .withIndex("by_upvotes", (q) => q.eq("isPublic", true))
+      .order("desc")
+      .paginate({ cursor: cursor ?? null, numItems: limit });
+
+    return {
+      courses: results.page,
+      nextCursor: results.continueCursor,
+      isDone: results.isDone,
+    };
+  },
+});
+
+export const getNewCoursesPaginated = query({
+  args: {
+    cursor: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { cursor, limit = 12 }) => {
+    const results = await ctx.db
+      .query("courses")
+      .withIndex("by_creation", (q) => q.eq("isPublic", true))
+      .order("desc")
+      .paginate({ cursor: cursor ?? null, numItems: limit });
+
+    return {
+      courses: results.page,
+      nextCursor: results.continueCursor,
+      isDone: results.isDone,
+    };
+  },
+});
+
 // Mutation to fork a course
 export const forkCourse = mutation({
   args: { courseId: v.id("courses") },

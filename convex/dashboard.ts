@@ -44,7 +44,27 @@ export const getUserStats = query({
     const recentCourses = await Promise.all(
       recentEnrollments.map(async (enrollment) => {
         const course = await ctx.db.get(enrollment.courseId);
-        return course ? { ...course, enrollment } : null;
+        if (!course) return null;
+
+        // Strip heavy content from sections/lessons
+        const sections = course.sections?.map(section => ({
+          ...section,
+          lessons: section.lessons?.map(lesson => {
+            const { content, ...rest } = lesson;
+            return rest;
+          }) || []
+        }));
+
+        return {
+          _id: course._id,
+          title: course.title,
+          description: course.description,
+          thumbnail: course.thumbnail,
+          sourceUrl: course.sourceUrl,
+          sections,
+          overview: course.overview,
+          enrollment,
+        };
       })
     );
 
@@ -91,7 +111,27 @@ export const getRecentCourses = query({
     const courses = await Promise.all(
       recentEnrollments.map(async (enrollment) => {
         const course = await ctx.db.get(enrollment.courseId);
-        return course ? { ...course, enrollment } : null;
+        if (!course) return null;
+
+        // Strip heavy content from sections/lessons to improve performance
+        const sections = course.sections?.map(section => ({
+          ...section,
+          lessons: section.lessons?.map(lesson => {
+            const { content, ...rest } = lesson;
+            return rest;
+          }) || []
+        }));
+
+        return {
+          _id: course._id,
+          title: course.title,
+          description: course.description,
+          thumbnail: course.thumbnail,
+          sourceUrl: course.sourceUrl,
+          sections,
+          overview: course.overview,
+          enrollment,
+        };
       })
     );
 
