@@ -1,23 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
   output: "standalone",
   skipTrailingSlashRedirect: true,
-  skipMiddlewareUrlNormalize: true,
+  skipProxyUrlNormalize: true,
+  typedRoutes: true,
   images: {
-    domains: [
-      "images.unsplash.com",
-      "i.ytimg.com",
-      "img.youtube.com",
-      "yt3.ggpht.com",
-      "yt3.googleusercontent.com",
-      "ytimg.googleusercontent.com",
-    ],
     remotePatterns: [
       {
         protocol: "https",
@@ -34,41 +24,21 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: "inline",
   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      if (!config.resolve) {
-        config.resolve = {};
-      }
-      if (!config.resolve.fallback) {
-        config.resolve.fallback = {};
-      }
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        child_process: false,
-        fs: false,
-        net: false,
-        tls: false,
-      };
-    }
-    if (config.cache) {
-      config.cache = {
-        type: "memory",
-      };
-    }
-    config.resolve.alias = {
-      ...config.resolve.alias,
+  turbopack: {
+    // Explicitly set the workspace root to prevent lockfile detection issues
+    // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory
+    root: __dirname,
+    resolveAlias: {
       "@": ".",
       "@/components": "./components",
       "@/lib": "./lib",
       "@/hooks": "./hooks",
       "@/types": "./types",
       "@/actions": "./actions",
-    };
-    return config;
+    },
   },
   experimental: {
     webpackMemoryOptimizations: true,
-    typedRoutes: true,
     serverActions: {
       allowedOrigins: ["localhost:3000"],
       bodySizeLimit: "2mb",

@@ -26,6 +26,8 @@ import { useStreak } from '@/hooks/use-streak';
 import { useStreakCelebration } from '@/hooks/use-streak-celebration';
 import { StreakCelebrationPopup } from '@/components/streak/streak-celebration-popup';
 import { AnimatedEmoji } from '@/components/streak/animated-emoji';
+import { StreakBadge } from '@/components/streak/StreakBadge';
+import { NotificationsPopover } from '@/components/notifications/NotificationsPopover';
 
 // Import interfaces from our hook
 import type { Course, LearningActivity, UserStats } from '@/hooks/use-dashboard';
@@ -262,10 +264,10 @@ export default function DashboardPage() {
     // Show upcoming assessments from courses or placeholder
     ...(recentCourses?.flatMap(course =>
       course.sections?.flatMap(section =>
-        section.lessons?.filter(lesson =>
+        section.lessons?.filter((lesson: any) =>
           lesson.type === 'assessment' &&
           !course.completed_lessons?.includes(lesson.id)
-        ).map(lesson => ({
+        ).map((lesson: any) => ({
           id: lesson.id,
           type: "assessment",
           title: lesson.title,
@@ -287,6 +289,12 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto space-y-6 pt-6 w-full lg:w-[90%] px-4 sm:px-6 max-w-[1400px]">
+      <div className="flex justify-end pointer-events-none relative h-0">
+        <div className="pointer-events-auto translate-y-2">
+          <NotificationsPopover />
+        </div>
+      </div>
+
       {/* Streak Celebration Popup */}
       <StreakCelebrationPopup
         streak={celebrationStreak}
@@ -308,36 +316,14 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-4 flex-1">
               <div className="rounded-lg bg-gradient-to-r from-white/10 to-white/20 p-3.5 backdrop-blur-[2px] shadow-sm">
                 <div className="flex justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-white bg-gradient-to-r from-yellow-300 to-yellow-500 bg-clip-text text-transparent">
-                      {streak.current}
-                    </span>
-                    <div className="flex flex-col justify-between">
-                      <span className="text-sm text-primary-foreground/90 font-semibold">
-                        {streak.current === 1 ? 'First day!' :
-                          streak.current > 1 ? `${streak.current === streak.longest ? 'New record!' : 'Day streak!'}` :
-                            'Start your streak!'}
-                      </span>
-                      <span className="text-xs text-primary-foreground/80 flex items-center gap-1.5">
-                        Best: {streak.longest} days
-                        {streak.current >= streak.longest && streak.longest > 0 && (
-                          <AnimatedEmoji emoji="🏆" size="sm" />
-                        )}
-                      </span>
-                    </div>
-                    <span className="text-2xl">
-                      <AnimatedEmoji
-                        emoji={
-                          streak.current >= 100 ? '🏆' :
-                            streak.current >= 30 ? '🔥' :
-                              streak.current >= 14 ? '💪' :
-                                streak.current >= 7 ? '✨' :
-                                  streak.current >= 3 ? '🌱' : '🎯'
-                        }
-                        size="2xl"
-                      />
-                    </span>
-                  </div>
+                  <StreakBadge
+                    current={streak.current}
+                    longest={streak.longest}
+                    todayMinutes={streak.today.minutes}
+                    todayTasks={streak.today.tasks}
+                    loading={streakLoading}
+                  />
+
                   <div className="flex flex-col justify-between items-end">
                     <div className="flex flex-col gap-1.5 text-xs text-primary-foreground/90">
                       <div className="flex items-center gap-1.5">
@@ -483,7 +469,7 @@ export default function DashboardPage() {
                                 {course.title}
                               </h3>
                               <p className="text-xs text-muted-foreground">
-                                Last accessed {new Date(course.last_accessed_at).toLocaleDateString()}
+                                Last accessed {course.last_accessed_at ? new Date(course.last_accessed_at).toLocaleDateString() : 'Never'}
                               </p>
                             </div>
                             <Button
@@ -526,7 +512,7 @@ export default function DashboardPage() {
                             <Progress
                               value={
                                 (selectedCourse.completed_lessons?.filter(
-                                  (lessonId: string) => section.lessons?.some(l => l.id === lessonId)
+                                  (lessonId: string) => section.lessons?.some((l: any) => l.id === lessonId)
                                 ).length || 0) / (section.lessons?.length || 1) * 100
                               }
                               className="h-1.5"
@@ -554,7 +540,7 @@ export default function DashboardPage() {
                             Topics Covered
                           </h5>
                           <div className="flex flex-wrap gap-2">
-                            {selectedCourse.overview?.skills?.slice(0, 5).map((skill, idx) => (
+                            {selectedCourse.overview?.skills?.slice(0, 5).map((skill: string, idx: number) => (
                               <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                                 {skill}
                               </span>
@@ -763,7 +749,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Course Generation Modal */}
       <CourseGenerationModal
         isOpen={isCourseModalOpen}
         onClose={() => setIsCourseModalOpen(false)}
