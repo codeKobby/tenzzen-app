@@ -155,7 +155,7 @@ export default function OnboardingPage() {
                 />
               ))}
             </div>
-          </AnimatePresence>
+          </OnboardingCard>
         )
       case 3:
         return (
@@ -195,8 +195,8 @@ export default function OnboardingPage() {
                 </div>
               ))}
             </div>
-            
-            <button 
+
+            <button
               onClick={() => setStep(0)}
               className="block mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -224,7 +224,7 @@ export default function OnboardingPage() {
           {renderStep()}
         </motion.div>
       </AnimatePresence>
-      
+
       {step < 3 && (
         <button
           onClick={() => step > 0 && setStep(step - 1)}

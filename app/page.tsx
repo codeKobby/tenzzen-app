@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react';
 import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
@@ -172,7 +173,9 @@ export default function HomePage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <CourseGenerateButton size="lg" className="text-base h-12 px-6 shadow-lg shadow-primary/20" />
+                <Suspense fallback={<Button size="lg" className="text-base h-12 px-6 shadow-lg shadow-primary/20" disabled>Loading...</Button>}>
+                  <CourseGenerateButton size="lg" className="text-base h-12 px-6 shadow-lg shadow-primary/20" />
+                </Suspense>
                 <SignedIn>
                   <Button size="lg" variant="outline" className="text-base h-12 px-6 hover:bg-primary/5" asChild>
                     <Link href="/courses">Continue Learning</Link>
