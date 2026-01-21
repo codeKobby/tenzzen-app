@@ -1,9 +1,6 @@
 import { Metadata } from "next"
 
-export const metadata: Metadata = {
-    title: "Course Details",
-    description: "Learn at your own pace with our comprehensive course content"
-}
+export { generateCourseMetadata as generateMetadata } from "./metadata"
 
 export default function CourseLayout({ children }: { children: React.ReactNode }) {
     return (

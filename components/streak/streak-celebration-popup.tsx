@@ -277,7 +277,7 @@ export function StreakCelebrationPopup({
                 {title}
               </motion.h2>
 
-              <motion.p
+              <motion.div
                 initial={{ y: 10, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.4 }}
@@ -290,15 +290,15 @@ export function StreakCelebrationPopup({
                       <AnimatedEmoji emoji="🔥" size="md" />
                       <AnimatedEmoji emoji="🏆" size="md" />
                     </span> :
-                  streak >= 30 ?
-                    <AnimatedEmoji emoji="🔥" size="md" /> :
-                  streak >= 14 ?
-                    <AnimatedEmoji emoji="💪" size="md" /> :
-                  streak >= 7 ?
-                    <AnimatedEmoji emoji="✨" size="md" /> :
-                    <AnimatedEmoji emoji="🎯" size="md" />
+                    streak >= 30 ?
+                      <AnimatedEmoji emoji="🔥" size="md" /> :
+                      streak >= 14 ?
+                        <AnimatedEmoji emoji="💪" size="md" /> :
+                        streak >= 7 ?
+                          <AnimatedEmoji emoji="✨" size="md" /> :
+                          <AnimatedEmoji emoji="🎯" size="md" />
                 }
-              </motion.p>
+              </motion.div>
 
               <motion.div
                 initial={{ y: 10, opacity: 0 }}

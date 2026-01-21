@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
-  Plus, Lock, MoreVertical, BookmarkPlus, Share2, Trash2, Check, ShieldCheck, ThumbsUp, GitFork
+  Plus, Lock, MoreVertical, BookmarkPlus, Share2, Trash2, Check, ShieldCheck, ThumbsUp, GitFork, Clock, BookOpen
 } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
@@ -294,6 +294,17 @@ export function CourseCard({
     }
   })();
 
+  // Simplified duration for small badges
+  const shortDuration = (() => {
+    if (typeof course.duration_seconds === 'number') {
+      const hours = Math.floor(course.duration_seconds / 3600);
+      const minutes = Math.floor((course.duration_seconds % 3600) / 60);
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    }
+    return displayDuration;
+  })();
+
   // Format the lastAccessed date - use our utility function
   const formattedLastAccessed = formatDate(course.lastAccessed);
 
@@ -412,20 +423,10 @@ export function CourseCard({
         {variant === "default" && !selectionMode && (
           <>
             {course.lastAccessed && course.progress && course.progress > 0 && (
-              <div className="absolute top-2 left-2 text-white text-xs drop-shadow-md bg-black/40 backdrop-blur-sm rounded-md px-2 py-0.5">
-                Last accessed {formattedLastAccessed}
+              <div className="absolute top-2 left-2 text-white text-[10px] font-medium drop-shadow-md bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10">
+                {formattedLastAccessed}
               </div>
             )}
-            <div className="absolute bottom-1 left-2 flex items-center gap-2">
-              <div className="text-white text-xs font-medium drop-shadow-lg leading-none bg-black/50 backdrop-blur-sm rounded px-1.5 py-0.5">
-                {displayDuration}
-              </div>
-            </div>
-            <div className="absolute bottom-1 right-2 flex items-center gap-2">
-              <div className="text-white text-xs font-medium drop-shadow-lg leading-none bg-black/50 backdrop-blur-sm rounded px-1.5 py-0.5">
-                {getCompletedLessons() || 0}/{getTotalLessons() || 0}
-              </div>
-            </div>
           </>
         )}
 
@@ -455,16 +456,19 @@ export function CourseCard({
 
         {/* Progress bar */}
         {variant === "default" && (
-          <div className="absolute inset-x-0 bottom-0 h-[3px] bg-muted/30">
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-muted/20">
             <div
-              className="h-full bg-primary transition-all"
+              className={cn(
+                "h-full transition-all duration-500",
+                course.progress === 100 ? "bg-green-500" : "bg-primary"
+              )}
               style={{ width: `${course.progress || 0}%` }}
             />
           </div>
         )}
       </div>
 
-      <div className="flex flex-col gap-2 p-3">
+      <div className="flex flex-col gap-1.5 p-3">
         {/* Title and More Actions Row */}
         <div className="flex gap-2">
           <div className="flex-1 min-w-0">
@@ -472,8 +476,8 @@ export function CourseCard({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <h3 className={cn(
-                    "font-medium text-[13px] leading-[1.4]",
-                    "min-h-[2.8em]", // Force 2 lines height
+                    "font-bold text-[14px] leading-tight tracking-tight text-foreground/90 group-hover:text-primary transition-colors",
+                    "min-h-[2.4em]", // Force 2 lines height
                     "line-clamp-2"
                   )}>
                     {course.title}
@@ -540,6 +544,29 @@ export function CourseCard({
             </div>
           )}
         </div>
+
+        {/* Duration and Lessons Metadata - clean subtle display */}
+        {!selectionMode && variant === "default" && (
+          <div className="flex items-center gap-3 text-muted-foreground text-[11px]">
+            {shortDuration && (
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {shortDuration}
+              </span>
+            )}
+            {getTotalLessons() > 0 && (
+              <span className="flex items-center gap-1">
+                <BookOpen className="h-3 w-3" />
+                {getTotalLessons()} lessons
+              </span>
+            )}
+            {course.progress !== undefined && course.progress > 0 && (
+              <span className="text-primary font-medium">
+                {course.progress}% complete
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Sources and Stats Row - hide in selection mode */}
         {!selectionMode && (

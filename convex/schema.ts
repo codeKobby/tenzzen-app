@@ -1,6 +1,69 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+// --- Shared Schema Definitions ---
+
+const LessonSchema = v.object({
+  title: v.string(),
+  description: v.string(),
+  content: v.string(),
+  durationMinutes: v.number(),
+  timestampStart: v.optional(v.string()),
+  timestampEnd: v.optional(v.string()),
+  keyPoints: v.array(v.string()),
+});
+
+const ModuleSchema = v.object({
+  title: v.string(),
+  description: v.string(),
+  lessons: v.array(LessonSchema),
+});
+
+const ResourceSchema = v.object({
+  title: v.string(),
+  url: v.string(),
+  type: v.string(),
+  description: v.optional(v.string()),
+  category: v.string(), // "Creator Links" or "Other Resources"
+  provenance: v.optional(v.union(v.literal("found"), v.literal("suggested"))),
+});
+
+const AssessmentPlanSchema = v.object({
+  quizLocations: v.array(
+    v.object({
+      afterModule: v.optional(v.number()),
+      afterLesson: v.optional(
+        v.object({
+          moduleIndex: v.number(),
+          lessonIndex: v.number(),
+        }),
+      ),
+      type: v.literal("quiz"),
+    }),
+  ),
+  hasEndOfCourseTest: v.boolean(),
+  hasFinalProject: v.boolean(),
+  projectDescription: v.optional(v.string()),
+});
+
+// Legacy/Cached course data structure used in videos table
+const CachedCourseDataSchema = v.object({
+  title: v.optional(v.string()),
+  description: v.optional(v.string()),
+  image: v.optional(v.string()),
+  courseItems: v.optional(
+    v.array(
+      v.object({
+        title: v.string(),
+        content: v.optional(v.string()),
+        durationMinutes: v.optional(v.number()),
+      }),
+    ),
+  ),
+  metadata: v.optional(v.any()), // Still semi-flexible but improved
+  transcript: v.optional(v.string()),
+});
+
 export default defineSchema({
   // Users table - for app-specific user data (Clerk handles auth)
   users: defineTable({
@@ -26,7 +89,7 @@ export default defineSchema({
     views: v.optional(v.string()),
     likes: v.optional(v.string()),
     publishDate: v.optional(v.string()),
-    course_data: v.optional(v.any()),
+    course_data: v.optional(CachedCourseDataSchema),
     cachedAt: v.string(),
   }).index("by_youtube_id", ["youtubeId"]),
 
@@ -66,35 +129,9 @@ export default defineSchema({
     targetAudience: v.string(),
     estimatedDuration: v.string(),
     tags: v.array(v.string()), // Specific keywords
-    resources: v.array(
-      v.object({
-        title: v.string(),
-        url: v.string(),
-        type: v.string(),
-        description: v.optional(v.string()),
-        category: v.string(), // "Creator Links" or "Other Resources"
-      }),
-    ),
+    resources: v.array(ResourceSchema),
     // Denormalized preview fields used by the dashboard UI
-    sections: v.optional(
-      v.array(
-        v.object({
-          title: v.string(),
-          description: v.string(),
-          lessons: v.array(
-            v.object({
-              title: v.string(),
-              description: v.string(),
-              content: v.string(),
-              durationMinutes: v.number(),
-              timestampStart: v.optional(v.string()),
-              timestampEnd: v.optional(v.string()),
-              keyPoints: v.array(v.string()),
-            }),
-          ),
-        }),
-      ),
-    ),
+    sections: v.optional(v.array(ModuleSchema)),
     overview: v.optional(
       v.object({
         skills: v.array(v.string()),
@@ -103,25 +140,7 @@ export default defineSchema({
       }),
     ),
     thumbnail: v.optional(v.string()),
-    assessmentPlan: v.optional(
-      v.object({
-        quizLocations: v.array(
-          v.object({
-            afterModule: v.optional(v.number()),
-            afterLesson: v.optional(
-              v.object({
-                moduleIndex: v.number(),
-                lessonIndex: v.number(),
-              }),
-            ),
-            type: v.literal("quiz"),
-          }),
-        ),
-        hasEndOfCourseTest: v.boolean(),
-        hasFinalProject: v.boolean(),
-        projectDescription: v.optional(v.string()),
-      }),
-    ),
+    assessmentPlan: v.optional(AssessmentPlanSchema),
 
     // Source information
     sourceType: v.union(
@@ -388,4 +407,16 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_created", ["createdAt"])
     .index("by_user", ["createdBy"]),
+
+  // AI Tutor chat messages
+  tutor_messages: defineTable({
+    userId: v.string(), // Clerk user ID
+    courseId: v.id("courses"),
+    lessonId: v.id("lessons"),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    content: v.string(),
+    createdAt: v.string(),
+  })
+    .index("by_user_lesson", ["userId", "lessonId"])
+    .index("by_user_course", ["userId", "courseId"]),
 });

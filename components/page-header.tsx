@@ -3,7 +3,7 @@
 import * as React from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Bell, PanelLeftOpen, PanelLeftClose } from "lucide-react"
+import { PanelLeftOpen, PanelLeftClose } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { NotificationsPopover } from "@/components/notifications/NotificationsPopover"
 
 interface BreadcrumbItem {
   label: string
@@ -160,39 +161,7 @@ export function PageHeader() {
         </div>
 
         <div className="flex items-center gap-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative h-9 w-9 hover:bg-transparent"
-              >
-                <Bell className="h-4 w-4 transition-colors hover:text-primary" />
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                  2
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[300px]">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <div className="max-h-[400px] overflow-auto">
-                {[1, 2].map((i) => (
-                  <DropdownMenuItem key={i} className="cursor-pointer p-4">
-                    <div className="flex flex-col gap-1">
-                      <p className="text-sm font-medium">New course available</p>
-                      <p className="text-xs text-muted-foreground">
-                        Check out our latest course on React development
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        2 hours ago
-                      </p>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <NotificationsPopover />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -4,14 +4,13 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { saveGeneratedCourseToPublic as serverSaveGeneratedCourseToPublic } from "@/actions/saveGeneratedCourseToPublic";
 
-// Backwards-compatible hook names for callers
-export function useSupabaseVideoQuery(youtubeId: string) {
+export function useVideoQuery(youtubeId: string) {
   const id = youtubeId || "";
   const data = useQuery(api.videos.getCachedVideo, { youtubeId: id });
   return { data };
 }
 
-export function useUpdateSupabaseVideoCourseData() {
+export function useUpdateVideoCourseData() {
   const mutation = useMutation(api.videos.saveCourseData as any);
 
   async function updateVideoCourseData({
@@ -28,7 +27,7 @@ export function useUpdateSupabaseVideoCourseData() {
   return { updateVideoCourseData };
 }
 
-export function useSaveSupabaseCourseToPublic() {
+export function useSaveCourseToPublic() {
   async function saveGeneratedCourseToPublic({
     courseData,
     userId,

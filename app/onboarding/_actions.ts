@@ -13,9 +13,11 @@ export const completeOnboarding = async (formData: FormData) => {
     const client = await clerkClient()
     const publicMetadata: CustomJwtSessionClaims['metadata'] = {
       onboardingComplete: true,
+      role: formData.get('role') as string || undefined,
+      referralSource: formData.get('source') as string || undefined,
+      learningGoal: formData.get('goal') as string || undefined,
+      // Keep compatibility with any existing queries
       learningAreas: JSON.parse(formData.get('learningAreas') as string || '[]'),
-      skillLevels: JSON.parse(formData.get('skillLevels') as string || '{}'),
-      referralSource: formData.get('referralSource') as string || undefined
     }
 
     const res = await client.users.updateUser(userId, {

@@ -25,9 +25,7 @@ import { useUserActivity } from '@/hooks/use-user-activity';
 import { useStreak } from '@/hooks/use-streak';
 import { useStreakCelebration } from '@/hooks/use-streak-celebration';
 import { StreakCelebrationPopup } from '@/components/streak/streak-celebration-popup';
-import { AnimatedEmoji } from '@/components/streak/animated-emoji';
 import { StreakBadge } from '@/components/streak/StreakBadge';
-import { NotificationsPopover } from '@/components/notifications/NotificationsPopover';
 
 // Import interfaces from our hook
 import type { Course, LearningActivity, UserStats } from '@/hooks/use-dashboard';
@@ -289,14 +287,9 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto space-y-6 pt-6 w-full lg:w-[90%] px-4 sm:px-6 max-w-[1400px]">
-      <div className="flex justify-end pointer-events-none relative h-0">
-        <div className="pointer-events-auto translate-y-2">
-          <NotificationsPopover />
-        </div>
-      </div>
 
       {/* Streak Celebration Popup */}
-      <StreakCelebrationPopup
+      < StreakCelebrationPopup
         streak={celebrationStreak}
         longestStreak={celebrationLongestStreak}
         onClose={handleCloseCelebration}
@@ -304,7 +297,7 @@ export default function DashboardPage() {
       />
 
       {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-primary/90 p-4 sm:p-6 shadow-xl">
+      < div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-primary/90 p-4 sm:p-6 shadow-xl" >
         <div className="relative z-10">
           <div className="flex flex-col sm:flex-row gap-6">
             <div className="flex-1 flex items-center">
@@ -314,31 +307,14 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex flex-col gap-4 flex-1">
-              <div className="rounded-lg bg-gradient-to-r from-white/10 to-white/20 p-3.5 backdrop-blur-[2px] shadow-sm">
-                <div className="flex justify-between">
-                  <StreakBadge
-                    current={streak.current}
-                    longest={streak.longest}
-                    todayMinutes={streak.today.minutes}
-                    todayTasks={streak.today.tasks}
-                    loading={streakLoading}
-                  />
-
-                  <div className="flex flex-col justify-between items-end">
-                    <div className="flex flex-col gap-1.5 text-xs text-primary-foreground/90">
-                      <div className="flex items-center gap-1.5">
-                        <Timer className="h-3.5 w-3.5 text-yellow-300" />
-                        <span>{streak.today.minutes}m today</span>
-                        {streak.today.minutes > 0 && <AnimatedEmoji emoji="⭐" size="sm" className="ml-1" />}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <ListChecks className="h-3.5 w-3.5 text-green-300" />
-                        <span>{streak.today.tasks} tasks done</span>
-                        {streak.today.tasks > 0 && <AnimatedEmoji emoji="✅" size="sm" className="ml-1" />}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="rounded-xl bg-white/10 p-4 backdrop-blur-md border border-white/10 shadow-lg">
+                <StreakBadge
+                  current={streak.current}
+                  longest={streak.longest}
+                  todayMinutes={streak.today.minutes}
+                  todayTasks={streak.today.tasks}
+                  loading={streakLoading}
+                />
               </div>
 
               <div className="flex gap-3">
@@ -360,19 +336,6 @@ export default function DashboardPage() {
                   <Sparkles className="h-4 w-4 shrink-0" />
                   <span className="font-medium">Browse Courses</span>
                 </Button>
-
-                {/* Test button - only visible in development */}
-                {process.env.NODE_ENV === 'development' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
-                    onClick={() => setShowCelebration(true)}
-                  >
-                    <Flame className="h-4 w-4 shrink-0 text-orange-500" />
-                    <span className="font-medium">Test Streak 🎉</span>
-                  </Button>
-                )}
               </div>
             </div>
           </div>
@@ -419,7 +382,7 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
-      </div>
+      </div >
 
       <div className="mt-6 grid gap-6 md:grid-cols-3">
         {/* Learning Journey and Activity Chart - Main column moved to the left */}
@@ -446,7 +409,7 @@ export default function DashboardPage() {
                   {recentCourses.map((course) => (
                     <div
                       key={course.id}
-                      className={`group rounded-lg border bg-card p-3 hover:border-primary/50 transition-all mb-4 ${course.id === activeCourse ? 'border-primary' : ''}`}
+                      className={`group rounded-lg border bg-card p-3 hover:border-primary/50 transition-all mb-4 cursor-pointer ${course.id === activeCourse ? 'border-primary' : ''}`}
                       onClick={() => setActiveCourse(course.id)}
                     >
                       <div className="flex gap-3">
@@ -457,6 +420,7 @@ export default function DashboardPage() {
                             width={400}
                             height={220}
                             className="object-cover"
+                            unoptimized
                           />
                           <div className="absolute inset-0 flex items-center justify-center">
                             <PlayCircle className="h-8 w-8 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
@@ -476,7 +440,10 @@ export default function DashboardPage() {
                               variant="secondary"
                               size="sm"
                               className="h-8 text-xs"
-                              onClick={() => window.location.href = `/courses/${course.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = `/courses/${course.id}`;
+                              }}
                             >
                               {course.progress === 0 ? 'Start' : course.progress === 100 ? 'Review' : 'Continue'}
                             </Button>
@@ -501,7 +468,6 @@ export default function DashboardPage() {
                         <Brain className="h-4 w-4 text-primary" />
                         Course Structure for {selectedCourse.title}
                       </h4>
-                      {/* Rest of selected course content remains the same */}
                       <div className="grid grid-cols-1 gap-3">
                         {selectedCourse.sections?.slice(0, 4).map((section, index) => (
                           <div key={index} className="bg-background rounded p-2">
@@ -628,12 +594,8 @@ export default function DashboardPage() {
               <div className="p-4">
                 {recentNotes.length > 0 ? (
                   <div className="space-y-3">
-                    {recentNotes.map((note, index) => {
-                      // Generate a consistent key that's always a string
-                      const noteKey = typeof note.id === 'string'
-                        ? note.id
-                        : String(note.id); // Convert to string explicitly
-
+                    {recentNotes.map((note) => {
+                      const noteKey = typeof note.id === 'string' ? note.id : String(note.id);
                       return (
                         <div
                           key={noteKey}
@@ -706,7 +668,7 @@ export default function DashboardPage() {
                     lessons: 24,
                     category: 'Web'
                   }
-                ].map((course, index) => (
+                ].map((course) => (
                   <div
                     key={course.id}
                     className="rounded-md border p-3 hover:border-primary/50 transition-all cursor-pointer bg-card hover:bg-muted/30"
@@ -753,6 +715,6 @@ export default function DashboardPage() {
         isOpen={isCourseModalOpen}
         onClose={() => setIsCourseModalOpen(false)}
       />
-    </div>
+    </div >
   );
 }

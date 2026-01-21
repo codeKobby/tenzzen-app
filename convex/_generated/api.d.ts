@@ -21,6 +21,7 @@ import type * as migrateUserProgress from "../migrateUserProgress.js";
 import type * as notifications from "../notifications.js";
 import type * as quizzes from "../quizzes.js";
 import type * as streaks from "../streaks.js";
+import type * as tutorChat from "../tutorChat.js";
 import type * as types from "../types.js";
 import type * as userProgress from "../userProgress.js";
 import type * as users from "../users.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   quizzes: typeof quizzes;
   streaks: typeof streaks;
+  tutorChat: typeof tutorChat;
   types: typeof types;
   userProgress: typeof userProgress;
   users: typeof users;

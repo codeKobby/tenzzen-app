@@ -18,7 +18,7 @@ export const getCachedPlaylist = query({
   args: { youtubeId: v.string() },
   handler: async (
     ctx,
-    args
+    args,
   ): Promise<
     (DbPlaylist & { videos?: { videoId: string; position: number }[] }) | null
   > => {
@@ -37,7 +37,7 @@ export const getCachedPlaylist = query({
 
     // Sort playlist videos by position
     const sortedPlaylistVideos = playlistVideos.sort(
-      (a, b) => a.position - b.position
+      (a, b) => a.position - b.position,
     );
 
     // Convert to simpler structure for the client
@@ -110,8 +110,8 @@ export const cachePlaylist = mutation({
         v.object({
           videoId: v.string(),
           position: v.number(),
-        })
-      )
+        }),
+      ),
     ),
   },
   handler: async (ctx, args) => {
@@ -134,7 +134,7 @@ export const cachePlaylist = mutation({
       JSON.stringify({
         ...playlistData,
         videosCount: videos.length,
-      })
+      }),
     );
 
     try {
@@ -179,8 +179,8 @@ export const cachePlaylist = mutation({
                 videoId: video.videoId,
                 position: video.position,
                 cachedAt: now,
-              })
-            )
+              }),
+            ),
           );
         }
       }
@@ -211,8 +211,8 @@ export const saveCourseData = mutation({
             title: v.string(),
             content: v.optional(v.string()),
             durationMinutes: v.optional(v.number()),
-          })
-        )
+          }),
+        ),
       ),
       metadata: v.optional(v.object({})),
       transcript: v.optional(v.string()),
@@ -227,24 +227,22 @@ export const saveCourseData = mutation({
     const now = new Date().toISOString();
 
     if (existing) {
-      const patchData: any = { updatedAt: now, course_data: args.courseData };
+      const patchData = { updatedAt: now, course_data: args.courseData };
       await ctx.db.patch(existing._id, patchData);
       return existing._id;
     }
 
     // Build insert object only with defined fields to satisfy types
-    const insertData: any = {
+    const insertData = {
       youtubeId: args.youtubeId,
+      title: args.courseData.title || "Untitled Video", // Ensure title is provided
+      thumbnail: args.courseData.image,
+      description: args.courseData.description,
       cachedAt: now,
       createdAt: now,
       updatedAt: now,
       course_data: args.courseData,
     };
-
-    if (args.courseData.title) insertData.title = args.courseData.title;
-    if (args.courseData.description)
-      insertData.description = args.courseData.description;
-    if (args.courseData.image) insertData.thumbnail = args.courseData.image;
 
     return await ctx.db.insert("videos", insertData);
   },

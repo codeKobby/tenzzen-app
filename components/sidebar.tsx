@@ -6,7 +6,9 @@ import { TRANSITION_DURATION, TRANSITION_TIMING } from "@/lib/constants"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useSidebar } from "@/hooks/use-sidebar"
-import { useClerk } from "@clerk/nextjs"
+import { useClerk, useUser } from "@clerk/nextjs"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 import {
   BookOpen,
   GraduationCap,
@@ -109,11 +111,18 @@ export function Sidebar({ className }: { className?: string }) {
   const router = useRouter()
   const { isOpen, toggle } = useSidebar()
   const { signOut } = useClerk()
+  const { user } = useUser()
   const { theme, setTheme } = useTheme()
   const [isMobile, setIsMobile] = React.useState(false)
   const [systemTheme, setSystemTheme] = React.useState<'light' | 'dark'>('light')
   const [mounted, setMounted] = React.useState(false)
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = React.useState(false)
+
+  // Fetch new courses count for the badge
+  const newCoursesCount = useQuery(
+    api.courses.getNewCoursesCount,
+    user?.id ? { userId: user.id } : "skip"
+  )
 
   // Combined useEffect for all client-side operations
   React.useEffect(() => {
@@ -197,7 +206,17 @@ export function Sidebar({ className }: { className?: string }) {
         )}>
           {item.title}
         </span>
-        {item.badge && (
+        {item.title === "Courses" ? (
+          newCoursesCount && newCoursesCount > 0 ? (
+            <span className={cn(
+              "ml-auto rounded-full px-1.5 py-px text-[10px] font-medium animate-pulse",
+              isActive ? "bg-background/20 text-background" : "bg-primary text-primary-foreground",
+              !isOpen && "lg:block hidden"
+            )}>
+              New
+            </span>
+          ) : null
+        ) : item.badge && (
           <span className={cn(
             "ml-auto rounded-full px-1.5 py-px text-[10px] font-medium",
             isActive ? "bg-background/20 text-background" : "bg-muted text-muted-foreground",

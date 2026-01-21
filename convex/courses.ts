@@ -388,9 +388,12 @@ export const forkCourse = mutation({
 
     const now = new Date().toISOString();
 
+    // Destructure to remove system fields
+    const { _id, _creationTime, ...courseData } = originalCourse;
+
     // 1. Clone course
     const newCourseId = await ctx.db.insert("courses", {
-      ...originalCourse,
+      ...courseData,
       isPublished: false, // Draft mode
       isPublic: false,
       enrollmentCount: 0,
@@ -399,10 +402,7 @@ export const forkCourse = mutation({
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
-      // Remove system fields
-      _id: undefined,
-      _creationTime: undefined,
-    } as any); // Cast to any to avoid type issues with _id/creationTime removal
+    });
 
     // 2. Clone modules and lessons
     const modules = await ctx.db
@@ -496,5 +496,19 @@ export const deleteCourse = mutation({
     await ctx.db.delete(args.courseId);
 
     return { success: true };
+  },
+});
+
+// Query to get the count of new courses (enrolled but 0% progress)
+export const getNewCoursesCount = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const enrollments = await ctx.db
+      .query("user_enrollments")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("progress"), 0))
+      .collect();
+
+    return enrollments.length;
   },
 });

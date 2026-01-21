@@ -25,7 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
-
+import { useRouter } from "next/navigation"
+import { CourseGenerationProgress } from "./course-generation-progress"
 import { getVideoId, getPlaylistId } from "./youtube-validator"
 
 const youtubeUrlPattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/
@@ -85,38 +86,81 @@ const formSchema = z.object({
 
 export function YoutubeContentForm() {
   const [loading, setLoading] = useState(false)
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      contentType: "video",
-      aiAnalysis: true,
-    },
-  })
+  const [progress, setProgress] = useState(0)
+  const [progressMessage, setProgressMessage] = useState("")
+  const router = useRouter()
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setLoading(true)
+      setProgress(0)
+      setProgressMessage("Validating URL...")
 
-      // Server-side validation
-      const response = await fetch("/api/youtube/validate", {
+      // 1. Server-side validation
+      const validateRes = await fetch("/api/youtube/validate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       })
 
-      if (!response.ok) {
-        const contentType = response.headers.get('content-type');
-        const error = contentType?.includes('application/json')
-          ? await response.json()
-          : { message: `Server error: ${response.status} ${response.statusText}` };
+      if (!validateRes.ok) {
+        const error = await validateRes.json()
         throw new Error(error.message || "Failed to validate YouTube content")
       }
 
-      // TODO: Implement course generation logic after validation passes
-      console.log("Validation passed:", values)
+      setProgressMessage("Starting generation...")
+
+      // 2. Start streaming generation
+      const response = await fetch("/api/course-generation/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          youtubeUrl: values.url,
+          isPublic: false // Default to private until user chooses otherwise
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to start generation")
+      }
+
+      if (!response.body) throw new Error("No response body")
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop() || ""
+
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith("data: ")) continue
+
+          try {
+            const data = JSON.parse(line.replace("data: ", ""))
+
+            if (data.type === "progress" || data.type === "partial") {
+              setProgress(data.progress || 0)
+              setProgressMessage(data.message || "Generating...")
+            } else if (data.type === "complete") {
+              setProgress(100)
+              setProgressMessage("Finished!")
+              router.push(`/analysis/${data.data.courseId}`)
+              return
+            } else if (data.type === "error") {
+              throw new Error(data.error)
+            }
+          } catch (e) {
+            console.error("Error parsing stream line:", e)
+          }
+        }
+      }
 
     } catch (error) {
       if (error instanceof Error) {
@@ -125,7 +169,6 @@ export function YoutubeContentForm() {
           message: error.message
         })
       } else {
-        console.error(error)
         form.setError("url", {
           type: "manual",
           message: "An unexpected error occurred"
@@ -238,6 +281,16 @@ export function YoutubeContentForm() {
           </Button>
         </form>
       </Form>
+
+      {loading && progress > 0 && (
+        <div className="mt-8 border-t pt-8">
+          <CourseGenerationProgress
+            progress={progress}
+            message={progressMessage}
+            onCancel={() => setLoading(false)}
+          />
+        </div>
+      )}
     </Card>
   )
 }

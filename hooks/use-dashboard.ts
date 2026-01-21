@@ -43,7 +43,7 @@ export function useUserStats() {
   const { user } = useUser();
   const stats = useQuery(
     api.dashboard.getUserStats,
-    user?.id ? { userId: user.id } : "skip"
+    user?.id ? { userId: user.id } : "skip",
   );
 
   if (!user?.id) {
@@ -73,7 +73,7 @@ export function useUserStats() {
   const weeklyActivity = stats.streak?.weeklyActivity || [0, 0, 0, 0, 0, 0, 0];
   const totalLearningHours = weeklyActivity.reduce(
     (a: number, b: number) => a + (Number(b) || 0),
-    0
+    0,
   );
 
   return {
@@ -100,7 +100,7 @@ export function useRecentCourses(limit: number = 5) {
   const { user } = useUser();
   const courses = useQuery(
     api.dashboard.getRecentCourses,
-    user?.id ? { userId: user.id, limit } : "skip"
+    user?.id ? { userId: user.id, limit } : "skip",
   );
 
   if (!user?.id) return { recentCourses: [], loading: false };
@@ -118,8 +118,27 @@ export function useRecentCourses(limit: number = 5) {
         description: course.description || course.summary || "",
         progress:
           course.enrollment?.progress ?? course.enrollment_progress ?? 0,
-        thumbnail:
-          course.thumbnail || course.sourceUrl || course.source_url || "",
+        thumbnail: (() => {
+          // Prefer actual thumbnail URL
+          const thumb = course.thumbnail;
+          if (
+            thumb &&
+            !thumb.includes("youtube.com/watch") &&
+            !thumb.includes("youtu.be/")
+          ) {
+            return thumb;
+          }
+          // Try to extract YouTube video ID from sourceUrl and construct thumbnail
+          const sourceUrl =
+            course.sourceUrl || course.source_url || thumb || "";
+          const ytMatch = sourceUrl.match(
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/,
+          );
+          if (ytMatch && ytMatch[1]) {
+            return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+          }
+          return sourceUrl || "";
+        })(),
         sections: course.modules || course.sections || [],
         completed_lessons:
           course.enrollment?.completedLessonIds ||
@@ -130,7 +149,7 @@ export function useRecentCourses(limit: number = 5) {
           course.last_accessed_at ||
           new Date().toISOString(),
         overview: course.overview || course.detailedOverview || {},
-      }) as Course
+      }) as Course,
   );
 
   return { recentCourses: mapped, loading: !courses };
@@ -143,7 +162,7 @@ export function useRecentActivities(limit: number = 10) {
   const { user } = useUser();
   const stats = useQuery(
     api.dashboard.getUserStats,
-    user?.id ? { userId: user.id } : "skip"
+    user?.id ? { userId: user.id } : "skip",
   );
 
   if (!user?.id) return { activities: [], loading: false };
@@ -163,7 +182,7 @@ export function useRecentActivities(limit: number = 10) {
         metadata: activity.metadata || {},
         course_name:
           activity.metadata?.courseName || activity.course_name || "",
-      }) as LearningActivity
+      }) as LearningActivity,
   );
 
   return { activities, loading: !stats };
@@ -180,7 +199,7 @@ export function useLearningTrends(period: string = "30d") {
     : 90;
   const activity = useQuery(
     api.dashboard.getLearningActivity,
-    user?.id ? { userId: user.id, days } : "skip"
+    user?.id ? { userId: user.id, days } : "skip",
   );
 
   if (!user?.id)

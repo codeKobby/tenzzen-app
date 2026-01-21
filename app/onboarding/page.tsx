@@ -4,489 +4,268 @@ import * as React from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { completeOnboarding } from './_actions'
-import { CheckIcon, ChevronRightIcon, InfoIcon, ArrowLeftIcon, Settings2Icon, SparklesIcon, XIcon } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { CheckIcon, ChevronRightIcon, InfoIcon, ArrowLeftIcon, SparklesIcon, XIcon, GraduationCap, Briefcase, User, Search, MessageSquare, Share2, Youtube, Layout, Target, Zap, Brain, Quote } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
-// Most popular online learning areas
-const LEARNING_AREAS = [
-  { id: 'web_dev', label: 'Web Development', icon: '💻' },
-  { id: 'data_science', label: 'Data Science', icon: '📊' },
-  { id: 'ai_ml', label: 'AI & Machine Learning', icon: '🤖' },
-  { id: 'mobile_dev', label: 'Mobile Development', icon: '📱' },
-  { id: 'cloud_computing', label: 'Cloud Computing', icon: '☁️' },
-  { id: 'cybersecurity', label: 'Cybersecurity', icon: '🔒' }
+const ONBOARDING_ROLES = [
+  { id: 'college_student', label: 'College/University Student', icon: <GraduationCap className="h-5 w-5" />, color: 'bg-blue-500/20' },
+  { id: 'graduate_student', label: 'Graduate Student', icon: <GraduationCap className="h-5 w-5" />, color: 'bg-purple-500/20' },
+  { id: 'high_school', label: 'High School Student', icon: <GraduationCap className="h-5 w-5" />, color: 'bg-emerald-500/20' },
+  { id: 'med_student', label: 'Med Student', icon: <GraduationCap className="h-5 w-5" />, color: 'bg-rose-500/20' },
+  { id: 'professional', label: 'Professional', icon: <Briefcase className="h-5 w-5" />, color: 'bg-amber-500/20' },
+  { id: 'other', label: 'Other', icon: <User className="h-5 w-5" />, color: 'bg-slate-500/20' }
 ]
 
-// Learning goals
-const LEARNING_GOALS = [
-  { id: 'professional', label: 'Professional Development', description: 'Enhance skills for career growth' },
-  { id: 'academic', label: 'Academic Learning', description: 'Support educational coursework' },
-  { id: 'hobby', label: 'Personal Interest/Hobby', description: 'Learn for enjoyment and personal growth' },
-  { id: 'certification', label: 'Getting Certified', description: 'Prepare for professional certifications' },
-  { id: 'career_change', label: 'Changing Career Path', description: 'Build skills for a new field' }
+const ONBOARDING_SOURCES = [
+  { id: 'google', label: 'Google / Web Search', icon: <Search className="h-5 w-5" />, color: 'bg-blue-500/20' },
+  { id: 'ai', label: 'ChatGPT / AI Result', icon: <Sparkles className="h-5 w-5" />, color: 'bg-purple-500/20' },
+  { id: 'friends', label: 'Friends / Class / School', icon: <MessageSquare className="h-5 w-5" />, color: 'bg-emerald-500/20' },
+  { id: 'social', label: 'Social Media', icon: <Share2 className="h-5 w-5" />, color: 'bg-rose-500/20' },
+  { id: 'youtube', label: 'YouTube', icon: <Youtube className="h-5 w-5" />, color: 'bg-red-500/20' },
+  { id: 'other', label: 'Comparison Site / Others', icon: <Layout className="h-5 w-5" />, color: 'bg-slate-500/20' }
 ]
 
-const SKILL_LEVELS = {
-  beginner: { label: 'Beginner', description: 'Just starting out' },
-  intermediate: { label: 'Intermediate', description: 'Have some experience' },
-  advanced: { label: 'Advanced', description: 'Very knowledgeable' },
-  expert: { label: 'Expert', description: 'Deep expertise' }
-} as const
+const ONBOARDING_GOALS = [
+  { id: 'grades', label: 'Get organized & get higher grades for my classes', icon: <Target className="h-5 w-5" />, color: 'bg-purple-500/20' },
+  { id: 'exams', label: 'Get ready for a specific exam', icon: <Zap className="h-5 w-5" />, color: 'bg-amber-500/20' },
+  { id: 'personal', label: 'Memorize something for a personal learning goal', icon: <Brain className="h-5 w-5" />, color: 'bg-pink-500/20' },
+  { id: 'workspace', label: 'Take notes and build a note-taking workspace', icon: <Zap className="h-5 w-5" />, color: 'bg-emerald-500/20' }
+]
 
-type FormData = {
-  displayName: string
-  learningAreas: string[]
-  learningGoal: string
-  currentSkillLevel: keyof typeof SKILL_LEVELS
-  timeCommitment: 'minimal' | 'moderate' | 'significant' | 'intensive'
-  referralSource: string
-  skillLevels: Record<string, keyof typeof SKILL_LEVELS>
-}
+const TESTIMONIALS = [
+  {
+    quote: "Tenzzen is my second brain. I transform YouTube tutorials into structured courses instantly. The best part? I actually find things later.",
+    author: "Sarah Chen",
+    role: "Product Manager",
+    color: "bg-blue-500/10 border-blue-500/20"
+  },
+  {
+    quote: "I've tried Notion, Obsidian, Roam... Tenzzen is the one that stuck. The AI-generated quizzes actually help me retain knowledge.",
+    author: "Marcus Williams",
+    role: "Software Engineer",
+    color: "bg-emerald-500/10 border-emerald-500/20"
+  },
+  {
+    quote: "What sold me was how fast I can capture ideas from videos and link them to existing notes. It's like having a personal Wikipedia.",
+    author: "Elena Rodriguez",
+    role: "Researcher",
+    color: "bg-pink-500/10 border-pink-500/20"
+  }
+]
 
 export default function OnboardingPage() {
-  const [currentPage, setCurrentPage] = React.useState(0)
-  const [error, setError] = React.useState('')
-  const [loading, setLoading] = React.useState(false)
-  const [showTooltip, setShowTooltip] = React.useState<string | null>(null)
-  const [customTopic, setCustomTopic] = React.useState('')
-  const [customTopics, setCustomTopics] = React.useState<string[]>([])
-  const [formData, setFormData] = React.useState<FormData>({
-    displayName: '',
-    learningAreas: [],
-    learningGoal: '',
-    currentSkillLevel: 'beginner',
-    timeCommitment: 'moderate',
-    referralSource: '',
-    skillLevels: {}
+  const [step, setStep] = React.useState(0)
+  const [formData, setFormData] = React.useState({
+    role: '',
+    source: '',
+    goal: ''
   })
-
+  const [loading, setLoading] = React.useState(false)
   const { user, isLoaded } = useUser()
   const router = useRouter()
-  const customTopicInputRef = React.useRef<HTMLInputElement>(null)
 
-  // Pre-fill name from Clerk if available
-  React.useEffect(() => {
-    if (isLoaded && user) {
-      setFormData(prev => ({
-        ...prev,
-        displayName: user.fullName || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || ''
-      }))
+  const handleSelect = (field: string, id: string) => {
+    setFormData(prev => ({ ...prev, [field]: id }))
+    // Auto-advance for the first 3 steps
+    if (step < 3) {
+      setTimeout(() => setStep(prev => prev + 1), 300)
     }
-  }, [isLoaded, user])
+  }
 
-  const handleSubmit = async () => {
-    if (!user) return;
-    setLoading(true);
-    setError('');
-
+  const handleComplete = async () => {
+    if (!user) return
+    setLoading(true)
     try {
       const data = new FormData()
-      Object.entries(formData).forEach(([key, value]) => {
-        if (Array.isArray(value) || typeof value === 'object') {
-          data.append(key, JSON.stringify(value))
-        } else {
-          data.append(key, value.toString())
-        }
-      })
+      data.append('role', formData.role)
+      data.append('source', formData.source)
+      data.append('goal', formData.goal)
+      data.append('learningAreas', JSON.stringify([formData.goal])) // Compatibility with existing schema
+      data.append('onboardingComplete', 'true')
 
       const res = await completeOnboarding(data)
-
       if (res?.message) {
-        // Reload user data first
         await user.reload()
-        // Then redirect to dashboard
         router.push('/dashboard')
-      } else if (res?.error) {
-        setError(res.error)
       }
     } catch (err) {
-      console.error('Onboarding error:', err)
-      setError('Something went wrong. Please try again.')
+      console.error('Onboarding failed:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const updateFormData = <K extends keyof FormData>(key: K, value: FormData[K]) => {
-    setFormData(prev => ({ ...prev, [key]: value }))
-  }
+  if (!isLoaded) return null
 
-  const toggleLearningArea = (areaId: string) => {
-    setFormData(prev => {
-      const areas = [...prev.learningAreas]
-      if (areas.includes(areaId)) {
-        return { ...prev, learningAreas: areas.filter(id => id !== areaId) }
-      } else {
-        return { ...prev, learningAreas: [...areas, areaId] }
-      }
-    })
-  }
-
-  const handleAddCustomTopic = () => {
-    if (customTopic && !customTopics.includes(customTopic)) {
-      setCustomTopics(prev => [...prev, customTopic])
-      setFormData(prev => ({
-        ...prev,
-        learningAreas: [...prev.learningAreas, `custom_${customTopic}`]
-      }))
-      setCustomTopic('')
-      if (customTopicInputRef.current) {
-        customTopicInputRef.current.focus()
-      }
-    }
-  }
-
-  const handleRemoveCustomTopic = (topic: string) => {
-    setCustomTopics(prev => prev.filter(t => t !== topic))
-    setFormData(prev => ({
-      ...prev,
-      learningAreas: prev.learningAreas.filter(area => area !== `custom_${topic}`)
-    }))
-  }
-
-  const updateSkillLevel = (areaId: string, level: keyof typeof SKILL_LEVELS) => {
-    setFormData(prev => ({
-      ...prev,
-      skillLevels: { ...prev.skillLevels, [areaId]: level }
-    }))
-  }
-
-  const canProceed = () => {
-    switch (currentPage) {
-      case 0: // Learning Areas
-        return formData.learningAreas.length > 0
-      case 1: // Skill Level Rating
-        return Object.keys(formData.skillLevels).length > 0
-      case 2: // Referral Source
-        return true
-      case 3: // All Set
-        return true
-      default:
-        return true
-    }
-  }
-
-  const nextPage = () => {
-    if (currentPage < pages.length - 1) {
-      setCurrentPage(prev => prev + 1)
-      window.scrollTo(0, 0)
-    } else {
-      handleSubmit()
-    }
-  }
-
-  const prevPage = () => {
-    if (currentPage > 0) {
-      setCurrentPage(prev => prev - 1)
-      window.scrollTo(0, 0)
-    }
-  }
-
-  const InfoTooltip = ({ id, text }: { id: string, text: string }) => (
-    <div className="relative inline-block">
-      <button
-        type="button"
-        className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground"
-        onClick={() => setShowTooltip(showTooltip === id ? null : id)}
-        aria-label={`More information about ${id}`}
-      >
-        <InfoIcon className="h-4 w-4" />
-      </button>
-
-      {showTooltip === id && (
-        <div className="absolute right-0 bottom-full mb-2 p-3 bg-popover border rounded-lg shadow-lg text-xs max-w-[16rem] z-50">
-          {text}
-          <div className="absolute right-4 bottom-0 transform translate-y-1/2 rotate-45 w-2 h-2 bg-popover border-r border-b"></div>
-        </div>
-      )}
-    </div>
-  );
-
-  const pages = [
-    // Page 1: Learning Areas
-    <motion.div
-      key="learning-areas"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      className="rounded-xl border shadow-lg p-4 sm:p-6 space-y-6 bg-card"
-    >
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">What would you like to learn?</h1>
-          <InfoTooltip
-            id="learning-areas-info"
-            text="We'll use these interests to tailor your course recommendations and learning path."
-          />
-        </div>
-        <p className="text-muted-foreground">Choose at least one topic that interests you. We'll use AI to transform related YouTube content into structured, personalized courses.</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {LEARNING_AREAS.map((area) => (
-          <button
-            key={area.id}
-            type="button"
-            onClick={() => toggleLearningArea(area.id)}
-            aria-label={`Toggle ${area.label} learning area`}
-            className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${formData.learningAreas.includes(area.id)
-                ? 'border-primary bg-primary/10 text-primary font-medium'
-                : 'border-border hover:border-primary/50'
-              }`}
-          >
-            <span className="text-xl">{area.icon}</span>
-            <span className="flex-1 text-left">{area.label}</span>
-            {formData.learningAreas.includes(area.id) && (
-              <CheckIcon className="h-4 w-4 flex-shrink-0" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div className="space-y-3">
-        <label className="text-sm font-medium">
-          Other Topics (optional)
-        </label>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            ref={customTopicInputRef}
-            type="text"
-            value={customTopic}
-            onChange={(e) => setCustomTopic(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleAddCustomTopic()}
-            placeholder="Enter a topic and press Enter"
-            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-          />
-          <button
-            type="button"
-            onClick={handleAddCustomTopic}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 whitespace-nowrap"
-          >
-            Add Topic
-          </button>
-        </div>
-        {customTopics.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {customTopics.map((topic) => (
-              <div
-                key={topic}
-                className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-sm"
-              >
-                {topic}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveCustomTopic(topic)}
-                  aria-label={`Remove ${topic} topic`}
-                  className="hover:text-destructive"
-                >
-                  <XIcon className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </motion.div>,
-
-    // Page 2: Skill Level Rating
-    <motion.div
-      key="skill-level"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      className="rounded-xl border shadow-lg p-4 sm:p-6 space-y-6 bg-card"
-    >
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Rate Your Experience Level</h1>
-          <InfoTooltip
-            id="skill-level-info"
-            text="This helps us customize your learning path by suggesting courses at the right difficulty level."
-          />
-        </div>
-        <p className="text-muted-foreground">For your selected topics, how would you rate your current skill level?</p>
-      </div>
-
-      <div className="space-y-4">
-        <div className="space-y-6">
-          {formData.learningAreas.map(areaId => {
-            const predefinedArea = LEARNING_AREAS.find(a => a.id === areaId)
-            const customArea = areaId.startsWith('custom_') ? areaId.replace('custom_', '') : null
-            const areaLabel = predefinedArea?.label || customArea
-
-            if (!areaLabel) return null
-
-            const selectedLevel = formData.skillLevels[areaId] || 'beginner'
-
-            return (
-              <div key={areaId} className="space-y-3">
-                <label className="font-medium block">{areaLabel}</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {Object.entries(SKILL_LEVELS).map(([level, { label, description }]) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => updateSkillLevel(areaId, level as keyof typeof SKILL_LEVELS)}
-                      className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center gap-1 transition-all ${selectedLevel === level
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border hover:border-primary/50'
-                        }`}
-                    >
-                      <span className="font-medium">{label}</span>
-                      <span className="text-xs text-muted-foreground">{description}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </motion.div>,
-
-    // Page 3: Referral Source
-    <motion.div
-      key="referral"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      className="rounded-xl border shadow-lg p-4 sm:p-6 space-y-6 bg-card"
-    >
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Quick Question</h1>
-        <p className="text-muted-foreground">How did you hear about Tenzzen?</p>
-      </div>
-
-      <input
-        type="text"
-        value={formData.referralSource}
-        onChange={(e) => updateFormData('referralSource', e.target.value)}
-        placeholder="e.g. Google, Friend, Social Media"
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-      />
-    </motion.div>,
-
-    // Page 4: All Set
-    <motion.div
-      key="all-set"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      className="rounded-xl border shadow-lg p-4 sm:p-6 space-y-6 bg-card text-center"
-    >
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-        <SparklesIcon className="h-8 w-8 text-primary" />
-      </div>
-
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">You're All Set!</h1>
-        <p className="text-muted-foreground">
-          Get ready to experience learning in a whole new way. We'll transform YouTube content into structured,
-          personalized courses just for you.
-        </p>
-      </div>
-
-      <div className="p-4 bg-secondary/30 rounded-lg text-left">
-        <h2 className="font-medium mb-2">Your Learning Profile</h2>
-        <ul className="space-y-2 text-sm">
-          <li>
-            <span className="text-muted-foreground">Topics:</span>{' '}
-            {formData.learningAreas.map(areaId => {
-              const area = LEARNING_AREAS.find(a => a.id === areaId)
-              return area ? area.label : areaId.replace('custom_', '')
-            }).join(', ')}
-          </li>
-          <li className="space-y-1">
-            <span className="text-muted-foreground block">Experience Levels:</span>
-            <div className="pl-2">
-              {formData.learningAreas.map(areaId => {
-                const area = LEARNING_AREAS.find(a => a.id === areaId)
-                const level = formData.skillLevels[areaId] || 'beginner'
-                return (
-                  <div key={areaId}>
-                    {area?.label || areaId.replace('custom_', '')}: {SKILL_LEVELS[level].label}
-                  </div>
-                )
-              })}
+  const renderStep = () => {
+    switch (step) {
+      case 0:
+        return (
+          <OnboardingCard title="Who are you?">
+            <div className="space-y-3">
+              {ONBOARDING_ROLES.map((role, idx) => (
+                <OptionButton
+                  key={role.id}
+                  idx={idx + 1}
+                  label={role.label}
+                  icon={role.icon}
+                  color={role.color}
+                  selected={formData.role === role.id}
+                  onClick={() => handleSelect('role', role.id)}
+                />
+              ))}
             </div>
-          </li>
-        </ul>
-      </div>
-    </motion.div>,
-  ];
+          </OnboardingCard>
+        )
+      case 1:
+        return (
+          <OnboardingCard title="How did you first hear about Tenzzen?">
+            <div className="space-y-3">
+              {ONBOARDING_SOURCES.map((source, idx) => (
+                <OptionButton
+                  key={source.id}
+                  idx={idx + 1}
+                  label={source.label}
+                  icon={source.icon}
+                  color={source.color}
+                  selected={formData.source === source.id}
+                  onClick={() => handleSelect('source', source.id)}
+                />
+              ))}
+            </div>
+            <p className="text-center text-xs text-muted-foreground mt-4">
+              This helps us create a personalized experience with the Tenzzen app.
+            </p>
+          </OnboardingCard>
+        )
+      case 2:
+        return (
+          <OnboardingCard title="What do you want to achieve?">
+            <div className="space-y-3">
+              {ONBOARDING_GOALS.map((goal, idx) => (
+                <OptionButton
+                  key={goal.id}
+                  idx={idx + 1}
+                  label={goal.label}
+                  icon={goal.icon}
+                  color={goal.color}
+                  selected={formData.goal === goal.id}
+                  onClick={() => handleSelect('goal', goal.id)}
+                />
+              ))}
+            </div>
+          </AnimatePresence>
+        )
+      case 3:
+        return (
+          <div className="max-w-4xl w-full mx-auto space-y-8 animate-in fade-in zoom-in duration-500">
+            <div className="text-center space-y-4">
+              <h1 className="text-3xl font-bold tracking-tight">
+                Tenzzen helps you <span className="text-primary">turn YouTube into knowledge</span>
+              </h1>
+              <p className="text-muted-foreground">
+                Join thousands of learners who use AI to master any topic.
+              </p>
+              <button
+                onClick={handleComplete}
+                disabled={loading}
+                className="mt-4 bg-primary text-primary-foreground px-8 py-3 rounded-md font-medium hover:opacity-90 transition-all flex items-center gap-2 mx-auto"
+              >
+                {loading ? 'Setting up...' : 'Show me how to use Tenzzen'}
+                {!loading && <ChevronRightIcon className="h-5 w-5" />}
+              </button>
+            </div>
 
-  // Wait for user data to load
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-primary">Loading your profile...</div>
-      </div>
-    );
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {TESTIMONIALS.map((t, i) => (
+                <div key={i} className={cn("p-6 rounded-2xl border flex flex-col justify-between space-y-4", t.color)}>
+                  <Quote className="h-8 w-8 opacity-20" />
+                  <p className="text-sm leading-relaxed">
+                    {t.quote.split(/\s+/).map((word, j) => (
+                      <span key={j} className={cn(
+                        ['second', 'brain', 'automatically', 'structured', 'master', 'retention', 'Wikipedia'].some(w => word.toLowerCase().includes(w)) ? "font-bold" : ""
+                      )}>{word} </span>
+                    ))}
+                  </p>
+                  <div>
+                    <p className="font-bold text-sm">{t.author}</p>
+                    <p className="text-xs text-muted-foreground">{t.role}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <button 
+              onClick={() => setStep(0)}
+              className="block mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              I'll figure everything out myself
+            </button>
+          </div>
+        )
+      default:
+        return null
+    }
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <div className="pattern-dots"></div>
-      <div className="background-gradient"></div>
-
-      <div className="flex-1 w-full max-w-lg mx-auto p-4 sm:p-6 flex flex-col">
-        <div className="mb-6">
-          <div className="flex justify-between text-xs mb-2">
-            <span>Start</span>
-            <span>Complete</span>
-          </div>
-          <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all duration-300 ease-in-out"
-            ></div>
-          </div>
-        </div>
-
-        <div className="flex-1">
-          {pages[currentPage]}
-        </div>
-
-        {error && (
-          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        <div className="mt-8 flex justify-between items-center">
-          {currentPage > 0 ? (
-            <button
-              type="button"
-              onClick={prevPage}
-              className="flex items-center justify-center gap-1 px-4 py-2 rounded-md border border-input bg-background hover:bg-secondary/50 transition-colors"
-            >
-              <ArrowLeftIcon className="h-4 w-4" />
-              Back
-            </button>
-          ) : (
-            <div></div>
+    <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-background to-rose-500/10" />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 1.05, y: -10 }}
+          transition={{ duration: 0.3 }}
+          className="relative z-10 w-full flex items-center justify-center"
+        >
+          {renderStep()}
+        </motion.div>
+      </AnimatePresence>
+      
+      {step < 3 && (
+        <button
+          onClick={() => step > 0 && setStep(step - 1)}
+          className={cn(
+            "fixed bottom-8 left-8 p-3 rounded-full hover:bg-white/5 transition-colors",
+            step === 0 && "opacity-0 pointer-events-none"
           )}
-
-          <div className="text-xs text-muted-foreground">
-            {currentPage + 1} of {pages.length}
-          </div>
-
-          <button
-            type="button"
-            onClick={nextPage}
-            disabled={!canProceed() || loading}
-            className={`flex items-center justify-center gap-1 px-5 py-2 rounded-md font-medium transition-all ${canProceed() && !loading
-                ? 'bg-primary text-primary-foreground hover:opacity-90'
-                : 'bg-primary/50 text-primary-foreground/70 cursor-not-allowed'
-              }`}
-          >
-            {currentPage === pages.length - 1
-              ? loading ? 'Processing...' : 'Get Started'
-              : 'Continue'
-            }
-            {!loading && currentPage < pages.length - 1 && <ChevronRightIcon className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
+        >
+          <ArrowLeftIcon className="h-6 w-6" />
+        </button>
+      )}
     </div>
+  )
+}
+
+function OnboardingCard({ title, children }: { title: string, children: React.ReactNode }) {
+  return (
+    <div className="max-w-xl w-full bg-[#1c1c21]/90 backdrop-blur-xl border border-white/10 rounded-3xl p-8 sm:p-12 shadow-2xl">
+      <h1 className="text-2xl sm:text-3xl font-bold text-center mb-10 tracking-tight">{title}</h1>
+      {children}
+    </div>
+  )
+}
+
+function OptionButton({ idx, label, icon, color, selected, onClick }: { idx: number, label: string, icon: React.ReactNode, color: string, selected: boolean, onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full group relative flex items-center gap-4 p-4 rounded-xl transition-all duration-200",
+        "bg-[#25252a]/50 border border-white/5 hover:bg-[#2d2d33] hover:border-white/10",
+        selected && "bg-[#2d2d33] border-white/20 ring-1 ring-white/10"
+      )}
+    >
+      <div className={cn("flex items-center justify-center w-12 h-12 rounded-lg transition-transform group-hover:scale-110", color)}>
+        {icon}
+      </div>
+      <span className="flex-1 text-left font-medium text-slate-200">{label}</span>
+      <div className="flex items-center justify-center w-6 h-6 rounded border border-white/10 text-[10px] font-mono text-muted-foreground group-hover:border-white/20">
+        {idx}
+      </div>
+    </button>
   )
 }

@@ -1,10 +1,11 @@
-'use client';
+"use client";
 
-import { useQuery } from 'convex/react';
-import { api } from '@/convex/_generated/api';
-import { useUser } from '@clerk/nextjs';
-import { usePathname, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect } from 'react';
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useUser } from "@clerk/nextjs";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useEffect } from "react";
+import { Course } from "../types";
 
 interface UseCategoryUserCoursesOptions {
   limit?: number;
@@ -14,52 +15,64 @@ interface UseCategoryUserCoursesOptions {
   initialCategory?: string;
 }
 
-export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = {}) {
+export function useCategoryUserCourses(
+  options: UseCategoryUserCoursesOptions = {},
+) {
   const { user } = useUser();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   // Get current category from URL or use initialCategory
-  const currentCategory = searchParams.get('category') || options.initialCategory || 'all';
+  const currentCategory =
+    searchParams.get("category") || options.initialCategory || "all";
 
-  // Fetch user's created courses directly
-  const userCourses = useQuery(
-    api.courses.getUserCourses,
-    user?.id ? { userId: user.id } : 'skip'
+  // Fetch user's enrolled courses with full metadata
+  const userEnrollments = useQuery(
+    api.enrollments.getEnrolledCoursesWithDetails,
+    user?.id ? { userId: user.id } : "skip",
   );
 
-  // Debug logging
-  useEffect(() => {
-    console.log('[useCategoryUserCourses] user?.id:', user?.id);
-    console.log('[useCategoryUserCourses] userCourses:', userCourses);
-  }, [user?.id, userCourses]);
-
   // Transform courses to the format expected by components
-  const courses = userCourses ? userCourses.map(course => ({
-    id: course._id,
-    title: course.title,
-    description: course.description,
-    progress: 0, // TODO: Get progress from enrollments
-    thumbnail: course.sourceUrl || '/placeholders/course-thumbnail.jpg',
-    image: course.sourceUrl || '/placeholders/course-thumbnail.jpg',
-    category: course.categoryId ? 'Category' : 'Uncategorized', // TODO: Fetch actual category name
-    enrolledAt: course.createdAt,
-    lastAccessed: course.updatedAt || course.createdAt,
-    tags: [], // TODO: Add tags support when available in schema
-    videoId: course.sourceId || '',
-    isEnrolled: true, // User created it, so they're "enrolled"
-    metadata: {},
-    completedLessons: [],
-    duration: course.estimatedDuration,
-    sections: [],
-    totalLessons: 0,
-    lessonsCompleted: 0,
-  })) : [];
+  const courses: Course[] =
+    userEnrollments ?
+      userEnrollments
+        .filter(
+          (course): course is NonNullable<typeof course> => course !== null,
+        )
+        .map((course) => ({
+          id: course._id,
+          title: course.title,
+          description: course.description,
+          progress: course.progress,
+          thumbnail:
+            course.thumbnail ||
+            course.sourceUrl ||
+            "/placeholders/course-thumbnail.jpg",
+          image:
+            course.thumbnail ||
+            course.sourceUrl ||
+            "/placeholders/course-thumbnail.jpg",
+          category: course.categoryName || "General",
+          enrolledAt: course.enrolledAt,
+          lastAccessed: course.lastAccessed,
+          tags: course.tags || [],
+          videoId: course.sourceId || "",
+          isEnrolled: true,
+          metadata: {
+            duration: course.duration_seconds,
+            difficulty: course.difficulty,
+          },
+          total_lessons: course.total_lessons,
+          duration_seconds: course.duration_seconds,
+          lessonsCompleted: Math.round(
+            (course.progress / 100) * course.total_lessons,
+          ),
+        }))
+    : [];
 
   // Filter courses by category
-  const filteredCourses = courses.filter(course => {
-    if (currentCategory === 'all') return true;
-    return course.category === currentCategory;
+  const filteredCourses = courses.filter((course) => {
+    if (currentCategory === "all") return true;
+    return course.category.toLowerCase() === currentCategory.toLowerCase();
   });
 
   // Get recent courses (last 2)
@@ -67,35 +80,37 @@ export function useCategoryUserCourses(options: UseCategoryUserCoursesOptions = 
 
   // Get unique categories from courses
   const categoryMap = new Map<string, number>();
-  courses.forEach(course => {
-    const cat = course.category || 'Uncategorized';
+  courses.forEach((course) => {
+    const cat = course.category || "Uncategorized";
     categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
   });
 
-  const categories = [
-    { name: 'All Courses', slug: 'all', courseCount: courses.length },
-    ...Array.from(categoryMap.entries()).map(([name, count]) => ({
+  const categories = Array.from(categoryMap.entries())
+    .filter(([name]) => {
+      const lowerName = name.toLowerCase();
+      return lowerName !== "uncategorized" && lowerName !== "general";
+    })
+    .map(([name, count]) => ({
       name,
-      slug: name.toLowerCase().replace(/\s+/g, '-'),
-      courseCount: count
-    }))
-  ];
+      slug: name.toLowerCase().replace(/\s+/g, "-"),
+      courseCount: count,
+    }));
 
-  // Load more functionality (simplified)
+  // Load more functionality (simplified) - Placeholder for now
   const loadMore = useCallback(() => {
-    // TODO: Implement pagination
+    // Implement pagination if needed
   }, []);
 
   return {
     courses: filteredCourses,
     recentCourses,
     categories,
-    loading: userCourses === undefined,
+    loading: userEnrollments === undefined,
     loadingMore: false,
     error: null,
     totalCount: filteredCourses.length,
-    hasMore: false, // TODO: Implement pagination
+    hasMore: false,
     currentCategory,
-    loadMore
+    loadMore,
   };
 }

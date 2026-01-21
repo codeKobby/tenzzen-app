@@ -15,7 +15,7 @@ export const getUserEnrollments = query({
       enrollments.map(async (enrollment) => {
         const course = await ctx.db.get(enrollment.courseId);
         return course ? { ...course, enrollment } : null;
-      })
+      }),
     );
 
     return courses.filter(Boolean);
@@ -29,7 +29,7 @@ export const getUserCourseEnrollment = query({
     return await ctx.db
       .query("user_enrollments")
       .withIndex("by_user_course", (q) =>
-        q.eq("userId", args.userId).eq("courseId", args.courseId)
+        q.eq("userId", args.userId).eq("courseId", args.courseId),
       )
       .first();
   },
@@ -42,7 +42,7 @@ export const getLessonProgress = query({
     return await ctx.db
       .query("lesson_progress")
       .withIndex("by_user_course", (q) =>
-        q.eq("userId", args.userId).eq("courseId", args.courseId)
+        q.eq("userId", args.userId).eq("courseId", args.courseId),
       )
       .collect();
   },
@@ -56,7 +56,7 @@ export const enrollInCourse = mutation({
     const existing = await ctx.db
       .query("user_enrollments")
       .withIndex("by_user_course", (q) =>
-        q.eq("userId", args.userId).eq("courseId", args.courseId)
+        q.eq("userId", args.userId).eq("courseId", args.courseId),
       )
       .first();
 
@@ -108,7 +108,7 @@ export const updateEnrollmentProgress = mutation({
     const enrollment = await ctx.db
       .query("user_enrollments")
       .withIndex("by_user_course", (q) =>
-        q.eq("userId", args.userId).eq("courseId", args.courseId)
+        q.eq("userId", args.userId).eq("courseId", args.courseId),
       )
       .first();
 
@@ -159,7 +159,7 @@ export const recordLessonProgress = mutation({
     const enrollment = await ctx.db
       .query("user_enrollments")
       .withIndex("by_user_course", (q) =>
-        q.eq("userId", args.userId).eq("courseId", args.courseId)
+        q.eq("userId", args.userId).eq("courseId", args.courseId),
       )
       .first();
 
@@ -198,7 +198,7 @@ export const recordLessonProgress = mutation({
     const completedEntries = await ctx.db
       .query("lesson_progress")
       .withIndex("by_user_course", (q) =>
-        q.eq("userId", args.userId).eq("courseId", args.courseId)
+        q.eq("userId", args.userId).eq("courseId", args.courseId),
       )
       .collect();
 
@@ -210,7 +210,7 @@ export const recordLessonProgress = mutation({
     const completedCount = completedLessonIds.length;
     const progress = Math.min(
       100,
-      Math.round((completedCount / totalLessonCount) * 100)
+      Math.round((completedCount / totalLessonCount) * 100),
     );
 
     await ctx.db.patch(enrollment._id, {
@@ -236,7 +236,7 @@ export const unenrollFromCourse = mutation({
     const enrollment = await ctx.db
       .query("user_enrollments")
       .withIndex("by_user_course", (q) =>
-        q.eq("userId", args.userId).eq("courseId", args.courseId)
+        q.eq("userId", args.userId).eq("courseId", args.courseId),
       )
       .first();
 
@@ -249,7 +249,7 @@ export const unenrollFromCourse = mutation({
     const progressEntries = await ctx.db
       .query("lesson_progress")
       .withIndex("by_user_course", (q) =>
-        q.eq("userId", args.userId).eq("courseId", args.courseId)
+        q.eq("userId", args.userId).eq("courseId", args.courseId),
       )
       .collect();
 
@@ -265,5 +265,67 @@ export const unenrollFromCourse = mutation({
     }
 
     return { success: true };
+  },
+});
+
+// Get user's enrolled courses with full metadata
+export const getEnrolledCoursesWithDetails = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const enrollments = await ctx.db
+      .query("user_enrollments")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    // Fetch course details for each enrollment
+    const courses = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        const course = await ctx.db.get(enrollment.courseId);
+        if (!course) return null;
+
+        // Get modules and lessons for this course to calculate counts if not denormalized
+        const modules = await ctx.db
+          .query("modules")
+          .withIndex("by_course", (q) => q.eq("courseId", enrollment.courseId))
+          .collect();
+
+        let totalLessonsCount = 0;
+        let totalDurationSeconds = 0;
+
+        for (const module of modules) {
+          const lessons = await ctx.db
+            .query("lessons")
+            .withIndex("by_module", (q) => q.eq("moduleId", module._id))
+            .collect();
+
+          totalLessonsCount += lessons.length;
+          totalDurationSeconds += lessons.reduce(
+            (acc, lesson) => acc + lesson.durationMinutes * 60,
+            0,
+          );
+        }
+
+        // Get actual category name - use course.category field or lookup by categoryId
+        let categoryName = course.category || "General";
+        if (course.categoryId) {
+          const category = await ctx.db.get(course.categoryId);
+          if (category) categoryName = category.name;
+        }
+
+        return {
+          ...course,
+          id: course._id,
+          progress: enrollment.progress,
+          enrolledAt: enrollment.enrolledAt,
+          lastAccessed: enrollment.lastAccessedAt || enrollment.enrolledAt,
+          categoryName,
+          total_lessons: totalLessonsCount,
+          duration_seconds: totalDurationSeconds,
+          isEnrolled: true,
+        };
+      }),
+    );
+
+    return courses.filter(Boolean);
   },
 });
