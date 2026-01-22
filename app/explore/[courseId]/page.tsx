@@ -13,16 +13,23 @@ import { CoursePanel } from "@/components/analysis/course-panel"
 import { CoursePanelProvider } from "@/components/analysis/course-panel-context"
 import { AnalysisProvider } from "@/hooks/use-analysis-context"
 import { useBreadcrumb } from "@/contexts/breadcrumb-context"
+import { useMutation } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { Id } from "@/convex/_generated/dataModel"
 
 export default function ExploreCourseDetailsPage() {
   const params = useParams()
   const router = useRouter()
   const pathname = usePathname()
-  const courseId = typeof params.courseId === 'string' ? params.courseId : ''
+  const courseIdStr = typeof params.courseId === 'string' ? params.courseId : ''
+  const courseId = courseIdStr as Id<"courses">
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState("overview")
   const [enrolling, setEnrolling] = useState(false)
   const { setCourseTitleForPath } = useBreadcrumb()
+
+  // Convex mutation for enrollment
+  const enroll = useMutation(api.enrollments.enrollInCourse)
 
   // Fetch course data using the useNormalizedCourse hook
   const {
@@ -30,7 +37,7 @@ export default function ExploreCourseDetailsPage() {
     loading,
     error,
     isEnrolled
-  } = useNormalizedCourse(courseId, { includeProgress: false })
+  } = useNormalizedCourse(courseIdStr, { includeProgress: false })
 
   // Handle enrollment
   const handleEnroll = async () => {
@@ -41,31 +48,23 @@ export default function ExploreCourseDetailsPage() {
 
     if (isEnrolled) {
       toast.info("You are already enrolled in this course")
-      router.push(`/courses/${courseId}`)
+      router.push(`/courses/${courseIdStr}`)
       return
     }
 
     try {
       setEnrolling(true)
 
-      // Call the enrollment API
-      const response = await fetch('/api/supabase/courses/enroll', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ courseId }),
+      // Call the Convex enrollment mutation
+      await enroll({
+        userId: user.id,
+        courseId: courseId
       })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to enroll in course')
-      }
 
       toast.success("Successfully enrolled in course")
 
       // Navigate to the course page
-      router.push(`/courses/${courseId}`)
+      router.push(`/courses/${courseIdStr}`)
     } catch (error) {
       console.error('Error enrolling in course:', error)
       toast.error("Failed to enroll in course")
@@ -111,12 +110,12 @@ export default function ExploreCourseDetailsPage() {
         metadata: {
           category: course.category || 'General',
           tags: course.tags || [],
-          difficulty: course.difficulty_level || 'Beginner',
+          difficulty: course.difficultyLevel || 'Beginner',
           prerequisites: [],
           objectives: [],
-          overviewText: course.generated_summary || course.description || '',
+          overviewText: course.generatedSummary || course.description || '',
           resources: [],
-          duration: course.estimated_duration || '',
+          duration: course.estimatedDuration || '',
           sources: course.metadata?.sources || []
         },
         courseItems: []
@@ -159,6 +158,7 @@ export default function ExploreCourseDetailsPage() {
         <h2 className="text-xl font-bold mb-2">Course Not Found</h2>
         <p className="text-muted-foreground mb-6">
           The course you're looking for doesn't exist or you don't have permission to view it.
+          {error && <span className="block text-xs mt-2 text-destructive">{error}</span>}
         </p>
         <Button onClick={handleBack}>
           <ChevronLeft className="mr-2 h-4 w-4" />
@@ -170,6 +170,31 @@ export default function ExploreCourseDetailsPage() {
 
   return (
     <div className="container py-6">
+      {/* Enrollment Banner for non-enrolled users */}
+      {!isEnrolled && (
+        <div className="mb-6 p-6 bg-primary/5 border border-primary/10 rounded-xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-1 text-center md:text-left">
+            <h2 className="text-2xl font-bold">Interested in this course?</h2>
+            <p className="text-muted-foreground">Enroll now to save it to your library and track your progress.</p>
+          </div>
+          <Button
+            size="lg"
+            onClick={handleEnroll}
+            disabled={enrolling}
+            className="w-full md:w-auto min-w-[160px] h-12 rounded-full font-semibold shadow-lg shadow-primary/20 transition-all hover:scale-105"
+          >
+            {enrolling ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Enrolling...
+              </>
+            ) : (
+              "Enroll Now"
+            )}
+          </Button>
+        </div>
+      )}
+
       {/* Course Panel with required context providers */}
       <div className="bg-background border rounded-lg shadow-sm">
         <AnalysisProvider initialContent={videoData}>
@@ -181,3 +206,4 @@ export default function ExploreCourseDetailsPage() {
     </div>
   )
 }
+

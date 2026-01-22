@@ -28,6 +28,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Toggle } from "@/components/ui/toggle"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
+import { CategoryPills } from "@/components/category-pills"
 import { Project, ProjectFilter, ProjectViewMode, ProjectSortOption } from "./types"
 import { sampleProjects } from "./data"
 import { ProjectCard } from "./components/project-card"
@@ -82,32 +83,6 @@ export default function ProjectsPage() {
   const [canScrollRight, setCanScrollRight] = useState(false)
 
   const { user } = useAuth()
-
-  // Check scroll capability on mount and resize
-  useEffect(() => {
-    const checkScroll = () => {
-      if (tabsRef.current) {
-        const { scrollWidth, clientWidth, scrollLeft } = tabsRef.current
-        setShowScrollButtons(scrollWidth > clientWidth)
-        setCanScrollLeft(scrollLeft > 0)
-        setCanScrollRight(scrollLeft + clientWidth < scrollWidth)
-      }
-    }
-
-    checkScroll()
-    window.addEventListener("resize", checkScroll)
-
-    return () => window.removeEventListener("resize", checkScroll)
-  }, [])
-
-  // Update scroll state when scrolling the tabs
-  const handleTabsScroll = () => {
-    if (tabsRef.current) {
-      const { scrollWidth, clientWidth, scrollLeft } = tabsRef.current
-      setCanScrollLeft(scrollLeft > 0)
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth)
-    }
-  }
 
   // Handle scroll button clicks
   const scrollTabs = (direction: 'left' | 'right') => {
@@ -215,79 +190,26 @@ export default function ProjectsPage() {
   return (
     <div className="h-full">
       {/* Fixed Header */}
-      <div className="sticky top-16 z-10 bg-background">
-        <div className={cn(
-          "w-full mx-auto transition-all",
-          "duration-300",
-          TRANSITION_TIMING,
-          "w-[95%] lg:w-[90%]"
-        )}>
-          {/* Search and Filter Row */}
-          <div className="h-14 flex items-center gap-2 sm:gap-4">
-            <div className="relative flex-1 max-w-[600px] min-w-0">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search projects..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 w-full h-8 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-
+      <div className="sticky top-16 z-10 bg-background border-b">
+        <div className="mx-auto px-4 max-w-6xl">
+          {/* Controls Bar */}
+          <div className="h-14 flex items-center justify-between gap-4">
+            {/* Left Side: Filters/Controls */}
             <div className="flex items-center gap-2">
-              {/* View Mode Toggles */}
-              <div className="hidden sm:flex rounded-md border p-0.5 h-9">
-                <Toggle
-                  pressed={viewMode === "grid"}
-                  onPressedChange={() => setViewMode("grid")}
-                  className="h-full data-[state=on]:bg-muted"
-                  size="sm"
-                  aria-label="Grid view"
-                >
-                  <Grid2X2 className="h-4 w-4" />
-                </Toggle>
-                <Toggle
-                  pressed={viewMode === "course-grouped"}
-                  onPressedChange={() => setViewMode("course-grouped")}
-                  className="h-full data-[state=on]:bg-muted"
-                  size="sm"
-                  aria-label="Course grouped view"
-                >
-                  <Menu className="h-4 w-4" />
-                </Toggle>
-              </div>
-
-              {/* Filter Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button variant="secondary" className="h-10 rounded-full px-4 gap-2 flex-shrink-0">
                     <FiltersIcon className="h-4 w-4" />
+                    <span className="hidden xs:inline">Filters</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[240px]">
+                <DropdownMenuContent align="start" className="w-[240px]">
                   <DropdownMenuLabel className="flex items-center gap-2">
                     <Filter className="h-4 w-4" />
                     Filters
                   </DropdownMenuLabel>
 
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Status</DropdownMenuLabel>
-                  {statusFilters.map((f) => (
-                    <DropdownMenuItem
-                      key={f.id}
-                      onClick={() => setStatusFilter(f.id)}
-                      className={cn(
-                        "cursor-pointer",
-                        statusFilter === f.id && "bg-muted"
-                      )}
-                    >
-                      {f.label}
-                      {statusFilter === f.id && (
-                        <span className="ml-auto">✓</span>
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-
+                  {/* Use Status Filters as the primary Chips/Pills for Projects */}
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Difficulty</DropdownMenuLabel>
                   {difficultyFilters.map((f) => (
@@ -307,135 +229,108 @@ export default function ProjectsPage() {
                   ))}
 
                   <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Categories</DropdownMenuLabel>
+                  <div className="grid grid-cols-2 gap-1 p-2">
+                    {categoryFilters.map((c) => (
+                      <Button
+                        key={c.id}
+                        variant={categoryFilter === c.id ? "secondary" : "ghost"}
+                        size="sm"
+                        className="justify-start text-xs h-7 px-2"
+                        onClick={() => setCategoryFilter(c.id)}
+                      >
+                        {c.label}
+                        {categoryFilter === c.id && <span className="ml-auto">✓</span>}
+                      </Button>
+                    ))}
+                  </div>
+
+                  <DropdownMenuSeparator />
                   <DropdownMenuLabel>Sort By</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    onClick={() => setSortBy("deadline")}
-                    className={cn(
-                      "cursor-pointer",
-                      sortBy === "deadline" && "bg-muted"
-                    )}
-                  >
-                    Deadline
-                    {sortBy === "deadline" && (
-                      <span className="ml-auto">✓</span>
-                    )}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setSortBy("title")}
-                    className={cn(
-                      "cursor-pointer",
-                      sortBy === "title" && "bg-muted"
-                    )}
-                  >
-                    Title
-                    {sortBy === "title" && (
-                      <span className="ml-auto">✓</span>
-                    )}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setSortBy("recent")}
-                    className={cn(
-                      "cursor-pointer",
-                      sortBy === "recent" && "bg-muted"
-                    )}
-                  >
-                    Recently Added
-                    {sortBy === "recent" && (
-                      <span className="ml-auto">✓</span>
-                    )}
-                  </DropdownMenuItem>
+                  {(["deadline", "title", "recent"] as ProjectSortOption[]).map((option) => (
+                    <DropdownMenuItem
+                      key={option}
+                      onClick={() => setSortBy(option)}
+                      className={cn(
+                        "cursor-pointer",
+                        sortBy === option && "bg-muted"
+                      )}
+                    >
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                      {sortBy === option && (
+                        <span className="ml-auto">✓</span>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
 
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>View Mode</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    onClick={() => setViewMode("grid")}
-                    className={cn(
-                      "cursor-pointer",
-                      viewMode === "grid" && "bg-muted"
-                    )}
-                  >
-                    Grid View
-                    {viewMode === "grid" && (
-                      <span className="ml-auto">✓</span>
-                    )}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setViewMode("course-grouped")}
-                    className={cn(
-                      "cursor-pointer",
-                      viewMode === "course-grouped" && "bg-muted"
-                    )}
-                  >
-                    Course Grouped
-                    {viewMode === "course-grouped" && (
-                      <span className="ml-auto">✓</span>
-                    )}
-                  </DropdownMenuItem>
+                  <div className="flex gap-2 p-2 pt-0">
+                    <Button
+                      variant={viewMode === "grid" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("grid")}
+                      className="flex-1"
+                    >
+                      <Grid2X2 className="h-4 w-4 mr-2" />
+                      Grid
+                    </Button>
+                    <Button
+                      variant={viewMode === "course-grouped" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("course-grouped")}
+                      className="flex-1"
+                    >
+                      <Menu className="h-4 w-4 mr-2" />
+                      Groups
+                    </Button>
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          </div>
 
-          {/* Category Pills */}
-          <div className="relative py-2 sm:py-3">
-            <div
-              ref={tabsRef}
-              className="overflow-hidden" // Removed overflow-x-auto and hide-scrollbar to prevent scrolling
-              onScroll={handleTabsScroll}
-            >
-              <Tabs
-                defaultValue="all"
-                className="w-full"
-                onValueChange={(value) => setCategoryFilter(value)}
-              >
-                <TabsList className="p-0 bg-transparent h-auto gap-3">
-                  {categoryFilters.map((tab) => (
-                    <TabsTrigger
-                      key={tab.id}
-                      value={tab.id}
-                      className={cn(
-                        "h-8 rounded-lg font-normal transition-all whitespace-nowrap text-sm",
-                        "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md",
-                        "data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground",
-                        "hover:bg-secondary"
-                      )}
-                    >
-                      {tab.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
+            {/* Center: Search Bar */}
+            <div className="flex-1 flex justify-center max-w-[620px] mx-auto min-w-0">
+              <div className="flex w-full items-center">
+                <div className="relative flex-1 flex items-center">
+                  <div className="absolute left-4 text-muted-foreground pointer-events-none">
+                    <Search className="h-4 w-4" />
+                  </div>
+                  <Input
+                    placeholder="Search projects..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full h-10 pl-11 pr-4 rounded-l-full bg-background border-border focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0"
+                  />
+                </div>
+                <Button
+                  variant="secondary"
+                  className="h-10 px-5 rounded-r-full border-l-0 border border-border bg-muted hover:bg-secondary/80 flex-shrink-0"
+                  onClick={() => { }}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
-            {/* Navigation Arrows - always show them if content overflows */}
-            {showScrollButtons && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md",
-                    !canScrollLeft && "opacity-50 cursor-not-allowed"
-                  )}
-                  onClick={() => scrollTabs('left')}
-                  disabled={!canScrollLeft}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background shadow-md",
-                    !canScrollRight && "opacity-50 cursor-not-allowed"
-                  )}
-                  onClick={() => scrollTabs('right')}
-                  disabled={!canScrollRight}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </>
-            )}
+            {/* Right Side: Primary Action */}
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setShowGenerateDialog(true)}
+                className="h-10 rounded-full px-4 gap-2 font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Generate Project</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Status Pills: Primary navigation for Projects */}
+          <div className="pb-3 px-0">
+            <CategoryPills
+              customCategories={statusFilters.map(sf => ({ name: sf.label, slug: sf.id }))}
+              onCategoryChange={(slug) => setStatusFilter(slug as ProjectFilter)}
+            />
           </div>
         </div>
       </div>
@@ -456,11 +351,6 @@ export default function ProjectsPage() {
               Apply your learning with hands-on projects
             </p>
           </div>
-
-          <Button onClick={() => setShowGenerateDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Generate Project
-          </Button>
         </div>
 
         {/* Project Content */}

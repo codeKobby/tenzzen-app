@@ -72,7 +72,14 @@ export function useCategoryUserCourses(
   // Filter courses by category
   const filteredCourses = courses.filter((course) => {
     if (currentCategory === "all") return true;
-    return course.category.toLowerCase() === currentCategory.toLowerCase();
+
+    // Normalize category name to slug format for comparison
+    const courseCategorySlug = (course.category || "General")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "-");
+
+    return courseCategorySlug === currentCategory.toLowerCase();
   });
 
   // Get recent courses (last 2)
@@ -92,7 +99,7 @@ export function useCategoryUserCourses(
     })
     .map(([name, count]) => ({
       name,
-      slug: name.toLowerCase().replace(/\s+/g, "-"),
+      slug: name.toLowerCase().trim().replace(/\s+/g, "-"),
       courseCount: count,
     }));
 

@@ -96,10 +96,10 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
         <div className={cn("space-y-6", isSidebar && "px-0")}>
             {/* Course Progress Summary - Only show in non-sidebar mode */}
             {!isSidebar && (
-                <div className="mb-6 p-4 bg-muted/40 rounded-lg">
+                <div className="mb-6 p-4 bg-muted/50 rounded-lg border border-border/50">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div>
-                            <h3 className="text-base font-medium">Your Progress</h3>
+                            <h3 className="text-base font-medium text-foreground">Your Progress</h3>
                             <div className="flex items-center gap-2 mt-1">
                                 <Progress value={course.progress} className="w-32 sm:w-44 h-2" />
                                 <span className="text-sm text-muted-foreground">{course.progress}% complete</span>
@@ -183,8 +183,8 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
                             <div
                                 key={section.id || sectionKey}
                                 className={cn(
-                                    "border rounded-lg overflow-hidden",
-                                    isSidebar && "border-0 rounded-none border-b border-white/10",
+                                    "border rounded-lg overflow-hidden border-border",
+                                    isSidebar && "border-0 rounded-none border-b border-border/40",
                                     !isSidebar && colorClasses.sectionBg
                                 )}
                             >
@@ -192,7 +192,7 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
                                     variant="ghost"
                                     className={cn(
                                         "flex items-center w-full justify-between h-auto text-left transition-colors",
-                                        isSidebar ? "px-3 py-2.5 hover:bg-white/5" : "px-4 py-3",
+                                        isSidebar ? "px-3 py-2.5 hover:bg-accent/50" : "px-4 py-3",
                                         isActiveQuiz && isSidebar && colorClasses.activeBg,
                                         isPlaceholder && "opacity-60 hover:opacity-100"
                                     )}
@@ -215,7 +215,7 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
                                             )}>{section.title}</span>
                                             {isPlaceholder && (
                                                 <span className={cn(
-                                                    "block text-[10px] text-white/50 mt-0.5",
+                                                    "block text-[10px] text-muted-foreground mt-0.5",
                                                     isSidebar && "text-[9px]"
                                                 )}>
                                                     {section.assessmentType === 'project' ? 'View requirements' : 'Click to generate'}
@@ -248,13 +248,13 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
                             key={section.id || sectionKey}
                             value={sectionKey}
                             className={cn(
-                                "border rounded-lg overflow-hidden",
-                                isSidebar && "border-0 rounded-none border-b border-white/10"
+                                "border rounded-lg overflow-hidden border-border",
+                                isSidebar && "border-0 rounded-none border-b border-border/40"
                             )}
                         >
                             <AccordionTrigger className={cn(
                                 "px-4 py-3 hover:bg-muted/50",
-                                isSidebar && "px-3 py-2.5 hover:bg-white/5 [&[data-state=open]]:bg-white/5"
+                                isSidebar && "px-3 py-2.5 hover:bg-accent/50 [&[data-state=open]]:bg-accent/50"
                             )}>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-left w-full">
                                     <div className="flex items-center gap-2.5 flex-1">
@@ -263,7 +263,7 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
                                             isSidebar ? "h-6 w-6 text-xs" : "h-7 w-7 text-sm",
                                             isCompleted
                                                 ? "bg-green-500/10 text-green-500"
-                                                : "bg-white/10 text-white/80"
+                                                : "bg-muted text-muted-foreground"
                                         )}>
                                             {isCompleted ? (
                                                 <CheckCircle className={cn(isSidebar ? "h-3.5 w-3.5" : "h-4 w-4")} />
@@ -273,12 +273,12 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h3 className={cn(
-                                                "font-semibold truncate",
-                                                isSidebar ? "text-xs text-white" : "text-sm"
+                                                "font-semibold truncate text-foreground",
+                                                isSidebar ? "text-xs" : "text-sm"
                                             )}>{section.title}</h3>
                                             <div className={cn(
-                                                "flex items-center gap-2 mt-0.5 text-xs",
-                                                isSidebar ? "text-[10px] text-white/50" : "text-muted-foreground"
+                                                "flex items-center gap-2 mt-0.5 text-xs text-muted-foreground",
+                                                isSidebar ? "text-[10px]" : ""
                                             )}>
                                                 <span>{completed}/{total} completed</span>
                                             </div>
@@ -288,12 +288,12 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
                             </AccordionTrigger>
 
                             <AccordionContent className={cn(
-                                "border-t pt-0",
+                                "border-t border-border/40 pt-0",
                                 isSidebar && "border-t-0 pt-0"
                             )}>
                                 <ul className={cn(
-                                    "divide-y",
-                                    isSidebar && "divide-y divide-white/5"
+                                    "divide-y divide-border/30",
+                                    isSidebar && "divide-y divide-border/20"
                                 )}>
                                     {section.lessons?.map((lesson: any, lessonIndex: number) => {
                                         const lessonCompleted = isLessonCompleted(lesson.id);
@@ -310,9 +310,9 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
                                                     variant="ghost"
                                                     className={cn(
                                                         "flex items-center w-full justify-between h-auto text-left transition-colors",
-                                                        isSidebar ? "px-3 py-2.5 hover:bg-white/5" : "px-4 py-3",
-                                                        isActive && isSidebar && "bg-[#3b82f6]/10 border-l-2 border-[#3b82f6] hover:bg-[#3b82f6]/15",
-                                                        !isActive && lessonCompleted && "text-green-600 dark:text-green-400"
+                                                        isSidebar ? "px-3 py-2.5 hover:bg-accent/50" : "px-4 py-3",
+                                                        isActive && isSidebar && "bg-primary/5 border-l-2 border-primary hover:bg-primary/10",
+                                                        !isActive && lessonCompleted && "text-green-600 dark:text-green-500"
                                                     )}
                                                     onClick={() => onSelectLesson?.(sectionIndex, lessonIndex, lesson)}
                                                 >
@@ -321,10 +321,10 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
                                                             "flex shrink-0 items-center justify-center rounded-full",
                                                             isSidebar ? "h-5 w-5" : "h-6 w-6",
                                                             isActive
-                                                                ? "bg-[#3b82f6] text-white"
+                                                                ? "bg-primary text-primary-foreground"
                                                                 : lessonCompleted
-                                                                    ? "bg-green-600/10 text-green-600 dark:text-green-400"
-                                                                    : "bg-white/5 text-white/60"
+                                                                    ? "bg-green-500/10 text-green-500"
+                                                                    : "bg-muted text-muted-foreground"
                                                         )}>
                                                             {lessonCompleted && !isActive ? (
                                                                 <CheckCircle className={cn(isSidebar ? "h-3 w-3" : "h-3.5 w-3.5")} />
@@ -336,13 +336,13 @@ export function CourseContent({ course, onSelectLesson, onSelectQuiz, completedL
                                                             <span className={cn(
                                                                 "block truncate font-medium",
                                                                 isSidebar ? "text-xs leading-tight" : "text-sm",
-                                                                isActive && "text-[#3b82f6]"
+                                                                isActive && "text-primary"
                                                             )}>{lesson.title}</span>
                                                         </div>
                                                     </div>
                                                     <div className={cn(
                                                         "flex items-center text-xs flex-shrink-0 ml-2",
-                                                        isActive ? "text-[#3b82f6]" : "text-white/50"
+                                                        isActive ? "text-primary" : "text-muted-foreground"
                                                     )}>
                                                         <Clock className={cn(isSidebar ? "h-3 w-3 mr-1" : "h-3.5 w-3.5 mr-1")} />
                                                         <span className={cn(isSidebar && "text-[10px]")}>{timeDisplay}</span>

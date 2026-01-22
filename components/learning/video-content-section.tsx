@@ -24,6 +24,10 @@ import Markdown from "react-markdown"
 import { NormalizedLesson, NormalizedCourse } from "@/hooks/use-normalized-course"
 import { formatDurationFromSeconds } from "@/lib/utils/duration"
 import { CourseOutlineModal } from "./course-outline-modal"
+import { useMutation, useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { toast } from "sonner"
+import { Brain } from "lucide-react"
 
 interface VideoContentSectionProps {
   lesson: NormalizedLesson
@@ -55,6 +59,38 @@ export function VideoContentSection({
   const [activeTab, setActiveTab] = useState("content")
   const [videoProgress, setVideoProgress] = useState(0)
   const [videoCompleted, setVideoCompleted] = useState(false)
+  const [addingPoint, setAddingPoint] = useState<number | null>(null)
+
+  const createSRSItem = useMutation(api.srs.createItem)
+
+  // Map lesson to SRS format
+  const handleAddToSRS = async (point: string, index: number) => {
+    try {
+      setAddingPoint(index)
+      const now = new Date().toISOString()
+      const today = now.split("T")[0]
+
+      await createSRSItem({
+        courseId: course.id as any,
+        lessonId: lesson.id as any,
+        front: point,
+        back: `Key point from: ${lesson.title}`,
+        cardType: "key_point",
+        easeFactor: 2.5,
+        interval: 0,
+        repetitions: 0,
+        nextReviewDate: today,
+      })
+
+      toast.success("Added to your review deck", {
+        description: "You'll see this in your next review session."
+      })
+    } catch (err) {
+      toast.error("Failed to add to review deck")
+    } finally {
+      setAddingPoint(null)
+    }
+  }
 
   // Extract video ID from lesson data
   const videoId = (() => {
@@ -257,11 +293,27 @@ export function VideoContentSection({
               {keyPoints.length > 0 ? (
                 <div className="space-y-4">
                   {keyPoints.map((point, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="rounded-full bg-primary/10 p-2 mt-0.5">
-                        <Lightbulb className="h-4 w-4 text-primary" />
+                    <div key={index} className="flex items-start justify-between gap-3 group">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="rounded-full bg-primary/10 p-2 mt-0.5">
+                          <Lightbulb className="h-4 w-4 text-primary" />
+                        </div>
+                        <p className="text-sm leading-relaxed">{point}</p>
                       </div>
-                      <p className="text-sm leading-relaxed">{point}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity h-8 px-2"
+                        disabled={addingPoint === index}
+                        onClick={() => handleAddToSRS(point, index)}
+                      >
+                        {addingPoint === index ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        ) : (
+                          <Brain className="h-4 w-4 mr-1" />
+                        )}
+                        <span className="text-xs">Review</span>
+                      </Button>
                     </div>
                   ))}
                 </div>

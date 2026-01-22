@@ -7,6 +7,7 @@ import { useMutation } from "convex/react"
 import { toast } from "sonner"
 import {
   BookOpen,
+  Bot,
   Camera,
   CheckCircle,
   ChevronLeft,
@@ -15,8 +16,11 @@ import {
   FileQuestion,
   FileText,
   Lock,
+  Sparkles,
   StickyNote,
   Trophy,
+  Maximize2,
+  Minimize2,
 } from "lucide-react"
 
 import { api } from "@/convex/_generated/api"
@@ -30,12 +34,13 @@ import {
 } from "@/hooks/use-normalized-course"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { validateCourseId } from "@/lib/utils"
+import { validateCourseId, cn } from "@/lib/utils"
 import { useBreadcrumb } from "@/contexts/breadcrumb-context"
 
 import { CourseContent } from "./components/course-content"
 import { CoursePlayer } from "./components/course-player"
 import { CourseResources } from "./components/course-resources"
+import { TutorChatSidebar } from "./components/tutor-chat-sidebar"
 import { SeekConfirmationModal } from "@/components/seek-confirmation-modal"
 
 export default function CoursePage() {
@@ -55,6 +60,8 @@ export default function CoursePage() {
   const [generatingQuiz, setGeneratingQuiz] = useState(false)
   const [seekModalOpen, setSeekModalOpen] = useState(false)
   const [targetSeekLesson, setTargetSeekLesson] = useState<{ sectionIdx: number; lessonIdx: number; title: string; direction: 'forward' | 'backward' } | null>(null)
+  const [isFocusMode, setIsFocusMode] = useState(false)
+
   const seekResolveRef = useRef<((value: boolean) => void) | null>(null)
 
   useEffect(() => {
@@ -422,11 +429,11 @@ export default function CoursePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a1628] p-6">
+      <div className="min-h-screen bg-background p-6">
         <div className="mx-auto max-w-7xl">
-          <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
-            <div className="h-[600px] animate-pulse rounded-2xl bg-white/5" />
-            <div className="h-[600px] animate-pulse rounded-2xl bg-white/5" />
+          <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+            <div className="h-[600px] animate-pulse rounded-2xl bg-muted" />
+            <div className="h-[600px] animate-pulse rounded-2xl bg-muted" />
           </div>
         </div>
       </div>
@@ -435,11 +442,11 @@ export default function CoursePage() {
 
   if (error || !course) {
     return (
-      <div className="min-h-screen bg-[#0a1628] p-6">
+      <div className="min-h-screen bg-background p-6">
         <div className="mx-auto max-w-7xl">
-          <div className="rounded-2xl border border-white/10 bg-[#0f1e35] p-10 text-center">
-            <p className="text-lg font-semibold text-white">We couldn't load that course</p>
-            <p className="mt-2 text-sm text-white/60">{error || "The course may have moved or been removed."}</p>
+          <div className="rounded-2xl border border-border bg-card p-10 text-center">
+            <p className="text-lg font-semibold text-foreground">We couldn't load that course</p>
+            <p className="mt-2 text-sm text-muted-foreground">{error || "The course may have moved or been removed."}</p>
             <Button className="mt-6" onClick={() => router.push("/courses")}>
               Return to catalog
             </Button>
@@ -450,309 +457,327 @@ export default function CoursePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a1628] p-4">
-      <div className="mx-auto max-w-[1400px]">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,900px)_1fr] lg:items-start">
-          <div className="space-y-3 max-w-full">
-            {/* Video Player */}
-            <div className="w-full">
-              <div ref={playerRef} className="relative w-full bg-black rounded-lg overflow-hidden aspect-video">
-                {isEnrolled ? (
-                  currentQuiz ? (
-                    <div className="flex h-full items-center justify-center p-10 text-center bg-[#0f1e35]">
-                      <div className="max-w-2xl w-full">
-                        {/* Determine icon and color based on assessment type */}
-                        {currentQuiz.type === 'project' ? (
-                          <>
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-500/10 mb-4">
-                              <Trophy className="h-8 w-8 text-purple-500" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-white mb-3">{currentQuiz.title}</h2>
-                            <p className="text-white/70 mb-6">{currentQuiz.description || "Complete this capstone project to demonstrate your learning"}</p>
-                            <div className="bg-white/5 rounded-lg p-6 text-left space-y-3 mb-6">
-                              <h3 className="text-sm font-semibold text-purple-400">Project Requirements:</h3>
-                              <p className="text-sm text-white/70 leading-relaxed">
-                                {currentQuiz.description || "Detailed project requirements will be provided here."}
-                              </p>
-                            </div>
-                            <Button className="mt-6 bg-purple-500 hover:bg-purple-600 text-white">
-                              View Project Details
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-[1600px] p-4 lg:p-6">
+        {/* Main 2-column layout */}
+        <div className={cn(
+          "grid gap-6 transition-all duration-300 ease-in-out",
+          isFocusMode ? "lg:grid-cols-1 max-w-5xl mx-auto" : "lg:grid-cols-[1fr_400px]"
+        )}>
+
+          {/* Left Column - Video & Info */}
+          <div className="space-y-4">
+            {/* Video Player Container */}
+            <div
+              ref={playerRef}
+              className="relative w-full bg-black rounded-2xl overflow-hidden aspect-video shadow-2xl ring-1 ring-border/50"
+            >
+              {isEnrolled ? (
+                currentQuiz ? (
+                  <div className="flex h-full items-center justify-center p-8 text-center bg-card">
+                    <div className="max-w-xl w-full">
+                      {currentQuiz.type === 'project' ? (
+                        <>
+                          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-purple-500/10 mb-4">
+                            <Trophy className="h-7 w-7 text-purple-400" />
+                          </div>
+                          <h2 className="text-xl font-semibold text-foreground mb-2">{currentQuiz.title}</h2>
+                          <p className="text-muted-foreground text-sm mb-6">{currentQuiz.description || "Complete this capstone project"}</p>
+                          <Button className="bg-purple-500 hover:bg-purple-600 text-white">
+                            View Project Details
+                          </Button>
+                        </>
+                      ) : currentQuiz.type === 'test' ? (
+                        <>
+                          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mb-4">
+                            <FileText className="h-7 w-7 text-primary" />
+                          </div>
+                          <h2 className="text-xl font-semibold text-foreground mb-2">{currentQuiz.title}</h2>
+                          <p className="text-muted-foreground text-sm mb-6">{currentQuiz.description || "Test your knowledge"}</p>
+                          {currentQuiz.isGenerated === false ? (
+                            <Button
+                              className="bg-primary hover:bg-primary/90"
+                              onClick={() => handleQuizSelect(sectionIndex, 0, currentQuiz)}
+                              disabled={generatingQuiz}
+                            >
+                              {generatingQuiz ? "Generating..." : "Generate Test"}
                             </Button>
-                          </>
-                        ) : currentQuiz.type === 'test' ? (
-                          <>
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/10 mb-4">
-                              <FileText className="h-8 w-8 text-blue-500" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-white mb-3">{currentQuiz.title}</h2>
-                            <p className="text-white/70 mb-6">{currentQuiz.description || "Comprehensive test covering all course material"}</p>
-                            {currentQuiz.isGenerated === false ? (
-                              <>
-                                <p className="text-blue-500/80 text-sm mb-6">
-                                  This test hasn't been generated yet. Click below to create it.
-                                </p>
-                                <Button
-                                  className="mt-6 bg-blue-500 hover:bg-blue-600 text-white"
-                                  onClick={() => handleQuizSelect(sectionIndex, 0, currentQuiz)}
-                                  disabled={generatingQuiz}
-                                >
-                                  {generatingQuiz ? "Generating..." : "Generate Test"}
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex items-center justify-center gap-4 text-sm text-white/60">
-                                  <span className="flex items-center gap-2">
-                                    <FileText className="h-4 w-4" />
-                                    Questions: Loading...
-                                  </span>
-                                  <span className="flex items-center gap-2">
-                                    <CheckCircle className="h-4 w-4" />
-                                    Passing Score: {currentQuiz.passingScore || 70}%
-                                  </span>
-                                </div>
-                                <Button className="mt-6 bg-blue-500 hover:bg-blue-600 text-white">
-                                  Start Test
-                                </Button>
-                              </>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-500/10 mb-4">
-                              <FileQuestion className="h-8 w-8 text-amber-500" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-white mb-3">{currentQuiz.title}</h2>
-                            <p className="text-white/70 mb-6">{currentQuiz.description || "Test your knowledge with this quiz"}</p>
-                            {currentQuiz.isGenerated === false ? (
-                              <>
-                                <p className="text-amber-500/80 text-sm mb-6">
-                                  This quiz hasn't been generated yet. Click below to create it.
-                                </p>
-                                <Button
-                                  className="mt-6 bg-amber-500 hover:bg-amber-600 text-white"
-                                  onClick={() => handleQuizSelect(sectionIndex, 0, currentQuiz)}
-                                  disabled={generatingQuiz}
-                                >
-                                  {generatingQuiz ? "Generating..." : "Generate Quiz"}
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex items-center justify-center gap-4 text-sm text-white/60">
-                                  <span className="flex items-center gap-2">
-                                    <FileQuestion className="h-4 w-4" />
-                                    Questions: Loading...
-                                  </span>
-                                  <span className="flex items-center gap-2">
-                                    <CheckCircle className="h-4 w-4" />
-                                    Passing Score: {currentQuiz.passingScore || 70}%
-                                  </span>
-                                </div>
-                                <Button className="mt-6 bg-amber-500 hover:bg-amber-600 text-white">
-                                  Start Quiz
-                                </Button>
-                              </>
-                            )}
-                          </>
-                        )}
-                      </div>
+                          ) : (
+                            <Button className="bg-primary hover:bg-primary/90">Start Test</Button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-500/10 mb-4">
+                            <FileQuestion className="h-7 w-7 text-amber-400" />
+                          </div>
+                          <h2 className="text-xl font-semibold text-foreground mb-2">{currentQuiz.title}</h2>
+                          <p className="text-muted-foreground text-sm mb-6">{currentQuiz.description || "Test your knowledge"}</p>
+                          {currentQuiz.isGenerated === false ? (
+                            <Button
+                              className="bg-amber-500 hover:bg-amber-600 text-white"
+                              onClick={() => handleQuizSelect(sectionIndex, 0, currentQuiz)}
+                              disabled={generatingQuiz}
+                            >
+                              {generatingQuiz ? "Generating..." : "Generate Quiz"}
+                            </Button>
+                          ) : (
+                            <Button className="bg-amber-500 hover:bg-amber-600 text-white">Start Quiz</Button>
+                          )}
+                        </>
+                      )}
                     </div>
-                  ) : currentLesson ? (
-                    <CoursePlayer
-                      lesson={currentLesson}
-                      courseId={courseId}
-                      videoOnly={true}
-                      onVideoEnd={handleVideoEnd}
-                      onSeekBeyondLesson={handleSeekBeyondLesson}
-                      onNext={() => navigateLesson("next")}
-                      onPrevious={() => navigateLesson("prev")}
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center p-10 text-center">
-                      <div>
-                        <p className="text-lg font-semibold text-white">Lessons will appear here soon</p>
-                        <p className="mt-2 text-sm text-white/60">
-                          The curriculum is being finalized. Explore the outline to prepare.
-                        </p>
-                      </div>
-                    </div>
-                  )
+                  </div>
+                ) : currentLesson ? (
+                  <CoursePlayer
+                    lesson={currentLesson}
+                    courseId={courseId}
+                    videoOnly={true}
+                    onVideoEnd={handleVideoEnd}
+                    onSeekBeyondLesson={handleSeekBeyondLesson}
+                    onNext={() => navigateLesson("next")}
+                    onPrevious={() => navigateLesson("prev")}
+                  />
                 ) : (
                   <div className="flex h-full items-center justify-center">
-                    <button
-                      className="flex size-20 items-center justify-center rounded-full border-2 border-white/30 bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
-                      onClick={handleEnroll}
-                      disabled={enrolling}
-                      aria-label="Play lesson"
-                    >
-                      <svg className="h-10 w-10" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </button>
+                    <div className="text-center">
+                      <p className="text-lg font-medium text-foreground">Content coming soon</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Explore the outline while we prepare lessons.</p>
+                    </div>
                   </div>
-                )}
-              </div>
+                )
+              ) : (
+                <div className="flex h-full items-center justify-center bg-gradient-to-br from-card to-muted">
+                  <button
+                    className="flex size-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+                    onClick={handleEnroll}
+                    disabled={enrolling}
+                    aria-label="Enroll to watch"
+                  >
+                    <svg className="h-7 w-7 ml-1" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Course Info Section */}
+            {/* Lesson Info Bar */}
             {isEnrolled && (currentLesson || currentQuiz) && (
-              <div className="rounded-xl border border-white/10 bg-[#0f1e35] overflow-hidden">
-                {/* Linear Progress Bar */}
-                <div className="h-1 w-full bg-white/10">
-                  <div
-                    className="h-full bg-[#3b82f6] transition-all duration-500"
-                    style={{ width: `${progress}%` }}
-                  />
+              <div className="space-y-4">
+                {/* Header: Title + Next Button */}
+                <div className="rounded-xl bg-card border border-border p-4">
+                  <div className="flex items-center justify-between gap-4 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-xl font-semibold text-foreground truncate">
+                        {currentQuiz ? currentQuiz.title : currentLesson?.title}
+                      </h1>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-sm text-muted-foreground">
+                          {Math.round(progress)}% complete
+                        </span>
+                        <div className="h-1.5 flex-1 max-w-[120px] bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => navigateLesson("next")}
+                      disabled={!hasNext}
+                      className="shrink-0 gap-2"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {/* Navigation + Tools Row */}
+                  <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-muted-foreground hover:text-foreground"
+                      onClick={() => navigateLesson("prev")}
+                      disabled={!hasPrevious}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-8 w-8 text-muted-foreground hover:text-foreground", isFocusMode && "text-primary bg-primary/10")}
+                        onClick={() => setIsFocusMode(!isFocusMode)}
+                        title={isFocusMode ? "Exit Focus Mode" : "Enter Focus Mode"}
+                      >
+                        {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="p-5 space-y-4">
-                  {/* Title */}
-                  <div className="flex items-start justify-between gap-4">
-                    <h1 className="text-2xl font-bold text-white leading-tight flex-1 truncate">
-                      {currentQuiz ? currentQuiz.title : currentLesson?.title}
-                    </h1>
-                    <span className="text-sm font-semibold text-white/60 flex-shrink-0">
-                      {Math.round(progress)}%
-                    </span>
-                  </div>
-
-                  {/* Description */}
-                  {currentLesson && currentSection.description && (
-                    <div>
-                      <p className="text-white/70 text-sm leading-relaxed">
-                        {currentSection.description}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Action Buttons Row */}
-                  <div className="flex items-center justify-between gap-4">
-                    {/* Navigation Buttons - Left Side */}
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        className="border-white/20 bg-white/5 text-white hover:bg-white/10 h-9 px-4"
-                        onClick={() => navigateLesson("prev")}
-                        disabled={!hasPrevious}
+                {/* Lower Tabs: Overview, Notes, Resources */}
+                <div className="rounded-xl bg-card border border-border overflow-hidden">
+                  <Tabs defaultValue="overview" className="w-full">
+                    <TabsList className="w-full grid grid-cols-3 bg-muted/50 p-0 h-auto rounded-none border-b border-border">
+                      <TabsTrigger
+                        value="overview"
+                        className="rounded-none py-3 text-sm data-[state=active]:bg-card data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-primary"
                       >
-                        <ChevronLeft className="mr-1.5 h-4 w-4" />
-                        Previous
-                      </Button>
-                      <Button
-                        className="bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white h-9 px-4"
-                        onClick={() => navigateLesson("next")}
-                        disabled={!hasNext}
+                        <BookOpen className="mr-1.5 h-4 w-4" />
+                        Overview
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="notes"
+                        className="rounded-none py-3 text-sm data-[state=active]:bg-card data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-primary"
                       >
-                        Next Lesson
-                        <ChevronRight className="ml-1.5 h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    {/* Utility Buttons - Right Side */}
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        className="border-white/20 bg-white/5 text-white hover:bg-white/10 h-9 px-3 text-sm"
+                        <StickyNote className="mr-1.5 h-4 w-4" />
+                        Notes
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="resources"
+                        className="rounded-none py-3 text-sm data-[state=active]:bg-card data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-primary"
                       >
-                        <Camera className="mr-1.5 h-4 w-4" />
-                        Screenshot
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="border-white/20 bg-white/5 text-white hover:bg-white/10 h-9 px-3 text-sm"
-                      >
-                        <Clock className="mr-1.5 h-4 w-4" />
-                        Timestamp Note
-                      </Button>
-                    </div>
-                  </div>
+                        <FileText className="mr-1.5 h-4 w-4" />
+                        Resources
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="overview" className="p-4 m-0">
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="font-semibold text-foreground mb-2">About this lesson</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {currentLesson?.content || "No description available for this lesson."}
+                          </p>
+                        </div>
+                        {currentLesson?.keyPoints && currentLesson.keyPoints.length > 0 && (
+                          <div>
+                            <h4 className="font-medium text-foreground mb-2">Key Points</h4>
+                            <ul className="space-y-1.5">
+                              {currentLesson.keyPoints.map((point: string, i: number) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                                  <span className="shrink-0 mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                                  {point}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="notes" className="p-4 m-0">
+                      <div className="flex flex-col items-center justify-center min-h-[150px] text-center">
+                        <StickyNote className="h-8 w-8 text-muted-foreground/50 mb-3" />
+                        <p className="text-sm font-medium text-foreground">Take notes for this lesson</p>
+                        <p className="text-xs text-muted-foreground mt-1">Your notes will be saved automatically</p>
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="resources" className="p-4 m-0">
+                      <CourseResources course={course} />
+                    </TabsContent>
+                  </Tabs>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-[#0f1e35] sticky top-4 self-start h-[calc(100vh-32px)] flex flex-col overflow-hidden">
-            <Tabs defaultValue="outline" className="flex flex-col h-full">
-              <TabsList className="grid w-full grid-cols-3 border-b border-white/10 bg-[#0f1e35] p-0 rounded-t-xl flex-shrink-0 sticky top-0 z-10">
-                <TabsTrigger
-                  value="outline"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#3b82f6] data-[state=active]:bg-transparent data-[state=active]:text-white text-xs py-2.5"
-                >
-                  <BookOpen className="mr-1 h-3.5 w-3.5" />
-                  Outline
-                </TabsTrigger>
-                <TabsTrigger
-                  value="notes"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#3b82f6] data-[state=active]:bg-transparent data-[state=active]:text-white text-xs py-2.5"
-                >
-                  <StickyNote className="mr-1 h-3.5 w-3.5" />
-                  My Notes
-                </TabsTrigger>
-                <TabsTrigger
-                  value="resources"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#3b82f6] data-[state=active]:bg-transparent data-[state=active]:text-white text-xs py-2.5"
-                >
-                  <FileText className="mr-1 h-3.5 w-3.5" />
-                  Resources
-                </TabsTrigger>
-              </TabsList>
+          <div className={cn(
+            "relative group/sidebar transition-all duration-300 ease-in-out",
+            isFocusMode ? "hidden opacity-0" : "block opacity-100"
+          )}>
+            {/* Glassmorphism effect */}
+            <div className="absolute -inset-px bg-gradient-to-b from-primary/5 via-transparent to-primary/5 rounded-2xl opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            <div className="rounded-2xl border border-border bg-card/80 backdrop-blur-md sticky top-4 self-start h-[calc(100vh-48px)] flex flex-col overflow-hidden">
+              <Tabs defaultValue="outline" className="flex flex-col h-full">
+                <TabsList className="grid w-full grid-cols-2 border-b border-border bg-card/50 p-0 rounded-t-2xl flex-shrink-0 sticky top-0 z-10">
+                  <TabsTrigger
+                    value="outline"
+                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground text-xs py-2.5"
+                  >
+                    <BookOpen className="mr-1 h-3.5 w-3.5" />
+                    Outline
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="tutor"
+                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground text-xs py-2.5"
+                  >
+                    <Sparkles className="mr-1 h-3.5 w-3.5" />
+                    AI Tutor
+                  </TabsTrigger>
+                </TabsList>
 
-              <div className="flex-1 overflow-hidden">
-                <TabsContent value="outline" className="h-full overflow-y-auto p-3 m-0 data-[state=inactive]:hidden">
-                  {outlineCourse ? (
-                    <CourseContent
-                      course={outlineCourse}
-                      onSelectLesson={handleLessonSelect}
-                      onSelectQuiz={handleQuizSelect}
-                      completedLessons={completedLessons}
-                      currentLessonId={currentLesson?.id}
-                      currentQuizId={currentQuiz?.id}
-                      activeSectionIndex={safeSectionIndex}
-                      isSidebar
-                    />
-                  ) : (
-                    <div className="flex min-h-[200px] items-center justify-center p-4 text-center">
-                      <div>
-                        <Lock className="mx-auto h-7 w-7 text-white/30" />
-                        <p className="mt-3 text-xs text-white/60">Outline will appear here soon.</p>
+                <div className="flex-1 overflow-hidden">
+                  <TabsContent value="outline" className="h-full overflow-y-auto p-3 m-0 data-[state=inactive]:hidden">
+                    {outlineCourse ? (
+                      <CourseContent
+                        course={outlineCourse}
+                        onSelectLesson={handleLessonSelect}
+                        onSelectQuiz={handleQuizSelect}
+                        completedLessons={completedLessons}
+                        currentLessonId={currentLesson?.id}
+                        currentQuizId={currentQuiz?.id}
+                        activeSectionIndex={safeSectionIndex}
+                        isSidebar
+                      />
+                    ) : (
+                      <div className="flex min-h-[200px] items-center justify-center p-4 text-center">
+                        <div>
+                          <Lock className="mx-auto h-7 w-7 text-muted-foreground/50" />
+                          <p className="mt-3 text-xs text-muted-foreground">Outline will appear here soon.</p>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </TabsContent>
+                    )}
+                  </TabsContent>
 
-                <TabsContent value="notes" className="h-full overflow-y-auto p-3 m-0 data-[state=inactive]:hidden">
-                  <div className="flex min-h-[200px] items-center justify-center text-center">
-                    <div>
-                      <StickyNote className="mx-auto h-7 w-7 text-white/30" />
-                      <p className="mt-3 text-xs font-medium text-white">Timestamped note taking</p>
-                      <p className="mt-1.5 text-xs text-white/60">
-                        {isEnrolled
-                          ? "Your notes will appear here"
-                          : "Enroll to unlock note-taking features"}
-                      </p>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="resources" className="h-full overflow-y-auto p-3 m-0 data-[state=inactive]:hidden">
-                  <CourseResources course={course} />
-                </TabsContent>
-              </div>
-            </Tabs>
+                  <TabsContent value="tutor" className="h-full m-0 data-[state=inactive]:hidden">
+                    {isEnrolled && currentLesson ? (
+                      <TutorChatSidebar
+                        courseId={courseId}
+                        lessonId={currentLesson.id}
+                        lessonContext={{
+                          title: currentLesson.title,
+                          content: currentLesson.content || "",
+                          keyPoints: currentLesson.keyPoints || []
+                        }}
+                      />
+                    ) : (
+                      <div className="flex min-h-[200px] items-center justify-center p-4 text-center">
+                        <div>
+                          <Bot className="mx-auto h-7 w-7 text-violet-400/50" />
+                          <p className="mt-3 text-xs font-medium text-foreground">AI Tutor</p>
+                          <p className="mt-1.5 text-xs text-muted-foreground">
+                            {isEnrolled
+                              ? "Select a lesson to start chatting"
+                              : "Enroll to unlock AI tutor features"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+                </div>
+              </Tabs>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Seek Confirmation Modal */}
-      <SeekConfirmationModal
-        open={seekModalOpen}
-        onOpenChange={setSeekModalOpen}
-        targetLessonTitle={targetSeekLesson?.title || ''}
-        direction={targetSeekLesson?.direction}
-        onConfirm={handleSeekConfirm}
-        onCancel={handleSeekCancel}
-      />
+        {/* Seek Confirmation Modal */}
+        <SeekConfirmationModal
+          open={seekModalOpen}
+          onOpenChange={setSeekModalOpen}
+          targetLessonTitle={targetSeekLesson?.title || ''}
+          direction={targetSeekLesson?.direction}
+          onConfirm={handleSeekConfirm}
+          onCancel={handleSeekCancel}
+        />
+      </div>
     </div>
   )
 }

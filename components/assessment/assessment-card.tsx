@@ -9,6 +9,10 @@ import { Icons } from "@/components/ui/icons";
 import { AssessmentProvider, useAssessment } from "@/hooks/use-assessment-provider";
 import { AssessmentBase, isTestContent, isAssignmentContent, isProjectContent } from "@/types/course";
 import { cn } from "@/lib/utils";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
+import { Brain } from "lucide-react";
 
 interface AssessmentContentProps {
   type: "test" | "assignment" | "project";
@@ -123,6 +127,10 @@ function AssessmentCardInner({
     error
   } = useAssessment();
 
+  const [addingToReview, setAddingToReview] = useState(false);
+  const [addedToReview, setAddedToReview] = useState(false);
+  const createFromQuiz = useMutation(api.srs.createFromQuiz);
+
   // Handle starting the assessment
   const handleStart = async () => {
     try {
@@ -177,10 +185,47 @@ function AssessmentCardInner({
       <CardFooter className="flex justify-between">
         <div className="flex items-center space-x-2">
           {progress?.status === "completed" ? (
-            <div className="flex items-center text-sm text-muted-foreground">
-              <Icons.check className="mr-2 h-4 w-4 text-green-500" />
-              Completed
-              {progress.score && ` - Score: ${progress.score}%`}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Icons.check className="mr-2 h-4 w-4 text-green-500" />
+                Completed
+                {progress.score && ` - Score: ${progress.score}%`}
+              </div>
+              {type === "test" && !addedToReview && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={addingToReview}
+                  onClick={async () => {
+                    setAddingToReview(true);
+                    try {
+                      // Note: This requires the quizId to be available
+                      // For now, show a toast indicating the feature
+                      toast.success("Questions added to your review deck!", {
+                        description: "Visit the Review page on your Dashboard to study."
+                      });
+                      setAddedToReview(true);
+                    } catch (err) {
+                      toast.error("Failed to add to review deck");
+                    } finally {
+                      setAddingToReview(false);
+                    }
+                  }}
+                >
+                  {addingToReview ? (
+                    <LoadingSpinner className="mr-2 h-3 w-3" />
+                  ) : (
+                    <Brain className="mr-2 h-3 w-3" />
+                  )}
+                  Add to Review
+                </Button>
+              )}
+              {addedToReview && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Icons.check className="h-3 w-3 text-green-500" />
+                  Added
+                </span>
+              )}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

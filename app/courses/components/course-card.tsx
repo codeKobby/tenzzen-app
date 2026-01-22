@@ -240,8 +240,8 @@ export function CourseCard({
       if (typeof course.estimated_duration === 'string' && course.estimated_duration.includes(':')) {
         // Parse the interval format (HH:MM:SS) or (HH:MM:SS.MS)
         // First, remove any milliseconds part if present
-        const cleanDuration = course.estimated_duration.split('.')[0];
-        const parts = cleanDuration.split(':');
+        const cleanDuration = (course.estimated_duration as string)?.split?.('.')[0] || '';
+        const parts = cleanDuration ? cleanDuration.split(':') : [];
 
         if (parts.length === 3) {
           const hours = parseInt(parts[0], 10) || 0;

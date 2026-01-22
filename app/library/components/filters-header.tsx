@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { AnimatePresence, motion } from "framer-motion"
-import { CategoryFilter } from "../page"
+import { CategoryFilter } from "@/types/notes"
 import { ViewSwitcher, ViewMode } from "./view-switcher"
 
 interface Props {
@@ -106,9 +106,10 @@ export function FiltersHeader({
   };
 
   return (
-    <div className="sticky top-16 z-10 bg-background">
+    <div className="sticky top-16 z-30 transition-all duration-300">
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-md border-b border-border/40 shadow-sm" />
       <div className={cn(
-        "w-full mx-auto transition-all",
+        "relative w-full mx-auto transition-all pt-2",
         "duration-300",
         "w-[95%] lg:w-[90%]"
       )}>
@@ -169,7 +170,7 @@ export function FiltersHeader({
               currentView={view}
               onViewChange={onViewChange}
             />
-            
+
             {/* Sort Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

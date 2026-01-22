@@ -76,6 +76,23 @@ export default defineSchema({
     updatedAt: v.string(),
   }).index("by_clerk_id", ["clerkId"]),
 
+  // Notes table - for user created notes
+  notes: defineTable({
+    clerkId: v.string(), // User ID
+    title: v.string(),
+    content: v.string(), // HTML content
+    category: v.string(), // 'all', 'starred', 'course', 'personal', 'code' stored as string
+    tags: v.optional(v.array(v.string())),
+    courseId: v.optional(v.string()), // Link to course if applicable
+    lessonId: v.optional(v.string()), // Link to lesson if applicable
+    isStarred: v.boolean(),
+    createdAt: v.number(), // Timestamp
+    updatedAt: v.number(), // Timestamp
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_course", ["courseId"])
+    .index("by_clerk_and_category", ["clerkId", "category"]),
+
   // Videos table - for caching individual videos
   videos: defineTable({
     youtubeId: v.string(),
@@ -419,4 +436,82 @@ export default defineSchema({
   })
     .index("by_user_lesson", ["userId", "lessonId"])
     .index("by_user_course", ["userId", "courseId"]),
+
+  // Spaced Repetition System (SRS) items
+  srs_items: defineTable({
+    userId: v.string(), // Clerk user ID
+    courseId: v.id("courses"),
+    lessonId: v.optional(v.id("lessons")),
+    quizQuestionId: v.optional(v.id("quizQuestions")),
+
+    // SRS algorithm fields (SM-2)
+    easeFactor: v.number(), // Initial: 2.5
+    interval: v.number(), // In days
+    repetitions: v.number(), // Number of successful reviews
+    nextReviewDate: v.string(), // ISO date string
+
+    // Card content (can be from quiz or user-created)
+    front: v.string(), // Question or term
+    back: v.string(), // Answer or definition
+    cardType: v.union(
+      v.literal("quiz"),
+      v.literal("key_point"),
+      v.literal("user_created"),
+    ),
+
+    // Metadata
+    lastReviewedAt: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_course", ["userId", "courseId"])
+    .index("by_user_due", ["userId", "nextReviewDate"]),
+
+  // User-uploaded materials (PDFs, documents)
+  user_materials: defineTable({
+    userId: v.string(), // Clerk user ID
+    title: v.string(),
+    fileType: v.union(
+      v.literal("pdf"),
+      v.literal("doc"),
+      v.literal("txt"),
+      v.literal("url"),
+    ),
+    fileUrl: v.optional(v.string()), // Storage URL for uploaded files
+    sourceUrl: v.optional(v.string()), // Original URL if type is 'url'
+    extractedText: v.optional(v.string()), // Extracted text content for AI processing
+
+    // AI-extracted metadata
+    topics: v.optional(v.array(v.string())), // Key topics extracted by AI
+    summary: v.optional(v.string()), // AI-generated summary
+    audioOverviewUrl: v.optional(v.string()), // URL to generated audio summary
+    audioScript: v.optional(v.string()), // AI-generated podcast script for client-side TTS
+
+    // Linked content
+    linkedCourseId: v.optional(v.id("courses")), // If a course was generated from this
+    recommendedVideos: v.optional(
+      v.array(
+        v.object({
+          youtubeId: v.string(),
+          title: v.string(),
+          thumbnail: v.optional(v.string()),
+          relevanceScore: v.number(),
+        }),
+      ),
+    ),
+
+    // Progress tracking
+    lastStudiedAt: v.optional(v.string()),
+    studyCount: v.number(), // Times accessed
+
+    // Metadata
+    category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_category", ["userId", "category"])
+    .index("by_user_recent", ["userId", "lastStudiedAt"]),
 });

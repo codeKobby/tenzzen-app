@@ -213,7 +213,7 @@ export default function CoursesPage() {
       <div className="sticky top-16 z-10 bg-background border-b">
         <div className="mx-auto px-4 max-w-6xl">
           {/* Controls Bar */}
-          <div className="h-14 flex items-center gap-3">
+          <div className="h-16 flex items-center justify-between gap-4">
             {selectionMode ? (
               <div className="flex items-center gap-3 w-full">
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleSelectionMode}>
@@ -233,65 +233,69 @@ export default function CoursesPage() {
               </div>
             ) : (
               <>
-                {/* Search */}
-                <div className="relative flex-1 max-w-xs">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 h-9 bg-muted/50"
-                  />
+                {/* Left side actions (Filters) */}
+                <div className="flex items-center gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="secondary" className="h-10 rounded-full px-4 gap-2 bg-secondary hover:bg-secondary/80 border-none text-foreground">
+                        <SlidersHorizontal className="h-4 w-4" />
+                        <span>Filters</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                      <DropdownMenuLabel>Filter</DropdownMenuLabel>
+                      {filters.map((f) => (
+                        <DropdownMenuItem key={f.id} onClick={() => setFilter(f.id)} className={cn(filter === f.id && "bg-muted")}>
+                          {f.label}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>Sort</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => setSortBy("recentlyAdded")} className={cn(sortBy === "recentlyAdded" && "bg-muted")}>Recently Added</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSortBy("lastAccessed")} className={cn(sortBy === "lastAccessed" && "bg-muted")}>Last Accessed</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSortBy("title")} className={cn(sortBy === "title" && "bg-muted")}>Title</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSortBy("progress")} className={cn(sortBy === "progress" && "bg-muted")}>Progress</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={toggleSelectionMode}>
+                        <CheckSquare className="h-4 w-4 mr-2" />
+                        Select Multiple
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
-                {/* Filter & Sort Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-9 w-9">
-                      <SlidersHorizontal className="h-4 w-4" />
+                {/* Centered Search Bar */}
+                <div className="flex-1 flex justify-center max-w-2xl px-4">
+                  <div className="relative w-full flex items-center">
+                    <div className="relative flex-1 group">
+                      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                      <Input
+                        placeholder="Search your library..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-11 pr-16 h-10 w-full bg-background border border-border focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary rounded-l-full rounded-r-none text-base"
+                      />
+                    </div>
+                    <Button
+                      variant="secondary"
+                      className="h-10 px-5 rounded-r-full rounded-l-none border border-l-0 border-border bg-muted hover:bg-secondary text-muted-foreground"
+                    >
+                      <Search className="h-5 w-5" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>Filter</DropdownMenuLabel>
-                    {filters.map((f) => (
-                      <DropdownMenuItem key={f.id} onClick={() => setFilter(f.id)} className={cn(filter === f.id && "bg-muted")}>
-                        {f.label}
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Sort</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => setSortBy("recentlyAdded")} className={cn(sortBy === "recentlyAdded" && "bg-muted")}>Recently Added</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSortBy("lastAccessed")} className={cn(sortBy === "lastAccessed" && "bg-muted")}>Last Accessed</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSortBy("title")} className={cn(sortBy === "title" && "bg-muted")}>Title</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSortBy("progress")} className={cn(sortBy === "progress" && "bg-muted")}>Progress</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={toggleSelectionMode}>
-                      <CheckSquare className="h-4 w-4 mr-2" />
-                      Select Multiple
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </div>
+                </div>
 
-                <div className="flex-1" />
-
-                {/* Actions */}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => router.push('/explore')}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Browse
-                </Button>
-                <Button
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => setShowGenerateModal(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                  Generate
-                </Button>
+                {/* Right side actions */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="default"
+                    className="h-10 rounded-full px-4 gap-2 bg-primary hover:bg-primary/90"
+                    onClick={() => setShowGenerateModal(true)}
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span className="hidden sm:inline">Generate</span>
+                  </Button>
+                </div>
               </>
             )}
           </div>

@@ -61,7 +61,7 @@ export function CategoryPills({
         existingCategory.courseCount += category.courseCount;
       } else {
         // Otherwise, add it to our map
-        slugMap.set(normalizedSlug, {...category});
+        slugMap.set(normalizedSlug, { ...category });
       }
     });
 
@@ -75,7 +75,7 @@ export function CategoryPills({
   const fixedCategories = [];
   if (showAll) {
     fixedCategories.push({
-      name: "All Categories",
+      name: "All",
       slug: "all",
       courseCount: 0
     });
@@ -185,7 +185,7 @@ export function CategoryPills({
     return (
       <div className={cn("flex gap-2 py-2", className)}>
         {Array(2).fill(0).map((_, i) => (
-          <Skeleton key={i} className="h-9 w-24 rounded-full" />
+          <Skeleton key={i} className="h-9 w-24 rounded-full bg-secondary" />
         ))}
       </div>
     );
@@ -215,13 +215,14 @@ export function CategoryPills({
           <Button
             key={category.slug}
             ref={currentCategory === category.slug ? (btn) => setActiveButtonRef(btn) : undefined}
-            variant={currentCategory === category.slug ? "default" : "outline"}
+            variant="ghost"
             size="sm"
             className={cn(
-              "rounded-full whitespace-nowrap transition-all duration-300 flex-shrink-0",
-              currentCategory === category.slug && "shadow-md",
-              category.slug === 'recommended' && "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white",
-              category.slug === 'recommended' && currentCategory !== 'recommended' && "hover:text-white"
+              "rounded-lg px-4 py-2 h-9 whitespace-nowrap transition-all duration-200 flex-shrink-0 text-sm font-medium border-none",
+              currentCategory === category.slug
+                ? "bg-foreground text-background hover:bg-foreground/90"
+                : "bg-secondary text-foreground hover:bg-secondary/80",
+              category.slug === 'recommended' && currentCategory !== 'recommended' && "bg-gradient-to-r from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 text-foreground"
             )}
             onClick={() => handleCategoryClick(category.slug)}
           >
@@ -234,16 +235,23 @@ export function CategoryPills({
           <Button
             key={category.slug}
             ref={currentCategory === category.slug ? (btn) => setActiveButtonRef(btn) : undefined}
-            variant={currentCategory === category.slug ? "default" : "outline"}
+            variant="ghost"
             size="sm"
             className={cn(
-              "rounded-full whitespace-nowrap transition-all duration-300 flex-shrink-0",
-              currentCategory === category.slug && "shadow-md"
+              "rounded-lg px-4 py-2 h-9 whitespace-nowrap transition-all duration-200 flex-shrink-0 text-sm font-medium border-none",
+              currentCategory === category.slug
+                ? "bg-foreground text-background hover:bg-foreground/90"
+                : "bg-secondary text-foreground hover:bg-secondary/80"
             )}
             onClick={() => handleCategoryClick(category.slug)}
           >
             {category.name}
-            <span className="ml-1 text-xs opacity-70">({category.courseCount})</span>
+            <span className={cn(
+              "ml-1.5 text-xs opacity-70",
+              currentCategory === category.slug ? "text-background/70" : "text-foreground/60"
+            )}>
+              {category.courseCount}
+            </span>
           </Button>
         ))}
       </div>

@@ -2,6 +2,13 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getUserId } from "./helpers";
 
+// Manual pagination options validator (matches usePaginatedQuery client options)
+const paginationOptsValidator = v.object({
+  cursor: v.union(v.string(), v.null()),
+  numItems: v.number(),
+  id: v.optional(v.number()), // Added for usePaginatedQuery compatibility
+});
+
 // Mutation to create a complete course with modules and lessons
 export const createAICourse = mutation({
   args: {
@@ -295,84 +302,48 @@ export const getNewCourses = query({
 // ============================================
 
 export const getPublicCoursesPaginated = query({
-  args: {
-    cursor: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { cursor, limit = 12 }) => {
-    const results = await ctx.db
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    return await ctx.db
       .query("courses")
       .withIndex("by_public", (q) =>
         q.eq("isPublic", true).eq("isPublished", true),
       )
       .order("desc")
-      .paginate({ cursor: cursor ?? null, numItems: limit });
-
-    return {
-      courses: results.page,
-      nextCursor: results.continueCursor,
-      isDone: results.isDone,
-    };
+      .paginate(paginationOpts);
   },
 });
 
 export const getTrendingCoursesPaginated = query({
-  args: {
-    cursor: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { cursor, limit = 12 }) => {
-    const results = await ctx.db
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    return await ctx.db
       .query("courses")
       .withIndex("by_enrollment", (q) => q.eq("isPublic", true))
       .order("desc")
-      .paginate({ cursor: cursor ?? null, numItems: limit });
-
-    return {
-      courses: results.page,
-      nextCursor: results.continueCursor,
-      isDone: results.isDone,
-    };
+      .paginate(paginationOpts);
   },
 });
 
 export const getTopRatedCoursesPaginated = query({
-  args: {
-    cursor: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { cursor, limit = 12 }) => {
-    const results = await ctx.db
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    return await ctx.db
       .query("courses")
       .withIndex("by_upvotes", (q) => q.eq("isPublic", true))
       .order("desc")
-      .paginate({ cursor: cursor ?? null, numItems: limit });
-
-    return {
-      courses: results.page,
-      nextCursor: results.continueCursor,
-      isDone: results.isDone,
-    };
+      .paginate(paginationOpts);
   },
 });
 
 export const getNewCoursesPaginated = query({
-  args: {
-    cursor: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { cursor, limit = 12 }) => {
-    const results = await ctx.db
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    return await ctx.db
       .query("courses")
       .withIndex("by_creation", (q) => q.eq("isPublic", true))
       .order("desc")
-      .paginate({ cursor: cursor ?? null, numItems: limit });
-
-    return {
-      courses: results.page,
-      nextCursor: results.continueCursor,
-      isDone: results.isDone,
-    };
+      .paginate(paginationOpts);
   },
 });
 

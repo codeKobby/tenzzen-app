@@ -6,14 +6,11 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import {
   Clock, GraduationCap, Target, BookOpen, TrendingUp,
   PlayCircle, Youtube, Sparkles, Timer, ListChecks,
-  Brain, Lightbulb, Map, Award, BookOpenCheck,
-  LucideIcon, Loader2, BookPlus,
-  Flame
+  BookOpenCheck, type LucideIcon, Loader2, BookPlus, Flame
 } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from "@clerk/clerk-react";
@@ -26,6 +23,7 @@ import { useStreak } from '@/hooks/use-streak';
 import { useStreakCelebration } from '@/hooks/use-streak-celebration';
 import { StreakCelebrationPopup } from '@/components/streak/streak-celebration-popup';
 import { StreakBadge } from '@/components/streak/StreakBadge';
+import { SRSReviewWidget } from '@/components/dashboard/srs-review-widget';
 
 // Import interfaces from our hook
 import type { Course, LearningActivity, UserStats } from '@/hooks/use-dashboard';
@@ -69,7 +67,6 @@ interface CalendarTask {
 type TabValue = 'inprogress';
 
 export default function DashboardPage() {
-  const [activeCourse, setActiveCourse] = useState<string>('');
   const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
 
   // Clerk auth
@@ -109,13 +106,6 @@ export default function DashboardPage() {
     activities: recentActivitiesData,
     cursor: undefined
   } : undefined;
-
-  // Set active course when data is loaded
-  useEffect(() => {
-    if (recentCourses && recentCourses.length > 0) {
-      setActiveCourse(recentCourses[0].id);
-    }
-  }, [recentCourses]);
 
 
 
@@ -232,8 +222,6 @@ export default function DashboardPage() {
   const userName = user?.firstName || user?.username || 'Learner';
   const greeting = getGreeting();
 
-  // Get selected course
-  const selectedCourse = recentCourses?.find(course => course.id === activeCourse);
 
   // Find or generate recent notes
   const recentNotes: Note[] = [
@@ -387,12 +375,12 @@ export default function DashboardPage() {
       <div className="mt-6 grid gap-6 md:grid-cols-3">
         {/* Learning Journey and Activity Chart - Main column moved to the left */}
         <div className="space-y-6 md:col-span-2 order-1 flex flex-col h-full">
-          {/* Learning Journey Card */}
-          <Card className="relative overflow-hidden flex-1">
-            <CardHeader className="relative z-10 flex flex-row items-center justify-between">
+          {/* Learning Journey Card - Focused on quick course access */}
+          <Card className="relative overflow-hidden">
+            <CardHeader className="relative z-10 flex flex-row items-center justify-between pb-2">
               <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
                 <BookOpen className="h-5 w-5" />
-                Learning Journey
+                Continue Learning
               </CardTitle>
               <Button
                 variant="ghost"
@@ -400,139 +388,72 @@ export default function DashboardPage() {
                 className="h-7 text-xs"
                 onClick={() => window.location.href = '/courses'}
               >
-                View All Courses
+                View All
               </Button>
             </CardHeader>
-            <CardContent className="relative z-10 space-y-4 overflow-auto" style={{ maxHeight: 'calc(100% - 60px)' }}>
+            <CardContent className="relative z-10 space-y-3">
               {recentCourses && recentCourses.length > 0 ? (
-                <div>
-                  {recentCourses.map((course) => (
+                <div className="space-y-3">
+                  {recentCourses.slice(0, 2).map((course, index) => (
                     <div
                       key={course.id}
-                      className={`group rounded-lg border bg-card p-3 hover:border-primary/50 transition-all mb-4 cursor-pointer ${course.id === activeCourse ? 'border-primary' : ''}`}
-                      onClick={() => setActiveCourse(course.id)}
+                      className={`group rounded-lg border bg-card p-4 hover:border-primary/50 transition-all cursor-pointer ${index === 0 ? 'border-primary bg-primary/5' : ''}`}
+                      onClick={() => window.location.href = `/courses/${course.id}`}
                     >
-                      <div className="flex gap-3">
-                        <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-md sm:w-40">
+                      <div className="flex gap-4">
+                        <div className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-lg sm:w-36">
                           <Image
                             src={course.thumbnail || "/placeholder.jpg"}
                             alt={course.title}
                             width={400}
                             height={220}
-                            className="object-cover"
+                            className="object-cover h-full w-full"
                             unoptimized
                           />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <PlayCircle className="h-8 w-8 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <PlayCircle className="h-10 w-10 text-white" />
                           </div>
+                          {index === 0 && (
+                            <div className="absolute top-1.5 left-1.5 bg-primary text-primary-foreground text-[10px] font-medium px-2 py-0.5 rounded-full">
+                              Most Recent
+                            </div>
+                          )}
                         </div>
-                        <div className="flex-1 space-y-2">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-medium leading-snug tracking-tight group-hover:text-primary transition-colors">
-                                {course.title}
-                              </h3>
-                              <p className="text-xs text-muted-foreground">
-                                Last accessed {course.last_accessed_at ? new Date(course.last_accessed_at).toLocaleDateString() : 'Never'}
-                              </p>
+                        <div className="flex-1 flex flex-col justify-between min-w-0">
+                          <div>
+                            <h3 className="font-semibold leading-snug tracking-tight group-hover:text-primary transition-colors line-clamp-2">
+                              {course.title}
+                            </h3>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {course.last_accessed_at
+                                ? `Last watched ${new Date(course.last_accessed_at).toLocaleDateString()}`
+                                : 'Not started'}
+                            </p>
+                          </div>
+                          <div className="mt-2 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Progress value={course.progress || 0} className="h-2 flex-1" />
+                              <span className="text-xs font-medium text-muted-foreground w-10 text-right">
+                                {course.progress || 0}%
+                              </span>
                             </div>
                             <Button
-                              variant="secondary"
+                              variant={index === 0 ? "default" : "secondary"}
                               size="sm"
-                              className="h-8 text-xs"
+                              className="w-full h-9 gap-2"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 window.location.href = `/courses/${course.id}`;
                               }}
                             >
-                              {course.progress === 0 ? 'Start' : course.progress === 100 ? 'Review' : 'Continue'}
+                              <PlayCircle className="h-4 w-4" />
+                              {course.progress === 0 ? 'Start Learning' : course.progress === 100 ? 'Review Course' : 'Continue Learning'}
                             </Button>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                {course.completed_lessons?.length || 0}/{(course.sections?.flatMap(s => s.lessons)?.length || 0)} lessons
-                              </span>
-                              <span>{course.progress || 0}%</span>
-                            </div>
-                            <Progress value={course.progress || 0} className="h-1.5" />
                           </div>
                         </div>
                       </div>
                     </div>
                   ))}
-
-                  {selectedCourse && (
-                    <div className="bg-muted/50 rounded-lg p-4 mt-4">
-                      <h4 className="text-sm font-medium flex items-center gap-1.5 mb-3">
-                        <Brain className="h-4 w-4 text-primary" />
-                        Course Structure for {selectedCourse.title}
-                      </h4>
-                      <div className="grid grid-cols-1 gap-3">
-                        {selectedCourse.sections?.slice(0, 4).map((section, index) => (
-                          <div key={index} className="bg-background rounded p-2">
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="font-medium">Section {index + 1}: {section.title}</span>
-                              <span>{section.lessons?.length || 0} lessons</span>
-                            </div>
-                            <Progress
-                              value={
-                                (selectedCourse.completed_lessons?.filter(
-                                  (lessonId: string) => section.lessons?.some((l: any) => l.id === lessonId)
-                                ).length || 0) / (section.lessons?.length || 1) * 100
-                              }
-                              className="h-1.5"
-                            />
-                          </div>
-                        ))}
-                      </div>
-
-                      {selectedCourse.sections && selectedCourse.sections.length > 4 && (
-                        <div className="mt-2 text-center">
-                          <Button
-                            variant="link"
-                            className="text-xs"
-                            onClick={() => window.location.href = `/courses/${selectedCourse.id}`}
-                          >
-                            View all {selectedCourse.sections.length} sections
-                          </Button>
-                        </div>
-                      )}
-
-                      <div className="mt-4 flex flex-col sm:flex-row gap-4">
-                        <div className="flex-1">
-                          <h5 className="text-xs font-medium flex items-center gap-1.5 mb-2">
-                            <Map className="h-3.5 w-3.5 text-primary" />
-                            Topics Covered
-                          </h5>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedCourse.overview?.skills?.slice(0, 5).map((skill: string, idx: number) => (
-                              <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                                {skill}
-                              </span>
-                            )) || (
-                                <span className="text-xs text-muted-foreground">No topics available</span>
-                              )}
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <h5 className="text-xs font-medium flex items-center gap-1.5 mb-2">
-                            <Lightbulb className="h-3.5 w-3.5 text-primary" />
-                            Difficulty Level
-                          </h5>
-                          <div className="text-xs">
-                            <div className="flex items-center gap-1.5">
-                              <Award className="h-3 w-3 text-primary" />
-                              <span>{selectedCourse.overview?.difficulty_level || 'Beginner'}</span>
-                              <span className="text-muted-foreground">
-                                ({selectedCourse.overview?.total_duration || 'Unknown duration'})
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="text-center py-8 space-y-3">
@@ -541,7 +462,7 @@ export default function DashboardPage() {
                   </div>
                   <h3 className="text-lg font-medium">No courses yet</h3>
                   <p className="text-muted-foreground text-sm">
-                    Start your learning journey by enrolling in a course
+                    Start your learning journey by exploring our courses
                   </p>
                   <Button
                     onClick={() => window.location.href = '/explore'}
@@ -554,6 +475,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
+
           {/* Learning Activity Chart - Fixed height at bottom */}
           <div className="flex-none">
             <EnhancedActivityChart
@@ -562,6 +484,78 @@ export default function DashboardPage() {
               defaultView="weekly"
               title="Learning Activity"
             />
+          </div>
+
+          {/* Recommended For You Section - Moved from right column */}
+          <div className="bg-card rounded-lg border shadow-sm overflow-hidden flex-none">
+            <div className="p-4 flex items-center gap-2 border-b">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h3 className="font-medium text-base">Recommended for You</h3>
+            </div>
+
+            <div className="p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                {[
+                  {
+                    id: 'rec1',
+                    title: 'Introduction to Machine Learning',
+                    level: 'Beginner',
+                    duration: '4h 30m',
+                    lessons: 12,
+                    category: 'Data Science'
+                  },
+                  {
+                    id: 'rec2',
+                    title: 'Web Development Bootcamp',
+                    level: 'Intermediate',
+                    duration: '8h 15m',
+                    lessons: 24,
+                    category: 'Web'
+                  }
+                ].map((course) => (
+                  <div
+                    key={course.id}
+                    className="rounded-md border p-4 hover:border-primary/50 transition-all cursor-pointer bg-card hover:bg-muted/30 h-full flex flex-col justify-between"
+                    onClick={() => window.location.href = '/explore'}
+                  >
+                    <div>
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <h5 className="text-sm font-semibold leading-tight">{course.title}</h5>
+                        <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 shrink-0">
+                          {course.level}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center gap-3 mt-auto text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          {course.duration}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <BookOpen className="h-3.5 w-3.5" />
+                          {course.lessons}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                      <Badge variant="secondary" className="text-[10px] font-normal">
+                        {course.category}
+                      </Badge>
+                      <span className="text-xs text-primary font-medium">Explore</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                className="w-full"
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/explore'}
+              >
+                Explore More Courses
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -574,6 +568,9 @@ export default function DashboardPage() {
 
           {/* Scrollable content area for equal heights */}
           <div className="flex-1 space-y-6 overflow-auto">
+            {/* Spaced Repetition Review Widget */}
+            <SRSReviewWidget />
+
             {/* Recent Notes Section */}
             <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
               <div className="p-4 flex justify-between items-center border-b">
@@ -642,71 +639,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Recommended For You Section */}
-            <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-              <div className="p-4 flex items-center gap-2 border-b">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <h3 className="font-medium text-base">Recommended for You</h3>
-              </div>
-
-              <div className="p-4 space-y-3">
-                {/* Recommended course cards */}
-                {[
-                  {
-                    id: 'rec1',
-                    title: 'Introduction to Machine Learning',
-                    level: 'Beginner',
-                    duration: '4h 30m',
-                    lessons: 12,
-                    category: 'Data Science'
-                  },
-                  {
-                    id: 'rec2',
-                    title: 'Web Development Bootcamp',
-                    level: 'Intermediate',
-                    duration: '8h 15m',
-                    lessons: 24,
-                    category: 'Web'
-                  }
-                ].map((course) => (
-                  <div
-                    key={course.id}
-                    className="rounded-md border p-3 hover:border-primary/50 transition-all cursor-pointer bg-card hover:bg-muted/30"
-                    onClick={() => window.location.href = '/explore'}
-                  >
-                    <div className="flex justify-between items-start">
-                      <h5 className="text-sm font-medium">{course.title}</h5>
-                      <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
-                        {course.level}
-                      </Badge>
-                    </div>
-
-                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {course.duration}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <BookOpen className="h-3 w-3" />
-                        {course.lessons} lessons
-                      </span>
-                      <Badge variant="secondary" className="ml-auto">
-                        {course.category}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = '/explore'}
-                >
-                  Explore More Courses
-                </Button>
-              </div>
-            </div>
           </div>
         </div>
       </div>

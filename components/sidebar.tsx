@@ -25,6 +25,7 @@ import {
   Sun,
   Moon,
   Laptop,
+  Brain,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
@@ -71,6 +72,11 @@ const mainNavigation: NavigationItem[] = [
     title: "Library",
     href: "/library",
     icon: Library,
+  },
+  {
+    title: "Review",
+    href: "/review",
+    icon: Brain,
   },
   {
     title: "Projects",

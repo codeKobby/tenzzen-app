@@ -122,36 +122,39 @@ export function CourseResources({ course }: CourseResourcesProps) {
                     {filteredResources.map((resource, index) => (
                         <div
                             key={index}
-                            className="flex items-start gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                            className="group flex items-center gap-3 p-2.5 rounded-lg border border-border/40 hover:bg-muted/50 transition-all hover:border-primary/20"
                         >
                             <div className={cn(
-                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sm",
                                 getResourceColor(resource.category || "Other Resources")
                             )}>
                                 {getResourceIcon(resource)}
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-medium text-base">{resource.title}</h3>
-                                    <Badge variant="outline" className="text-xs">
-                                        {resource.category || "Resource"}
-                                    </Badge>
+                            <div className="flex-1 min-w-0 flex items-center justify-between gap-4">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-medium text-sm truncate">{resource.title}</h3>
+                                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal bg-muted/60 text-muted-foreground">
+                                            {resource.type || "Link"}
+                                        </Badge>
+                                    </div>
+                                    {resource.description && (
+                                        <p className="text-xs text-muted-foreground truncate opacity-80 group-hover:opacity-100 transition-opacity">
+                                            {resource.description}
+                                        </p>
+                                    )}
                                 </div>
-                                {resource.description && (
-                                    <p className="text-sm text-muted-foreground mt-1">{resource.description}</p>
-                                )}
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-primary hover:text-primary hover:bg-primary/10"
+                                    asChild
+                                >
+                                    <a href={resource.url} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                </Button>
                             </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="shrink-0"
-                                asChild
-                            >
-                                <a href={resource.url} target="_blank" rel="noopener noreferrer">
-                                    <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                                    Open
-                                </a>
-                            </Button>
                         </div>
                     ))}
                 </div>

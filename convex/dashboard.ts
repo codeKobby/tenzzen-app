@@ -205,8 +205,10 @@ export const getLearningActivity = query({
     // Group by date
     const activityByDate: { [date: string]: number } = {};
     activities.forEach((activity) => {
-      const date = activity.createdAt.split("T")[0];
-      activityByDate[date] = (activityByDate[date] || 0) + 1;
+      const date = activity.createdAt?.split("T")[0];
+      if (date) {
+        activityByDate[date] = (activityByDate[date] || 0) + 1;
+      }
     });
 
     return activityByDate;

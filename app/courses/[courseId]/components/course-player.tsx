@@ -347,18 +347,7 @@ export function CoursePlayer({
                         </p>
                     </div>
                 )}
-                {/* Navigation buttons overlay */}
-                <div className="absolute top-1/2 left-2 right-2 flex justify-between -translate-y-1/2">
-                    <Button variant="ghost" onClick={onPrevious} disabled={!hasPrevious}>
-                        <ChevronLeft className="h-4 w-4 mr-2" />
-                        Previous Lesson
-                    </Button>
 
-                    <Button variant={hasNext ? "default" : "ghost"} onClick={onNext} disabled={!hasNext}>
-                        Next Lesson
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                    </Button>
-                </div>
             </div>
 
             {/* Only show tabs and other content if not videoOnly mode */}

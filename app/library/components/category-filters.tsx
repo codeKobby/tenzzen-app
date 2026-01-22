@@ -10,7 +10,7 @@ import {
   Code,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { CategoryFilter } from "../page"
+import { CategoryFilter } from "@/types/notes"
 
 const categories = [
   { id: "all", name: "All Notes", icon: <FileText className="h-4 w-4" /> },

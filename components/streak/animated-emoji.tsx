@@ -83,8 +83,8 @@ export function AnimatedEmoji({ emoji, size = 'lg', className = '' }: AnimatedEm
               setLoading(false);
             })
             .catch(() => {
-              // If even the fallback fails, just show the emoji
-              console.error('Fallback animation also failed, showing static emoji');
+              // If even the fallback fails, just show the static emoji
+              // This can happen if the public/animations folder is missing files
               setLoading(false);
             });
         } else {
