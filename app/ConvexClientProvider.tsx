@@ -5,8 +5,15 @@ import { ConvexProviderWithClerk } from "convex/react-clerk"
 import { ReactNode, useEffect } from "react"
 import { convex } from "@/hooks/use-convex"
 
-if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
-  throw new Error("Missing Clerk Publishable Key")
+const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+if (!publishableKey || publishableKey === 'pk_placeholder_for_build_only') {
+  // During build time, this might occur if env vars aren't set.
+  // We log a critical error to help debugging.
+  console.error("CRITICAL: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is missing or invalid.");
+  if (typeof window === 'undefined') {
+    console.error("Ensure this environment variable is set in your Vercel Project Settings.");
+  }
 }
 
 /**
