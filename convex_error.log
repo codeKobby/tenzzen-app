@@ -1,0 +1,28 @@
+Warning: Unknown property in `convex.json`: `authConfiguration`
+  These properties will be preserved but are not recognized by this version of Convex.
+- Preparing Convex functions...
+
+[31m✖[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/courses.ts[0m:[93m6[0m:[93m7[0m - [91merror[0m[90m TS6133: [0m'paginationOptsValidator' is declared but its value is never read.
+
+[7m6[0m const paginationOptsValidator = v.object({
+[7m [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/courses.ts[0m:[93m347[0m:[93m52[0m - [91merror[0m[90m TS6133: [0m'searchQuery' is declared but its value is never read.
+
+[7m347[0m   handler: async (ctx, { paginationOpts, category, searchQuery }) => {
+[7m   [0m [91m                                                   ~~~~~~~~~~~[0m
+[96mconvex/courses.ts[0m:[93m368[0m:[93m52[0m - [91merror[0m[90m TS6133: [0m'searchQuery' is declared but its value is never read.
+
+[7m368[0m   handler: async (ctx, { paginationOpts, category, searchQuery }) => {
+[7m   [0m [91m                                                   ~~~~~~~~~~~[0m
+
+[96mconvex/courses.ts[0m:[93m389[0m:[93m52[0m - [91merror[0m[90m TS6133: [0m'searchQuery' is declared but its value is never read.
+
+[7m389[0m   handler: async (ctx, { paginationOpts, category, searchQuery }) => {
+[7m   [0m [91m                                                   ~~~~~~~~~~~[0m
+
+
+Found 4 errors in the same file, starting at: convex/courses.ts[90m:6[0m

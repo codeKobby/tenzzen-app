@@ -102,12 +102,15 @@ export function LearningJourneySkeleton({ count = 2 }: { count?: number }) {
 export function RecommendedCoursesSkeleton({ count = 2 }: { count?: number }) {
     return (
         <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-            <div className="p-4 flex items-center gap-2 border-b">
-                <Skeleton className="h-4 w-4 rounded" />
-                <Skeleton className="h-4 w-36" />
+            <div className="p-4 flex items-center justify-between border-b">
+                <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-4 rounded" />
+                    <Skeleton className="h-4 w-36" />
+                </div>
+                <Skeleton className="h-7 w-16 rounded-md" />
             </div>
             <div className="p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {Array.from({ length: count }).map((_, i) => (
                         <div key={i} className="rounded-md border p-4 space-y-3 flex flex-col justify-between">
                             <div>
@@ -127,11 +130,11 @@ export function RecommendedCoursesSkeleton({ count = 2 }: { count?: number }) {
                         </div>
                     ))}
                 </div>
-                <Skeleton className="h-8 w-full rounded-md" />
             </div>
         </div>
     );
 }
+
 
 /**
  * Skeleton for the recent notes section

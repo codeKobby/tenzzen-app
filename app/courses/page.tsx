@@ -273,7 +273,7 @@ export default function CoursesPage() {
                         placeholder="Search your library..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-11 pr-16 h-10 w-full bg-background border border-border focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary rounded-l-full rounded-r-none text-base"
+                        className="pl-11 pr-16 h-10 w-full bg-background border border-border focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary rounded-l-full rounded-r-none text-sm"
                       />
                     </div>
                     <Button

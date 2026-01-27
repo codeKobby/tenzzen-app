@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
+import { ModeToggle } from "@/components/mode-toggle"
 
 export function Header() {
   const pathname = usePathname()
@@ -52,6 +53,7 @@ export function Header() {
                 Explore
               </Link>
             </Button>
+            <ModeToggle />
             {user ? (
               <>
                 <Button
@@ -105,6 +107,7 @@ export function Header() {
                 <Link href="/sign-up">Get Started</Link>
               </Button>
             )}
+            <ModeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

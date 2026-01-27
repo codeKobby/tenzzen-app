@@ -285,17 +285,19 @@ export default function DashboardPage() {
       />
 
       {/* Hero Section */}
-      < div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-primary/90 p-4 sm:p-6 shadow-xl" >
+      {/* Hero Section - Brand Charcoal with subtle border */}
+      <div className="relative overflow-hidden rounded-xl bg-card p-4 sm:p-6 shadow-xl border border-white/5">
         <div className="relative z-10">
           <div className="flex flex-col sm:flex-row gap-6">
             <div className="flex-1 flex items-center">
-              <h1 className="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl lg:text-4xl">
-                {greeting} <span className="text-xl">👋</span> <span className="text-white">{userName}</span>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+                {greeting} <span className="text-xl">👋</span> <span className="text-primary">{userName}</span>
               </h1>
             </div>
 
             <div className="flex flex-col gap-4 flex-1">
-              <div className="rounded-xl bg-white/10 p-4 backdrop-blur-md border border-white/10 shadow-lg">
+              {/* Recessed Streak Badge */}
+              <div className="rounded-xl bg-background/50 p-4 border border-white/5 shadow-inner">
                 <StreakBadge
                   current={streak.current}
                   longest={streak.longest}
@@ -307,9 +309,9 @@ export default function DashboardPage() {
 
               <div className="flex gap-3">
                 <Button
-                  variant="secondary"
+                  variant="default"
                   size="sm"
-                  className="flex-1 h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
+                  className="flex-1 h-10 gap-2 px-4 shadow-lg"
                   onClick={() => setIsCourseModalOpen(true)}
                 >
                   <BookPlus className="h-4 w-4 shrink-0" />
@@ -318,7 +320,7 @@ export default function DashboardPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="flex-1 h-10 gap-2 px-4 bg-white/90 hover:bg-white text-primary hover:text-primary/90 shadow-lg"
+                  className="flex-1 h-10 gap-2 px-4 shadow-sm border border-white/10"
                   onClick={() => window.location.href = '/courses'}
                 >
                   <Sparkles className="h-4 w-4 shrink-0" />
@@ -333,26 +335,27 @@ export default function DashboardPage() {
           {learningStats.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-lg bg-primary-foreground/10 p-3 backdrop-blur-sm"
+              /* Recessed Metric Cards: Darker than the hero surface */
+              className="rounded-lg bg-background/50 border border-white/5 p-3 shadow-inner transition-all hover:bg-background/70"
             >
               <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                <div className="rounded-lg bg-primary-foreground/10 p-2 shrink-0">
-                  <stat.icon className="h-4 w-4 text-primary-foreground" />
+                <div className="rounded-lg bg-primary/10 p-2 shrink-0">
+                  <stat.icon className="h-4 w-4 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-primary-foreground/70 truncate">
+                  <p className="text-xs font-medium text-muted-foreground truncate">
                     {stat.label}
                   </p>
                   <div className="flex items-center gap-2">
-                    <span className="text-base font-bold text-primary-foreground sm:text-lg">
+                    <span className="text-base font-bold text-foreground sm:text-lg">
                       {stat.value}
                     </span>
                     {stat.change && (
                       <span className={
                         `text-xs font-medium flex items-center gap-1 px-1.5 py-0.5 rounded-full
                         ${stat.change.type === "increase"
-                          ? "text-emerald-400 bg-emerald-400/10"
-                          : "text-red-400 bg-red-400/10"}`
+                          ? "text-emerald-500 bg-emerald-500/10 dark:text-emerald-400 dark:bg-emerald-400/10"
+                          : "text-red-500 bg-red-500/10 dark:text-red-400 dark:bg-red-400/10"}`
                       }>
                         {stat.change.value}
                         {stat.change.showTrend && (
@@ -370,7 +373,7 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
-      </div >
+      </div>
 
       <div className="mt-6 grid gap-6 md:grid-cols-3">
         {/* Learning Journey and Activity Chart - Main column moved to the left */}
@@ -488,9 +491,19 @@ export default function DashboardPage() {
 
           {/* Recommended For You Section - Moved from right column */}
           <div className="bg-card rounded-lg border shadow-sm overflow-hidden flex-none">
-            <div className="p-4 flex items-center gap-2 border-b">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <h3 className="font-medium text-base">Recommended for You</h3>
+            <div className="p-4 flex items-center justify-between border-b">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <h3 className="font-medium text-base">Recommended for You</h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => window.location.href = '/explore'}
+              >
+                View All
+              </Button>
             </div>
 
             <div className="p-4">
@@ -546,15 +559,6 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-
-              <Button
-                className="w-full"
-                variant="outline"
-                size="sm"
-                onClick={() => window.location.href = '/explore'}
-              >
-                Explore More Courses
-              </Button>
             </div>
           </div>
         </div>

@@ -593,7 +593,7 @@ export default function CoursePage() {
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   {/* Navigation + Tools Row */}
                   <div className="flex items-center justify-between pt-3 border-t border-border/50">
                     <Button
@@ -606,7 +606,7 @@ export default function CoursePage() {
                       <ChevronLeft className="h-4 w-4" />
                       Previous
                     </Button>
-                    
+
                     <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
@@ -647,7 +647,7 @@ export default function CoursePage() {
                         Resources
                       </TabsTrigger>
                     </TabsList>
-                    
+
                     <TabsContent value="overview" className="p-4 m-0">
                       <div className="space-y-4">
                         <div>
@@ -671,7 +671,7 @@ export default function CoursePage() {
                         )}
                       </div>
                     </TabsContent>
-                    
+
                     <TabsContent value="notes" className="p-4 m-0">
                       <div className="flex flex-col items-center justify-center min-h-[150px] text-center">
                         <StickyNote className="h-8 w-8 text-muted-foreground/50 mb-3" />
@@ -679,7 +679,7 @@ export default function CoursePage() {
                         <p className="text-xs text-muted-foreground mt-1">Your notes will be saved automatically</p>
                       </div>
                     </TabsContent>
-                    
+
                     <TabsContent value="resources" className="p-4 m-0">
                       <CourseResources course={course} />
                     </TabsContent>
@@ -715,7 +715,7 @@ export default function CoursePage() {
                 </TabsList>
 
                 <div className="flex-1 overflow-hidden">
-                  <TabsContent value="outline" className="h-full overflow-y-auto p-3 m-0 data-[state=inactive]:hidden">
+                  <TabsContent value="outline" className="h-full overflow-y-auto p-3 m-0 data-[state=inactive]:hidden scrollbar-thin">
                     {outlineCourse ? (
                       <CourseContent
                         course={outlineCourse}

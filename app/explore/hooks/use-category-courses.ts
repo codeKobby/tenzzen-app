@@ -36,7 +36,10 @@ export function useCategoryCourses(options: UseCategoryCoursesOptions = {}) {
   // 2. Use Paginated Query
   const { results, status, loadMore } = usePaginatedQuery(
     query,
-    {},
+    {
+      category: currentCategory,
+      searchQuery: options.searchQuery,
+    },
     { initialNumItems: numItems },
   );
 
@@ -70,28 +73,8 @@ export function useCategoryCourses(options: UseCategoryCoursesOptions = {}) {
       duration: course.estimatedDuration,
     }));
 
-    // Filter by search/category client-side if needed (for more precision)
-    // NOTE: In a real "bulk" scenario, search should be server-side.
-    // For now, since results is only the current page, this is efficient.
+    // Results are already filtered by server, so we only handle personalization sort here
     let processed = [...mappedCourses];
-
-    if (currentCategory && currentCategory !== "all") {
-      processed = processed.filter(
-        (c) =>
-          c.category?.toLowerCase() === currentCategory.toLowerCase() ||
-          c.category?.toLowerCase().replace(/\s+/g, "-") ===
-            currentCategory.toLowerCase(),
-      );
-    }
-
-    if (options.searchQuery) {
-      const q = options.searchQuery.toLowerCase();
-      processed = processed.filter(
-        (c) =>
-          c.title.toLowerCase().includes(q) ||
-          c.description.toLowerCase().includes(q),
-      );
-    }
 
     // Apply Personalization Weight within the page
     const interestedSet = new Set(
@@ -129,7 +112,6 @@ export function useCategoryCourses(options: UseCategoryCoursesOptions = {}) {
     status,
     categoriesData,
     currentCategory,
-    options.searchQuery,
     options.interestedCategories,
   ]);
 

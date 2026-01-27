@@ -1,6 +1,6 @@
 "use client"
 
-import { useEditor, EditorContent, BubbleMenu, FloatingMenu } from '@tiptap/react'
+import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
@@ -48,6 +48,8 @@ interface RichTextEditorProps {
   className?: string
   autoFocus?: boolean
   minHeight?: string
+  onEditorReady?: (editor: any) => void
+  editorProps?: any
 }
 
 export function RichTextEditor({
@@ -58,6 +60,8 @@ export function RichTextEditor({
   className,
   autoFocus = false,
   minHeight = '200px',
+  onEditorReady,
+  editorProps = {},
 }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState('')
   const [imageUrl, setImageUrl] = useState('')
@@ -106,8 +110,19 @@ export function RichTextEditor({
     content,
     editable,
     autofocus: autoFocus,
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML())
+    },
+    onCreate: ({ editor }) => {
+      onEditorReady?.(editor)
+    },
+    editorProps: {
+      ...editorProps,
+      attributes: {
+        class: 'focus:outline-none',
+        ...editorProps?.attributes,
+      },
     },
   })
 
@@ -119,7 +134,7 @@ export function RichTextEditor({
 
   const setLink = useCallback(() => {
     if (!editor) return
-    
+
     if (linkUrl === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run()
       return
@@ -132,25 +147,25 @@ export function RichTextEditor({
     } else {
       editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
     }
-    
+
     setShowLinkMenu(false)
     setLinkUrl('')
   }, [editor, linkUrl])
 
   const addImage = useCallback(() => {
     if (!editor) return
-    
+
     if (imageUrl) {
       editor.chain().focus().setImage({ src: imageUrl }).run()
     }
-    
+
     setShowImageMenu(false)
     setImageUrl('')
   }, [editor, imageUrl])
 
   const setColor = useCallback(() => {
     if (!editor) return
-    
+
     editor.chain().focus().setColor(selectedColor).run()
   }, [editor, selectedColor])
 
@@ -207,9 +222,9 @@ export function RichTextEditor({
           >
             <Highlighter className="h-4 w-4" />
           </Button>
-          
+
           <Separator orientation="vertical" className="mx-1 h-6" />
-          
+
           <Button
             variant="ghost"
             size="icon"
@@ -237,9 +252,9 @@ export function RichTextEditor({
           >
             <Heading3 className="h-4 w-4" />
           </Button>
-          
+
           <Separator orientation="vertical" className="mx-1 h-6" />
-          
+
           <Button
             variant="ghost"
             size="icon"
@@ -258,9 +273,9 @@ export function RichTextEditor({
           >
             <ListOrdered className="h-4 w-4" />
           </Button>
-          
+
           <Separator orientation="vertical" className="mx-1 h-6" />
-          
+
           <Button
             variant="ghost"
             size="icon"
@@ -288,9 +303,9 @@ export function RichTextEditor({
           >
             <AlignRight className="h-4 w-4" />
           </Button>
-          
+
           <Separator orientation="vertical" className="mx-1 h-6" />
-          
+
           <Popover open={showLinkMenu} onOpenChange={setShowLinkMenu}>
             <PopoverTrigger asChild>
               <Button
@@ -318,7 +333,7 @@ export function RichTextEditor({
               </div>
             </PopoverContent>
           </Popover>
-          
+
           <Popover open={showImageMenu} onOpenChange={setShowImageMenu}>
             <PopoverTrigger asChild>
               <Button
@@ -345,7 +360,7 @@ export function RichTextEditor({
               </div>
             </PopoverContent>
           </Popover>
-          
+
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -372,7 +387,7 @@ export function RichTextEditor({
               </div>
             </PopoverContent>
           </Popover>
-          
+
           <div className="ml-auto flex items-center gap-1">
             <Button
               variant="ghost"
@@ -395,9 +410,9 @@ export function RichTextEditor({
           </div>
         </div>
       )}
-      
-      <EditorContent 
-        editor={editor} 
+
+      <EditorContent
+        editor={editor}
         className={cn(
           'prose dark:prose-invert max-w-none p-4 focus:outline-none',
           'prose-headings:font-bold prose-p:my-2 prose-ul:my-2 prose-ol:my-2',

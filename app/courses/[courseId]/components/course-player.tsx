@@ -26,32 +26,16 @@ import { toast } from "sonner"
 import Markdown from "react-markdown"
 import { Progress } from "@/components/ui/progress"
 import { NormalizedLesson } from "@/hooks/use-normalized-course"
-import { RichTextEditor } from "@/components/rich-text-editor"
+import { LessonNoteEditor } from "./lesson-note-editor"
 import { useAuth } from "@clerk/nextjs"
-import { useNotes } from "@/hooks/use-notes"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { formatDurationFromSeconds } from "@/lib/utils/duration"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Id } from "@/convex/_generated/dataModel"
 
-interface CoursePlayerProps {
-    lesson: NormalizedLesson
-    courseId: string // <-- Add courseId
-    videoOnly?: boolean
-    onComplete?: () => void
-    onNext?: () => void
-    onPrevious?: () => void
-    hasNext?: boolean
-    hasPrevious?: boolean
-    onVideoEnd?: () => void
-    onSeekBeyondLesson?: (targetTime: number) => Promise<boolean>
-}
-
 export function CoursePlayer({
     lesson,
-    courseId, // <-- Add courseId
+    courseId,
     videoOnly = false,
     onComplete,
     onNext,
@@ -66,6 +50,7 @@ export function CoursePlayer({
     const [videoCompleted, setVideoCompleted] = useState(false)
     const [readingProgress, setReadingProgress] = useState(0)
     const [showCompletionPrompt, setShowCompletionPrompt] = useState(false)
+    const [currentTime, setCurrentTime] = useState(0) // Track current video time
     const contentRef = useRef<HTMLDivElement>(null)
 
     // Auth & Data Fetching
@@ -76,26 +61,10 @@ export function CoursePlayer({
     )
     const updateUserProgress = useMutation(api.userProgress.updateUserProgress)
 
-    // Notes state
-    const [noteContent, setNoteContent] = useState("")
-    const [noteTitle, setNoteTitle] = useState("")
-    const [isCreatingNote, setIsCreatingNote] = useState(false)
-    const [isSavingNote, setIsSavingNote] = useState(false)
-    const [showNewNoteForm, setShowNewNoteForm] = useState(false)
-
-    // Use the notes hook to fetch and manage notes for this lesson
-    const {
-        notes: lessonNotes,
-        loading: notesLoading,
-        createNote,
-        updateNote
-    } = useNotes({
-        lessonId: lesson.id,
-        autoRefresh: false
-    })
-
-    // Handle time updates from the video player to persist progress
+    // Handle time updates from the video player
     const handleTimeUpdate = (time: number) => {
+        setCurrentTime(time) // Update local state for notes
+
         if (!userId || !courseId) return
 
         // Persist playback using stable lesson id instead of ambiguous numeric index
@@ -106,6 +75,13 @@ export function CoursePlayer({
                 time: Math.round(time)
             }
         })
+    }
+
+    // Handle seeking video from notes
+    const handleSeek = (time: number) => {
+        setResumeStartTime(time)
+        // Note: setting resumeStartTime triggers YouTubeEmbed to reload/seek
+        // In a more advanced implementation, we might expose a seekTo method on YouTubeEmbed
     }
 
     // Extract video ID from lesson data
@@ -267,55 +243,11 @@ export function CoursePlayer({
         )
     }
 
-    // Handle note content change
-    const handleNoteContentChange = (content: string) => {
-        setNoteContent(content)
-    }
 
-    // Handle creating a new note
-    const handleCreateNote = async () => {
-        if (!isSignedIn) {
-            toast.error("Please sign in to save notes")
-            return
-        }
 
-        if (!noteTitle.trim()) {
-            toast.error("Please enter a note title")
-            return
-        }
 
-        try {
-            setIsSavingNote(true)
 
-            const newNote = await createNote({
-                title: noteTitle,
-                content: noteContent,
-                category: "course",
-                lessonId: lesson.id,
-                courseId: lesson.courseId,
-                tags: ["lesson-note"]
-            })
 
-            if (newNote) {
-                toast.success("Note saved successfully")
-                setShowNewNoteForm(false)
-                setNoteTitle("")
-                setNoteContent("")
-            }
-        } catch (error) {
-            console.error("Error creating note:", error)
-            toast.error("Failed to save note")
-        } finally {
-            setIsSavingNote(false)
-        }
-    }
-
-    // Load saved notes when the lesson changes
-    useEffect(() => {
-        // Initialize with empty content for new notes
-        setNoteContent("")
-        setNoteTitle(`Notes: ${lesson.title}`)
-    }, [lesson.id, lesson.title])
 
     // Handle marking lesson as completed
     const handleCompleteLesson = () => {
@@ -380,124 +312,14 @@ export function CoursePlayer({
                         </TabsContent>
 
                         <TabsContent value="notes" className="min-h-[400px]">
-                            <div className="h-full max-h-[500px] border rounded-md p-4 flex flex-col bg-card">
-                                {!isSignedIn ? (
-                                    <div className="flex flex-col items-center justify-center h-full">
-                                        <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                                        <h3 className="font-medium mb-2">Sign in to take notes</h3>
-                                        <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
-                                            Sign in to create and save notes for this lesson. Your notes will be accessible from your library.
-                                        </p>
-                                        <Button asChild>
-                                            <a href="/sign-in">Sign In</a>
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {showNewNoteForm ? (
-                                            <div className="flex flex-col h-full">
-                                                <div className="mb-4">
-                                                    <Label htmlFor="note-title">Note Title</Label>
-                                                    <Input
-                                                        id="note-title"
-                                                        value={noteTitle}
-                                                        onChange={(e) => setNoteTitle(e.target.value)}
-                                                        placeholder="Enter a title for your note"
-                                                        className="mb-2"
-                                                    />
-                                                </div>
-                                                <div className="flex-1 min-h-[300px]">
-                                                    <RichTextEditor
-                                                        content={noteContent}
-                                                        onChange={handleNoteContentChange}
-                                                        placeholder="Write your notes for this lesson here..."
-                                                        minHeight="300px"
-                                                    />
-                                                </div>
-                                                <div className="flex justify-end gap-2 mt-4">
-                                                    <Button
-                                                        variant="outline"
-                                                        onClick={() => setShowNewNoteForm(false)}
-                                                    >
-                                                        Cancel
-                                                    </Button>
-                                                    <Button
-                                                        onClick={handleCreateNote}
-                                                        disabled={isSavingNote || !noteTitle.trim()}
-                                                    >
-                                                        {isSavingNote ? (
-                                                            <>Saving...</>
-                                                        ) : (
-                                                            <>
-                                                                <Save className="h-4 w-4 mr-1" />
-                                                                Save Note
-                                                            </>
-                                                        )}
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                {notesLoading ? (
-                                                    <div className="flex items-center justify-center h-full">
-                                                        <p className="text-muted-foreground">Loading notes...</p>
-                                                    </div>
-                                                ) : lessonNotes.length > 0 ? (
-                                                    <div className="space-y-4">
-                                                        <div className="flex justify-between items-center">
-                                                            <h3 className="font-medium">Your Notes for This Lesson</h3>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => setShowNewNoteForm(true)}
-                                                            >
-                                                                <Plus className="h-4 w-4 mr-1" />
-                                                                New Note
-                                                            </Button>
-                                                        </div>
-                                                        <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                                                            {lessonNotes.map((note) => (
-                                                                <Card key={note.id} className="overflow-hidden">
-                                                                    <CardContent className="p-4">
-                                                                        <h4 className="font-medium mb-2">{note.title}</h4>
-                                                                        <div
-                                                                            className="prose dark:prose-invert max-w-none text-sm line-clamp-3"
-                                                                            dangerouslySetInnerHTML={{ __html: note.content }}
-                                                                        />
-                                                                        <div className="flex justify-end mt-2">
-                                                                            <Button
-                                                                                variant="link"
-                                                                                size="sm"
-                                                                                asChild
-                                                                                className="h-8 px-2"
-                                                                            >
-                                                                                <a href={`/library/${note.id}`} target="_blank">
-                                                                                    View Full Note
-                                                                                </a>
-                                                                            </Button>
-                                                                        </div>
-                                                                    </CardContent>
-                                                                </Card>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col items-center justify-center h-full">
-                                                        <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                                                        <h3 className="font-medium mb-2">No Notes Yet</h3>
-                                                        <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
-                                                            You haven't created any notes for this lesson yet. Create your first note to keep track of important information.
-                                                        </p>
-                                                        <Button onClick={() => setShowNewNoteForm(true)}>
-                                                            <Plus className="h-4 w-4 mr-1" />
-                                                            Create Note
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </>
-                                )}
+                            <div className="h-full border rounded-md overflow-hidden bg-card">
+                                <LessonNoteEditor
+                                    courseId={courseId}
+                                    lessonId={lesson.id}
+                                    lessonTitle={lesson.title}
+                                    currentTime={currentTime}
+                                    onSeek={handleSeek}
+                                />
                             </div>
                         </TabsContent>
 

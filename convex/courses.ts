@@ -2,12 +2,12 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getUserId } from "./helpers";
 
-// Manual pagination options validator (matches usePaginatedQuery client options)
-const paginationOptsValidator = v.object({
-  cursor: v.union(v.string(), v.null()),
-  numItems: v.number(),
-  id: v.optional(v.number()), // Added for usePaginatedQuery compatibility
-});
+// Pagination options validator (not directly used in query args if using v.any(), but good for reference)
+// const paginationOptsValidator = v.object({
+//   cursor: v.union(v.string(), v.null()),
+//   numItems: v.number(),
+//   id: v.optional(v.number()),
+// });
 
 // Mutation to create a complete course with modules and lessons
 export const createAICourse = mutation({
@@ -302,48 +302,130 @@ export const getNewCourses = query({
 // ============================================
 
 export const getPublicCoursesPaginated = query({
-  args: { paginationOpts: paginationOptsValidator },
-  handler: async (ctx, { paginationOpts }) => {
-    return await ctx.db
+  args: {
+    paginationOpts: v.any(),
+    category: v.optional(v.any()),
+    searchQuery: v.optional(v.any()),
+  },
+  handler: async (ctx, { paginationOpts, category, searchQuery }) => {
+    if (searchQuery) {
+      return await ctx.db
+        .query("courses")
+        .withSearchIndex("search_title", (q) =>
+          q.search("title", searchQuery).eq("isPublic", true),
+        )
+        .paginate(paginationOpts);
+    }
+
+    let q = ctx.db
       .query("courses")
-      .withIndex("by_public", (q) =>
-        q.eq("isPublic", true).eq("isPublished", true),
-      )
-      .order("desc")
-      .paginate(paginationOpts);
+      .withIndex("by_public", (q) => q.eq("isPublic", true));
+
+    if (category && category !== "all") {
+      q = q.filter((q_field) =>
+        q_field.or(
+          q_field.eq(q_field.field("category"), category),
+          q_field.eq(q_field.field("category"), category.replace(/-/g, " ")),
+          q_field.eq(
+            q_field.field("category"),
+            category.charAt(0).toUpperCase() +
+              category.slice(1).replace(/-/g, " "),
+          ),
+        ),
+      );
+    }
+
+    return await q.order("desc").paginate(paginationOpts);
   },
 });
 
 export const getTrendingCoursesPaginated = query({
-  args: { paginationOpts: paginationOptsValidator },
-  handler: async (ctx, { paginationOpts }) => {
-    return await ctx.db
+  args: {
+    paginationOpts: v.any(),
+    category: v.optional(v.any()),
+    searchQuery: v.optional(v.any()),
+  },
+  handler: async (ctx, { paginationOpts, category, searchQuery }) => {
+    if (searchQuery) {
+      return await ctx.db
+        .query("courses")
+        .withSearchIndex("search_title", (q) =>
+          q.search("title", searchQuery).eq("isPublic", true),
+        )
+        .paginate(paginationOpts);
+    }
+
+    let q = ctx.db
       .query("courses")
-      .withIndex("by_enrollment", (q) => q.eq("isPublic", true))
-      .order("desc")
-      .paginate(paginationOpts);
+      .withIndex("by_enrollment", (q) => q.eq("isPublic", true));
+
+    if (category && category !== "all") {
+      q = q.filter((q_f) =>
+        q_f.eq(q_f.field("category"), category.replace(/-/g, " ")),
+      );
+    }
+
+    return await q.order("desc").paginate(paginationOpts);
   },
 });
 
 export const getTopRatedCoursesPaginated = query({
-  args: { paginationOpts: paginationOptsValidator },
-  handler: async (ctx, { paginationOpts }) => {
-    return await ctx.db
+  args: {
+    paginationOpts: v.any(),
+    category: v.optional(v.any()),
+    searchQuery: v.optional(v.any()),
+  },
+  handler: async (ctx, { paginationOpts, category, searchQuery }) => {
+    if (searchQuery) {
+      return await ctx.db
+        .query("courses")
+        .withSearchIndex("search_title", (q) =>
+          q.search("title", searchQuery).eq("isPublic", true),
+        )
+        .paginate(paginationOpts);
+    }
+
+    let q = ctx.db
       .query("courses")
-      .withIndex("by_upvotes", (q) => q.eq("isPublic", true))
-      .order("desc")
-      .paginate(paginationOpts);
+      .withIndex("by_upvotes", (q) => q.eq("isPublic", true));
+
+    if (category && category !== "all") {
+      q = q.filter((q_f) =>
+        q_f.eq(q_f.field("category"), category.replace(/-/g, " ")),
+      );
+    }
+
+    return await q.order("desc").paginate(paginationOpts);
   },
 });
 
 export const getNewCoursesPaginated = query({
-  args: { paginationOpts: paginationOptsValidator },
-  handler: async (ctx, { paginationOpts }) => {
-    return await ctx.db
+  args: {
+    paginationOpts: v.any(),
+    category: v.optional(v.any()),
+    searchQuery: v.optional(v.any()),
+  },
+  handler: async (ctx, { paginationOpts, category, searchQuery }) => {
+    if (searchQuery) {
+      return await ctx.db
+        .query("courses")
+        .withSearchIndex("search_title", (q) =>
+          q.search("title", searchQuery).eq("isPublic", true),
+        )
+        .paginate(paginationOpts);
+    }
+
+    let q = ctx.db
       .query("courses")
-      .withIndex("by_creation", (q) => q.eq("isPublic", true))
-      .order("desc")
-      .paginate(paginationOpts);
+      .withIndex("by_creation", (q) => q.eq("isPublic", true));
+
+    if (category && category !== "all") {
+      q = q.filter((q_f) =>
+        q_f.eq(q_f.field("category"), category.replace(/-/g, " ")),
+      );
+    }
+
+    return await q.order("desc").paginate(paginationOpts);
   },
 });
 
@@ -481,5 +563,46 @@ export const getNewCoursesCount = query({
       .collect();
 
     return enrollments.length;
+  },
+});
+
+export const getCourseStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const allCourses = await ctx.db.query("courses").collect();
+    return {
+      total: allCourses.length,
+      public: allCourses.filter((c) => c.isPublic).length,
+      published: allCourses.filter((c) => c.isPublished).length,
+      publicAndPublished: allCourses.filter((c) => c.isPublic && c.isPublished)
+        .length,
+    };
+  },
+});
+
+// Mutation to set course visibility (public/published)
+export const setCourseVisibility = mutation({
+  args: {
+    courseId: v.id("courses"),
+    isPublic: v.boolean(),
+    isPublished: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.courseId, {
+      isPublic: args.isPublic,
+      isPublished: args.isPublished,
+    });
+    return { success: true };
+  },
+});
+
+export const updateCourse = mutation({
+  args: {
+    courseId: v.id("courses"),
+    fields: v.any(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.courseId, args.fields);
+    return { success: true };
   },
 });

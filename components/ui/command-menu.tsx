@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,7 @@ export function CommandMenu({
   const filteredItems = React.useMemo(() => {
     const searchLower = search.toLowerCase();
     return items
-      .filter(item => 
+      .filter(item =>
         item.label.toLowerCase().includes(searchLower) ||
         item.group?.toLowerCase().includes(searchLower)
       )
@@ -54,6 +54,7 @@ export function CommandMenu({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn("p-0", className)}>
+        <DialogTitle className="sr-only">Command Menu</DialogTitle>
         <div className="flex items-center border-b p-2">
           <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
           <Input

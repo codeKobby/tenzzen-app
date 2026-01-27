@@ -62,7 +62,7 @@ export function StreakBadge({
                         {badgeLabel}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-primary-foreground/60 italic">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-white/60 italic">
                             Personal Best: {longest}
                         </span>
                     </div>
@@ -70,12 +70,12 @@ export function StreakBadge({
             </div>
 
             <div className="flex-1 border-l border-white/10 pl-4 flex flex-col justify-center gap-1.5">
-                <div className="flex items-center gap-2 text-xs font-medium text-primary-foreground/90">
+                <div className="flex items-center gap-2 text-xs font-medium text-white/90">
                     <Timer className="h-3.5 w-3.5 text-yellow-300" />
                     <span>{todayMinutes}m today</span>
                     {todayMinutes > 0 && <AnimatedEmoji emoji="⭐" size="sm" />}
                 </div>
-                <div className="flex items-center gap-2 text-xs font-medium text-primary-foreground/90">
+                <div className="flex items-center gap-2 text-xs font-medium text-white/90">
                     <ListChecks className="h-3.5 w-3.5 text-green-300" />
                     <span>{todayTasks} tasks done</span>
                     {todayTasks > 0 && <AnimatedEmoji emoji="✅" size="sm" />}

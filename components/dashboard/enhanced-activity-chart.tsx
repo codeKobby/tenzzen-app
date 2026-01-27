@@ -163,17 +163,19 @@ export function EnhancedActivityChart({
                 increase: "#10b981", // Green for positive trends
                 decrease: "#ef4444", // Red for negative trends
                 areaFill: "rgba(37, 99, 235, 0.1)", // Very light blue for area
+                text: "#64748b", // Slate-500 for axis text in light mode
             },
             dark: {
                 primary: "#3b82f6", // Brighter blue for dark mode
                 primaryGradientStart: "rgba(59, 130, 246, 1)",
                 primaryGradientEnd: "rgba(96, 165, 250, 0.6)",
                 secondary: "rgba(96, 165, 250, 0.8)", // Translucent primary
-                reference: "#9ca3af", // Lighter gray for reference line in dark mode
-                grid: "#374151", // Dark gray for grid
-                increase: "#10b981", // Green for positive trends
-                decrease: "#ef4444", // Red for negative trends
+                reference: "#94a3b8", // Slate-400 for reference line
+                grid: "#1e293b", // Slate-800 for grid (subtle but visible)
+                increase: "#34d399", // Emerald-400
+                decrease: "#f87171", // Red-400
                 areaFill: "rgba(59, 130, 246, 0.1)", // Very light blue for area
+                text: "#94a3b8", // Slate-400 for axis text
             }
         };
 
@@ -231,17 +233,17 @@ export function EnhancedActivityChart({
 
                         <div className="flex items-center gap-4 flex-wrap">
                             <div className="flex items-center gap-3">
-                                <div className="text-sm px-2 py-1 rounded-md bg-background border shadow-sm">
+                                <div className="text-sm px-2 py-1 rounded-md bg-background border shadow-sm flex items-center">
                                     <span className="text-muted-foreground mr-1">Total:</span>
-                                    <span className="font-medium tabular-nums">
+                                    <span className="font-medium tabular-nums text-foreground">
                                         {activeView === "weekly" ? weeklyTotal : monthlyTotal} hrs
                                     </span>
                                 </div>
 
                                 {showAverage && (
-                                    <div className="text-sm px-2 py-1 rounded-md bg-background border shadow-sm">
+                                    <div className="text-sm px-2 py-1 rounded-md bg-background border shadow-sm flex items-center">
                                         <span className="text-muted-foreground mr-1">Avg:</span>
-                                        <span className="font-medium tabular-nums">
+                                        <span className="font-medium tabular-nums text-foreground">
                                             {activeView === "weekly" ? weeklyAverage : monthlyAverage} hrs/day
                                         </span>
                                     </div>
@@ -251,11 +253,18 @@ export function EnhancedActivityChart({
                             <div className="flex items-center">
                                 {/* Trend indicator */}
                                 <div className={cn(
-                                    "text-xs px-2 py-1 rounded-full flex items-center gap-1",
+                                    "text-xs px-2 py-1 rounded-full flex items-center gap-1 transition-colors",
                                     activeView === "weekly"
-                                        ? (weeklyTrend > 0 ? "bg-green-100 text-green-700" : weeklyTrend < 0 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700")
-                                        : (monthlyTrend > 0 ? "bg-green-100 text-green-700" : monthlyTrend < 0 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"),
-                                    isDark && "bg-opacity-20"
+                                        ? (weeklyTrend > 0
+                                            ? "bg-green-100 text-green-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                                            : weeklyTrend < 0
+                                                ? "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
+                                                : "bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300")
+                                        : (monthlyTrend > 0
+                                            ? "bg-green-100 text-green-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                                            : monthlyTrend < 0
+                                                ? "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
+                                                : "bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300"),
                                 )}>
                                     {activeView === "weekly" ? (
                                         weeklyTrend > 0 ? (
@@ -309,14 +318,14 @@ export function EnhancedActivityChart({
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} opacity={0.5} />
                                 <XAxis
                                     dataKey="name"
-                                    tick={{ fontSize: 12 }}
+                                    tick={{ fontSize: 12, fill: colors.text }}
                                     tickLine={false}
                                     axisLine={{ stroke: colors.grid }}
                                     style={{ fontSize: "12px" }}
                                     dy={10}
                                 />
                                 <YAxis
-                                    tick={{ fontSize: 12 }}
+                                    tick={{ fontSize: 12, fill: colors.text }}
                                     tickLine={false}
                                     axisLine={false}
                                     style={{ fontSize: "12px" }}
@@ -381,7 +390,7 @@ export function EnhancedActivityChart({
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} opacity={0.5} />
                                 <XAxis
                                     dataKey="name"
-                                    tick={{ fontSize: 12 }}
+                                    tick={{ fontSize: 12, fill: colors.text }}
                                     tickLine={false}
                                     axisLine={{ stroke: colors.grid }}
                                     style={{ fontSize: "12px" }}
@@ -389,7 +398,7 @@ export function EnhancedActivityChart({
                                     interval={monthlyData.length > 15 ? 1 : 0}
                                 />
                                 <YAxis
-                                    tick={{ fontSize: 12 }}
+                                    tick={{ fontSize: 12, fill: colors.text }}
                                     tickLine={false}
                                     axisLine={false}
                                     style={{ fontSize: "12px" }}

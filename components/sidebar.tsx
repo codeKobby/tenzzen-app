@@ -25,12 +25,16 @@ import {
   Sun,
   Moon,
   Laptop,
+
   Brain,
+  BookA,
 } from "lucide-react"
+import { GlobalSearch } from "@/components/global-search"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import { useTheme } from "next-themes"
 import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,6 +93,11 @@ const mainNavigation: NavigationItem[] = [
     href: "/explore",
     icon: Compass,
   },
+  {
+    title: "Glossary",
+    href: "/glossary",
+    icon: BookA,
+  },
 ]
 
 const billingNavigation: NavigationItem[] = [
@@ -120,7 +129,6 @@ export function Sidebar({ className }: { className?: string }) {
   const { user } = useUser()
   const { theme, setTheme } = useTheme()
   const [isMobile, setIsMobile] = React.useState(false)
-  const [systemTheme, setSystemTheme] = React.useState<'light' | 'dark'>('light')
   const [mounted, setMounted] = React.useState(false)
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = React.useState(false)
 
@@ -134,14 +142,6 @@ export function Sidebar({ className }: { className?: string }) {
   React.useEffect(() => {
     setMounted(true)
 
-    // Detect system theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    const updateSystemTheme = (e: MediaQueryListEvent | MediaQueryList) => {
-      setSystemTheme(e.matches ? 'dark' : 'light')
-    }
-    updateSystemTheme(mediaQuery)
-    mediaQuery.addEventListener('change', updateSystemTheme)
-
     // Check mobile
     const checkMobile = () => {
       const isMobileView = window.innerWidth < 1024
@@ -151,7 +151,6 @@ export function Sidebar({ className }: { className?: string }) {
     window.addEventListener('resize', checkMobile)
 
     return () => {
-      mediaQuery.removeEventListener('change', updateSystemTheme)
       window.removeEventListener('resize', checkMobile)
     }
   }, [])
@@ -193,8 +192,8 @@ export function Sidebar({ className }: { className?: string }) {
           !isActive && "hover:bg-primary/10",
           "touch-action-manipulation focus-visible:outline-none group",
           isActive && [
-            "bg-primary text-primary-foreground",
-            "before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary-foreground/80",
+            "bg-[#334155] text-white", // Slate-700 background, White text
+            "before:absolute before:inset-y-1.5 before:left-0 before:w-1 before:rounded-r-full before:bg-white", // White indicator
           ]
         )}
       >
@@ -202,12 +201,12 @@ export function Sidebar({ className }: { className?: string }) {
           className={cn(
             "h-4 w-4",
             "transition-colors duration-200",
-            isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"
+            isActive ? "text-white" : "text-muted-foreground group-hover:text-primary"
           )}
         />
         <span className={cn(
           "text-sm font-medium",
-          isActive ? "text-primary-foreground" : "text-foreground",
+          isActive ? "text-white" : "text-foreground",
           !isOpen && "hidden"
         )}>
           {item.title}
@@ -234,7 +233,7 @@ export function Sidebar({ className }: { className?: string }) {
         {item.isPro && (
           <Crown className={cn(
             "ml-auto h-3.5 w-3.5",
-            isActive ? "text-background/80" : "text-yellow-500",
+            isActive ? "text-background/80" : "text-primary",
             !isOpen && "lg:block hidden"
           )} />
         )}
@@ -309,13 +308,18 @@ export function Sidebar({ className }: { className?: string }) {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 pt-2 scrollbar-none">
-            <nav className="space-y-3">
-              <NavigationGroup items={mainNavigation} />
-              <Separator className="my-4" />
-              <NavigationGroup items={[...billingNavigation, ...settingsNavigation]} />
-            </nav>
-          </div>
+          <ScrollArea className="flex-1">
+            <div className="px-4 pt-2">
+              <div className="mb-4">
+                <GlobalSearch />
+              </div>
+              <nav className="space-y-3">
+                <NavigationGroup items={mainNavigation} />
+                <Separator className="my-4" />
+                <NavigationGroup items={[...billingNavigation, ...settingsNavigation]} />
+              </nav>
+            </div>
+          </ScrollArea>
 
           <div className="px-4 py-4 space-y-3">
             <div className={cn(
@@ -323,12 +327,12 @@ export function Sidebar({ className }: { className?: string }) {
               "bg-gradient-to-br from-primary/10 via-primary/5 to-transparent"
             )}>
               <div className="flex items-start gap-2">
-                <Crown className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />
+                <Crown className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <div className="space-y-1.5">
                   <div>
                     <div className="flex items-center gap-1.5">
                       <p className="text-xs font-medium">Upgrade to Pro</p>
-                      <span className="text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-px rounded-full">
+                      <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-px rounded-full">
                         50% OFF
                       </span>
                     </div>
@@ -338,7 +342,7 @@ export function Sidebar({ className }: { className?: string }) {
                   </div>
                   <Button
                     size="sm"
-                    className="w-full text-xs font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                    className="w-full text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground border-0"
                   >
                     Upgrade Now
                   </Button>
@@ -352,59 +356,33 @@ export function Sidebar({ className }: { className?: string }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start text-xs group"
+                    className="w-full justify-start text-xs group relative"
                   >
-                    {theme === 'dark' || (theme === 'system' && systemTheme === 'dark') ? (
-                      <Moon className="h-3.5 w-3.5 group-hover:text-primary" />
-                    ) : theme === 'light' || (theme === 'system' && systemTheme === 'light') ? (
-                      <Sun className="h-3.5 w-3.5 group-hover:text-primary" />
-                    ) : (
-                      <Laptop className="h-3.5 w-3.5 group-hover:text-primary" />
-                    )}
-                    <span className="ml-2">Theme</span>
-                    <span className="ml-auto text-muted-foreground">
-                      {theme === 'system'
-                        ? `System (${systemTheme === 'dark' ? 'Dark' : 'Light'})`
-                        : theme === 'dark' ? 'Dark' : 'Light'
-                      }
+                    <div className="relative mr-2 h-4 w-4">
+                      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 group-hover:text-primary" />
+                      <Moon className="absolute top-0 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 group-hover:text-primary" />
+                    </div>
+                    <span className={cn("transition-opacity duration-300", !isOpen && "sr-only opacity-0 w-0")}>
+                      Theme
+                    </span>
+                    <span className={cn("ml-auto text-muted-foreground transition-opacity duration-300", !isOpen && "opacity-0 w-0 hidden")}>
+                      {theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[180px] p-2">
-                  <div className="flex flex-col gap-2">
-                    <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-2">
-                      Mode
-                    </h4>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn("flex-1 gap-1", theme === 'system' && "bg-accent")}
-                        onClick={() => setTheme('system')}
-                      >
-                        <Laptop className="h-3.5 w-3.5" />
-                        <span className="text-xs">System</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn("flex-1 gap-1", theme === 'light' && "bg-accent")}
-                        onClick={() => setTheme('light')}
-                      >
-                        <Sun className="h-3.5 w-3.5" />
-                        <span className="text-xs">Light</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn("flex-1 gap-1", theme === 'dark' && "bg-accent")}
-                        onClick={() => setTheme('dark')}
-                      >
-                        <Moon className="h-3.5 w-3.5" />
-                        <span className="text-xs">Dark</span>
-                      </Button>
-                    </div>
-                  </div>
+                <DropdownMenuContent align="end" className="w-[180px]">
+                  <DropdownMenuItem onClick={() => setTheme("light")}>
+                    <Sun className="mr-2 h-4 w-4" />
+                    <span>Light</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme("dark")}>
+                    <Moon className="mr-2 h-4 w-4" />
+                    <span>Dark</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme("system")}>
+                    <Laptop className="mr-2 h-4 w-4" />
+                    <span>System</span>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

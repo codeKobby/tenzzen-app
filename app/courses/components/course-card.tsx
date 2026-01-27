@@ -405,7 +405,7 @@ export function CourseCard({
           />
         ) : (
           <Image
-            src={course.image || course.thumbnail || "/placeholders/course-thumbnail.jpg"}
+            src={course.image || course.thumbnail || "/placeholder-thumbnail.jpg"}
             alt={course.title}
             fill
             className={cn(
@@ -546,31 +546,48 @@ export function CourseCard({
         </div>
 
         {/* Duration and Lessons Metadata - clean subtle display */}
-        {!selectionMode && variant === "default" && (
-          <div className="flex items-center gap-3 text-muted-foreground text-[11px]">
-            {shortDuration && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {shortDuration}
-              </span>
-            )}
-            {getTotalLessons() > 0 && (
-              <span className="flex items-center gap-1">
-                <BookOpen className="h-3 w-3" />
-                {getTotalLessons()} lessons
-              </span>
-            )}
-            {course.progress !== undefined && course.progress > 0 && (
-              <span className="text-primary font-medium">
-                {course.progress}% complete
-              </span>
+        {!selectionMode && (
+          <div className="flex flex-col gap-1.5 text-muted-foreground text-[11px] mt-1">
+            {/* Primary Details: Duration, Lessons, Progress */}
+            <div className="flex items-center gap-3">
+              {shortDuration && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {shortDuration}
+                </span>
+              )}
+              {getTotalLessons() > 0 && (
+                <span className="flex items-center gap-1">
+                  <BookOpen className="h-3 w-3" />
+                  {getTotalLessons()} lessons
+                </span>
+              )}
+              {variant === "default" && course.progress !== undefined && course.progress > 0 && (
+                <span className="text-primary font-medium">
+                  {course.progress}% complete
+                </span>
+              )}
+            </div>
+
+            {/* Explore Variant Details: Rating & Enrollment */}
+            {variant === "explore" && (
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1 text-yellow-500/90 font-medium">
+                  <ThumbsUp className="h-3 w-3" />
+                  {course.rating ? course.rating.toFixed(1) : "New"}
+                </span>
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <span className="h-1 w-1 rounded-full bg-border" />
+                  {course.enrolledCount !== undefined ? course.enrolledCount.toLocaleString() : 0} enrolled
+                </span>
+              </div>
             )}
           </div>
         )}
 
         {/* Sources and Stats Row - hide in selection mode */}
-        {!selectionMode && (
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-[11px]">
+        {!selectionMode && variant === "default" && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-[11px] mt-1">
             {courseSources.length > 0 && (
               <>
                 <span className="shrink-0">Sources:</span>

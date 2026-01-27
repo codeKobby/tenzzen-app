@@ -91,7 +91,16 @@ export default defineSchema({
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_course", ["courseId"])
-    .index("by_clerk_and_category", ["clerkId", "category"]),
+
+    .index("by_clerk_and_category", ["clerkId", "category"])
+    .searchIndex("search_content", {
+      searchField: "content",
+      filterFields: ["clerkId", "category"],
+    })
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["clerkId", "category"],
+    }),
 
   // Videos table - for caching individual videos
   videos: defineTable({
@@ -194,7 +203,11 @@ export default defineSchema({
     .index("by_category", ["categoryId"])
     .index("by_enrollment", ["isPublic", "enrollmentCount"])
     .index("by_upvotes", ["isPublic", "upvoteCount"])
-    .index("by_creation", ["isPublic", "createdAt"]),
+    .index("by_creation", ["isPublic", "createdAt"])
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["isPublic", "category"],
+    }),
 
   // Course modules
   modules: defineTable({
@@ -513,5 +526,35 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_category", ["userId", "category"])
-    .index("by_user_recent", ["userId", "lastStudiedAt"]),
+
+    .index("by_user_recent", ["userId", "lastStudiedAt"])
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["userId"],
+    }),
+
+  // Glossary table for user terms and definitions
+  glossary: defineTable({
+    userId: v.string(), // Clerk user ID
+    term: v.string(),
+    definition: v.string(),
+
+    // Optional source tracing
+    sourceId: v.optional(v.string()),
+    sourceType: v.union(
+      v.literal("lesson"),
+      v.literal("material"),
+      v.literal("manual"),
+    ),
+    tags: v.optional(v.array(v.string())),
+
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_term", ["userId", "term"])
+    .searchIndex("search_term", {
+      searchField: "term",
+      filterFields: ["userId"],
+    }),
 });
