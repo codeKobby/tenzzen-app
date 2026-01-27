@@ -12,7 +12,7 @@ import {
 } from "@/lib/server/transcript-cache";
 
 export const runtime = "nodejs";
-export const maxDuration = 300; // 5 minutes max
+export const maxDuration = 60; // 60 seconds max (Vercel Hobby plan limit)
 
 interface StreamMessage {
   type: "progress" | "partial" | "complete" | "error";
